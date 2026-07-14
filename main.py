@@ -1,3 +1,5 @@
+from src.api import client
+import json
 from src.api.client import GameClient
 from src.ui.dashboard import Dashboard
 
@@ -22,6 +24,18 @@ def main():
 
     print("5. Requesting Player...")
     player = client.get_player()
+
+    print("6. Requesting Sector...")
+    sector = client.get_sector()
+
+    print("Sector endpoint reached.")
+    print(type(sector))
+    print(sector.keys())
+
+    with open("sector_snapshot.json", "w") as file:
+        json.dump(sector, file, indent=4)
+
+    print("Sector snapshot saved.")
 
     dashboard = Dashboard()
     dashboard.display(player)

@@ -6,6 +6,9 @@ dist/
 wheels/
 *.egg-info
 
+# Snapshot data
+data/snapshots/*.json
+
 # Virtual environments
 .venv
 
