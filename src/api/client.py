@@ -29,13 +29,16 @@ class GameClient:
             headers=self.headers,
             timeout=30,
         )
-    
-
-        if not response.ok:
-            print(f"HTTP {response.status_code}")
-            print(response.text)
 
         response.raise_for_status()
-
         return response.json()
-    
+
+    def get_sector(self):
+        response = requests.get(
+            f"{self.base_url}/api/probe/sector",
+            headers=self.headers,
+            timeout=30,
+        )
+
+        response.raise_for_status()
+        return response.json()
