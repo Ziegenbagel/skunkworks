@@ -1,7 +1,8 @@
 from src.api.client import GameClient
+from src.ui.dashboard import Dashboard
 
 APP_NAME = "Skunkworks"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 DIVIDER = "=" * 40
 
 
@@ -21,16 +22,9 @@ def main():
 
     print("5. Requesting Player...")
     player = client.get_player()
-    print("6. Player Received")
 
-    print("✓ Connected to Von Neumann Game")
-    print()
-
-    print(f"Player: {player['player']['displayName']}")
-
-    print()
-    print("Ready.")
-
+    dashboard = Dashboard()
+    dashboard.display(player)
 
 if __name__ == "__main__":
     main()
