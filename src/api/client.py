@@ -15,7 +15,7 @@ class GameClient:
 
         self.base_url = os.getenv(
             "VON_NEUMANN_BASE_URL",
-            "https://neumann-probe.net"
+            "https://neumann-probe.net",
         )
 
         self.headers = {
@@ -33,9 +33,23 @@ class GameClient:
         response.raise_for_status()
         return response.json()
 
-    def get_sector(self):
+    def get_probes(self):
+        """Return every probe owned by the authenticated player."""
+
         response = requests.get(
-            f"{self.base_url}/api/probe/sector",
+            f"{self.base_url}/api/probes",
+            headers=self.headers,
+            timeout=30,
+        )
+
+        response.raise_for_status()
+        return response.json()
+
+    def get_sector(self, probe_id):
+        """Return observable sector and onboard inventory for one probe."""
+
+        response = requests.get(
+            f"{self.base_url}/api/probe/{probe_id}/sector",
             headers=self.headers,
             timeout=30,
         )
