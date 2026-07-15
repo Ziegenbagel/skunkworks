@@ -1,15 +1,12 @@
-import json
 import sys
-from pathlib import Path
 
 from src.api.client import GameClient
+from src.snapshot.manager import SnapshotManager
 from src.ui.dashboard import Dashboard
 
 APP_NAME = "Skunkworks"
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.4.0"
 DIVIDER = "=" * 40
-
-SNAPSHOT_DIRECTORY = Path("data/snapshots")
 
 
 def get_requested_probe_id(probe_data):
@@ -37,10 +34,13 @@ def find_probe(probes, probe_id):
         if probe["id"] == probe_id:
             return probe
 
-    raise ValueError(f"Probe ID {probe_id} was not found in /api/probes.")
+    raise ValueError(
+        f"Probe ID {probe_id} was not found."
+    )
 
 
 def main():
+
     print(DIVIDER)
     print(APP_NAME)
     print(f"Version {APP_VERSION}")
@@ -48,6 +48,8 @@ def main():
     print()
 
     client = GameClient()
+
+    snapshot_manager = SnapshotManager(client)
 
     print("Requesting player...")
     player = client.get_player()
@@ -61,26 +63,34 @@ def main():
     print("-" * 40)
 
     for probe in probes:
-        default_marker = " (default)" if probe["isDefault"] else ""
+
+        default_marker = (
+            " (default)"
+            if probe["isDefault"]
+            else ""
+        )
+
         print(
-            f"ID {probe['id']}: {probe['name']} "
-            f"[{probe['status']}]{default_marker}"
+            f"ID {probe['id']}: "
+            f"{probe['name']} "
+            f"[{probe['status']}]"
+            f"{default_marker}"
         )
 
     probe_id = get_requested_probe_id(probe_data)
     probe = find_probe(probes, probe_id)
 
     print()
-    print(f"Requesting sector for: {probe['name']} (ID {probe_id})")
-    sector = client.get_sector(probe_id)
+    print(
+        f"Refreshing snapshot for "
+        f"{probe['name']}..."
+    )
 
-    SNAPSHOT_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    snapshot_path = SNAPSHOT_DIRECTORY / f"sector_probe_{probe_id}.json"
+    sector, snapshot_path = (
+        snapshot_manager.refresh_sector(probe_id)
+    )
 
-    with snapshot_path.open("w", encoding="utf-8") as file:
-        json.dump(sector, file, indent=4)
-
-    print(f"Sector snapshot saved: {snapshot_path}")
+    print(f"Snapshot updated: {snapshot_path}")
 
     dashboard = Dashboard()
     dashboard.display(player)
