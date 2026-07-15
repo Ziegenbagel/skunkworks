@@ -1,0 +1,1729 @@
+{
+    "sector": {
+        "relativeCoordinates": {
+            "x": 0,
+            "y": 1,
+            "z": -1
+        },
+        "distance": 0,
+        "knowledgeLevel": "detailed",
+        "confidence": 1,
+        "objects": [
+            {
+                "id": "14116e93a541f5c1922c",
+                "type": "solar_system",
+                "name": "System d2320f",
+                "estimated": false,
+                "summary": "Stellar system with 1 star(s) and 7 orbital body(ies).",
+                "mass": 12.505409,
+                "radius": 10.417446,
+                "dangerLevel": "low",
+                "radiusUnit": "astronomical_unit",
+                "starCount": 1,
+                "planetCount": 5,
+                "orbitalBodyCount": 7,
+                "bookmarkTargets": [
+                    {
+                        "id": "bb93e94a7b9dfe51331d",
+                        "type": "star",
+                        "name": null,
+                        "mass": 0.580226,
+                        "radius": 0.717125,
+                        "massUnit": "solar_mass",
+                        "radiusUnit": "solar_radius"
+                    },
+                    {
+                        "id": "4efafe3544222c58359e",
+                        "type": "planet",
+                        "name": null,
+                        "mass": 1.308788,
+                        "radius": 1.641525,
+                        "massUnit": "earth_mass",
+                        "radiusUnit": "earth_radius",
+                        "category": "lava",
+                        "habitabilityScore": 0.049474,
+                        "intelligentLife": false
+                    },
+                    {
+                        "id": "391ee4e193369169e16b",
+                        "type": "planet",
+                        "name": null,
+                        "mass": 4.146095,
+                        "radius": 1.44597,
+                        "massUnit": "earth_mass",
+                        "radiusUnit": "earth_radius",
+                        "category": "frozen",
+                        "habitabilityScore": 0.142696,
+                        "intelligentLife": false
+                    },
+                    {
+                        "id": "03cb366d283c3b79b81b",
+                        "type": "planet",
+                        "name": null,
+                        "mass": 0.707178,
+                        "radius": 0.935696,
+                        "massUnit": "earth_mass",
+                        "radiusUnit": "earth_radius",
+                        "category": "frozen",
+                        "habitabilityScore": 0.15745,
+                        "intelligentLife": false
+                    },
+                    {
+                        "id": "6a10f5d048c5c053c9de",
+                        "type": "planet",
+                        "name": null,
+                        "mass": 0.026699,
+                        "radius": 0.412814,
+                        "massUnit": "earth_mass",
+                        "radiusUnit": "earth_radius",
+                        "category": "dwarf",
+                        "habitabilityScore": 0.089834,
+                        "intelligentLife": false
+                    },
+                    {
+                        "id": "5ea7764853d728a3d7a5",
+                        "type": "planet",
+                        "name": null,
+                        "mass": 5.730862,
+                        "radius": 0.591179,
+                        "massUnit": "earth_mass",
+                        "radiusUnit": "earth_radius",
+                        "category": "frozen",
+                        "habitabilityScore": 0.052832,
+                        "intelligentLife": false
+                    },
+                    {
+                        "id": "136e2e5891a7bc36cc62",
+                        "type": "asteroid",
+                        "name": null,
+                        "mass": 0.004341,
+                        "radius": 0.081246,
+                        "massUnit": "earth_mass",
+                        "radiusUnit": "earth_radius"
+                    },
+                    {
+                        "id": "1b8ff80e0f07d76eb01a",
+                        "type": "asteroid",
+                        "name": null,
+                        "mass": 0.00122,
+                        "radius": 0.087479,
+                        "massUnit": "earth_mass",
+                        "radiusUnit": "earth_radius"
+                    }
+                ],
+                "minableTargets": [
+                    {
+                        "id": "136e2e5891a7bc36cc62",
+                        "type": "asteroid",
+                        "name": null,
+                        "mass": 0.004341,
+                        "massUnit": "earth_mass",
+                        "resources": [
+                            "carbon",
+                            "organics",
+                            "ice_trace"
+                        ],
+                        "resourceTypes": [
+                            "ice",
+                            "carbon_compounds"
+                        ],
+                        "resourceComposition": {
+                            "deuterium": 0,
+                            "metals": 0,
+                            "ice": 0.3332,
+                            "carbon_compounds": 0.6668
+                        },
+                        "resourceAmounts": {
+                            "deuterium": 0,
+                            "metals": 0,
+                            "ice": 1441.7959,
+                            "carbon_compounds": 2885.2341
+                        }
+                    },
+                    {
+                        "id": "1b8ff80e0f07d76eb01a",
+                        "type": "asteroid",
+                        "name": null,
+                        "mass": 0.00122,
+                        "massUnit": "earth_mass",
+                        "resources": [
+                            "iron",
+                            "nickel"
+                        ],
+                        "resourceTypes": [
+                            "metals"
+                        ],
+                        "resourceComposition": {
+                            "deuterium": 0,
+                            "metals": 1,
+                            "ice": 0,
+                            "carbon_compounds": 0
+                        },
+                        "resourceAmounts": {
+                            "deuterium": 0,
+                            "metals": 1188.53,
+                            "ice": 0,
+                            "carbon_compounds": 0
+                        }
+                    }
+                ]
+            },
+            {
+                "id": "deuterium-asteroid-ca1760dad9471ba6f7a9b0d7",
+                "type": "asteroid",
+                "name": "Ast\u00e9ro\u00efde contenant du Deut\u00e9rium",
+                "estimated": false,
+                "summary": "Wandering asteroid body.",
+                "mass": 1e-05,
+                "radius": 0.0001,
+                "dangerLevel": "low",
+                "massUnit": "earth_mass",
+                "radiusUnit": "earth_radius",
+                "resources": [
+                    "deuterium"
+                ],
+                "resourceTypes": [],
+                "resourceComposition": {
+                    "deuterium": 0,
+                    "metals": 0,
+                    "ice": 0,
+                    "carbon_compounds": 0
+                },
+                "mannyMineable": true,
+                "composition": "deuterium",
+                "resourceAmounts": {
+                    "deuterium": 0,
+                    "metals": 0,
+                    "ice": 0,
+                    "carbon_compounds": 0
+                }
+            },
+            {
+                "id": "deuterium-asteroid-bdc9bfc4f7b09074ce9bfe5c",
+                "type": "asteroid",
+                "name": "Ast\u00e9ro\u00efde contenant du Deut\u00e9rium",
+                "estimated": false,
+                "summary": "Wandering asteroid body.",
+                "mass": 1e-05,
+                "radius": 0.0001,
+                "dangerLevel": "low",
+                "massUnit": "earth_mass",
+                "radiusUnit": "earth_radius",
+                "resources": [
+                    "deuterium"
+                ],
+                "resourceTypes": [
+                    "deuterium"
+                ],
+                "resourceComposition": {
+                    "deuterium": 1,
+                    "metals": 0,
+                    "ice": 0,
+                    "carbon_compounds": 0
+                },
+                "mannyMineable": true,
+                "composition": "deuterium",
+                "resourceAmounts": {
+                    "deuterium": 9.25,
+                    "metals": 0,
+                    "ice": 0,
+                    "carbon_compounds": 0
+                }
+            },
+            {
+                "id": "manny-mny_craft_94bca05c72859328335211c2",
+                "type": "manny",
+                "name": "Z1-F",
+                "estimated": false,
+                "summary": "Abandoned Manny drifting in this sector.",
+                "mass": 0,
+                "radius": 0,
+                "dangerLevel": "low",
+                "mannyState": "abandoned",
+                "mannyUid": "mny_craft_94bca05c72859328335211c2",
+                "cargo": {
+                    "capacity": 0.05,
+                    "deuterium": 0,
+                    "metals": 0,
+                    "ice": 0,
+                    "organicCompounds": 0,
+                    "capacityUnit": "earth_container_equivalent"
+                },
+                "salvageable": true
+            },
+            {
+                "id": "detached-container-container-itm_craft_c8bd6d7f9c7c011e4cb262a0",
+                "type": "detached_container",
+                "name": "Container 23",
+                "estimated": false,
+                "summary": "Detached storage container detected.",
+                "mass": 0,
+                "radius": 0,
+                "dangerLevel": "low",
+                "mode": "drifting",
+                "targetObjectId": null,
+                "capacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "salvageable": true
+            },
+            {
+                "id": "detached-container-container-itm_craft_15776240ac6fb40915983afd",
+                "type": "detached_container",
+                "name": "Container 22",
+                "estimated": false,
+                "summary": "Detached storage container detected.",
+                "mass": 0,
+                "radius": 0,
+                "dangerLevel": "low",
+                "mode": "drifting",
+                "targetObjectId": null,
+                "capacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "salvageable": true
+            },
+            {
+                "id": "18",
+                "type": "scut_relay",
+                "name": "Relais SCUT",
+                "estimated": false,
+                "summary": "Active long-range SCUT communication relay.",
+                "mass": 0,
+                "radius": 0,
+                "dangerLevel": "low",
+                "status": "on",
+                "createdByProbeId": 644,
+                "createdByProbeName": "Ziegenbagel 1",
+                "createdAt": "2026-07-02T15:48:48+00:00",
+                "activatedAt": "2026-07-02T15:55:31+00:00",
+                "coverageRadiusSectors": 10,
+                "network": {
+                    "id": 14,
+                    "name": "Z-Net"
+                }
+            }
+        ],
+        "scan": {
+            "currentSectorResidenceSeconds": 195608,
+            "requiredResidenceSeconds": 0,
+            "scanQuality": 1
+        },
+        "sensorMode": "normal",
+        "dataFreshness": "live",
+        "probes": [
+            {
+                "id": 740,
+                "name": "Ziegenbagel 2",
+                "moving": false,
+                "owned": true
+            }
+        ],
+        "scutNetworks": [
+            {
+                "id": 14,
+                "name": "Z-Net"
+            }
+        ]
+    },
+    "inventory": {
+        "capacity": 21,
+        "capacityUnit": "earth_container_equivalent",
+        "usedCapacity": 9.556,
+        "freeCapacity": 11.444,
+        "items": [
+            {
+                "id": "probe-644-atomic-3d-printer",
+                "type": "atomic_3d_printer",
+                "name": "Atomic printer",
+                "containerSpace": 0.3,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "movable": false
+                }
+            },
+            {
+                "id": "mny_craft_2db6c912d4d60f6592d326af",
+                "type": "manny",
+                "name": "Z1-A",
+                "containerSpace": 0,
+                "currentTask": "mining",
+                "taskProgressPercent": 9.17,
+                "location": {
+                    "type": "sector"
+                },
+                "cargo": {
+                    "capacity": 0.05,
+                    "deuterium": 0,
+                    "metals": 0,
+                    "ice": 0,
+                    "organicCompounds": 0,
+                    "capacityUnit": "earth_container_equivalent"
+                },
+                "metadata": {
+                    "movable": false
+                }
+            },
+            {
+                "id": "mny_0d64551782885b7a36123b59",
+                "type": "manny",
+                "name": "Z1-B",
+                "containerSpace": 0,
+                "currentTask": "mining",
+                "taskProgressPercent": 8.83,
+                "location": {
+                    "type": "sector"
+                },
+                "cargo": {
+                    "capacity": 0.05,
+                    "deuterium": 0,
+                    "metals": 0,
+                    "ice": 0,
+                    "organicCompounds": 0,
+                    "capacityUnit": "earth_container_equivalent"
+                },
+                "metadata": {
+                    "movable": false
+                }
+            },
+            {
+                "id": "mny_1b9f3d964fe4159bf420e228",
+                "type": "manny",
+                "name": "Z1-C",
+                "containerSpace": 0,
+                "currentTask": "mining",
+                "taskProgressPercent": 1.06,
+                "location": {
+                    "type": "sector"
+                },
+                "cargo": {
+                    "capacity": 0.05,
+                    "deuterium": 0,
+                    "metals": 0,
+                    "ice": 0,
+                    "organicCompounds": 0,
+                    "capacityUnit": "earth_container_equivalent"
+                },
+                "metadata": {
+                    "movable": false
+                }
+            },
+            {
+                "id": "mny_53b4dad06859270738069eac",
+                "type": "manny",
+                "name": "Z1-D",
+                "containerSpace": 0,
+                "currentTask": "mining",
+                "taskProgressPercent": 1.02,
+                "location": {
+                    "type": "sector"
+                },
+                "cargo": {
+                    "capacity": 0.05,
+                    "deuterium": 0,
+                    "metals": 0,
+                    "ice": 0,
+                    "organicCompounds": 0,
+                    "capacityUnit": "earth_container_equivalent"
+                },
+                "metadata": {
+                    "movable": false
+                }
+            },
+            {
+                "id": "mny_craft_36b248d9b90c095a29b79599",
+                "type": "manny",
+                "name": "Z1-E",
+                "containerSpace": 0,
+                "currentTask": "mining",
+                "taskProgressPercent": 0.96,
+                "location": {
+                    "type": "sector"
+                },
+                "cargo": {
+                    "capacity": 0.05,
+                    "deuterium": 0,
+                    "metals": 0,
+                    "ice": 0,
+                    "organicCompounds": 0,
+                    "capacityUnit": "earth_container_equivalent"
+                },
+                "metadata": {
+                    "movable": false
+                }
+            },
+            {
+                "id": "itm_craft_48f14fcb48408b641d967927",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_377a7c7835bbe50a46d5a971",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "manny-1",
+                    "craftedAt": "2026-06-27T16:18:38+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-06-27T16:18:38+00:00",
+                    "updatedAt": "2026-06-27T16:18:38+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_9d17ed902c241c6b008cb768",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_0772e7237206fb39c3da38bb",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "manny-1",
+                    "craftedAt": "2026-06-27T19:36:22+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-06-27T19:36:22+00:00",
+                    "updatedAt": "2026-06-27T19:36:22+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_51531121e293bc03a7ad08e2",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_24b8b05dabad279d33ff5dde",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "Z1a",
+                    "craftedAt": "2026-06-27T22:04:36+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-06-27T22:04:36+00:00",
+                    "updatedAt": "2026-06-27T22:04:36+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_c2f61322b8452e02234c79e0",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_93eb73c2f8ddcafefc413d9e",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "Z1a",
+                    "craftedAt": "2026-06-28T00:23:09+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-06-28T00:23:09+00:00",
+                    "updatedAt": "2026-06-28T00:23:09+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_3a7ff985bd06c0b06e9bf12f",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_dbc092e046bcad81fe7b20eb",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "Z1a",
+                    "craftedAt": "2026-06-28T04:54:48+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-06-28T04:54:48+00:00",
+                    "updatedAt": "2026-06-28T04:54:48+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_b5671f36ff05715eee9cd7d1",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_3fcfd56b1cc3af87348a390c",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "Z1a",
+                    "craftedAt": "2026-06-28T07:20:36+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-06-28T07:20:36+00:00",
+                    "updatedAt": "2026-06-28T07:20:36+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_2d2efa9e92f37f23421f78c7",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_92801cc795b66bb044890e78",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "Z1a",
+                    "craftedAt": "2026-06-28T09:59:14+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-06-28T09:59:14+00:00",
+                    "updatedAt": "2026-06-28T09:59:14+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_a12c7f79de614d1eeec9373f",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_a5f9b426b5012d33569e4317",
+                    "craftedByMannyId": "mny_0d64551782885b7a36123b59",
+                    "craftedByMannyName": "Z1-b",
+                    "craftedAt": "2026-07-01T04:38:18+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-01T04:38:18+00:00",
+                    "updatedAt": "2026-07-01T04:38:18+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_673f19f0bd1d17d7c19de994",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_b1620c5f2c89e741a44c6853",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "Z1-A",
+                    "craftedAt": "2026-07-05T19:14:19+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-05T19:14:19+00:00",
+                    "updatedAt": "2026-07-05T19:14:19+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_ebc1cc2a955af284ca387bbc",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_affc45d44d4816ff7410308f",
+                    "craftedByMannyId": "mny_craft_94bca05c72859328335211c2",
+                    "craftedByMannyName": "Z1-F",
+                    "craftedAt": "2026-07-06T19:09:21+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-06T19:09:21+00:00",
+                    "updatedAt": "2026-07-06T19:09:21+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_a1c1cab62862fcbbce677815",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_3320f9f545880633407ddd9b",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "Z1-A",
+                    "craftedAt": "2026-07-07T17:34:04+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-07T17:34:04+00:00",
+                    "updatedAt": "2026-07-07T17:34:04+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_2ed714c91c7d2be5f159e0fc",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_45b5c017236ce6076edd8ed1",
+                    "craftedByMannyId": "mny_0d64551782885b7a36123b59",
+                    "craftedByMannyName": "Z1-b",
+                    "craftedAt": "2026-07-01T01:58:11+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-07T21:36:18+00:00",
+                    "updatedAt": "2026-07-07T21:36:18+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_7fdff1aae0ec6f95bb94e897",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_2e1c644184c1ed1d0d60b6dc",
+                    "craftedByMannyId": "mny_0d64551782885b7a36123b59",
+                    "craftedByMannyName": "Z1b",
+                    "craftedAt": "2026-06-30T22:14:23+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-07T21:36:18+00:00",
+                    "updatedAt": "2026-07-07T21:36:18+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_cf0a6f47854c87817ea88803",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_a2d475910dd91ae37041f92d",
+                    "craftedByMannyId": "mny_0d64551782885b7a36123b59",
+                    "craftedByMannyName": "Z1-B",
+                    "craftedAt": "2026-07-09T22:15:19+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-09T22:15:19+00:00",
+                    "updatedAt": "2026-07-09T22:15:19+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_c06bc015751c47ad800fea77",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_ae008a060f76294eab6849d0",
+                    "craftedByMannyId": "mny_53b4dad06859270738069eac",
+                    "craftedByMannyName": "Z1-D",
+                    "craftedAt": "2026-07-09T22:15:19+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-09T22:15:19+00:00",
+                    "updatedAt": "2026-07-09T22:15:19+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_c48ef9c679f498bd3c8baeac",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_a467e32a432167495e73fe80",
+                    "craftedByMannyId": "mny_craft_2db6c912d4d60f6592d326af",
+                    "craftedByMannyName": "Z1-G",
+                    "craftedAt": "2026-07-09T22:15:19+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-09T22:15:19+00:00",
+                    "updatedAt": "2026-07-09T22:15:19+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_9aaa12210e42beb960c601b0",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_27c9e610c0039b63261c4ccd",
+                    "craftedByMannyId": "mny_1b9f3d964fe4159bf420e228",
+                    "craftedByMannyName": "Z1-C",
+                    "craftedAt": "2026-07-11T03:18:09+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-11T03:18:09+00:00",
+                    "updatedAt": "2026-07-11T03:18:09+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_6c885751871ea810759e42d7",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_7ec429554ea4c337a12955ea",
+                    "craftedByMannyId": "mny_craft_36b248d9b90c095a29b79599",
+                    "craftedByMannyName": "Z1-E",
+                    "craftedAt": "2026-07-11T03:18:09+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-11T03:18:09+00:00",
+                    "updatedAt": "2026-07-11T03:18:09+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_99717b95b727f94096c78fc6",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_cf188ec3a50ac30b0fac1cd0",
+                    "craftedByMannyId": "mny_0d64551782885b7a36123b59",
+                    "craftedByMannyName": "Z1-B",
+                    "craftedAt": "2026-07-11T06:00:58+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-11T06:00:58+00:00",
+                    "updatedAt": "2026-07-11T06:00:58+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_45ac10e85beb3f6e10a91896",
+                "type": "additional_container",
+                "name": "Additional container",
+                "containerSpace": 0,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "additional_container",
+                    "craftingRunId": "craft_2fd34fe44cc65be25661a1ff",
+                    "craftedByMannyId": "mny_6eaa79b78808a54106af0bce",
+                    "craftedByMannyName": "manny-1",
+                    "craftedAt": "2026-06-27T09:30:55+00:00",
+                    "capacityBonus": 1,
+                    "capacityBonusUnit": "earth_container_equivalent",
+                    "createdAt": "2026-07-12T21:27:01+00:00",
+                    "updatedAt": "2026-07-12T21:27:01+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_eb30f065994e73332170c0c4",
+                "type": "battery_pack",
+                "name": "Battery pack",
+                "containerSpace": 0.008,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "battery_pack",
+                    "craftingRunId": "craft_7f1e5d8952883da434ded41e",
+                    "craftedByMannyId": "mny_craft_2db6c912d4d60f6592d326af",
+                    "craftedByMannyName": "Z1-G",
+                    "craftedAt": "2026-07-14T06:00:01+00:00",
+                    "createdAt": "2026-07-14T06:00:01+00:00",
+                    "updatedAt": "2026-07-14T06:00:01+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_acb45cdb38740f289f693467",
+                "type": "battery_pack",
+                "name": "Battery pack",
+                "containerSpace": 0.008,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "probe-core",
+                    "kind": "probe",
+                    "label": "Sonde",
+                    "sortOrder": 0
+                },
+                "metadata": {
+                    "recipe": "battery_pack",
+                    "craftingRunId": "craft_e21841acfbb0dca542c26275",
+                    "craftedByMannyId": "mny_craft_2db6c912d4d60f6592d326af",
+                    "craftedByMannyName": "Z1-G",
+                    "craftedAt": "2026-07-14T06:27:01+00:00",
+                    "createdAt": "2026-07-14T06:27:01+00:00",
+                    "updatedAt": "2026-07-14T06:27:01+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_77d0984b6fd7070355dcf7c4",
+                "type": "descent_guidance_module",
+                "name": "Descent guidance module",
+                "containerSpace": 0.035,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "container-itm_craft_45ac10e85beb3f6e10a91896",
+                    "kind": "container",
+                    "label": "Container 1",
+                    "sortOrder": 1
+                },
+                "metadata": {
+                    "recipe": "descent_guidance_module",
+                    "craftingRunId": "craft_1c1ad7045f9f53e866cbdfbc",
+                    "craftedByMannyId": "mny_1b9f3d964fe4159bf420e228",
+                    "craftedByMannyName": "Z1-C",
+                    "craftedAt": "2026-07-14T11:59:01+00:00",
+                    "createdAt": "2026-07-14T11:59:01+00:00",
+                    "updatedAt": "2026-07-14T11:59:01+00:00",
+                    "movable": true
+                }
+            },
+            {
+                "id": "itm_craft_4d4bded1ab3914801554f649",
+                "type": "descent_guidance_module",
+                "name": "Descent guidance module",
+                "containerSpace": 0.035,
+                "currentTask": null,
+                "taskProgressPercent": 0,
+                "container": {
+                    "id": "container-itm_craft_45ac10e85beb3f6e10a91896",
+                    "kind": "container",
+                    "label": "Container 1",
+                    "sortOrder": 1
+                },
+                "metadata": {
+                    "recipe": "descent_guidance_module",
+                    "craftingRunId": "craft_1c12804e0077aa4828aa81dd",
+                    "craftedByMannyId": "mny_craft_94bca05c72859328335211c2",
+                    "craftedByMannyName": "Z1-F",
+                    "craftedAt": "2026-07-14T11:59:26+00:00",
+                    "createdAt": "2026-07-14T11:59:26+00:00",
+                    "updatedAt": "2026-07-14T11:59:26+00:00",
+                    "movable": true
+                }
+            }
+        ],
+        "resourceStocks": [
+            {
+                "id": "probe-644-stock-metals",
+                "type": "metals",
+                "name": "Metals",
+                "amount": 4.48,
+                "containerSpace": 4.48,
+                "capacityUnit": "earth_container_equivalent",
+                "containers": [
+                    {
+                        "container": {
+                            "id": "probe-core",
+                            "kind": "probe",
+                            "label": "Sonde",
+                            "sortOrder": 0
+                        },
+                        "amount": 0.664,
+                        "containerSpace": 0.664,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_48f14fcb48408b641d967927",
+                            "kind": "container",
+                            "label": "Container 2",
+                            "sortOrder": 2
+                        },
+                        "amount": 0.04,
+                        "containerSpace": 0.04,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_9d17ed902c241c6b008cb768",
+                            "kind": "container",
+                            "label": "Container 3",
+                            "sortOrder": 3
+                        },
+                        "amount": 0.5,
+                        "containerSpace": 0.5,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_51531121e293bc03a7ad08e2",
+                            "kind": "container",
+                            "label": "Container 4",
+                            "sortOrder": 4
+                        },
+                        "amount": 0.5167,
+                        "containerSpace": 0.5167,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_c2f61322b8452e02234c79e0",
+                            "kind": "container",
+                            "label": "Container 5",
+                            "sortOrder": 5
+                        },
+                        "amount": 0.7193,
+                        "containerSpace": 0.7193,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_3a7ff985bd06c0b06e9bf12f",
+                            "kind": "container",
+                            "label": "Container 6",
+                            "sortOrder": 6
+                        },
+                        "amount": 0.4,
+                        "containerSpace": 0.4,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_b5671f36ff05715eee9cd7d1",
+                            "kind": "container",
+                            "label": "Container 7",
+                            "sortOrder": 7
+                        },
+                        "amount": 0.4533,
+                        "containerSpace": 0.4533,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_2d2efa9e92f37f23421f78c7",
+                            "kind": "container",
+                            "label": "Container 8",
+                            "sortOrder": 8
+                        },
+                        "amount": 0.65,
+                        "containerSpace": 0.65,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_7fdff1aae0ec6f95bb94e897",
+                            "kind": "container",
+                            "label": "Container 9",
+                            "sortOrder": 9
+                        },
+                        "amount": 0.2367,
+                        "containerSpace": 0.2367,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_2ed714c91c7d2be5f159e0fc",
+                            "kind": "container",
+                            "label": "Container 10",
+                            "sortOrder": 10
+                        },
+                        "amount": 0.3,
+                        "containerSpace": 0.3,
+                        "capacityUnit": "earth_container_equivalent"
+                    }
+                ]
+            },
+            {
+                "id": "probe-644-stock-ice",
+                "type": "ice",
+                "name": "Ice",
+                "amount": 2.0596,
+                "containerSpace": 2.0596,
+                "capacityUnit": "earth_container_equivalent",
+                "containers": [
+                    {
+                        "container": {
+                            "id": "container-itm_craft_45ac10e85beb3f6e10a91896",
+                            "kind": "container",
+                            "label": "Container 1",
+                            "sortOrder": 1
+                        },
+                        "amount": 0.93,
+                        "containerSpace": 0.93,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_51531121e293bc03a7ad08e2",
+                            "kind": "container",
+                            "label": "Container 4",
+                            "sortOrder": 4
+                        },
+                        "amount": 0.1833,
+                        "containerSpace": 0.1833,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_c2f61322b8452e02234c79e0",
+                            "kind": "container",
+                            "label": "Container 5",
+                            "sortOrder": 5
+                        },
+                        "amount": 0.2807,
+                        "containerSpace": 0.2807,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_3a7ff985bd06c0b06e9bf12f",
+                            "kind": "container",
+                            "label": "Container 6",
+                            "sortOrder": 6
+                        },
+                        "amount": 0.2463,
+                        "containerSpace": 0.2463,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_b5671f36ff05715eee9cd7d1",
+                            "kind": "container",
+                            "label": "Container 7",
+                            "sortOrder": 7
+                        },
+                        "amount": 0.2,
+                        "containerSpace": 0.2,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_2d2efa9e92f37f23421f78c7",
+                            "kind": "container",
+                            "label": "Container 8",
+                            "sortOrder": 8
+                        },
+                        "amount": 0.1693,
+                        "containerSpace": 0.1693,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_7fdff1aae0ec6f95bb94e897",
+                            "kind": "container",
+                            "label": "Container 9",
+                            "sortOrder": 9
+                        },
+                        "amount": 0.05,
+                        "containerSpace": 0.05,
+                        "capacityUnit": "earth_container_equivalent"
+                    }
+                ]
+            },
+            {
+                "id": "probe-644-stock-carbon-compounds",
+                "type": "carbon_compounds",
+                "name": "Carbon compounds",
+                "amount": 2.6304,
+                "containerSpace": 2.6304,
+                "capacityUnit": "earth_container_equivalent",
+                "containers": [
+                    {
+                        "container": {
+                            "id": "probe-core",
+                            "kind": "probe",
+                            "label": "Sonde",
+                            "sortOrder": 0
+                        },
+                        "amount": 0.02,
+                        "containerSpace": 0.02,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_48f14fcb48408b641d967927",
+                            "kind": "container",
+                            "label": "Container 2",
+                            "sortOrder": 2
+                        },
+                        "amount": 0.96,
+                        "containerSpace": 0.96,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_9d17ed902c241c6b008cb768",
+                            "kind": "container",
+                            "label": "Container 3",
+                            "sortOrder": 3
+                        },
+                        "amount": 0.5,
+                        "containerSpace": 0.5,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_51531121e293bc03a7ad08e2",
+                            "kind": "container",
+                            "label": "Container 4",
+                            "sortOrder": 4
+                        },
+                        "amount": 0.2,
+                        "containerSpace": 0.2,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_3a7ff985bd06c0b06e9bf12f",
+                            "kind": "container",
+                            "label": "Container 6",
+                            "sortOrder": 6
+                        },
+                        "amount": 0.3537,
+                        "containerSpace": 0.3537,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_b5671f36ff05715eee9cd7d1",
+                            "kind": "container",
+                            "label": "Container 7",
+                            "sortOrder": 7
+                        },
+                        "amount": 0.3467,
+                        "containerSpace": 0.3467,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_2d2efa9e92f37f23421f78c7",
+                            "kind": "container",
+                            "label": "Container 8",
+                            "sortOrder": 8
+                        },
+                        "amount": 0.1807,
+                        "containerSpace": 0.1807,
+                        "capacityUnit": "earth_container_equivalent"
+                    },
+                    {
+                        "container": {
+                            "id": "container-itm_craft_7fdff1aae0ec6f95bb94e897",
+                            "kind": "container",
+                            "label": "Container 9",
+                            "sortOrder": 9
+                        },
+                        "amount": 0.0693,
+                        "containerSpace": 0.0693,
+                        "capacityUnit": "earth_container_equivalent"
+                    }
+                ]
+            }
+        ],
+        "containers": [
+            {
+                "id": "probe-core",
+                "kind": "probe",
+                "label": "Sonde",
+                "sortOrder": 0,
+                "capacity": 1,
+                "usedCapacity": 1,
+                "freeCapacity": 0,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_45ac10e85beb3f6e10a91896",
+                "kind": "container",
+                "label": "Container 1",
+                "sortOrder": 1,
+                "capacity": 1,
+                "usedCapacity": 1,
+                "freeCapacity": 0,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [
+                        "ice"
+                    ],
+                    "exclusion": [],
+                    "strictExclusion": [
+                        "metals",
+                        "carbon_compounds",
+                        "manny",
+                        "waypoint_bookmark",
+                        "steel_bar",
+                        "steel_plate",
+                        "micro_conductor",
+                        "ceramic_insulator",
+                        "crystal_substrate",
+                        "dopant_matrix",
+                        "integrated_circuit",
+                        "electric_motor",
+                        "battery_pack",
+                        "linear_actuator"
+                    ]
+                }
+            },
+            {
+                "id": "container-itm_craft_48f14fcb48408b641d967927",
+                "kind": "container",
+                "label": "Container 2",
+                "sortOrder": 2,
+                "capacity": 1,
+                "usedCapacity": 1,
+                "freeCapacity": 0,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_9d17ed902c241c6b008cb768",
+                "kind": "container",
+                "label": "Container 3",
+                "sortOrder": 3,
+                "capacity": 1,
+                "usedCapacity": 1,
+                "freeCapacity": 0,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_51531121e293bc03a7ad08e2",
+                "kind": "container",
+                "label": "Container 4",
+                "sortOrder": 4,
+                "capacity": 1,
+                "usedCapacity": 0.9,
+                "freeCapacity": 0.1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_c2f61322b8452e02234c79e0",
+                "kind": "container",
+                "label": "Container 5",
+                "sortOrder": 5,
+                "capacity": 1,
+                "usedCapacity": 1,
+                "freeCapacity": 0,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_3a7ff985bd06c0b06e9bf12f",
+                "kind": "container",
+                "label": "Container 6",
+                "sortOrder": 6,
+                "capacity": 1,
+                "usedCapacity": 1,
+                "freeCapacity": 0,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_b5671f36ff05715eee9cd7d1",
+                "kind": "container",
+                "label": "Container 7",
+                "sortOrder": 7,
+                "capacity": 1,
+                "usedCapacity": 1,
+                "freeCapacity": 0,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_2d2efa9e92f37f23421f78c7",
+                "kind": "container",
+                "label": "Container 8",
+                "sortOrder": 8,
+                "capacity": 1,
+                "usedCapacity": 1,
+                "freeCapacity": 0,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_7fdff1aae0ec6f95bb94e897",
+                "kind": "container",
+                "label": "Container 9",
+                "sortOrder": 9,
+                "capacity": 1,
+                "usedCapacity": 0.356,
+                "freeCapacity": 0.644,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_2ed714c91c7d2be5f159e0fc",
+                "kind": "container",
+                "label": "Container 10",
+                "sortOrder": 10,
+                "capacity": 1,
+                "usedCapacity": 0.3,
+                "freeCapacity": 0.7,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_a12c7f79de614d1eeec9373f",
+                "kind": "container",
+                "label": "Container 11",
+                "sortOrder": 11,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_673f19f0bd1d17d7c19de994",
+                "kind": "container",
+                "label": "Container 12",
+                "sortOrder": 12,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_ebc1cc2a955af284ca387bbc",
+                "kind": "container",
+                "label": "Container 13",
+                "sortOrder": 13,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_a1c1cab62862fcbbce677815",
+                "kind": "container",
+                "label": "Container 14",
+                "sortOrder": 14,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_cf0a6f47854c87817ea88803",
+                "kind": "container",
+                "label": "Container 15",
+                "sortOrder": 15,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_c06bc015751c47ad800fea77",
+                "kind": "container",
+                "label": "Container 16",
+                "sortOrder": 16,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_c48ef9c679f498bd3c8baeac",
+                "kind": "container",
+                "label": "Container 17",
+                "sortOrder": 17,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_9aaa12210e42beb960c601b0",
+                "kind": "container",
+                "label": "Container 18",
+                "sortOrder": 18,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_6c885751871ea810759e42d7",
+                "kind": "container",
+                "label": "Container 19",
+                "sortOrder": 19,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            },
+            {
+                "id": "container-itm_craft_99717b95b727f94096c78fc6",
+                "kind": "container",
+                "label": "Container 20",
+                "sortOrder": 20,
+                "capacity": 1,
+                "usedCapacity": 0,
+                "freeCapacity": 1,
+                "capacityUnit": "earth_container_equivalent",
+                "rules": {
+                    "priority": [],
+                    "exclusion": [],
+                    "strictExclusion": []
+                }
+            }
+        ],
+        "externalTanks": [
+            {
+                "id": "probe-644-deuterium-tank",
+                "type": "deuterium",
+                "name": "External deuterium tank",
+                "fillPercent": 76,
+                "external": true,
+                "usesCargoCapacity": false
+            }
+        ]
+    }
+}

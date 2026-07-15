@@ -1,5 +1,5 @@
 APP_NAME = "Skunkworks"
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
 
 DIVIDER = "=" * 48
 SECTION = "-" * 48

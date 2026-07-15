@@ -23,3 +23,45 @@ Next Session:
 - Populate Fleet section with live probe data.
 - Create Probe model.
 - Begin Current State engine.
+
+## 2026-07-14
+
+# Session: API Exploration & Developer Toolkit
+
+## Accomplishments
+
+### Mission Control
+- Refactored the application to retrieve the player's probe list dynamically.
+- Added support for selecting a probe by ID using `--probe-id`.
+- Sector snapshots are now automatically saved for the selected probe.
+
+### API Client
+- Added `/api/probes` support.
+- Updated sector requests to use `/api/probe/{probeId}/sector` instead of relying on the currently selected probe.
+
+### Developer Toolkit
+
+#### JSON Tree Explorer
+- Improved output formatting.
+- Added object type summaries for lists.
+- Added representative structure output.
+- Improved readability for nested collections.
+
+#### Snapshot Compare
+- Created Version 0.1.0.
+- Compares semantic object counts rather than raw JSON.
+- Confirms structural differences between snapshots.
+
+## Major Discoveries
+
+- Probe-specific sector snapshots are now supported.
+- Sector snapshots appear to represent observable physical objects rather than complete operational state.
+- Inventory correctly reflects onboard assets.
+- Deployed Mannys do not appear to be represented as inventory items.
+- Detached containers appear as sector objects.
+
+## Next Research Goals
+
+- Identify the endpoint responsible for active Manny operations.
+- Identify endpoints for probe task state.
+- Continue mapping the API before implementing automation.
