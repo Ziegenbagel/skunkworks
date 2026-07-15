@@ -9,6 +9,9 @@ wheels/
 # Snapshot data
 data/snapshots/*.json
 
+# Runtime snapshots
+data/snapshots/runtime/
+
 # Virtual environments
 .venv
 
