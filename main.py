@@ -1,11 +1,12 @@
 import sys
 
+from src.intelligence.resources import ResourceAnalyzer
 from src.api.client import GameClient
 from src.snapshot.manager import SnapshotManager
 from src.ui.dashboard import Dashboard
 
-APP_NAME = "Skunkworks"
-APP_VERSION = "0.4.0"
+from src.config import APP_NAME, APP_VERSION
+
 DIVIDER = "=" * 40
 
 
@@ -51,6 +52,8 @@ def main():
 
     snapshot_manager = SnapshotManager(client)
 
+    resource_analyzer = ResourceAnalyzer()
+
     print("Requesting player...")
     player = client.get_player()
 
@@ -92,8 +95,19 @@ def main():
 
     print(f"Snapshot updated: {snapshot_path}")
 
+    sector_resources = (
+        resource_analyzer.get_sector_resources(
+            sector
+        )
+    )
+
     dashboard = Dashboard()
-    dashboard.display(player)
+
+    dashboard.display(
+        player,
+        probe_data,
+        sector_resources,
+)
 
 
 if __name__ == "__main__":

@@ -65,3 +65,32 @@ Next Session:
 - Identify the endpoint responsible for active Manny operations.
 - Identify endpoints for probe task state.
 - Continue mapping the API before implementing automation.
+
+## 2026-07-15
+
+Version 0.5.0
+--------------
+
+Major Features
+• Added SnapshotManager service.
+• Added runtime snapshot storage.
+• Added ResourceAnalyzer intelligence layer.
+• Added live Fleet dashboard.
+• Added live Resource Intelligence dashboard.
+• Introduced shared application configuration (config.py).
+
+Developer Tools
+• JSON Tree Explorer
+• Snapshot Comparison Tool
+• API Explorer
+
+Architecture
+• Dashboard now consumes analyzed data rather than raw API responses.
+• SnapshotManager is the single source for runtime snapshots.
+
+Verified API Discoveries
+• /api/probes provides live probe status.
+• Mineable resources are exposed through
+  sector.objects -> solar_system -> minableTargets.
+• resourceAmounts contains remaining resources.
+• resourceComposition contains resource percentages.

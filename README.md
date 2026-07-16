@@ -22,6 +22,28 @@ Rather than automating clicks, Skunkworks acts as an intelligent operations mana
 
 ---
 
+# Current Features
+
+Milestone 1 — Operational Dashboard
+
+Current capabilities include:
+
+- Live API authentication
+- Player information
+- Fleet status dashboard
+- Runtime Snapshot Manager
+- Resource Intelligence
+- Shared application configuration
+- Developer Toolkit
+
+Developer Toolkit includes:
+
+- JSON Tree Explorer
+- Snapshot Comparison Tool
+- API Explorer
+
+---
+
 # Core Principles
 
 Skunkworks is built around three simple ideas:
@@ -68,75 +90,105 @@ The player should always know:
 
 ---
 
-# Planned Architecture
+# Current Architecture
 
 ```
-                   Mission Control Dashboard
-                               │
-                               ▼
-                        Current State
-                               │
-                               ▼
-                         Desired State
-                               │
-                               ▼
-                            Planner
-                               │
-                               ▼
-                      Execution Engine
-                               │
-                               ▼
-                  Von Neumann Game API
+Game API
+    │
+    ▼
+GameClient
+    │
+    ▼
+SnapshotManager
+    │
+    ▼
+Runtime Snapshot
+    │
+    ▼
+Intelligence Layer
+    │
+    ▼
+Dashboard
+    │
+    ▼
+Planner (Future)
+    │
+    ▼
+Automation (Future)
 ```
 
-Each layer has a single responsibility, making the application easy to understand, maintain, and expand.
+Each layer has a single responsibility and communicates only with adjacent layers.
+
+This architecture allows Skunkworks to grow without tightly coupling systems together.
 
 ---
 
 # Roadmap
 
-## Alpha 0.1 – First Contact
+## ✅ Milestone 1 — Operational Dashboard
 
-- Python project setup
-- API authentication
-- Live player connection
-- Mission Control dashboard
+Completed
 
----
-
-## Alpha 0.2 – Desired State
-
-- Fleet goals
-- Production targets
-- User configuration
+- Live API connection
+- Runtime Snapshot Manager
+- Fleet dashboard
+- Resource Intelligence
+- Developer Toolkit
 
 ---
 
-## Alpha 0.3 – Planner
+## 🚧 Milestone 2 — Operational Intelligence
 
-- Intelligent task generation
-- Resource planning
-- Mining optimization
+In Progress
+
+- Snapshot status
+- Inventory Intelligence
+- Fleet Intelligence
+- Improved dashboard
+
+---
+
+## Planned Milestones
+
+### Planner
+
 - Production planning
+- Mining recommendations
+- Build priorities
 
----
+### Automation
 
-## Alpha 0.4 – Autonomous Operations
-
-- Continuous planning
-- Automatic execution
-- Production management
+- Execute planner decisions
 - Fleet logistics
+- Production automation
+
+### Desired State
+
+- User objectives
+- Fleet configuration
+- Production goals
 
 ---
 
 # Project Status
 
-🚧 **Active Early Development**
+🚧 Active Development
 
-Skunkworks is currently under active development and the architecture is evolving rapidly.
+Current Version
 
-Community feedback and contributions are welcome as the project evolves.
+0.5.0
+
+Current Milestone
+
+Operational Dashboard
+
+Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
+
+- Fleet status
+- Resource Intelligence
+- Runtime snapshots
+
+Development is currently focused on expanding the Intelligence Layer that will power the future Planner and Automation systems.
 
 ---
 

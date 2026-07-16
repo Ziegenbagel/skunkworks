@@ -166,3 +166,33 @@ Skunkworks should make that information understandable and actionable.
 
 Skunkworks should assist the player,
 never bypass the game's intended mechanics.
+
+---
+
+## Development Workflow
+
+Plan
+
+↓
+
+Implement
+
+↓
+
+Run
+
+↓
+
+Verify
+
+↓
+
+Update Documentation
+
+↓
+
+Commit
+
+↓
+
+Push
