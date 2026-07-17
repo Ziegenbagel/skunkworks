@@ -145,3 +145,39 @@ Wandering Deuterium asteroids are not represented in
 `solar_system.minableTargets`.
 
 Additional testing is required to determine which endpoint exposes wandering asteroids.
+
+## Observation 004
+
+Mineable resources are exposed through two mechanisms:
+
+### Persistent Resources
+
+Located under:
+
+/api/probe/{probeId}/sector
+
+↓
+
+sector.objects
+
+↓
+
+solar_system.minableTargets
+
+### Dynamic Resources
+
+Located directly in:
+
+sector.objects
+
+Objects become mineable when:
+
+mannyMineable == true
+
+Both representations expose:
+
+- resources
+- resourceAmounts
+- resourceComposition
+
+Resource Intelligence normalizes both into a common internal model.

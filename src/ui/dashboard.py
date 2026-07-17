@@ -11,6 +11,8 @@ class Dashboard:
         player,
         probe_data,
         sector_resources,
+        snapshot_info,
+        inventory_info,
 ):
 
         print(DIVIDER)
@@ -21,10 +23,9 @@ class Dashboard:
 
         self.player_section(player)
         self.fleet_section(probe_data)
-        self.resources_section(
-            sector_resources,
-        )
-
+        self.snapshot_section(snapshot_info)
+        self.inventory_section(inventory_info)
+        self.resources_section(sector_resources)
         self.planner_section()
         self.alerts_section()
 
@@ -80,6 +81,77 @@ class Dashboard:
 
             print()
 
+    def snapshot_section(self, snapshot_info):
+        print("Snapshot")
+        print(SECTION)
+
+        print(
+            f"Current Probe: "
+            f"{snapshot_info['probe']}"
+        )
+
+        print(
+            f"Last Refresh: "
+            f"{snapshot_info['last_refresh']}"
+        )
+
+        print(
+            f"Snapshot Age: "
+            f"{snapshot_info['age']}"
+        )
+
+        status = (
+            "Fresh"
+            if snapshot_info["fresh"]
+            else "Stale"
+        )
+
+        print(f"Status: {status}")
+        print()
+
+    def inventory_section(
+        self,
+        inventory,
+    ):
+
+        print("Inventory")
+        print(SECTION)
+
+        print(
+            f"Capacity: "
+            f"{inventory['capacity']:.2f}"
+        )
+
+        print(
+            f"Used: "
+            f"{inventory['used_capacity']:.2f}"
+        )
+
+        print(
+            f"Free: "
+            f"{inventory['free_capacity']:.2f}"
+        )
+
+        print()
+
+        print("Resources")
+
+        for resource_name, amount in (
+            inventory["resource_stocks"].items()
+        ):
+
+            label = (
+                resource_name
+                .replace("_", " ")
+                .title()
+            )
+
+            print(
+                f"  {label:<20}{amount:>10.2f}"
+            )
+
+        print()
+
     def resources_section(
         self,
         sector_resources,
@@ -95,41 +167,42 @@ class Dashboard:
 
             return
 
-        for asteroid in sector_resources:
+        for resource in sector_resources:
 
-            resources = asteroid["resources"]
+            remaining_resources = resource["resources"]
 
-            if resources.get("metals", 0) > 0:
+            classification = resource["classification"]
 
-                title = "Metal Asteroid"
-
-            elif (
-                resources.get("ice", 0) > 0
-                or resources.get(
-                    "carbon_compounds",
-                    0,
-                )
-                > 0
-            ):
-
-                title = "Ice / Organic Asteroid"
-
+            if classification == "persistent":
+                title = "Persistent Asteroid"
             else:
-
-                title = "Unknown Asteroid"
+                title = "Wandering Resource"
 
             print(title)
+            print()
+
+            print("Materials")
+
+            for resource_type in resource["resource_types"]:
+
+                label = (
+                    resource_type
+                    .replace("_", " ")
+                    .title()
+                )
+
+                print(f"  {label}")
 
             print()
 
             print("Remaining")
 
-            for resource, amount in resources.items():
+            for resource_name, amount in remaining_resources.items():
 
                 if amount <= 0:
                     continue
 
-                label = resource.replace(
+                label = resource_name.replace(
                     "_",
                     " ",
                 ).title()
@@ -143,16 +216,16 @@ class Dashboard:
             print("Composition")
 
             for (
-                resource,
+                resource_name,
                 amount,
-            ) in asteroid[
+            ) in resource[
                 "composition"
             ].items():
 
                 if amount <= 0:
                     continue
 
-                label = resource.replace(
+                label = resource_name.replace(
                     "_",
                     " ",
                 ).title()

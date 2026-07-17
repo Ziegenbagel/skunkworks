@@ -190,6 +190,15 @@ Skunkworks now provides live operational information directly from the Von Neuma
 
 Development is currently focused on expanding the Intelligence Layer that will power the future Planner and Automation systems.
 
+Current Capabilities:
+
+- Live API connection
+- Runtime snapshot management
+- Fleet overview
+- Inventory overview
+- Sector resource analysis
+- Snapshot freshness monitoring
+
 ---
 
 # Long-Term Vision

@@ -83,6 +83,20 @@ The Intelligence Layer does **not** communicate with the API or display informat
 
 ---
 
+## Intelligence Layer Design
+
+Analyzers interpret raw API data and return normalized information.
+
+Analyzers should:
+
+- Never print output.
+- Never perform API requests.
+- Never depend on the UI.
+
+Analyzers may normalize multiple API representations into a single internal model.
+
+---
+
 ## Dashboard
 
 The Dashboard presents analyzed information to the user.

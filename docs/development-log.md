@@ -94,3 +94,24 @@ Verified API Discoveries
   sector.objects -> solar_system -> minableTargets.
 • resourceAmounts contains remaining resources.
 • resourceComposition contains resource percentages.
+
+## 2026-07-16
+
+## Mission 7 - Operational Intelligence
+
+Completed:
+
+- Added Snapshot Intelligence
+- Added Inventory Intelligence
+- Refactored Resource Intelligence
+- Added support for persistent and dynamic mineable objects
+- Added Object Inspector developer tool
+- Improved dashboard organization
+
+Major Discoveries:
+
+- Mineable resources come from two API representations:
+  - `solar_system.minableTargets`
+  - `sector.objects` where `mannyMineable == true`
+- Dynamic mineable objects can represent wandering resource opportunities.
+- Resource Intelligence now normalizes both representations into a single internal model.
