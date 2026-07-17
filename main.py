@@ -1,5 +1,7 @@
 import sys
 
+from src.intelligence.inventory import InventoryAnalyzer
+from src.intelligence.snapshot import SnapshotAnalyzer
 from src.intelligence.resources import ResourceAnalyzer
 from src.api.client import GameClient
 from src.snapshot.manager import SnapshotManager
@@ -42,10 +44,7 @@ def find_probe(probes, probe_id):
 
 def main():
 
-    print(DIVIDER)
-    print(APP_NAME)
-    print(f"Version {APP_VERSION}")
-    print(DIVIDER)
+    print("Starting Skunkworks...")
     print()
 
     client = GameClient()
@@ -101,12 +100,28 @@ def main():
         )
     )
 
+    snapshot_analyzer = SnapshotAnalyzer(snapshot_path)
+
+    snapshot_info = snapshot_analyzer.get_snapshot_info(
+        probe["name"]
+    )
+
+    inventory_analyzer = InventoryAnalyzer()
+
+    inventory_info = (
+        inventory_analyzer.get_inventory(
+            sector
+        )
+    )
+
     dashboard = Dashboard()
 
     dashboard.display(
         player,
         probe_data,
         sector_resources,
+        snapshot_info,
+        inventory_info,
 )
 
 
