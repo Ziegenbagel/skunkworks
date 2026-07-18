@@ -30,9 +30,14 @@ Current capabilities include:
 
 - Live API authentication
 - Player information
-- Fleet status dashboard
+- Fleet operational dashboard
 - Runtime Snapshot Manager
+- Snapshot Intelligence
+- Inventory Intelligence
 - Resource Intelligence
+- Fleet Intelligence
+- World Model
+- World Builder
 - Shared application configuration
 - Developer Toolkit
 
@@ -93,7 +98,7 @@ The player should always know:
 # Current Architecture
 
 ```
-Game API
+Infrastructure
     │
     ▼
 GameClient
@@ -106,6 +111,12 @@ Runtime Snapshot
     │
     ▼
 Intelligence Layer
+    │
+    ▼
+World Builder
+    │
+    ▼
+World Model
     │
     ▼
 Dashboard
@@ -137,14 +148,29 @@ Completed
 
 ---
 
-## 🚧 Milestone 2 — Operational Intelligence
+## ✅ Milestone 2 — Operational Intelligence
+
+Completed
+
+- Snapshot Intelligence
+- Inventory Intelligence
+- Resource Intelligence
+- Fleet Intelligence
+- World Model
+- World Builder
+- Operational dashboard
+
+---
+
+## 🚧 Milestone 3 — Knowledge Layer
 
 In Progress
 
-- Snapshot status
-- Inventory Intelligence
-- Fleet Intelligence
-- Improved dashboard
+- gameplay.json loader
+- Static game knowledge
+- Manufacturing data
+- Crafting recipes
+- Planner foundation
 
 ---
 
@@ -180,7 +206,7 @@ Current Version
 
 Current Milestone
 
-Operational Dashboard
+Knowledge Layer
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
@@ -194,10 +220,13 @@ Current Capabilities:
 
 - Live API connection
 - Runtime snapshot management
-- Fleet overview
-- Inventory overview
-- Sector resource analysis
-- Snapshot freshness monitoring
+- World Model
+- World Builder
+- Fleet Intelligence
+- Inventory Intelligence
+- Resource Intelligence
+- Snapshot Intelligence
+- Operational dashboard
 
 ---
 
