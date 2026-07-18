@@ -14,32 +14,27 @@ Instead, it consumes information produced by the Intelligence Layer.
 
 # Current Status
 
-Mission 6
+Mission 7 Complete
 
-Operational Dashboard
-
-Current progress:
+Foundation completed:
 
 - Live API communication ✅
 - Runtime Snapshot Manager ✅
-- Resource Intelligence ✅
-- Fleet Intelligence (In Progress)
-
-Planner implementation has not yet begun.
-
-Mission 7 Progress
-
-Completed
-
 - Snapshot Intelligence ✅
-- Resource Intelligence ✅
 - Inventory Intelligence ✅
+- Resource Intelligence ✅
+- Fleet Intelligence ✅
+- World Builder ✅
+- World Model ✅
+- Operational Dashboard ✅
 
-Next
+The Planner implementation has not yet begun.
 
-- Fleet Intelligence
-- World Model
-- Knowledge Layer
+Current focus:
+
+Mission 8 — Knowledge Layer
+
+The next milestone establishes the Planner's static knowledge base by separating game rules from the live operational state.
 
 ---
 
@@ -49,11 +44,21 @@ The Planner will receive analyzed information from multiple intelligence modules
 
 Current planned inputs include:
 
+Live World State
+
+- World Model
 - Fleet Intelligence
 - Resource Intelligence
 - Inventory Intelligence
-- Snapshot State
-- Future Research Intelligence
+- Snapshot Intelligence
+
+Static Game Knowledge
+
+- Recipes
+- Build costs
+- Craft times
+- Object definitions
+- Manufacturing rules
 
 The Planner should never consume raw API responses directly.
 
@@ -64,12 +69,14 @@ The Planner should never consume raw API responses directly.
 The Planner will eventually answer questions such as:
 
 - Should another Manny be built?
+- Should another storage container be built?
+- Should another printer be produced?
+- Should manufacturing pause until resources arrive?
 - Which asteroid should be mined next?
 - Should a probe relocate?
-- Are additional storage containers required?
 - Should another SCUT Relay be constructed?
 - Is a resource becoming critically low?
-- Which task has the highest priority?
+- Which task has the highest operational priority?
 
 ---
 
@@ -122,9 +129,23 @@ Automation decides *how* and *when* those actions are executed.
 
 Planned Planner capabilities include:
 
+- Hub manufacturing planning
 - Resource forecasting
 - Production optimization
 - Multi-probe coordination
 - Autonomous mining recommendations
 - Build queue optimization
 - Strategic expansion planning
+- Operational health assessment
+- Risk-aware decision making
+
+---
+
+# Planner Philosophy
+
+The Planner combines two sources of information:
+
+1. **World Model** — the current operational state of the game.
+2. **Knowledge Layer** — the rules, recipes, and mechanics that govern the game.
+
+By separating live state from static knowledge, the Planner can make informed decisions without depending directly on API responses or configuration files.

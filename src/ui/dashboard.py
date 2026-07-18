@@ -8,12 +8,8 @@ class Dashboard:
 
     def display(
         self,
-        player,
-        probe_data,
-        sector_resources,
-        snapshot_info,
-        inventory_info,
-):
+        world,
+    ):
 
         print(DIVIDER)
         print(f"{APP_NAME:^48}")
@@ -21,11 +17,11 @@ class Dashboard:
         print(DIVIDER)
         print()
 
-        self.player_section(player)
-        self.fleet_section(probe_data)
-        self.snapshot_section(snapshot_info)
-        self.inventory_section(inventory_info)
-        self.resources_section(sector_resources)
+        self.player_section(world.player)
+        self.fleet_section(world.fleet)
+        self.snapshot_section(world.snapshot)
+        self.inventory_section(world.inventory)
+        self.resources_section(world.resources)
         self.planner_section()
         self.alerts_section()
 
@@ -52,15 +48,46 @@ class Dashboard:
 
     def fleet_section(
         self,
-        probe_data,
+        fleet,
     ):
 
         print("Fleet")
         print(SECTION)
 
-        probes = probe_data["probes"]
+        probes = fleet["probes"]
 
-        print(f"Total Probes: {len(probes)}")
+        print(
+            f"Total Probes: {fleet['total']}"
+        )
+        print()
+
+        print("Operational")
+        print()
+
+        print(
+            f"  Available   {fleet['idle']}"
+        )
+
+        print(
+            f"  Busy        {fleet['active']}"
+        )
+
+        print()
+
+        print("Status Summary")
+        print()
+
+        status_counts = fleet["status_counts"]
+
+        for status, count in status_counts.items():
+
+            print(
+                f"  {status.title():<12}{count}"
+            )
+
+        print()
+
+        print("Probe Details")
         print()
 
         for probe in probes:
@@ -114,7 +141,7 @@ class Dashboard:
         inventory,
     ):
 
-        print("Inventory")
+        print("Probe Inventory")
         print(SECTION)
 
         print(
@@ -134,7 +161,7 @@ class Dashboard:
 
         print()
 
-        print("Resources")
+        print("Cargo")
 
         for resource_name, amount in (
             inventory["resource_stocks"].items()
@@ -157,7 +184,7 @@ class Dashboard:
         sector_resources,
     ):
 
-        print("Resources")
+        print("Sector Resources")
         print(SECTION)
 
         if not sector_resources:

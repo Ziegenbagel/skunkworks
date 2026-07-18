@@ -1,8 +1,6 @@
 import sys
 
-from src.intelligence.inventory import InventoryAnalyzer
-from src.intelligence.snapshot import SnapshotAnalyzer
-from src.intelligence.resources import ResourceAnalyzer
+from src.intelligence.world_builder import WorldBuilder
 from src.api.client import GameClient
 from src.snapshot.manager import SnapshotManager
 from src.ui.dashboard import Dashboard
@@ -51,8 +49,6 @@ def main():
 
     snapshot_manager = SnapshotManager(client)
 
-    resource_analyzer = ResourceAnalyzer()
-
     print("Requesting player...")
     player = client.get_player()
 
@@ -88,41 +84,25 @@ def main():
         f"{probe['name']}..."
     )
 
-    sector, snapshot_path = (
+    snapshot, snapshot_path = (
         snapshot_manager.refresh_sector(probe_id)
     )
 
     print(f"Snapshot updated: {snapshot_path}")
 
-    sector_resources = (
-        resource_analyzer.get_sector_resources(
-            sector
-        )
-    )
+    builder = WorldBuilder()
 
-    snapshot_analyzer = SnapshotAnalyzer(snapshot_path)
-
-    snapshot_info = snapshot_analyzer.get_snapshot_info(
-        probe["name"]
-    )
-
-    inventory_analyzer = InventoryAnalyzer()
-
-    inventory_info = (
-        inventory_analyzer.get_inventory(
-            sector
-        )
+    world = builder.build(
+        player=player,
+        probe_data=probe_data,
+        snapshot=snapshot,
+        snapshot_path=snapshot_path,
+        probe_name=probe["name"],
     )
 
     dashboard = Dashboard()
 
-    dashboard.display(
-        player,
-        probe_data,
-        sector_resources,
-        snapshot_info,
-        inventory_info,
-)
+    dashboard.display(world)
 
 
 if __name__ == "__main__":
