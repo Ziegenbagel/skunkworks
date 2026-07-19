@@ -159,3 +159,65 @@ Goals:
 - Build reusable knowledge services.
 - Prepare manufacturing intelligence.
 - Provide the Planner with game rules, recipes, and object definitions.
+
+## 2026-07-18
+
+## Mission 8 - Knowledge Layer
+
+Completed:
+
+- Added KnowledgeLoader.
+- Added GameplayKnowledge.
+- Integrated `gameplay.json` into the project.
+- Added CraftingKnowledge.
+- Implemented normalized recipe access.
+- Added Recipe Viewer developer tool.
+- Added Dependency Viewer developer tool.
+- Added shared text formatting utilities.
+
+Major Discoveries:
+
+- `gameplay.json` serves as the game's rulebook rather than simple configuration.
+- Crafting recipes form a dependency graph rather than an isolated list of recipes.
+- Raw resources consistently use `*Cost` fields.
+- Manufactured components consistently use `*Count` fields.
+- Recipe normalization separates raw resources, crafted components, and gameplay effects into a stable internal representation.
+- Probe construction is not defined within the crafting system and will require additional API research.
+
+Architecture Improvements:
+
+- Introduced the Knowledge Layer as a distinct architectural layer alongside the World Model.
+- Separated static game knowledge from live operational state.
+- Established Knowledge Services as the public interface for accessing game rules.
+- Introduced reusable developer tools for exploring and validating static game data.
+
+Developer Toolkit:
+
+Added:
+
+- Gameplay Explorer
+- Recipe Viewer
+- Dependency Viewer
+
+Project Milestone:
+
+Mission 8 has successfully established the foundation of the Knowledge Layer.
+
+Skunkworks now separates:
+
+- Live operational state (World Model)
+- Static game rules (Knowledge Layer)
+
+This separation provides the foundation for future manufacturing analysis, production planning, and intelligent decision making.
+
+Next Mission:
+
+Continue Mission 8 — Knowledge Reasoning
+
+Goals:
+
+- Build recursive manufacturing analysis.
+- Calculate total raw resource requirements.
+- Generate manufacturing dependency trees.
+- Expand the Knowledge Layer beyond crafting.
+- Prepare the Planner to reason over game knowledge rather than raw data.

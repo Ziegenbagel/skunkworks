@@ -1,0 +1,357 @@
+{
+  "player": {
+    "spawnCoordinateMin": -1000,
+    "spawnCoordinateMax": 1000,
+    "starterAsteroid": {
+      "enabledForNewEmptySectors": true,
+      "idPrefix": "starter-iron",
+      "composition": "iron",
+      "estimatedResources": ["iron", "nickel"],
+      "sizeCategory": "small",
+      "mass": 0.00005,
+      "radius": 0.012,
+      "description": "Metallic asteroid seeded in a newly reactivated probe sector."
+    }
+  },
+  "probe": {
+    "initialMannyCount": 4,
+    "mannyNameSearchLimit": 12,
+    "initialIntegrityPercent": 100.0,
+    "maxIntegrityPercent": 100.0,
+    "initialDeuteriumPercent": 100.0,
+    "atomicPrinterContainerSpace": 0.3,
+    "coreContainerCapacity": 1.0,
+    "additionalContainerCapacity": 1.0,
+    "maxDeuteriumPercent": 100.0
+  },
+  "probeImprovements": {
+    "deuterium_compression": {
+      "name": "Deuterium compression",
+      "description": "Compresses the external deuterium tank reserve so it can hold up to 200% fuel.",
+      "durationSeconds": 300,
+      "ingredients": [
+        {
+          "type": "electric_motor",
+          "quantity": 1,
+          "unit": "item",
+          "kind": "item"
+        },
+        {
+          "type": "steel_bar",
+          "quantity": 2,
+          "unit": "item",
+          "kind": "item"
+        }
+      ],
+      "effects": {
+        "maxDeuteriumPercent": 200.0
+      }
+    },
+    "reinforced_container_couplings": {
+      "name": "Reinforced container couplings",
+      "description": "Reinforces external container couplings so five additional containers are ignored when movement break risk is calculated.",
+      "durationSeconds": 300,
+      "ingredients": [
+        {
+          "type": "integrated_circuit",
+          "quantity": 1,
+          "unit": "item",
+          "kind": "item"
+        },
+        {
+          "type": "carbon_compounds",
+          "quantity": 0.4,
+          "unit": "earth_container_equivalent",
+          "kind": "resource"
+        }
+      ],
+      "effects": {
+        "fragileContainerRiskAdditionalContainerDiscount": 5
+      }
+    }
+  },
+  "manny": {
+    "cargoCapacity": 0.05,
+    "containerSpace": 0.05,
+    "mineablePlanetMaxMassEarthUnits": 0.0123,
+    "actions": {
+      "repairSecondsPerIntegrityPercent": 600,
+      "repairMetalsPerIntegrityPercent": 0.01,
+      "miningTravelSeconds": 900,
+      "miningAmountPerTick": 0.01,
+      "miningTickSeconds": 300,
+      "salvageSeconds": 300,
+      "waypointBookmarkInstallSeconds": 10,
+      "scutRelayTurnOnSeconds": 300,
+      "storageMoveSecondsPerUnit": 10,
+      "storageMoveEceStep": 0.05
+    }
+  },
+  "movement": {
+    "durationFactor": 0.5,
+    "preparationMinutes": 10,
+    "accelerationMinutesPerDistance": 20,
+    "cruiseMinutesPerDistance": 30,
+    "decelerationMinutesPerDistance": 20,
+    "fuelCostRatioOfCurrentDeuterium": 0.02,
+    "velocityBaseC": 0.42,
+    "velocityPerDistanceC": 0.1,
+    "velocityMaxC": 0.95,
+    "accelerationCPerDay": 0.36,
+    "destructionSafeDistance": 2,
+    "destructionRiskByDistance": {
+      "3": 0.05,
+      "4": 0.12,
+      "5": 0.25,
+      "default": 0.4
+    },
+    "intersectorIntegrityLossMaxPercentPerDistance": 3.0,
+    "blackHoleTrap": {
+      "minDelaySeconds": 5400,
+      "maxDelaySeconds": 10800,
+      "minMass": 3.0,
+      "maxMass": 30.0
+    }
+  },
+  "intelligentLife": {
+    "scenarios": {
+      "return_to_space_program": {
+        "weight": 100
+      },
+      "orbital_cleanup": {
+        "weight": 0
+      },
+      "exodus": {
+        "weight": 0
+      },
+      "genetic_ark": {
+        "weight": 0
+      },
+      "last_telescope": {
+        "weight": 0
+      },
+      "communication_relay": {
+        "weight": 0
+      },
+      "forgotten_depot": {
+        "weight": 0
+      },
+      "foreign_von_neumann_probe_assistance": {
+        "weight": 0
+      }
+    }
+  },
+  "scan": {
+    "residenceSecondsByDistance": {
+      "0": 0,
+      "1": 300,
+      "2": 1800,
+      "default": 7200
+    },
+    "initialNeighborDelayBypassVisitedCount": 1,
+    "qualityRequiredSecondsMultiplier": 4.0,
+    "neighborConfidenceBase": 0.62,
+    "neighborConfidenceQualityScale": 0.3,
+    "neighborConfidenceMax": 0.92,
+    "distantConfidenceBase": 0.24,
+    "distantConfidenceQualityScale": 0.25,
+    "distantConfidenceMax": 0.58,
+    "longRangeConfidenceBase": 0.08,
+    "longRangeConfidenceQualityScale": 0.12,
+    "longRangeConfidenceMax": 0.24,
+    "neighborPlanetCountBlurBase": 3.0,
+    "neighborPlanetCountBlurQualityScale": 2.0,
+    "neighborPlanetCountBlurMin": 1,
+    "neighborBlackHoleProbabilityIfPresent": 0.7,
+    "neighborBlackHoleProbabilityIfAbsent": 0.03
+  },
+  "crafting": {
+    "waypoint_bookmark": {
+      "description": "A transmitting beacon placed on an object such as an asteroid or planet, or set in orbit around a star or gas giant. Its message can be read by every Neumann probe present in the sector.",
+      "metalsCost": 0.01,
+      "containerSpace": 0.01,
+      "durationSeconds": 600
+    },
+    "steel_bar": {
+      "description": "A rigid structural bar used in frames, rails, braces, and heavy mechanical assemblies.",
+      "metalsCost": 0.02,
+      "containerSpace": 0.01,
+      "durationSeconds": 300
+    },
+    "steel_plate": {
+      "description": "A flat reinforced plate suited to hull patches, container walls, and broad mounting surfaces.",
+      "metalsCost": 0.02,
+      "containerSpace": 0.01,
+      "durationSeconds": 300
+    },
+    "additional_container": {
+      "description": "A fold-out storage module that expands the probe cargo volume once assembled.",
+      "steelPlateCount": 12,
+      "steelBarCount": 15,
+      "durationSeconds": 180,
+      "capacityBonus": 1.0,
+      "containerSpace": 0.0
+    },
+    "micro_conductor": {
+      "description": "A precision conductor etched at microscopic scale for high-density electronic paths.",
+      "metalsCost": 0.04,
+      "deuteriumCost": 0.01,
+      "containerSpace": 0.005,
+      "durationSeconds": 600
+    },
+    "ceramic_insulator": {
+      "description": "A heat-stable insulating part grown from volatile ice and carbon compounds.",
+      "iceCost": 0.03,
+      "organicCost": 0.04,
+      "deuteriumCost": 0.01,
+      "containerSpace": 0.005,
+      "durationSeconds": 600
+    },
+    "crystal_substrate": {
+      "description": "A polished crystalline base that keeps printed circuits aligned and thermally stable.",
+      "metalsCost": 0.08,
+      "iceCost": 0.03,
+      "deuteriumCost": 0.02,
+      "containerSpace": 0.005,
+      "durationSeconds": 900
+    },
+    "dopant_matrix": {
+      "description": "A controlled impurity matrix that tunes semiconductor behavior during atomic printing.",
+      "metalsCost": 0.04,
+      "organicCost": 0.03,
+      "deuteriumCost": 0.02,
+      "containerSpace": 0.002,
+      "durationSeconds": 900
+    },
+    "integrated_circuit": {
+      "description": "A dense logic component combining conductors, insulators, substrate, and dopants.",
+      "microConductorCount": 2,
+      "ceramicInsulatorCount": 2,
+      "crystalSubstrateCount": 1,
+      "dopantMatrixCount": 1,
+      "deuteriumCost": 0.05,
+      "containerSpace": 0.001,
+      "durationSeconds": 1200
+    },
+    "electric_motor": {
+      "description": "A compact rotary actuator that converts stored electrical energy into mechanical motion.",
+      "steelBarCount": 2,
+      "steelPlateCount": 1,
+      "metalsCost": 0.02,
+      "containerSpace": 0.006,
+      "durationSeconds": 900
+    },
+    "battery_pack": {
+      "description": "A rechargeable power pack for mobile tools, actuators, and autonomous Manny systems.",
+      "metalsCost": 0.03,
+      "iceCost": 0.02,
+      "organicCost": 0.06,
+      "deuteriumCost": 0.02,
+      "containerSpace": 0.008,
+      "durationSeconds": 1200
+    },
+    "linear_actuator": {
+      "description": "A precise push-pull mechanism used wherever a Manny needs controlled force.",
+      "steelPlateCount": 2,
+      "steelBarCount": 1,
+      "electricMotorCount": 1,
+      "metalsCost": 0.01,
+      "containerSpace": 0.01,
+      "durationSeconds": 1200
+    },
+    "atomic_printer_part": {
+      "description": "A precision replacement block printed at atomic scale for high-energy fabrication systems.",
+      "microConductorCount": 2,
+      "ceramicInsulatorCount": 1,
+      "crystalSubstrateCount": 1,
+      "dopantMatrixCount": 1,
+      "deuteriumCost": 0.05,
+      "containerSpace": 0.01,
+      "durationSeconds": 2700
+    },
+    "deuterium_engine": {
+      "description": "A compact propulsion module that channels stored deuterium through printed control parts.",
+      "atomicPrinterPartCount": 1,
+      "integratedCircuitCount": 1,
+      "electricMotorCount": 2,
+      "batteryPackCount": 1,
+      "linearActuatorCount": 1,
+      "steelPlateCount": 4,
+      "deuteriumCost": 0.5,
+      "containerSpace": 0.06,
+      "durationSeconds": 7200
+    },
+    "solar_panel": {
+      "description": "A foldable photovoltaic panel with printed conductors, crystal substrate, and a reinforced mounting plate.",
+      "microConductorCount": 2,
+      "crystalSubstrateCount": 1,
+      "ceramicInsulatorCount": 1,
+      "steelPlateCount": 1,
+      "metalsCost": 0.02,
+      "containerSpace": 0.015,
+      "durationSeconds": 1800
+    },
+    "scut_relay": {
+      "description": "A long-range SCUT communication relay module with its own solar power array, buffer batteries, control circuits, and deployable structure.",
+      "steelPlateCount": 32,
+      "steelBarCount": 28,
+      "batteryPackCount": 6,
+      "solarPanelCount": 4,
+      "integratedCircuitCount": 5,
+      "electricMotorCount": 4,
+      "linearActuatorCount": 2,
+      "containerSpace": 0.12,
+      "durationSeconds": 172800
+    },
+    "thermal_protection_shell": {
+      "description": "A disposable ablative shell that protects a storage container during atmospheric entry.",
+      "ceramicInsulatorCount": 8,
+      "steelPlateCount": 4,
+      "organicCost": 0.06,
+      "deuteriumCost": 0.02,
+      "containerSpace": 0.035,
+      "durationSeconds": 2400
+    },
+    "parachute_pack": {
+      "description": "A folded braking canopy pack with compact deployment hardware for cargo descents.",
+      "steelBarCount": 2,
+      "steelPlateCount": 2,
+      "organicCost": 0.18,
+      "iceCost": 0.05,
+      "containerSpace": 0.045,
+      "durationSeconds": 1800
+    },
+    "descent_guidance_module": {
+      "description": "A small avionics and actuator package for limited steering during a cargo drop.",
+      "integratedCircuitCount": 2,
+      "batteryPackCount": 1,
+      "linearActuatorCount": 2,
+      "steelPlateCount": 2,
+      "deuteriumCost": 0.03,
+      "containerSpace": 0.035,
+      "durationSeconds": 2400
+    },
+    "atmospheric_drop_kit": {
+      "description": "A disposable descent kit for dropping one storage container through an atmosphere with ablative shielding, parachute braking, and limited steering authority.",
+      "thermalProtectionShellCount": 1,
+      "parachutePackCount": 1,
+      "descentGuidanceModuleCount": 1,
+      "steelPlateCount": 4,
+      "steelBarCount": 2,
+      "containerSpace": 0.08,
+      "durationSeconds": 3600
+    },
+    "manny": {
+      "description": "A fully assembled maintenance unit able to repair, mine, carry cargo, and build new parts.",
+      "linearActuatorCount": 6,
+      "electricMotorCount": 12,
+      "batteryPackCount": 4,
+      "integratedCircuitCount": 6,
+      "steelPlateCount": 18,
+      "steelBarCount": 12,
+      "containerSpace": 0.05,
+      "cargoCapacity": 0.05,
+      "durationSeconds": 3600
+    }
+  }
+}
