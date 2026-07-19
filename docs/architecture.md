@@ -28,6 +28,9 @@ WorldBuilder
 WorldModel
     │
     ▼
+Knowledge Layer
+    │
+    ▼
 Dashboard
     │
     ▼
@@ -126,11 +129,10 @@ The World Model represents the current operational state of the game.
 
 Current contents:
 
-- Player
-- Fleet
-- Snapshot
-- Probe Inventory
-- Sector Resources
+- Containers
+- Manufacturing state
+- Construction state
+- Planner state
 
 Future additions include:
 
@@ -143,6 +145,30 @@ Future additions include:
 The World Model contains normalized information and is consumed by the Dashboard and future Planner.
 
 ---
+
+## Knowledge Layer
+The Knowledge Layer provides normalized access to the game's static rules.
+
+It interprets configuration data from gameplay.json and exposes stable interfaces that the rest of Skunkworks can consume without depending on raw game data.
+
+Current modules:
+
+- KnowledgeLoader
+- GameplayKnowledge
+- CraftingKnowledge
+- Developer tools:
+- Gameplay Explorer
+- Recipe Viewer
+- Dependency Viewer
+
+Future modules:
+
+- MovementKnowledge
+- ProbeKnowledge
+- MannyKnowledge
+- ScanKnowledge
+
+The Knowledge Layer does not communicate with the API and does not represent the current game state.
 
 ## Dashboard
 
@@ -177,16 +203,20 @@ SnapshotManager
 Runtime Snapshot
       │
       ▼
-WorldBuilder
+Intelligence Layer
       │
       ▼
-Intelligence Layer
+WorldBuilder
       │
       ▼
 WorldModel
       │
-      ▼
-Dashboard
+      ├──────────────┐
+      ▼              │
+Dashboard     Knowledge Layer
+                     │
+                     ▼
+               Planner (Future)
 ```
 
 ---
@@ -201,6 +231,7 @@ Dashboard
 - Construction is handled exclusively by WorldBuilder.
 - The World Model is the single source of truth for application state.
 - Presentation consumes the World Model rather than raw API responses.
+- Static game rules belong in the Knowledge Layer.
 
 ---
 
@@ -210,7 +241,7 @@ As Skunkworks grows, additional intelligence modules will be added without chang
 
 Planned additions include:
 
-- Knowledge Layer
+- Expanded Knowledge Services
 - Container Intelligence
 - Manufacturing Intelligence
 - Planner Engine

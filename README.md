@@ -8,7 +8,7 @@ Instead of manually managing repetitive tasks, Skunkworks continuously monitors 
 
 Its goal is simple:
 
-> **When you sit down to play, your fleet should already be prepared.**
+> **When you sit down to play, your fleet should already be prepared. Skunkworks doesn't replace strategic decision-making—it eliminates repetitive operational work so the player can focus on exploration and long-term planning.**
 
 ---
 
@@ -38,14 +38,20 @@ Current capabilities include:
 - Fleet Intelligence
 - World Model
 - World Builder
+- Knowledge Layer
+- Gameplay Knowledge
+- Crafting Knowledge
 - Shared application configuration
 - Developer Toolkit
 
 Developer Toolkit includes:
 
+- API Explorer
 - JSON Tree Explorer
 - Snapshot Comparison Tool
-- API Explorer
+- Gameplay Explorer
+- Recipe Viewer
+- Dependency Viewer
 
 ---
 
@@ -119,6 +125,9 @@ World Builder
 World Model
     │
     ▼
+Knowledge Layer
+    │
+    ▼
 Dashboard
     │
     ▼
@@ -164,12 +173,20 @@ Completed
 
 ## 🚧 Milestone 3 — Knowledge Layer
 
+Completed
+
+- gameplay.json integration
+- KnowledgeLoader
+- GameplayKnowledge
+- CraftingKnowledge
+- Gameplay Explorer
+- Recipe Viewer
+- Dependency Viewer
+
 In Progress
 
-- gameplay.json loader
-- Static game knowledge
-- Manufacturing data
-- Crafting recipes
+- Recursive manufacturing analysis
+- Resource requirement expansion
 - Planner foundation
 
 ---
@@ -214,7 +231,7 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Resource Intelligence
 - Runtime snapshots
 
-Development is currently focused on expanding the Intelligence Layer that will power the future Planner and Automation systems.
+Development is currently focused on building the Knowledge Layer, which provides a normalized interface to the game's rules and will serve as the foundation for the Planner.
 
 Current Capabilities:
 
@@ -222,6 +239,8 @@ Current Capabilities:
 - Runtime snapshot management
 - World Model
 - World Builder
+- Gameplay Knowledge
+- Crafting Knowledge
 - Fleet Intelligence
 - Inventory Intelligence
 - Resource Intelligence

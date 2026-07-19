@@ -32,9 +32,24 @@ The Planner implementation has not yet begun.
 
 Current focus:
 
-Mission 8 — Knowledge Layer
+Mission 8 — Knowledge Layer (In Progress)
 
-The next milestone establishes the Planner's static knowledge base by separating game rules from the live operational state.
+Completed:
+
+- KnowledgeLoader
+- GameplayKnowledge
+- CraftingKnowledge
+- Gameplay Explorer
+- Recipe Viewer
+- Dependency Viewer
+
+Current Focus:
+
+- Recursive manufacturing analysis
+- Manufacturing dependency graphs
+- Total raw resource calculation
+
+The Knowledge Layer now provides a normalized interface to the game's static rules and will become one of the Planner's primary information sources.
 
 ---
 
@@ -52,13 +67,13 @@ Live World State
 - Inventory Intelligence
 - Snapshot Intelligence
 
-Static Game Knowledge
+Knowledge Layer
 
-- Recipes
-- Build costs
-- Craft times
-- Object definitions
-- Manufacturing rules
+- Crafting Knowledge
+- Movement Knowledge (Future)
+- Probe Knowledge (Future)
+- Manny Knowledge (Future)
+- Scan Knowledge (Future)
 
 The Planner should never consume raw API responses directly.
 
@@ -77,6 +92,9 @@ The Planner will eventually answer questions such as:
 - Should another SCUT Relay be constructed?
 - Is a resource becoming critically low?
 - Which task has the highest operational priority?
+- What raw resources are required to complete a build?
+- Which manufacturing dependencies are missing?
+- Is a production chain currently achievable?
 
 ---
 
@@ -129,9 +147,11 @@ Automation decides *how* and *when* those actions are executed.
 
 Planned Planner capabilities include:
 
+- Manufacturing dependency analysis
 - Hub manufacturing planning
 - Resource forecasting
 - Production optimization
+- Production chain optimization
 - Multi-probe coordination
 - Autonomous mining recommendations
 - Build queue optimization
@@ -148,4 +168,4 @@ The Planner combines two sources of information:
 1. **World Model** — the current operational state of the game.
 2. **Knowledge Layer** — the rules, recipes, and mechanics that govern the game.
 
-By separating live state from static knowledge, the Planner can make informed decisions without depending directly on API responses or configuration files.
+By separating live state from static knowledge, the Planner can make informed decisions without depending directly on API responses or configuration files. The Planner reasons over normalized application models rather than raw API responses or configuration files, allowing individual systems to evolve independently.
