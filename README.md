@@ -41,6 +41,11 @@ Current capabilities include:
 - Knowledge Layer
 - Gameplay Knowledge
 - Crafting Knowledge
+- Resource Knowledge
+- Movement Knowledge
+- Recursive dependency analysis
+- Recursive resource analysis
+- Manufacturing reports
 - Shared application configuration
 - Developer Toolkit
 
@@ -52,6 +57,8 @@ Developer Toolkit includes:
 - Gameplay Explorer
 - Recipe Viewer
 - Dependency Viewer
+- Raw Resource Viewer
+- Manufacturing Report
 
 ---
 
@@ -128,6 +135,9 @@ World Model
 Knowledge Layer
     │
     ▼
+Reports
+    │
+    ▼
 Dashboard
     │
     ▼
@@ -179,15 +189,21 @@ Completed
 - KnowledgeLoader
 - GameplayKnowledge
 - CraftingKnowledge
+- ResourceKnowledge
+- MovementKnowledge
+- Recursive dependency analysis
+- Recursive resource analysis
+- Manufacturing Report
 - Gameplay Explorer
 - Recipe Viewer
 - Dependency Viewer
+- Raw Resource Viewer
 
-In Progress
+Next
 
-- Recursive manufacturing analysis
-- Resource requirement expansion
-- Planner foundation
+- Planner design
+- Manufacturing intelligence
+- Recommendation engine
 
 ---
 
@@ -219,11 +235,11 @@ In Progress
 
 Current Version
 
-0.5.0
+0.6.0
 
 Current Milestone
 
-Knowledge Layer
+Planner Design
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
@@ -231,7 +247,7 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Resource Intelligence
 - Runtime snapshots
 
-Development is currently focused on building the Knowledge Layer, which provides a normalized interface to the game's rules and will serve as the foundation for the Planner.
+Development is currently focused on designing the Planner, which will combine the live World Model with the Knowledge Layer to generate intelligent operational recommendations.
 
 Current Capabilities:
 
@@ -241,6 +257,11 @@ Current Capabilities:
 - World Builder
 - Gameplay Knowledge
 - Crafting Knowledge
+- Resource Knowledge
+- Movement Knowledge
+- Recursive dependency analysis
+- Recursive resource analysis
+- Manufacturing reports
 - Fleet Intelligence
 - Inventory Intelligence
 - Resource Intelligence
@@ -263,6 +284,8 @@ Its purpose is to function as an intelligent operations manager capable of:
 - Reducing repetitive gameplay while keeping the player in control
 
 The player defines the destination.
+
+Skunkworks combines live operational intelligence with static game knowledge to understand not only the current state of the fleet, but also the rules governing the game world. This separation enables the Planner to generate informed recommendations rather than relying on hardcoded automation.
 
 Skunkworks determines the most efficient path to reach it.
 

@@ -167,13 +167,17 @@ Goals:
 Completed:
 
 - Added KnowledgeLoader.
-- Added GameplayKnowledge.
 - Integrated `gameplay.json` into the project.
+- Added GameplayKnowledge.
 - Added CraftingKnowledge.
+- Added ResourceKnowledge.
+- Added MovementKnowledge.
 - Implemented normalized recipe access.
-- Added Recipe Viewer developer tool.
-- Added Dependency Viewer developer tool.
+- Implemented recursive dependency analysis.
+- Implemented recursive raw resource analysis.
+- Added Manufacturing Report.
 - Added shared text formatting utilities.
+- Added shared time formatting utilities.
 
 Major Discoveries:
 
@@ -182,6 +186,7 @@ Major Discoveries:
 - Raw resources consistently use `*Cost` fields.
 - Manufactured components consistently use `*Count` fields.
 - Recipe normalization separates raw resources, crafted components, and gameplay effects into a stable internal representation.
+- Total manufacturing costs can be derived recursively from normalized recipe data.
 - Probe construction is not defined within the crafting system and will require additional API research.
 
 Architecture Improvements:
@@ -189,7 +194,8 @@ Architecture Improvements:
 - Introduced the Knowledge Layer as a distinct architectural layer alongside the World Model.
 - Separated static game knowledge from live operational state.
 - Established Knowledge Services as the public interface for accessing game rules.
-- Introduced reusable developer tools for exploring and validating static game data.
+- Added recursive reasoning capabilities built on top of normalized knowledge.
+- Introduced Manufacturing Reports as the first assembled knowledge product.
 
 Developer Toolkit:
 
@@ -198,26 +204,30 @@ Added:
 - Gameplay Explorer
 - Recipe Viewer
 - Dependency Viewer
+- Raw Resource Viewer
+- Manufacturing Report
 
 Project Milestone:
 
-Mission 8 has successfully established the foundation of the Knowledge Layer.
+Mission 8 is now complete.
 
 Skunkworks now separates:
 
 - Live operational state (World Model)
 - Static game rules (Knowledge Layer)
 
-This separation provides the foundation for future manufacturing analysis, production planning, and intelligent decision making.
+The Knowledge Layer is now capable of deriving manufacturing relationships, dependency trees, and total raw resource requirements directly from the game's rule set.
+
+This establishes the foundation required for production planning, manufacturing intelligence, and the future Planner.
 
 Next Mission:
 
-Continue Mission 8 — Knowledge Reasoning
+Mission 9 — Planner Design
 
 Goals:
 
-- Build recursive manufacturing analysis.
-- Calculate total raw resource requirements.
-- Generate manufacturing dependency trees.
-- Expand the Knowledge Layer beyond crafting.
-- Prepare the Planner to reason over game knowledge rather than raw data.
+- Define Desired State.
+- Design Planner inputs and outputs.
+- Establish recommendation priorities.
+- Design manufacturing planning workflows.
+- Integrate the World Model with the Knowledge Layer.

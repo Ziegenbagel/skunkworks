@@ -31,7 +31,7 @@ WorldModel
 Knowledge Layer
     │
     ▼
-Dashboard
+Reports
     │
     ▼
 Planner (Future)
@@ -129,10 +129,11 @@ The World Model represents the current operational state of the game.
 
 Current contents:
 
-- Containers
-- Manufacturing state
-- Construction state
-- Planner state
+- Player
+- Fleet
+- Snapshot
+- Probe Inventory
+- Sector Resources
 
 Future additions include:
 
@@ -156,17 +157,23 @@ Current modules:
 - KnowledgeLoader
 - GameplayKnowledge
 - CraftingKnowledge
-- Developer tools:
+- ResourceKnowledge
+- MovementKnowledge
+
+Developer Toolkit
+
 - Gameplay Explorer
 - Recipe Viewer
 - Dependency Viewer
+- Raw Resource Viewer
+- Manufacturing Report
 
 Future modules:
 
-- MovementKnowledge
 - ProbeKnowledge
 - MannyKnowledge
 - ScanKnowledge
+- ManufacturingKnowledge
 
 The Knowledge Layer does not communicate with the API and does not represent the current game state.
 
@@ -209,14 +216,13 @@ Intelligence Layer
 WorldBuilder
       │
       ▼
-WorldModel
+WorldModel ───────────────► Dashboard
       │
-      ├──────────────┐
-      ▼              │
-Dashboard     Knowledge Layer
-                     │
-                     ▼
-               Planner (Future)
+      ▼
+Knowledge Layer ──────────► Reports
+      │
+      ▼
+Planner (Future)
 ```
 
 ---
@@ -232,6 +238,7 @@ Dashboard     Knowledge Layer
 - The World Model is the single source of truth for application state.
 - Presentation consumes the World Model rather than raw API responses.
 - Static game rules belong in the Knowledge Layer.
+- Knowledge services expose normalized game rules rather than raw configuration data.
 
 ---
 
@@ -241,9 +248,8 @@ As Skunkworks grows, additional intelligence modules will be added without chang
 
 Planned additions include:
 
-- Expanded Knowledge Services
-- Container Intelligence
-- Manufacturing Intelligence
+- Additional Knowledge Services
+- Manufacturing Planning
 - Planner Engine
 - Automation Engine
 - Operational Health and Risk Assessment
