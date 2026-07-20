@@ -32,24 +32,32 @@ The Planner implementation has not yet begun.
 
 Current focus:
 
-Mission 8 — Knowledge Layer (In Progress)
+Mission 8 Complete
 
-Completed:
+Foundation completed:
 
-- KnowledgeLoader
-- GameplayKnowledge
-- CraftingKnowledge
-- Gameplay Explorer
-- Recipe Viewer
-- Dependency Viewer
+- KnowledgeLoader ✅
+- GameplayKnowledge ✅
+- CraftingKnowledge ✅
+- ResourceKnowledge ✅
+- MovementKnowledge ✅
+- Recursive dependency analysis ✅
+- Recursive raw resource analysis ✅
+- Manufacturing Report ✅
 
-Current Focus:
+The Planner implementation has not yet begun.
 
-- Recursive manufacturing analysis
-- Manufacturing dependency graphs
-- Total raw resource calculation
+Current focus:
 
-The Knowledge Layer now provides a normalized interface to the game's static rules and will become one of the Planner's primary information sources.
+Mission 9 — Planner Design
+
+Goals:
+
+- Define Desired State.
+- Define Planner inputs.
+- Define Planner outputs.
+- Design recommendation priorities.
+- Integrate the World Model with the Knowledge Layer.
 
 ---
 
@@ -69,11 +77,16 @@ Live World State
 
 Knowledge Layer
 
+- Gameplay Knowledge
 - Crafting Knowledge
-- Movement Knowledge (Future)
-- Probe Knowledge (Future)
-- Manny Knowledge (Future)
-- Scan Knowledge (Future)
+- Resource Knowledge
+- Movement Knowledge
+
+Future Knowledge Services
+
+- Probe Knowledge
+- Manny Knowledge
+- Scan Knowledge
 
 The Planner should never consume raw API responses directly.
 
@@ -83,18 +96,26 @@ The Planner should never consume raw API responses directly.
 
 The Planner will eventually answer questions such as:
 
+Manufacturing
+
 - Should another Manny be built?
 - Should another storage container be built?
 - Should another printer be produced?
 - Should manufacturing pause until resources arrive?
-- Which asteroid should be mined next?
-- Should a probe relocate?
-- Should another SCUT Relay be constructed?
-- Is a resource becoming critically low?
-- Which task has the highest operational priority?
 - What raw resources are required to complete a build?
 - Which manufacturing dependencies are missing?
 - Is a production chain currently achievable?
+
+Logistics
+
+- Which asteroid should be mined next?
+- Should a probe relocate?
+- Should another SCUT Relay be constructed?
+
+Operational Health
+
+- Is a resource becoming critically low?
+- Which task has the highest operational priority?
 
 ---
 
@@ -104,6 +125,7 @@ The Planner may produce:
 
 - Recommendations
 - Priority lists
+- Manufacturing plans
 - Warnings
 - Forecasts
 - Automation tasks (future)
@@ -147,13 +169,13 @@ Automation decides *how* and *when* those actions are executed.
 
 Planned Planner capabilities include:
 
-- Manufacturing dependency analysis
-- Hub manufacturing planning
+- Desired State evaluation
+- Manufacturing planning
 - Resource forecasting
 - Production optimization
-- Production chain optimization
 - Multi-probe coordination
 - Autonomous mining recommendations
+- Logistics planning
 - Build queue optimization
 - Strategic expansion planning
 - Operational health assessment
@@ -169,3 +191,5 @@ The Planner combines two sources of information:
 2. **Knowledge Layer** — the rules, recipes, and mechanics that govern the game.
 
 By separating live state from static knowledge, the Planner can make informed decisions without depending directly on API responses or configuration files. The Planner reasons over normalized application models rather than raw API responses or configuration files, allowing individual systems to evolve independently.
+
+The Planner is intentionally separated from both the game API and the underlying configuration files. By reasoning over normalized models produced by the World Model and Knowledge Layer, it remains focused exclusively on operational decision making.

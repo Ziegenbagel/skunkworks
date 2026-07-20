@@ -12,94 +12,42 @@ sys.path.insert(
     str(project_root),
 )
 
-from src.utils.text import (
-    humanize_name,
-)
 from src.knowledge.crafting import (
     CraftingKnowledge,
 )
+from src.utils.text import (
+    humanize_name,
+)
+
+
+def print_tree(
+    node,
+    indent="",
+):
+
+    print(
+        f"{indent}"
+        f"{humanize_name(node['name'])}"
+        f" x{node.get('count', 1)}"
+    )
+
+    for child in node["children"]:
+
+        print_tree(
+            child,
+            indent + "    ",
+        )
+
 
 crafting = CraftingKnowledge()
 
-recipe = crafting.get_recipe(
+tree = crafting.get_dependency_tree(
     "manny"
 )
 
 print("=" * 60)
-print(humanize_name(recipe["name"]))
+print("Manufacturing Dependency Tree")
 print("=" * 60)
 print()
 
-print("Description")
-print("-" * 60)
-print(recipe["description"])
-print()
-
-print("Dependencies")
-print("-" * 60)
-
-if recipe["crafted_components"]:
-
-    for component, count in (
-        recipe["crafted_components"].items()
-    ):
-
-        print(
-            f"{humanize_name(component):<30}{count:>5}"
-        )
-
-else:
-
-    print("None")
-
-print()
-
-print("Raw Resources")
-print("-" * 60)
-
-if recipe["raw_resources"]:
-
-    for resource, amount in (
-        recipe["raw_resources"].items()
-    ):
-
-        print(
-            f"{humanize_name(resource):<30}{amount}"
-        )
-
-else:
-
-    print("None")
-
-print()
-
-print("Effects")
-print("-" * 60)
-
-if recipe["effects"]:
-
-    for effect, value in (
-        recipe["effects"].items()
-    ):
-
-        print(
-            f"{humanize_name(effect):<30}{value}"
-        )
-
-else:
-
-    print("None")
-
-print()
-
-print("Build Time")
-print("-" * 60)
-print(
-    f"{recipe['duration_seconds']} seconds"
-)
-
-print()
-
-print("Container Space")
-print("-" * 60)
-print(recipe["container_space"])
+print_tree(tree)

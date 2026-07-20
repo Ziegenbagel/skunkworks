@@ -41,3 +41,20 @@ print(
         "probe"
     ),
 )
+
+print()
+
+print("Manny Dependencies")
+print("-" * 40)
+
+dependencies = crafting.get_dependencies(
+    "manny"
+)
+
+for item, count in (
+    dependencies.items()
+):
+
+    print(
+        f"{item:<25}{count}"
+    )
