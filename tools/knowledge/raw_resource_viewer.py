@@ -16,7 +16,7 @@ from src.knowledge.crafting import (
     CraftingKnowledge,
 )
 from src.knowledge.resources import (
-    get_display_name,
+    ResourceKnowledge,
 )
 from src.utils.text import (
     humanize_name,
@@ -24,6 +24,8 @@ from src.utils.text import (
 
 
 crafting = CraftingKnowledge()
+
+resources = ResourceKnowledge()
 
 item = "manny"
 
@@ -50,6 +52,6 @@ for resource, amount in (
 ):
 
     print(
-        f"{get_display_name(resource):<25}"
+        f"{resources.get_display_name(resource):<25}"
         f"{amount:>10.2f}"
     )

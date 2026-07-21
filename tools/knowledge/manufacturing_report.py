@@ -22,10 +22,12 @@ from src.utils.time import (
     format_duration,
 )
 from src.knowledge.resources import (
-    get_display_name,
+    ResourceKnowledge,
 )
 
 report = ManufacturingReport()
+
+resources = ResourceKnowledge()
 
 data = report.build(
     "manny"
@@ -118,9 +120,6 @@ def print_tree(
             indent + "    ",
         )
 
-
-from pprint import pprint
-
 print_tree(tree)
 
 print()
@@ -132,6 +131,6 @@ for resource, amount in (
 ):
 
     print(
-        f"{get_display_name(resource):<30}"
+        f"{resources.get_display_name(resource):<30}"
         f"{amount:>8.2f}"
     )
