@@ -38,19 +38,22 @@ class ManufacturingService:
         item_name,
     ):
         """
-        Determine whether the required raw
-        resources are currently available.
+        Determine whether an item can be
+        manufactured using the currently
+        available raw resources.
         """
 
-        report = self.build_report(
+        missing = self.missing_resources(
             item_name
         )
 
-        if report is None:
+        if missing is None:
 
             return False
 
-        return True
+        return len(
+            missing
+        ) == 0
     
     def raw_resources(
         self,
@@ -72,3 +75,46 @@ class ManufacturingService:
         return report[
             "raw_resources"
         ]
+    
+    def missing_resources(
+        self,
+        item_name,
+    ):
+        """
+        Return any raw resources still needed
+        to manufacture an item.
+        """
+
+        report = self.build_report(
+            item_name
+        )
+
+        if report is None:
+
+            return None
+
+        inventory = self.world.inventory[
+            "resource_stocks"
+        ]
+
+        missing = {}
+
+        for resource, required in (
+            report[
+                "raw_resources"
+            ].items()
+        ):
+
+            available = inventory.get(
+                resource,
+                0,
+            )
+
+            if available < required:
+
+                missing[resource] = round(
+                    required - available,
+                    2,
+                )
+
+        return missing

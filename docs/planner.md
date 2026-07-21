@@ -8,15 +8,19 @@ Its responsibility is to evaluate the current game state and recommend or eventu
 
 The Planner does not communicate directly with the game API.
 
-Instead, it consumes information produced by the Intelligence Layer.
+Instead, it consumes information produced by the Operational Layer.
+
+The Operational Layer combines the live World Model with the static Knowledge Layer, allowing the Planner to focus on high-level decision making rather than low-level operational reasoning.
 
 ---
 
 # Current Status
 
-Mission 7 Complete
+Mission 9 — Operational Layer
 
-Foundation completed:
+Completed Foundations
+
+Mission 7
 
 - Live API communication ✅
 - Runtime Snapshot Manager ✅
@@ -28,13 +32,7 @@ Foundation completed:
 - World Model ✅
 - Operational Dashboard ✅
 
-The Planner implementation has not yet begun.
-
-Current focus:
-
-Mission 8 Complete
-
-Foundation completed:
+Mission 8
 
 - KnowledgeLoader ✅
 - GameplayKnowledge ✅
@@ -45,50 +43,43 @@ Foundation completed:
 - Recursive raw resource analysis ✅
 - Manufacturing Report ✅
 
+Mission 9 (In Progress)
+
+- Operations facade ✅
+- FleetService ✅
+- ManufacturingService ✅
+- Manufacturing feasibility analysis ✅
+- Missing resource analysis ✅
+
 The Planner implementation has not yet begun.
 
 Current focus:
 
-Mission 9 — Planner Design
-
-Goals:
-
-- Define Desired State.
-- Define Planner inputs.
-- Define Planner outputs.
-- Design recommendation priorities.
-- Integrate the World Model with the Knowledge Layer.
+Continue expanding the Operational Layer until it exposes the capabilities required by the Planner.
 
 ---
 
 # Planner Inputs
 
-The Planner will receive analyzed information from multiple intelligence modules.
+The Planner receives operational capabilities rather than raw application state.
 
-Current planned inputs include:
+Operational Layer
 
-Live World State
+- FleetService
+- ManufacturingService
+- TravelService (Future)
+- GalaxyService (Future)
+- ProbeService (Future)
+- MessagingService (Future)
+
+Supporting Layers
+
+Operational Services internally consume:
 
 - World Model
-- Fleet Intelligence
-- Resource Intelligence
-- Inventory Intelligence
-- Snapshot Intelligence
+- Knowledge Layer
 
-Knowledge Layer
-
-- Gameplay Knowledge
-- Crafting Knowledge
-- Resource Knowledge
-- Movement Knowledge
-
-Future Knowledge Services
-
-- Probe Knowledge
-- Manny Knowledge
-- Scan Knowledge
-
-The Planner should never consume raw API responses directly.
+The Planner should never consume raw API responses, snapshots, or configuration data directly.
 
 ---
 
@@ -105,6 +96,7 @@ Manufacturing
 - What raw resources are required to complete a build?
 - Which manufacturing dependencies are missing?
 - Is a production chain currently achievable?
+- Which resources are preventing production?
 
 Logistics
 
@@ -141,6 +133,16 @@ Priority
 4. Build Probe
 ```
 
+Future examples may also include:
+Manufacturing Assessment
+
+Cannot build Manny
+
+Missing:
+-Metals: 2.58
+-Organic Compounds: 0.90
+-Deuterium: 0.86
+
 ---
 
 # Automation
@@ -171,6 +173,8 @@ Planned Planner capabilities include:
 
 - Desired State evaluation
 - Manufacturing planning
+- Travel planning
+- Safety evaluation
 - Resource forecasting
 - Production optimization
 - Multi-probe coordination
@@ -185,11 +189,17 @@ Planned Planner capabilities include:
 
 # Planner Philosophy
 
-The Planner combines two sources of information:
+The Planner consumes the Operational Layer rather than interacting directly with lower-level application models.
+
+Operational Services combine two sources of information:
 
 1. **World Model** — the current operational state of the game.
 2. **Knowledge Layer** — the rules, recipes, and mechanics that govern the game.
 
-By separating live state from static knowledge, the Planner can make informed decisions without depending directly on API responses or configuration files. The Planner reasons over normalized application models rather than raw API responses or configuration files, allowing individual systems to evolve independently.
+By separating operational reasoning into dedicated services, the Planner remains focused on answering higher-level questions such as:
 
-The Planner is intentionally separated from both the game API and the underlying configuration files. By reasoning over normalized models produced by the World Model and Knowledge Layer, it remains focused exclusively on operational decision making.
+- What should happen next?
+- Which recommendation has the highest priority?
+- Which objective most effectively advances the player's Desired State?
+
+This separation allows the World Model, Knowledge Layer, and Operational Layer to evolve independently while presenting the Planner with a stable, task-oriented interface.

@@ -222,7 +222,7 @@ This establishes the foundation required for production planning, manufacturing 
 
 Next Mission:
 
-Mission 9 — Planner Design
+Mission 9 — Operational Layer
 
 Goals:
 
@@ -278,3 +278,52 @@ Goals:
 - Build Fleet, Travel, Manufacturing, and Messaging services.
 - Separate operational reasoning from game knowledge.
 - Prepare the Planner to reason about possible actions rather than raw game data.
+
+## 2026-07-20
+
+## Mission 9 - Operational Layer (Part 1)
+
+Completed:
+
+- Introduced the Operational Layer.
+- Added the Operations facade.
+- Added FleetService.
+- Added ManufacturingService.
+- Integrated the Operational Layer into the application startup.
+- Added manufacturing feasibility analysis.
+- Added missing resource analysis.
+- Added Fleet Summary developer tool.
+
+Architecture Improvements:
+
+- Established the Operational Layer as the bridge between the World Model and the future Planner.
+- Separated operational reasoning from both the Intelligence Layer and the Knowledge Layer.
+- Confirmed operational services consume normalized application state rather than raw API responses.
+- Established Operations as the public entry point for higher-level operational capabilities.
+
+Major Discoveries:
+
+- Operational reasoning naturally combines live world state with static game knowledge.
+- Manufacturing feasibility can be determined without exposing inventory or recipe implementation details to the caller.
+- The Planner can consume Operational Services without depending directly on the World Model or Knowledge Layer.
+
+Project Milestone:
+
+Mission 9 is approximately halfway complete.
+
+Skunkworks has transitioned from collecting and organizing information to performing operational reasoning.
+
+The Operational Layer now answers higher-level questions such as whether an item can be manufactured and which resources are still required.
+
+Next Session:
+
+Mission 9 — Operational Layer (Part 2)
+
+Goals:
+
+- Add TravelService.
+- Add GalaxyService.
+- Add ProbeService.
+- Add MessagingService.
+- Add fuel awareness to the operational dashboard.
+- Continue preparing the Planner to consume Operational Services.
