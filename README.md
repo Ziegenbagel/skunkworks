@@ -43,6 +43,10 @@ Current capabilities include:
 - Crafting Knowledge
 - Resource Knowledge
 - Movement Knowledge
+- Operational Layer
+- Fleet Service
+- Manufacturing Service
+- Manufacturing feasibility analysis
 - Recursive dependency analysis
 - Recursive resource analysis
 - Manufacturing reports
@@ -59,6 +63,7 @@ Developer Toolkit includes:
 - Dependency Viewer
 - Raw Resource Viewer
 - Manufacturing Report
+- Fleet Summary
 
 ---
 
@@ -131,23 +136,18 @@ World Builder
     ▼
 World Model
     │
-    ▼
-Knowledge Layer
-    │
-    ▼
-Reports
-    │
-    ▼
-Dashboard
-    │
-    ▼
-Planner (Future)
-    │
-    ▼
-Automation (Future)
+    ├──────────────┐
+    ▼              ▼
+Dashboard     Operational Layer
+                   │
+                   ▼
+            Planner (Future)
+                   │
+                   ▼
+          Automation (Future)
 ```
 
-Each layer has a single responsibility and communicates only with adjacent layers.
+Each layer has a single responsibility and communicates only with adjacent layers. The Operational Layer combines the live World Model with the Knowledge Layer to answer higher-level operational questions without exposing implementation details to the Planner.
 
 This architecture allows Skunkworks to grow without tightly coupling systems together.
 
@@ -181,29 +181,26 @@ Completed
 
 ---
 
-## 🚧 Milestone 3 — Knowledge Layer
+## 🚧 Milestone 3 — Operational Layer
+
+In Progress
 
 Completed
 
-- gameplay.json integration
-- KnowledgeLoader
-- GameplayKnowledge
-- CraftingKnowledge
-- ResourceKnowledge
-- MovementKnowledge
-- Recursive dependency analysis
-- Recursive resource analysis
-- Manufacturing Report
-- Gameplay Explorer
-- Recipe Viewer
-- Dependency Viewer
-- Raw Resource Viewer
+- Operations facade
+- Fleet Service
+- Manufacturing Service
+- Operational manufacturing reasoning
+- Manufacturing feasibility analysis
+- Missing resource analysis
 
 Next
 
-- Planner design
-- Manufacturing intelligence
-- Recommendation engine
+- Travel Service
+- Galaxy Service
+- Probe Service
+- Messaging Service
+- Planner integration
 
 ---
 
@@ -239,7 +236,7 @@ Current Version
 
 Current Milestone
 
-Planner Design
+Operational Layer
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
@@ -247,7 +244,7 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Resource Intelligence
 - Runtime snapshots
 
-Development is currently focused on designing the Planner, which will combine the live World Model with the Knowledge Layer to generate intelligent operational recommendations.
+Development is currently focused on expanding the Operational Layer, which combines the live World Model with the Knowledge Layer to answer operational questions. These services will become the primary interface used by the Planner.
 
 Current Capabilities:
 
@@ -259,6 +256,10 @@ Current Capabilities:
 - Crafting Knowledge
 - Resource Knowledge
 - Movement Knowledge
+- Operational Layer
+- Fleet Service
+- Manufacturing Service
+- Manufacturing feasibility analysis
 - Recursive dependency analysis
 - Recursive resource analysis
 - Manufacturing reports
@@ -285,7 +286,7 @@ Its purpose is to function as an intelligent operations manager capable of:
 
 The player defines the destination.
 
-Skunkworks combines live operational intelligence with static game knowledge to understand not only the current state of the fleet, but also the rules governing the game world. This separation enables the Planner to generate informed recommendations rather than relying on hardcoded automation.
+Skunkworks combines live operational intelligence with static game knowledge through its Operational Layer to understand not only the current state of the fleet, but also the rules governing the game world. This separation enables the Planner to generate informed recommendations rather than relying on hardcoded automation.
 
 Skunkworks determines the most efficient path to reach it.
 

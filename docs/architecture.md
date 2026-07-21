@@ -27,17 +27,15 @@ WorldBuilder
     ▼
 WorldModel
     │
-    ▼
-Knowledge Layer
-    │
-    ▼
-Reports
-    │
-    ▼
-Planner (Future)
-    │
-    ▼
-Automation (Future)
+    ├──────────────┐
+    ▼              ▼
+Dashboard     Operational Layer
+                   │
+                   ▼
+            Planner (Future)
+                   │
+                   ▼
+          Automation (Future)
 ```
 
 ---
@@ -143,7 +141,7 @@ Future additions include:
 - Knowledge references
 - Planner state
 
-The World Model contains normalized information and is consumed by the Dashboard and future Planner.
+The World Model contains normalized information and is consumed by the Dashboard and the Operational Layer. Higher-level decision making is intentionally separated into operational services rather than accessing the World Model directly.
 
 ---
 
@@ -177,6 +175,38 @@ Future modules:
 
 The Knowledge Layer does not communicate with the API and does not represent the current game state.
 
+---
+
+## Operational Layer
+
+The Operational Layer combines the live World Model with the static Knowledge Layer to answer operational questions.
+
+Unlike the Intelligence Layer, Operational Services reason across multiple application layers rather than interpreting raw API responses.
+
+Current services:
+
+- FleetService
+- ManufacturingService
+
+Planned services:
+
+- TravelService
+- GalaxyService
+- ProbeService
+- MessagingService
+
+Typical responsibilities include:
+
+- Fleet operations
+- Manufacturing feasibility
+- Resource availability
+- Travel decisions
+- Operational messaging
+
+The Operational Layer provides the primary interface that the future Planner will consume.
+
+---
+
 ## Dashboard
 
 The Dashboard presents analyzed information to the user.
@@ -186,6 +216,7 @@ Current sections:
 - Player
 - Fleet
 - Snapshot
+- Probe Fuel
 - Probe Inventory
 - Sector Resources
 - Planner
@@ -216,13 +247,18 @@ Intelligence Layer
 WorldBuilder
       │
       ▼
-WorldModel ───────────────► Dashboard
+WorldModel
       │
-      ▼
-Knowledge Layer ──────────► Reports
-      │
-      ▼
-Planner (Future)
+      ├──────────────┐
+      ▼              ▼
+Dashboard     Operational Layer
+                     │
+          ┌──────────┴──────────┐
+          ▼                     ▼
+Knowledge Layer         Planner (Future)
+                                │
+                                ▼
+                        Automation (Future)
 ```
 
 ---
@@ -238,6 +274,7 @@ Planner (Future)
 - The World Model is the single source of truth for application state.
 - Presentation consumes the World Model rather than raw API responses.
 - Static game rules belong in the Knowledge Layer.
+- Operational reasoning belongs in the Operational Layer.
 - Knowledge services expose normalized game rules rather than raw configuration data.
 
 ---
@@ -249,7 +286,8 @@ As Skunkworks grows, additional intelligence modules will be added without chang
 Planned additions include:
 
 - Additional Knowledge Services
-- Manufacturing Planning
+- Travel Services
+- Safety Services
 - Planner Engine
 - Automation Engine
 - Operational Health and Risk Assessment
