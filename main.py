@@ -4,6 +4,9 @@ from src.intelligence.world_builder import WorldBuilder
 from src.api.client import GameClient
 from src.snapshot.manager import SnapshotManager
 from src.ui.dashboard import Dashboard
+from src.operations.operations import (
+    Operations,
+)
 
 from src.config import APP_NAME, APP_VERSION
 
@@ -98,6 +101,10 @@ def main():
         snapshot=snapshot,
         snapshot_path=snapshot_path,
         probe_name=probe["name"],
+    )
+
+    operations = Operations(
+        world
     )
 
     dashboard = Dashboard()
