@@ -139,6 +139,26 @@ class CraftingKnowledge:
             "crafted_components"
         ]
     
+    def get_raw_resources(
+        self,
+        item_name,
+    ):
+        """
+        Return the immediate raw resources
+        required by a recipe.
+        """
+
+        recipe = self.get_recipe(
+            item_name
+        )
+
+        if recipe is None:
+            return {}
+
+        return recipe[
+            "raw_resources"
+        ]
+    
     def get_dependency_tree(
         self,
         item_name,

@@ -28,7 +28,7 @@ class ManufacturingReport:
 
             return None
 
-        return {
+        report = {
             "recipe": recipe,
             "dependencies": (
                 self.crafting.get_dependencies(
@@ -46,3 +46,5 @@ class ManufacturingReport:
                 )
             ),
         }
+
+        return report

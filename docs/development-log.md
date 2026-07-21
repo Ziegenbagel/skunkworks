@@ -231,3 +231,50 @@ Goals:
 - Establish recommendation priorities.
 - Design manufacturing planning workflows.
 - Integrate the World Model with the Knowledge Layer.
+
+## 2026-07-19
+
+## Mission 8.5 - Knowledge Layer Refinement
+
+Completed:
+
+- Reviewed the public Knowledge Layer API.
+- Added `get_raw_resources()` to `CraftingKnowledge`.
+- Refactored `ResourceKnowledge` into a consistent knowledge service.
+- Standardized Knowledge Layer interfaces across all services.
+- Updated developer tools to consume `ResourceKnowledge`.
+- Added placeholder documentation for `MovementKnowledge`.
+
+Architecture Improvements:
+
+- Established consistent service-oriented APIs throughout the Knowledge Layer.
+- Distinguished Knowledge Services from Knowledge Products.
+- Confirmed `KnowledgeLoader` as the sole component responsible for loading static game data.
+- Verified that `GameplayKnowledge` remains the public entry point for `gameplay.json`.
+- Confirmed developer tools consume Knowledge services rather than raw game data.
+
+Repository Review:
+
+- Verified no direct access to `gameplay.json` exists outside the Knowledge Layer.
+- Verified Knowledge loading is centralized through `KnowledgeLoader`.
+- Verified developer tools remain presentation-only and do not contain business logic.
+- Confirmed the Knowledge Layer provides a stable foundation for future Operational services.
+
+Project Milestone:
+
+Mission 8.5 is complete.
+
+The Knowledge Layer now exposes a consistent set of reusable services that separate static game knowledge from higher-level reasoning.
+
+Skunkworks is now ready to begin Mission 9 — Operational Layer.
+
+Next Mission:
+
+Mission 9 — Operational Layer
+
+Goals:
+
+- Introduce operational service architecture.
+- Build Fleet, Travel, Manufacturing, and Messaging services.
+- Separate operational reasoning from game knowledge.
+- Prepare the Planner to reason about possible actions rather than raw game data.

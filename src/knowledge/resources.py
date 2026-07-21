@@ -18,23 +18,59 @@ RESOURCE_DEFINITIONS = {
     },
 }
 
-
-def get_display_name(
-    resource_name,
-):
+class ResourceKnowledge:
     """
-    Return the user-facing name for a
-    resource.
+    Provides normalized access to
+    resource definitions.
     """
 
-    definition = RESOURCE_DEFINITIONS.get(
-        resource_name
-    )
+    def __init__(self):
 
-    if definition is None:
+        self._resources = (
+            RESOURCE_DEFINITIONS
+        )
 
-        return resource_name
+    def get_display_name(
+        self,
+        resource_name,
+    ):
+        """
+        Return the user-facing name for a
+        resource.
+        """
 
-    return definition[
-        "display_name"
-    ]
+        definition = self._resources.get(
+            resource_name
+        )
+
+        if definition is None:
+
+            return resource_name
+
+        return definition[
+            "display_name"
+        ]
+    
+    def list_resources(
+        self,
+    ):
+        """
+        Return all known resources.
+        """
+
+        return sorted(
+            self._resources.keys()
+        )
+    
+    def resource_exists(
+        self,
+        resource_name,
+    ):
+        """
+        Return whether a resource exists.
+        """
+
+        return (
+            resource_name
+            in self._resources
+        )
