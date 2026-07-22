@@ -12,6 +12,16 @@ Higher-level reasoning is intentionally delegated to the Operational Layer, keep
 
 ---
 
+## Design Principle
+
+The World Model is the application's single source of truth for live game state.
+
+It contains normalized representations of observable information only.
+
+Decision-making, planning, forecasting, and optimization are intentionally delegated to higher application layers.
+
+---
+
 # Current Structure
 
 ```
@@ -24,6 +34,8 @@ WorldModel
 ├── Snapshot
 │
 ├── Probe Inventory
+│
+├── Probe Fuel
 │
 └── Sector Resources
 ```
@@ -52,7 +64,7 @@ WorldModel
 Dashboard     Operational Layer
                      │
                      ▼
-             Planner (Future)
+                 Planner
 ```
 
 ---
@@ -85,9 +97,10 @@ The World Model currently provides:
 - Fleet status
 - Snapshot status
 - Probe inventory
+- Probe fuel
 - Sector resource intelligence
 
-The World Model intentionally contains only normalized application state. It does not perform operational reasoning or planning.
+The World Model intentionally contains only normalized application state. Operational Services consume the World Model to answer higher-level questions without exposing raw application state to the Planner. It does not perform operational reasoning or planning.
 
 ---
 
@@ -98,8 +111,7 @@ The World Model will expand as additional systems are introduced.
 Planned additions include:
 
 - Containers
-- Manufacturing state
+- Manufacturing facilities
 - Construction state
-- Operational health
 - Additional fleet state
 - Additional sector state

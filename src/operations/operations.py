@@ -6,6 +6,14 @@ from src.operations.manufacturing import (
     ManufacturingService,
 )
 
+from src.operations.travel import (
+    TravelService,
+)
+
+from src.operations.probes import (
+    ProbeService,
+)
+
 
 class Operations:
     """
@@ -26,6 +34,18 @@ class Operations:
     
         self.manufacturing = (
             ManufacturingService(
+                world
+            )
+        )
+
+        self.travel = (
+            TravelService(
+                world
+            )
+        )
+
+        self.probes = (
+            ProbeService(
                 world
             )
         )

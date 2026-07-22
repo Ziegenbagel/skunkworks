@@ -12,7 +12,11 @@ Research
 ↓
 Developer Toolkit
 ↓
-Application
+Knowledge
+↓
+Operations
+↓
+Planner
 ↓
 Automation
 
@@ -28,6 +32,8 @@ Every feature should be built upon verified observations of the game API.
 - Keep every version working.
 - Prefer reusable tools over one-off scripts.
 - Organize first, optimize later.
+- One responsibility per component.
+- Prefer composition over large classes.
 
 ---
 
@@ -44,6 +50,9 @@ Snapshots and research data.
 
 docs/
 Project documentation.
+
+tests/
+Automated tests (future).
 
 ---
 
@@ -120,21 +129,17 @@ Application versioning is independent.
 ## Development Workflow
 
 Research
-
 ↓
-
-Developer Tool
-
+Developer Toolkit
 ↓
-
 Verified Understanding
-
 ↓
-
-Application Feature
-
+Knowledge Layer
 ↓
-
+Operational Layer
+↓
+Planner
+↓
 Automation
 
 Never skip steps.
@@ -143,7 +148,7 @@ Never skip steps.
 
 ## Commit Messages
 
-Commit messages should describe completed work.
+Commit messages should describe completed work. Commit only completed, working features.
 
 Examples:
 
@@ -169,7 +174,7 @@ never bypass the game's intended mechanics.
 
 ---
 
-## Development Workflow
+## Mission Completion Workflow
 
 Plan
 
@@ -196,3 +201,25 @@ Commit
 ↓
 
 Push
+
+## Service Design
+
+Services should answer questions.
+
+Services should not print output.
+
+Services should not interact with the user interface.
+
+Services should consume normalized application state rather than raw API responses.
+
+Services should expose stable, high-level operations without revealing implementation details.
+
+## Documentation Workflow
+
+After each completed mission:
+
+- Update README
+- Update Architecture documentation
+- Update Development Log
+- Review project documentation for accuracy
+- Commit

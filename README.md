@@ -45,6 +45,8 @@ Current capabilities include:
 - Movement Knowledge
 - Operational Layer
 - Fleet Service
+- Probe Service
+- Travel Service
 - Manufacturing Service
 - Manufacturing feasibility analysis
 - Recursive dependency analysis
@@ -140,6 +142,11 @@ World Model
     ▼              ▼
 Dashboard     Operational Layer
                    │
+                   ├── FleetService
+                   ├── ProbeService
+                   ├── TravelService
+                   └── ManufacturingService
+                   │
                    ▼
             Planner (Future)
                    │
@@ -181,14 +188,14 @@ Completed
 
 ---
 
-## 🚧 Milestone 3 — Operational Layer
-
-In Progress
+## ✅ Milestone 3 — Operational Layer
 
 Completed
 
 - Operations facade
 - Fleet Service
+- Probe Service
+- Travel Service
 - Manufacturing Service
 - Operational manufacturing reasoning
 - Manufacturing feasibility analysis
@@ -196,11 +203,9 @@ Completed
 
 Next
 
-- Travel Service
-- Galaxy Service
-- Probe Service
-- Messaging Service
-- Planner integration
+- Planner
+- Task system
+- Mission Control
 
 ---
 
@@ -236,7 +241,7 @@ Current Version
 
 Current Milestone
 
-Operational Layer
+Mission 10 — Planner
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
@@ -259,6 +264,8 @@ Current Capabilities:
 - Operational Layer
 - Fleet Service
 - Manufacturing Service
+- Probe Service
+- Travel Service
 - Manufacturing feasibility analysis
 - Recursive dependency analysis
 - Recursive resource analysis
@@ -288,7 +295,8 @@ The player defines the destination.
 
 Skunkworks combines live operational intelligence with static game knowledge through its Operational Layer to understand not only the current state of the fleet, but also the rules governing the game world. This separation enables the Planner to generate informed recommendations rather than relying on hardcoded automation.
 
-Skunkworks determines the most efficient path to reach it.
+Skunkworks combines live operational intelligence with static game knowledge through its Operational Layer to understand both the current state of the fleet and the rules governing the game world.
+The Planner transforms that information into an ordered task queue based on the player's goals. Rather than following fixed scripts, Skunkworks continuously evaluates the fleet, reprioritizes work as conditions change, and performs as much of the operational workload as the player chooses to automate.
 
 ---
 

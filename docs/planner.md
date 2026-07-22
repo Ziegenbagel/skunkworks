@@ -43,19 +43,23 @@ Mission 8
 - Recursive raw resource analysis ✅
 - Manufacturing Report ✅
 
-Mission 9 (In Progress)
+Mission 9 — Operational Layer ✅
 
 - Operations facade ✅
 - FleetService ✅
 - ManufacturingService ✅
-- Manufacturing feasibility analysis ✅
-- Missing resource analysis ✅
+- TravelService ✅
+- ProbeService ✅
 
 The Planner implementation has not yet begun.
 
-Current focus:
+Mission 10
 
-Continue expanding the Operational Layer until it exposes the capabilities required by the Planner.
+Current Focus
+
+- Planner architecture
+- Task model
+- Dashboard integration
 
 ---
 
@@ -67,10 +71,13 @@ Operational Layer
 
 - FleetService
 - ManufacturingService
-- TravelService (Future)
-- GalaxyService (Future)
-- ProbeService (Future)
-- MessagingService (Future)
+- TravelService
+- ProbeService
+
+Future
+
+- GalaxyService
+- MessagingService
 
 Supporting Layers
 
@@ -84,8 +91,6 @@ The Planner should never consume raw API responses, snapshots, or configuration 
 ---
 
 # Planner Responsibilities
-
-The Planner will eventually answer questions such as:
 
 Manufacturing
 
@@ -113,24 +118,32 @@ Operational Health
 
 # Planner Outputs
 
-The Planner may produce:
+The Planner produces an ordered task queue.
 
-- Recommendations
-- Priority lists
-- Manufacturing plans
-- Warnings
-- Forecasts
-- Automation tasks (future)
+Each task describes:
+
+- What should be done
+- Why it should be done
+- Priority
+- Severity
+- Execution mode
 
 Example:
 
 ```
-Priority
+Task Queue
 
-1. Build Storage Container
-2. Build Manny
-3. Build SCUT Relay
-4. Build Probe
+1. Build 2 Mannys
+   Reason:
+   Increase mining throughput before expanding storage.
+
+2. Build 5 Storage Containers
+   Reason:
+   Prepare for additional mining capacity.
+
+3. Manufacture Probe Components
+   Reason:
+   Prepare next probe for manual assembly.
 ```
 
 Future examples may also include:
@@ -155,7 +168,7 @@ Relationship:
 Planner
     │
     ▼
-Recommendations
+Task Queue
     │
     ▼
 Automation
@@ -184,6 +197,11 @@ Planned Planner capabilities include:
 - Strategic expansion planning
 - Operational health assessment
 - Risk-aware decision making
+- Task optimization
+- Task scheduling
+- Goal prioritization
+- Explainable planning
+- Goal-based planning
 
 ---
 
@@ -203,3 +221,15 @@ By separating operational reasoning into dedicated services, the Planner remains
 - Which objective most effectively advances the player's Desired State?
 
 This separation allows the World Model, Knowledge Layer, and Operational Layer to evolve independently while presenting the Planner with a stable, task-oriented interface.
+
+# Planner Principles
+
+The Planner is goal-driven.
+
+Players define the desired outcome.
+
+The Planner determines the most efficient sequence of work required to reach that outcome.
+
+The Planner may temporarily reorder work if doing so results in a faster or more efficient path toward the player's objectives.
+
+Every generated task should explain why it exists so the player can understand the Planner's reasoning.

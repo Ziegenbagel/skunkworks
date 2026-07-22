@@ -327,3 +327,45 @@ Goals:
 - Add MessagingService.
 - Add fuel awareness to the operational dashboard.
 - Continue preparing the Planner to consume Operational Services.
+
+## 2026-07-21
+
+## Mission 9 - Operational Layer (Part 2)
+
+Completed:
+
+- Added TravelService.
+- Added ProbeService.
+- Added fuel awareness to the operational dashboard.
+- Expanded the Operational Layer with additional probe-centric services.
+- Verified Operational Services integrate cleanly with the World Model.
+
+Architecture Improvements:
+
+- Established ProbeService as the centralized interface for probe-specific operational information.
+- Separated probe state queries from FleetService to keep service responsibilities focused.
+- Continued reinforcing the Operational Layer as the sole interface between the World Model and future planning systems.
+
+Major Discoveries:
+
+- Probe inventory, fuel, and idle state naturally belong together as probe-level operational data.
+- Smaller, specialized services scale better than expanding existing services with unrelated responsibilities.
+- Operational Services continue to demonstrate that higher-level reasoning can be built without exposing raw application state.
+
+Project Milestone:
+
+Mission 9 is now complete.
+
+The Operational Layer now provides focused services for fleet management, manufacturing, travel, and probe operations. This completes the operational foundation required before introducing the Planner.
+
+Next Mission:
+
+Mission 10 — Planner
+
+Goals:
+
+- Create the Planner framework.
+- Introduce the Task model.
+- Generate structured tasks instead of direct actions.
+- Integrate Planner output into the dashboard.
+- Begin production planning.

@@ -106,18 +106,7 @@ def main():
     operations = Operations(
         world
     )
-
-    print(
-        operations.manufacturing.can_build(
-            "manny"
-        )
-    )
-
-    print(
-        operations.manufacturing.missing_resources(
-            "manny"
-        )
-    )
+    
 
     dashboard = Dashboard()
 

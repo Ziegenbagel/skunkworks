@@ -30,8 +30,13 @@ WorldModel
     ├──────────────┐
     ▼              ▼
 Dashboard     Operational Layer
-                   │
-                   ▼
+                    │
+                    ├── FleetService
+                    ├── ProbeService
+                    ├── TravelService
+                    └── ManufacturingService
+                    │
+                    ▼
             Planner (Future)
                    │
                    ▼
@@ -131,6 +136,7 @@ Current contents:
 - Fleet
 - Snapshot
 - Probe Inventory
+- Probe Fuel
 - Sector Resources
 
 Future additions include:
@@ -139,7 +145,6 @@ Future additions include:
 - Manufacturing
 - Construction
 - Knowledge references
-- Planner state
 
 The World Model contains normalized information and is consumed by the Dashboard and the Operational Layer. Higher-level decision making is intentionally separated into operational services rather than accessing the World Model directly.
 
@@ -186,13 +191,13 @@ Unlike the Intelligence Layer, Operational Services reason across multiple appli
 Current services:
 
 - FleetService
+- ProbeService
+- TravelService
 - ManufacturingService
 
 Planned services:
 
-- TravelService
 - GalaxyService
-- ProbeService
 - MessagingService
 
 Typical responsibilities include:
@@ -276,6 +281,7 @@ Knowledge Layer         Planner (Future)
 - Static game rules belong in the Knowledge Layer.
 - Operational reasoning belongs in the Operational Layer.
 - Knowledge services expose normalized game rules rather than raw configuration data.
+- Operational services consume the World Model rather than raw API responses.
 
 ---
 
@@ -288,6 +294,7 @@ Planned additions include:
 - Additional Knowledge Services
 - Travel Services
 - Safety Services
-- Planner Engine
+- Planner
+- Mission Control
 - Automation Engine
 - Operational Health and Risk Assessment
