@@ -4,6 +4,9 @@ from src.intelligence.fleet import (
 from src.intelligence.inventory import (
     InventoryAnalyzer,
 )
+from src.intelligence.fuel import (
+    FuelAnalyzer,
+)
 from src.intelligence.resources import (
     ResourceAnalyzer,
 )
@@ -34,6 +37,8 @@ class WorldBuilder:
 
         inventory_analyzer = InventoryAnalyzer()
 
+        fuel_analyzer = FuelAnalyzer()
+
         snapshot_analyzer = SnapshotAnalyzer(
             snapshot_path
         )
@@ -57,6 +62,11 @@ class WorldBuilder:
         world.inventory = (
             inventory_analyzer
             .get_inventory(snapshot)
+        )
+
+        world.fuel = (
+            fuel_analyzer
+            .get_fuel(snapshot)
         )
 
         world.snapshot = (

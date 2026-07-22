@@ -21,6 +21,7 @@ class Dashboard:
         self.fleet_section(world.fleet)
         self.snapshot_section(world.snapshot)
         self.inventory_section(world.inventory)
+        self.fuel_section(world.fuel)
         self.resources_section(world.resources)
         self.planner_section()
         self.alerts_section()
@@ -178,6 +179,48 @@ class Dashboard:
             )
 
         print()
+
+    def fuel_section(
+        self,
+        fuel,
+    ):
+
+        print("Probe Fuel")
+        print(SECTION)
+
+        tanks = fuel["external_tanks"]
+
+        if not tanks:
+
+            print("No external fuel tanks.")
+            print()
+
+            return
+
+        for tank in tanks:
+
+            print(tank["name"])
+            print()
+
+            print(
+                f"  Type              {tank['type'].title()}"
+            )
+
+            print(
+                f"  Fill              {tank['fill_percent']}%"
+            )
+
+            print(
+                f"  External          "
+                f"{'Yes' if tank['external'] else 'No'}"
+            )
+
+            print(
+                f"  Uses Cargo        "
+                f"{'Yes' if tank['uses_cargo_capacity'] else 'No'}"
+            )
+
+            print()
 
     def resources_section(
         self,

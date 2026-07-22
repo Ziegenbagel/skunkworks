@@ -6,7 +6,9 @@ The World Model is the application's normalized representation of the current ga
 
 It is constructed by the WorldBuilder using information produced by the Intelligence Layer.
 
-The Dashboard and future Planner consume the World Model rather than interacting directly with API responses.
+The Dashboard and Operational Layer consume the World Model rather than interacting directly with API responses.
+
+Higher-level reasoning is intentionally delegated to the Operational Layer, keeping the World Model focused exclusively on representing the current state of the game.
 
 ---
 
@@ -23,9 +25,7 @@ WorldModel
 │
 ├── Probe Inventory
 │
-├── Sector Resources
-│
-└── Planner
+└── Sector Resources
 ```
 
 ---
@@ -47,8 +47,12 @@ WorldBuilder
       ▼
 WorldModel
       │
-      ├── Dashboard
-      └── Planner (Future)
+      ├──────────────┐
+      ▼              ▼
+Dashboard     Operational Layer
+                     │
+                     ▼
+             Planner (Future)
 ```
 
 ---
@@ -82,7 +86,8 @@ The World Model currently provides:
 - Snapshot status
 - Probe inventory
 - Sector resource intelligence
-- Planner placeholder
+
+The World Model intentionally contains only normalized application state. It does not perform operational reasoning or planning.
 
 ---
 
@@ -93,8 +98,8 @@ The World Model will expand as additional systems are introduced.
 Planned additions include:
 
 - Containers
-- Manufacturing
-- Construction
-- Knowledge references
-- Operational Health
-- Planner state
+- Manufacturing state
+- Construction state
+- Operational health
+- Additional fleet state
+- Additional sector state

@@ -10,9 +10,11 @@ class WorldModel:
         snapshot=None,
         inventory=None,
         resources=None,
+        fuel=None,
     ):
         self.player = player
         self.fleet = fleet
         self.snapshot = snapshot
         self.inventory = inventory
         self.resources = resources
+        self.fuel = fuel
