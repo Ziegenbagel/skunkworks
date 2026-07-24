@@ -9,6 +9,7 @@ class Dashboard:
     def display(
         self,
         world,
+        tasks,
     ):
 
         print(DIVIDER)
@@ -23,7 +24,7 @@ class Dashboard:
         self.inventory_section(world.inventory)
         self.fuel_section(world.fuel)
         self.resources_section(world.resources)
-        self.planner_section()
+        self.planner_section(tasks)
         self.alerts_section()
 
         print(DIVIDER)
@@ -306,15 +307,38 @@ class Dashboard:
 
             print()
 
-    def planner_section(self):
+    def planner_section(
+        self,
+        tasks,
+    ):
 
         print("Planner")
         print(SECTION)
 
-        print("Status:")
-        print("Next Evaluation:")
+        if not tasks:
 
-        print()
+            print("No pending tasks.")
+            print()
+
+            return
+
+        for index, task in enumerate(tasks, start=1):
+
+            print(
+                f"{index}. {task.action}"
+            )
+
+            if task.target:
+
+                print(
+                    f"   Target: {task.target}"
+                )
+
+            print(
+                f"   Reason: {task.reason}"
+            )
+
+            print()
 
     def alerts_section(self):
 

@@ -4,6 +4,7 @@ from src.intelligence.world_builder import WorldBuilder
 from src.api.client import GameClient
 from src.snapshot.manager import SnapshotManager
 from src.ui.dashboard import Dashboard
+from src.planner import Planner
 from src.operations.operations import (
     Operations,
 )
@@ -106,11 +107,17 @@ def main():
     operations = Operations(
         world
     )
+
+    planner = Planner(operations)
+    tasks = planner.tasks()
     
 
     dashboard = Dashboard()
 
-    dashboard.display(world)
+    dashboard.display(
+        world,
+        tasks,
+    )
 
 
 if __name__ == "__main__":
