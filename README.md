@@ -16,7 +16,7 @@ Its goal is simple:
 
 Players should focus on exploration, expansion, and strategy.
 
-Skunkworks focuses on logistics, production, and efficiency.
+Skunkworks focuses on logistics, production, operational awareness, and efficiency.
 
 Rather than automating clicks, Skunkworks acts as an intelligent operations manager that keeps your empire running smoothly while respecting the game's mechanics and API.
 
@@ -33,8 +33,8 @@ Current capabilities include:
 - Fleet operational dashboard
 - Runtime Snapshot Manager
 - Snapshot Intelligence
-- Inventory Intelligence
-- Resource Intelligence
+- Probe Intelligence
+- Sector Intelligence
 - Fleet Intelligence
 - World Model
 - World Builder
@@ -44,10 +44,12 @@ Current capabilities include:
 - Resource Knowledge
 - Movement Knowledge
 - Operational Layer
-- Fleet Service
-- Probe Service
-- Travel Service
-- Manufacturing Service
+
+    - Operations Facade
+    - Fleet Service
+    - Probe Service
+    - Travel Service
+    - Manufacturing Service
 - Manufacturing feasibility analysis
 - Recursive dependency analysis
 - Recursive resource analysis
@@ -132,6 +134,11 @@ Runtime Snapshot
     ▼
 Intelligence Layer
     │
+    ├── FleetAnalyzer
+    ├── ProbeAnalyzer
+    ├── SectorAnalyzer
+    └── SnapshotAnalyzer
+    │
     ▼
 World Builder
     │
@@ -179,8 +186,8 @@ Completed
 Completed
 
 - Snapshot Intelligence
-- Inventory Intelligence
-- Resource Intelligence
+- Probe Intelligence
+- Sector Intelligence
 - Fleet Intelligence
 - World Model
 - World Builder
@@ -200,6 +207,7 @@ Completed
 - Operational manufacturing reasoning
 - Manufacturing feasibility analysis
 - Missing resource analysis
+- Operations facade
 
 Next
 
@@ -216,6 +224,8 @@ Next
 - Production planning
 - Mining recommendations
 - Build priorities
+
+### Data Engine
 
 ### Automation
 
@@ -241,7 +251,7 @@ Current Version
 
 Current Milestone
 
-Mission 10 — Planner
+Mission 10 — Planner Expansion
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
@@ -271,8 +281,8 @@ Current Capabilities:
 - Recursive resource analysis
 - Manufacturing reports
 - Fleet Intelligence
-- Inventory Intelligence
-- Resource Intelligence
+- Probe Intelligence
+- Sector Intelligence
 - Snapshot Intelligence
 - Operational dashboard
 
@@ -286,6 +296,7 @@ Its purpose is to function as an intelligent operations manager capable of:
 
 - Monitoring your fleet
 - Maintaining production goals
+- Maintaining an accurate, continuously synchronized local model of the discovered universe
 - Managing logistics
 - Optimizing resource gathering
 - Preparing infrastructure before it is needed

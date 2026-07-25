@@ -21,6 +21,11 @@ Runtime Snapshot
     ▼
 Intelligence Layer
     │
+    ├── FleetAnalyzer
+    ├── ProbeAnalyzer
+    ├── SectorAnalyzer
+    └── SnapshotAnalyzer
+    │
     ▼
 WorldBuilder
     │
@@ -55,6 +60,7 @@ Responsibilities:
 
 - Authenticate with the API
 - Request player information
+- Request fleet information
 - Request probe information
 - Request sector information
 
@@ -97,9 +103,9 @@ The Intelligence Layer converts raw API responses into useful information.
 Current modules:
 
 - SnapshotAnalyzer
-- InventoryAnalyzer
-- ResourceAnalyzer
 - FleetAnalyzer
+- ProbeAnalyzer
+- SectorAnalyzer
 
 Future modules:
 
@@ -114,7 +120,7 @@ The Intelligence Layer does **not** communicate with the API or display informat
 
 ## Intelligence Layer Design
 
-Analyzers interpret raw API data and return normalized information.
+Analyzers interpret raw API data and return normalized information. Each analyzer is responsible for a specific game domain (such as Fleet, Probe, or Sector) rather than individual UI concepts.
 
 Analyzers should:
 
@@ -134,17 +140,16 @@ Current contents:
 
 - Player
 - Fleet
+- Probe
+- Sector
 - Snapshot
-- Probe Inventory
-- Probe Fuel
-- Sector Resources
 
 Future additions include:
 
-- Containers
-- Manufacturing
-- Construction
-- Knowledge references
+- Planner state
+- Galaxy state
+- Alerts
+- Operational health
 
 The World Model contains normalized information and is consumed by the Dashboard and the Operational Layer. Higher-level decision making is intentionally separated into operational services rather than accessing the World Model directly.
 
@@ -190,6 +195,7 @@ Unlike the Intelligence Layer, Operational Services reason across multiple appli
 
 Current services:
 
+- Operations
 - FleetService
 - ProbeService
 - TravelService
@@ -221,9 +227,8 @@ Current sections:
 - Player
 - Fleet
 - Snapshot
-- Probe Fuel
-- Probe Inventory
-- Sector Resources
+- Probe
+- Sector
 - Planner
 - Alerts
 
@@ -246,7 +251,10 @@ SnapshotManager
 Runtime Snapshot
       │
       ▼
-Intelligence Layer
+FleetAnalyzer
+ProbeAnalyzer
+SectorAnalyzer
+SnapshotAnalyzer
       │
       ▼
 WorldBuilder
@@ -282,6 +290,8 @@ Knowledge Layer         Planner (Future)
 - Operational reasoning belongs in the Operational Layer.
 - Knowledge services expose normalized game rules rather than raw configuration data.
 - Operational services consume the World Model rather than raw API responses.
+- The World Model represents game entities rather than UI concepts.
+- Probe and Sector are the primary operational domains.
 
 ---
 
@@ -292,9 +302,11 @@ As Skunkworks grows, additional intelligence modules will be added without chang
 Planned additions include:
 
 - Additional Knowledge Services
-- Travel Services
+- Data Engine
+- Prediction Engine
+- Refresh Scheduler
 - Safety Services
-- Planner
+- Planner Expansion
 - Mission Control
 - Automation Engine
 - Operational Health and Risk Assessment

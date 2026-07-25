@@ -16,7 +16,7 @@ The Operational Layer combines the live World Model with the static Knowledge La
 
 # Current Status
 
-Mission 9 — Operational Layer
+Mission 10 — Planner Expansion
 
 Completed Foundations
 
@@ -25,8 +25,8 @@ Mission 7
 - Live API communication ✅
 - Runtime Snapshot Manager ✅
 - Snapshot Intelligence ✅
-- Inventory Intelligence ✅
-- Resource Intelligence ✅
+- Probe Intelligence ✅
+- Sector Intelligence ✅
 - Fleet Intelligence ✅
 - World Builder ✅
 - World Model ✅
@@ -50,16 +50,29 @@ Mission 9 — Operational Layer ✅
 - ManufacturingService ✅
 - TravelService ✅
 - ProbeService ✅
+- Initial Planner framework ✅
+- Task model ✅
+- Dashboard integration ✅
 
-The Planner implementation has not yet begun.
+The Planner foundation is now implemented.
+
+Current capabilities include:
+
+- Structured Task model
+- Initial planning engine
+- Dashboard integration
+- Idle probe assessment
 
 Mission 10
 
 Current Focus
 
-- Planner architecture
-- Task model
-- Dashboard integration
+- Task prioritization
+- Manufacturing recommendations
+- Travel recommendations
+- Resource shortage analysis
+- Multi-probe planning
+- Desired State evaluation
 
 ---
 
@@ -80,6 +93,13 @@ Future
 - MessagingService
 
 Supporting Layers
+
+Operational Services consume:
+
+- Fleet
+- Probe
+- Sector
+- Snapshot
 
 Operational Services internally consume:
 
@@ -114,6 +134,15 @@ Operational Health
 - Is a resource becoming critically low?
 - Which task has the highest operational priority?
 
+Probe Management
+
+- Is the current probe idle?
+- Should manufacturing begin?
+- Should mining begin?
+- Should travel begin?
+- Is fuel sufficient?
+- Is inventory capacity becoming limited?
+
 ---
 
 # Planner Outputs
@@ -122,11 +151,12 @@ The Planner produces an ordered task queue.
 
 Each task describes:
 
-- What should be done
-- Why it should be done
+- Category
+- Action
+- Target
+- Quantity
 - Priority
-- Severity
-- Execution mode
+- Reason
 
 Example:
 
@@ -184,6 +214,9 @@ Automation decides *how* and *when* those actions are executed.
 
 Planned Planner capabilities include:
 
+- Planner rule engine
+- Event-driven planning
+- Prediction-aware planning
 - Desired State evaluation
 - Manufacturing planning
 - Travel planning
@@ -209,6 +242,8 @@ Planned Planner capabilities include:
 
 The Planner consumes the Operational Layer rather than interacting directly with lower-level application models.
 
+The Planner reasons about operational domains such as Fleet, Probe, and Sector rather than raw API responses or user interface concepts. This allows planning logic to remain stable even as the underlying implementation evolves.
+
 Operational Services combine two sources of information:
 
 1. **World Model** — the current operational state of the game.
@@ -233,3 +268,5 @@ The Planner determines the most efficient sequence of work required to reach tha
 The Planner may temporarily reorder work if doing so results in a faster or more efficient path toward the player's objectives.
 
 Every generated task should explain why it exists so the player can understand the Planner's reasoning.
+
+The Planner continuously reevaluates the current operational state rather than following fixed scripts, allowing recommendations to adapt as conditions change.

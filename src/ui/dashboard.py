@@ -21,9 +21,18 @@ class Dashboard:
         self.player_section(world.player)
         self.fleet_section(world.fleet)
         self.snapshot_section(world.snapshot)
-        self.inventory_section(world.inventory)
-        self.fuel_section(world.fuel)
-        self.resources_section(world.resources)
+        self.inventory_section(
+            world.probe["inventory"]
+        )
+
+        self.fuel_section(
+            world.probe["fuel"],
+            world.probe["inventory"],
+        )
+
+        self.resources_section(
+            world.sector["resources"]
+        )
         self.planner_section(tasks)
         self.alerts_section()
 
@@ -153,30 +162,23 @@ class Dashboard:
 
         print(
             f"Used: "
-            f"{inventory['used_capacity']:.2f}"
+            f"{inventory["usedCapacity"]:.2f}"
         )
 
         print(
             f"Free: "
-            f"{inventory['free_capacity']:.2f}"
+            f"{inventory["freeCapacity"]:.2f}"
         )
 
         print()
 
         print("Cargo")
 
-        for resource_name, amount in (
-            inventory["resource_stocks"].items()
-        ):
-
-            label = (
-                resource_name
-                .replace("_", " ")
-                .title()
-            )
+        for stock in inventory["resourceStocks"]:
 
             print(
-                f"  {label:<20}{amount:>10.2f}"
+                f"  {stock['name']:<20}"
+                f"{stock['amount']:>10.2f}"
             )
 
         print()
@@ -184,12 +186,25 @@ class Dashboard:
     def fuel_section(
         self,
         fuel,
+        inventory,
     ):
+
+        print(
+            f"Internal Fuel: "
+            f"{fuel['deuterium']:.1f}"
+        )
+
+        print(
+            f"Maximum Fuel: "
+            f"{fuel['maxDeuterium']:.1f}"
+        )
+
+        print()
 
         print("Probe Fuel")
         print(SECTION)
 
-        tanks = fuel["external_tanks"]
+        tanks = inventory["externalTanks"]
 
         if not tanks:
 
@@ -208,7 +223,7 @@ class Dashboard:
             )
 
             print(
-                f"  Fill              {tank['fill_percent']}%"
+                f"  Fill              {tank['fillPercent']:.1f}%"
             )
 
             print(
@@ -218,7 +233,7 @@ class Dashboard:
 
             print(
                 f"  Uses Cargo        "
-                f"{'Yes' if tank['uses_cargo_capacity'] else 'No'}"
+                f"{'Yes' if tank['usesCargoCapacity'] else 'No'}"
             )
 
             print()

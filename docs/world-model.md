@@ -2,7 +2,7 @@
 
 ## Overview
 
-The World Model is the application's normalized representation of the current game state.
+The World Model is the application's normalized representation of the current game state. It is organized around the game's primary operational domains (Fleet, Probe, Sector, and Snapshot) rather than individual user interface concepts.
 
 It is constructed by the WorldBuilder using information produced by the Intelligence Layer.
 
@@ -16,7 +16,7 @@ Higher-level reasoning is intentionally delegated to the Operational Layer, keep
 
 The World Model is the application's single source of truth for live game state.
 
-It contains normalized representations of observable information only.
+It contains normalized representations of observable game entities only.
 
 Decision-making, planning, forecasting, and optimization are intentionally delegated to higher application layers.
 
@@ -31,13 +31,11 @@ WorldModel
 │
 ├── Fleet
 │
-├── Snapshot
+├── Probe
 │
-├── Probe Inventory
+├── Sector
 │
-├── Probe Fuel
-│
-└── Sector Resources
+└── Snapshot
 ```
 
 ---
@@ -51,7 +49,10 @@ Game API
 Runtime Snapshot
       │
       ▼
-Intelligence Layer
+FleetAnalyzer
+ProbeAnalyzer
+SectorAnalyzer
+SnapshotAnalyzer
       │
       ▼
 WorldBuilder
@@ -75,10 +76,10 @@ The Intelligence Layer converts raw API responses into normalized information.
 
 Current analyzers:
 
-- SnapshotAnalyzer
-- InventoryAnalyzer
-- ResourceAnalyzer
 - FleetAnalyzer
+- ProbeAnalyzer
+- SectorAnalyzer
+- SnapshotAnalyzer
 
 Future analyzers:
 
@@ -94,11 +95,10 @@ Future analyzers:
 The World Model currently provides:
 
 - Player information
-- Fleet status
-- Snapshot status
-- Probe inventory
-- Probe fuel
-- Sector resource intelligence
+- Fleet state
+- Probe state
+- Sector state
+- Snapshot state
 
 The World Model intentionally contains only normalized application state. Operational Services consume the World Model to answer higher-level questions without exposing raw application state to the Planner. It does not perform operational reasoning or planning.
 
@@ -110,8 +110,20 @@ The World Model will expand as additional systems are introduced.
 
 Planned additions include:
 
-- Containers
-- Manufacturing facilities
-- Construction state
-- Additional fleet state
-- Additional sector state
+- Galaxy state
+- Exploration state
+- Operational alerts
+- Planner state
+- Local prediction state
+
+# Domain Model
+The World Model mirrors the operational structure of the game rather than the layout of the user interface.
+
+Current domains:
+
+- Fleet
+- Probe
+- Sector
+- Snapshot
+
+This approach keeps the architecture aligned with the game's API and allows future systems, such as the Planner, Data Engine, and Automation Layer, to reason about real game entities instead of UI-specific abstractions.

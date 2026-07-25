@@ -1,18 +1,19 @@
 from src.intelligence.fleet import (
     FleetAnalyzer,
 )
-from src.intelligence.inventory import (
-    InventoryAnalyzer,
+
+from src.intelligence.probe import (
+    ProbeAnalyzer,
 )
-from src.intelligence.fuel import (
-    FuelAnalyzer,
+
+from src.intelligence.sector import (
+    SectorAnalyzer,
 )
-from src.intelligence.resources import (
-    ResourceAnalyzer,
-)
+
 from src.intelligence.snapshot import (
     SnapshotAnalyzer,
 )
+
 from src.intelligence.world import (
     WorldModel,
 )
@@ -21,57 +22,65 @@ from src.intelligence.world import (
 class WorldBuilder:
     """
     Construct a normalized WorldModel
-    from the latest game snapshot.
+    from live game data.
     """
+
+    def __init__(self):
+
+        self.fleet_analyzer = (
+            FleetAnalyzer()
+        )
+
+        self.probe_analyzer = (
+            ProbeAnalyzer()
+        )
+
+        self.sector_analyzer = (
+            SectorAnalyzer()
+        )
 
     def build(
         self,
         player,
         probe_data,
+        probe,
         snapshot,
         snapshot_path,
         probe_name,
     ):
 
-        resource_analyzer = ResourceAnalyzer()
-
-        inventory_analyzer = InventoryAnalyzer()
-
-        fuel_analyzer = FuelAnalyzer()
-
-        snapshot_analyzer = SnapshotAnalyzer(
-            snapshot_path
+        snapshot_analyzer = (
+            SnapshotAnalyzer(
+                snapshot_path
+            )
         )
-        fleet_analyzer = FleetAnalyzer()
 
         world = WorldModel()
 
         world.player = player
 
         world.fleet = (
-            fleet_analyzer.get_fleet(
+            self.fleet_analyzer.get_fleet(
                 probe_data
             )
         )
 
-        world.resources = (
-            resource_analyzer
-            .get_sector_resources(snapshot)
+        world.probe = (
+            self.probe_analyzer.analyze(
+                probe
+            )
         )
 
-        world.inventory = (
-            inventory_analyzer
-            .get_inventory(snapshot)
-        )
-
-        world.fuel = (
-            fuel_analyzer
-            .get_fuel(snapshot)
+        world.sector = (
+            self.sector_analyzer.analyze(
+                snapshot
+            )
         )
 
         world.snapshot = (
-            snapshot_analyzer
-            .get_snapshot_info(probe_name)
+            snapshot_analyzer.get_snapshot_info(
+                probe_name
+            )
         )
 
         return world

@@ -8,13 +8,13 @@ class WorldModel:
         player=None,
         fleet=None,
         snapshot=None,
-        inventory=None,
-        resources=None,
-        fuel=None,
+        probe=None,
+        sector=None,
     ):
+
         self.player = player
         self.fleet = fleet
         self.snapshot = snapshot
-        self.inventory = inventory
-        self.resources = resources
-        self.fuel = fuel
+
+        self.probe = probe
+        self.sector = sector

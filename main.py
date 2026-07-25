@@ -82,6 +82,10 @@ def main():
     probe_id = get_requested_probe_id(probe_data)
     probe = find_probe(probes, probe_id)
 
+    probe_details = client.get_probe(
+    probe_id
+)
+
     print()
     print(
         f"Refreshing snapshot for "
@@ -99,6 +103,7 @@ def main():
     world = builder.build(
         player=player,
         probe_data=probe_data,
+        probe=probe_details["probe"],
         snapshot=snapshot,
         snapshot_path=snapshot_path,
         probe_name=probe["name"],

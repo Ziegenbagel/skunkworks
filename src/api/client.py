@@ -45,6 +45,18 @@ class GameClient:
         response.raise_for_status()
         return response.json()
 
+    def get_probe(self, probe_id):
+        """Return detailed information for one probe."""
+
+        response = requests.get(
+            f"{self.base_url}/api/probe/{probe_id}",
+            headers=self.headers,
+            timeout=30,
+        )
+
+        response.raise_for_status()
+        return response.json()
+
     def get_sector(self, probe_id):
         """Return observable sector and onboard inventory for one probe."""
 
