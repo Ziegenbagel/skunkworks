@@ -42,7 +42,7 @@ Dashboard     Operational Layer
                     └── ManufacturingService
                     │
                     ▼
-            Planner (Future)
+                Planner
                    │
                    ▼
           Automation (Future)
@@ -214,7 +214,41 @@ Typical responsibilities include:
 - Travel decisions
 - Operational messaging
 
-The Operational Layer provides the primary interface that the future Planner will consume.
+The Operational Layer provides the primary interface consumed by the Planner. It combines the live World Model with the Knowledge Layer to answer operational questions without exposing lower-level implementation details.
+
+---
+
+## Planner
+
+The Planner evaluates the current operational state and produces an ordered queue of recommended tasks.
+
+Rather than interacting directly with raw game data, the Planner consumes the Operational Layer, allowing planning logic to remain independent of implementation details.
+
+Current components:
+
+- Planner
+- Task model
+- Rule-based planning
+- Priority system
+
+Current planning rules:
+
+- Safety
+- Idle
+
+Future planning rules:
+
+- Fuel
+- Inventory
+- Manufacturing
+- Mining
+- Travel
+- Desired State
+- Expansion
+
+The Planner does not execute actions. It generates explainable recommendations that may later be consumed by the Automation Layer.
+
+The Planner is designed around operational constraints rather than scripted actions. It compares the current state of the fleet against the player's Desired State, identifies the constraints preventing that goal, and produces an explainable sequence of tasks to remove those constraints.
 
 ---
 
@@ -251,10 +285,12 @@ SnapshotManager
 Runtime Snapshot
       │
       ▼
-FleetAnalyzer
-ProbeAnalyzer
-SectorAnalyzer
-SnapshotAnalyzer
+Intelligence Layer
+      │
+      ├── FleetAnalyzer
+      ├── ProbeAnalyzer
+      ├── SectorAnalyzer
+      └── SnapshotAnalyzer
       │
       ▼
 WorldBuilder
@@ -292,6 +328,8 @@ Knowledge Layer         Planner (Future)
 - Operational services consume the World Model rather than raw API responses.
 - The World Model represents game entities rather than UI concepts.
 - Probe and Sector are the primary operational domains.
+- The Planner consumes Operational Services rather than raw application state.
+- Planning logic is organized into independent rule modules with a single responsibility.
 
 ---
 
@@ -301,12 +339,22 @@ As Skunkworks grows, additional intelligence modules will be added without chang
 
 Planned additions include:
 
+## Planned Intelligence
+
 - Additional Knowledge Services
 - Data Engine
 - Prediction Engine
+
+## Planned Planning
+
+- Planner expansion
+- Desired State
+- Constraint Solver
+- Goal decomposition
+
+## Planned Automation
+
 - Refresh Scheduler
-- Safety Services
-- Planner Expansion
 - Mission Control
 - Automation Engine
 - Operational Health and Risk Assessment

@@ -16,7 +16,7 @@ The Operational Layer combines the live World Model with the static Knowledge La
 
 # Current Status
 
-Mission 10 — Planner Expansion
+Mission 11 — Planner Intelligence
 
 Completed Foundations
 
@@ -59,8 +59,11 @@ The Planner foundation is now implemented.
 Current capabilities include:
 
 - Structured Task model
-- Initial planning engine
+- Rule-based planning architecture
+- Independent planning rules
+- Shared priority system
 - Dashboard integration
+- Safety planning
 - Idle probe assessment
 
 Mission 10
@@ -73,6 +76,14 @@ Current Focus
 - Resource shortage analysis
 - Multi-probe planning
 - Desired State evaluation
+
+Mission 10.5 — Fleet Interface
+
+- Replace --probe-id.
+- Interactive probe selector.
+- Remember focused probe.
+- Fleet overview screen.
+- Foundation for multi-probe dashboard.
 
 ---
 
@@ -106,7 +117,7 @@ Operational Services internally consume:
 - World Model
 - Knowledge Layer
 
-The Planner should never consume raw API responses, snapshots, or configuration data directly.
+The Planner should never consume raw API responses, snapshots, or configuration data directly. The Planner should ask Operational Services questions rather than inspecting the World Model directly whenever an operational capability exists.
 
 ---
 
@@ -142,6 +153,13 @@ Probe Management
 - Should travel begin?
 - Is fuel sufficient?
 - Is inventory capacity becoming limited?
+
+Constraint Analysis
+
+- What prevents the Desired State?
+- What dependency is blocking progress?
+- Which blocker should be removed first?
+- Which recommendation unlocks the most future work?
 
 ---
 
@@ -214,25 +232,37 @@ Automation decides *how* and *when* those actions are executed.
 
 Planned Planner capabilities include:
 
+Planning Engine
+
 - Planner rule engine
 - Event-driven planning
 - Prediction-aware planning
-- Desired State evaluation
-- Manufacturing planning
-- Travel planning
+
+Operational Intelligence
+
 - Safety evaluation
 - Resource forecasting
-- Production optimization
-- Multi-probe coordination
-- Autonomous mining recommendations
+- Manufacturing planning
+- Travel planning
 - Logistics planning
-- Build queue optimization
-- Strategic expansion planning
-- Operational health assessment
-- Risk-aware decision making
+
+Optimization
+
+- Goal prioritization
 - Task optimization
 - Task scheduling
-- Goal prioritization
+- Production optimization
+- Strategic expansion planning
+
+Fleet Intelligence
+
+- Multi-probe coordination
+- Autonomous mining recommendations
+- Build queue optimization
+
+Desired State
+
+- Desired State evaluation
 - Explainable planning
 - Goal-based planning
 
@@ -257,6 +287,30 @@ By separating operational reasoning into dedicated services, the Planner remains
 
 This separation allows the World Model, Knowledge Layer, and Operational Layer to evolve independently while presenting the Planner with a stable, task-oriented interface.
 
+Rather than generating scripted actions, the Planner identifies the operational constraints preventing the player's Desired State. By resolving the highest-impact constraints first, Skunkworks continuously adapts its recommendations as the game state evolves.
+
+# Planning Pipeline
+
+Desired State
+        │
+        ▼
+Current State
+        │
+        ▼
+Gap Analysis
+        │
+        ▼
+Constraint Analysis
+        │
+        ▼
+Task Generation
+        │
+        ▼
+Task Prioritization
+        │
+        ▼
+Automation (optional)
+
 # Planner Principles
 
 The Planner is goal-driven.
@@ -270,3 +324,5 @@ The Planner may temporarily reorder work if doing so results in a faster or more
 Every generated task should explain why it exists so the player can understand the Planner's reasoning.
 
 The Planner continuously reevaluates the current operational state rather than following fixed scripts, allowing recommendations to adapt as conditions change.
+
+The Planner prefers operational queries over direct inspection of application state, allowing implementation details to evolve without affecting planning logic.

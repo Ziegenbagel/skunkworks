@@ -244,8 +244,145 @@ The game naturally separates into four operational domains:
 - Sector
 - Snapshot
 
+These domains now form the foundation of the application's World Model and Operational Layer.
+
 Architectural Impact
 
 Skunkworks now mirrors these domains throughout the Intelligence Layer and World Model.
 
 Aligning the application's architecture with the game's API simplifies future development and provides a stronger foundation for planning, prediction, and automation.
+
+## Batch Manny Tasks
+
+Status
+
+Open
+
+Priority
+
+High
+
+Reason
+
+New endpoint introduced:
+
+POST /api/probe/{probeId}/mannies/tasks
+
+Research Goals
+
+- Request schema
+- Response schema
+- Supported task types
+- Maximum batch size
+- Partial failure behavior
+- Timing information
+- nextUsefulRefreshDelayMs support
+- Rate limit implications
+
+Architectural Impact
+
+Likely becomes the primary execution mechanism for Automation.
+
+## SCUT Relay Travel
+
+Status
+
+Research
+
+Priority
+
+High
+
+Purpose
+
+Determine the exact mechanics governing SCUT-assisted travel.
+
+Research Goals
+
+- Determine whether travel shortcuts require relays in both systems.
+- Determine whether relay coverage alone is sufficient.
+- Measure maximum shortcut distance.
+- Determine interaction with SCUT Beacon coverage radius.
+- Determine fuel savings.
+- Determine travel time savings.
+- Determine planner implications.
+
+Planner Impact
+
+SCUT mechanics will influence:
+
+- Route planning
+- Hub placement
+- Relay construction priorities
+- Expansion strategy
+- Fuel optimization
+
+## API Rate Limiting
+
+Status
+
+Verified
+
+Limit
+
+120 requests per minute per player
+
+Findings
+
+- Clients should avoid unnecessary polling.
+- Many endpoints expose `nextUsefulRefreshDelayMs`.
+- Refresh timing should be driven by API guidance whenever possible.
+- Clients should gracefully handle HTTP 429 responses.
+
+Architectural Impact
+
+Skunkworks should eventually include an intelligent Refresh Scheduler that minimizes unnecessary requests while maintaining operational awareness.
+
+## Probe Selection
+
+Status
+
+Verified
+
+Finding
+
+`GET /api/probe/{probeId}` and `GET /api/probe/{probeId}/sector` are completely independent of the currently selected probe in the web interface.
+
+Architectural Impact
+
+Skunkworks should manage its own focused probe rather than relying on the game's active UI selection.
+
+## Resource Stability
+
+Status
+
+Research
+
+Purpose
+
+Determine whether resources are:
+
+- Permanent
+- Renewable
+- Dynamic
+- Exhaustible
+
+Questions
+
+- Can wandering Deuterium disappear permanently?
+- What causes new wandering asteroids to spawn?
+- Is there a maximum number per sector?
+- Does mining affect future spawns?
+- Can a sector become permanently exhausted?
+- Can multiple wandering Deuterium asteroids exist simultaneously?
+- Can wandering Deuterium continue spawning after existing sources are exhausted?
+
+Planner Impact
+
+Resource Stability will influence:
+
+- Hub placement
+- Fuel logistics
+- Expansion planning
+- Mining priorities
+- Infrastructure investment

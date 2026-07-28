@@ -339,8 +339,22 @@ class Dashboard:
 
         for index, task in enumerate(tasks, start=1):
 
+            priority_names = {
+                10: "Emergency",
+                20: "Critical",
+                30: "High",
+                50: "Normal",
+                75: "Low",
+                100: "Info",
+            }
+
+            priority = priority_names.get(
+                task.priority,
+                str(task.priority),
+            )
+
             print(
-                f"{index}. {task.action}"
+                f"{index}. [{priority}] {task.action}"
             )
 
             if task.target:

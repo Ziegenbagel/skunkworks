@@ -20,6 +20,8 @@ It contains normalized representations of observable game entities only.
 
 Decision-making, planning, forecasting, and optimization are intentionally delegated to higher application layers.
 
+The World Model evolves only when new observable game entities are introduced, not when new planning capabilities are added.
+
 ---
 
 # Current Structure
@@ -49,10 +51,12 @@ Game API
 Runtime Snapshot
       │
       ▼
-FleetAnalyzer
-ProbeAnalyzer
-SectorAnalyzer
-SnapshotAnalyzer
+Intelligence Layer
+      │
+      ├── FleetAnalyzer
+      ├── ProbeAnalyzer
+      ├── SectorAnalyzer
+      └── SnapshotAnalyzer
       │
       ▼
 WorldBuilder
@@ -100,7 +104,7 @@ The World Model currently provides:
 - Sector state
 - Snapshot state
 
-The World Model intentionally contains only normalized application state. Operational Services consume the World Model to answer higher-level questions without exposing raw application state to the Planner. It does not perform operational reasoning or planning.
+The World Model intentionally contains only normalized application state. Operational Services consume the World Model to answer higher-level questions without exposing raw application state to the Planner. It does not perform operational reasoning or planning. The World Model intentionally represents facts rather than recommendations. It describes the current state of the game but does not determine what should happen next.
 
 ---
 
@@ -112,9 +116,9 @@ Planned additions include:
 
 - Galaxy state
 - Exploration state
-- Operational alerts
-- Planner state
+- Operational health
 - Local prediction state
+- Historical state
 
 # Domain Model
 The World Model mirrors the operational structure of the game rather than the layout of the user interface.
@@ -125,5 +129,7 @@ Current domains:
 - Probe
 - Sector
 - Snapshot
+
+Each domain represents an observable aspect of the game world. Higher-level systems combine these domains to answer operational questions, but the World Model itself remains a passive representation of current state.
 
 This approach keeps the architecture aligned with the game's API and allows future systems, such as the Planner, Data Engine, and Automation Layer, to reason about real game entities instead of UI-specific abstractions.

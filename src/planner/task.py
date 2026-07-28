@@ -7,9 +7,12 @@ from dataclasses import dataclass
 class Task:
     """Represents a single action recommended by the Planner."""
 
-    category: str
     action: str
+    reason: str
+
+    category: str = "general"
+
     target: str | None = None
     quantity: int = 1
-    priority: int = 0
-    reason: str = ""
+
+    priority: int = 100

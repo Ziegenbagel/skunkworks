@@ -50,6 +50,11 @@ Current capabilities include:
     - Probe Service
     - Travel Service
     - Manufacturing Service
+- Planner
+
+    - Rule-based planning
+    - Task model
+    - Priority system
 - Manufacturing feasibility analysis
 - Recursive dependency analysis
 - Recursive resource analysis
@@ -155,10 +160,10 @@ Dashboard     Operational Layer
                    └── ManufacturingService
                    │
                    ▼
-            Planner (Future)
+               Planner
                    │
                    ▼
-          Automation (Future)
+            Automation (Future)
 ```
 
 Each layer has a single responsibility and communicates only with adjacent layers. The Operational Layer combines the live World Model with the Knowledge Layer to answer higher-level operational questions without exposing implementation details to the Planner.
@@ -209,11 +214,13 @@ Completed
 - Missing resource analysis
 - Operations facade
 
-Next
+Completed
 
-- Planner
-- Task system
-- Mission Control
+- Planner framework
+- Rule architecture
+- Task model
+- Priority system
+- Dashboard integration
 
 ---
 
@@ -221,11 +228,21 @@ Next
 
 ### Planner
 
-- Production planning
-- Mining recommendations
-- Build priorities
+- Safety planning
+- Fuel planning
+- Inventory planning
+- Manufacturing planning
+- Mining planning
+- Travel planning
+- Desired State planning
 
 ### Data Engine
+
+- Local galaxy model
+- Sector history
+- Probe history
+- Resource history
+- Event history
 
 ### Automation
 
@@ -251,7 +268,7 @@ Current Version
 
 Current Milestone
 
-Mission 10 — Planner Expansion
+Mission 11 — Planner Intelligence
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
@@ -297,6 +314,7 @@ Its purpose is to function as an intelligent operations manager capable of:
 - Monitoring your fleet
 - Maintaining production goals
 - Maintaining an accurate, continuously synchronized local model of the discovered universe
+- Identifying the operational constraints preventing the player's desired state
 - Managing logistics
 - Optimizing resource gathering
 - Preparing infrastructure before it is needed
@@ -304,9 +322,8 @@ Its purpose is to function as an intelligent operations manager capable of:
 
 The player defines the destination.
 
-Skunkworks combines live operational intelligence with static game knowledge through its Operational Layer to understand not only the current state of the fleet, but also the rules governing the game world. This separation enables the Planner to generate informed recommendations rather than relying on hardcoded automation.
+Skunkworks combines live operational intelligence from the World Model with static game knowledge from the Knowledge Layer through its Operational Layer. This allows the Planner to identify operational constraints, generate explainable task queues, and continuously adapt recommendations as the game state evolves—all without relying on hardcoded automation.
 
-Skunkworks combines live operational intelligence with static game knowledge through its Operational Layer to understand both the current state of the fleet and the rules governing the game world.
 The Planner transforms that information into an ordered task queue based on the player's goals. Rather than following fixed scripts, Skunkworks continuously evaluates the fleet, reprioritizes work as conditions change, and performs as much of the operational workload as the player chooses to automate.
 
 ---

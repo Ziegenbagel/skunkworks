@@ -1,15 +1,16 @@
 """Planner for generating recommended tasks."""
 
 from .task import Task
+from .rules import (
+    idle,
+    safety,
+)
 
 
 class Planner:
     """Generates recommended tasks from the current operational state."""
 
-    def __init__(
-        self,
-        operations,
-    ):
+    def __init__(self, operations):
         self.operations = operations
 
     def tasks(self) -> list[Task]:
@@ -17,20 +18,16 @@ class Planner:
 
         tasks: list[Task] = []
 
-        probe_service = self.operations.probes
+        tasks.extend(
+            safety.plan(self.operations)
+        )
 
-        if probe_service.is_idle():
+        tasks.extend(
+            idle.plan(self.operations)
+        )
 
-            tasks.append(
-                Task(
-                    category="Exploration",
-                    action="Assess Current Probe",
-                    target="Current Probe",
-                    priority=1,
-                    reason=(
-                        "Probe is idle and awaiting work."
-                    ),
-                )
-            )
+        tasks.sort(
+            key=lambda task: task.priority
+        )
 
         return tasks
