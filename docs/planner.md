@@ -16,9 +16,14 @@ The Operational Layer combines the live World Model with the static Knowledge La
 
 # Current Status
 
-Mission 11 — Planner Intelligence
+Mission 10 — Planner
 
-Completed Foundations
+Status:
+Foundation Complete
+
+Next Mission
+
+Mission 11 — Manufacturing Intelligence
 
 Mission 7
 
@@ -36,12 +41,10 @@ Mission 8
 
 - KnowledgeLoader ✅
 - GameplayKnowledge ✅
-- CraftingKnowledge ✅
 - ResourceKnowledge ✅
 - MovementKnowledge ✅
-- Recursive dependency analysis ✅
-- Recursive raw resource analysis ✅
-- Manufacturing Report ✅
+- Live RecipeManager ✅
+- API-backed recipe database ✅
 
 Mission 9 — Operational Layer ✅
 
@@ -92,6 +95,11 @@ Mission 10.5 — Fleet Interface
 The Planner receives operational capabilities rather than raw application state.
 
 Operational Layer
+
+ManufacturingService
+        │
+        ▼
+RecipeManager
 
 - FleetService
 - ManufacturingService
@@ -175,23 +183,19 @@ Each task describes:
 - Quantity
 - Priority
 - Reason
+- Constraint
 
 Example:
 
 ```
-Task Queue
+Action:
+Build Manny
 
-1. Build 2 Mannys
-   Reason:
-   Increase mining throughput before expanding storage.
+Reason:
+Increase mining throughput.
 
-2. Build 5 Storage Containers
-   Reason:
-   Prepare for additional mining capacity.
-
-3. Manufacture Probe Components
-   Reason:
-   Prepare next probe for manual assembly.
+Constraint:
+Missing 2.6 Metal.
 ```
 
 Future examples may also include:
@@ -234,13 +238,17 @@ Planned Planner capabilities include:
 
 Planning Engine
 
-- Planner rule engine
 - Event-driven planning
 - Prediction-aware planning
 
 Operational Intelligence
 
-- Safety evaluation
+- Fuel planning
+- Inventory planning
+- Manufacturing planning
+- Constraint solver
+- Desired State engine
+- Prediction engine
 - Resource forecasting
 - Manufacturing planning
 - Travel planning
@@ -294,7 +302,7 @@ Rather than generating scripted actions, the Planner identifies the operational 
 Desired State
         │
         ▼
-Current State
+Current Operational State
         │
         ▼
 Gap Analysis
@@ -326,3 +334,5 @@ Every generated task should explain why it exists so the player can understand t
 The Planner continuously reevaluates the current operational state rather than following fixed scripts, allowing recommendations to adapt as conditions change.
 
 The Planner prefers operational queries over direct inspection of application state, allowing implementation details to evolve without affecting planning logic.
+
+The Planner should ask questions before making decisions.

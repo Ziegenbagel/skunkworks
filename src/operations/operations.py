@@ -14,6 +14,10 @@ from src.operations.probes import (
     ProbeService,
 )
 
+from src.operations.snapshots import (
+    SnapshotService,
+)
+
 
 class Operations:
     """
@@ -46,6 +50,12 @@ class Operations:
 
         self.probes = (
             ProbeService(
+                world
+            )
+        )
+
+        self.snapshots = (
+            SnapshotService(
                 world
             )
         )

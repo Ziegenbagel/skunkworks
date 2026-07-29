@@ -68,3 +68,15 @@ class GameClient:
 
         response.raise_for_status()
         return response.json()
+
+    def get_crafting_recipes(self):
+        """Return all available crafting recipes."""
+
+        response = requests.get(
+            f"{self.base_url}/api/crafting-recipes",
+            headers=self.headers,
+            timeout=30,
+        )
+
+        response.raise_for_status()
+        return response.json()

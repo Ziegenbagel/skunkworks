@@ -61,10 +61,10 @@ Inventory reflects onboard assets only.
 
 When a Manny is deployed:
 
-- Probe inventory decreases.
+- Probe inventory decreases. Deploying a Manny removes it from onboard inventory and changes how it is represented in sector data.
 - A corresponding sector object may appear depending on the Manny's current state.
 
-Additional testing is still required to determine every deployed Manny state.
+Behavior not yet fully characterized.
 
 ---
 
@@ -101,7 +101,7 @@ This endpoint does not appear to include probe fuel information.
 
 ## Observation 005
 
-### Mineable Resources
+### Persistent Mineable Resources
 
 Mineable resource information is located under:
 
@@ -139,14 +139,19 @@ Current testing supports this hypothesis.
 
 ---
 
-## Hypothesis 002
+## Observation 008
 
-Wandering Deuterium asteroids are not represented in
-`solar_system.minableTargets`.
+Dynamic mineable resources appear directly under:
 
-Additional testing is required to determine which endpoint exposes wandering asteroids.
+sector.objects
 
-## Observation 004
+Objects with
+
+mannyMineable == true
+
+represent resources that can currently be mined but are not part of the persistent solar system resource list.
+
+## Observation 006
 
 Mineable resources are exposed through two mechanisms:
 
@@ -164,7 +169,7 @@ sector.objects
 
 solar_system.minableTargets
 
-### Dynamic Resources
+### Dynamic Mineable Resources
 
 Located directly in:
 
@@ -181,3 +186,31 @@ Both representations expose:
 - resourceComposition
 
 Resource Intelligence normalizes both into a common internal model.
+
+## Observation 007
+
+### Endpoint
+
+`/api/crafting-recipes`
+
+### Purpose
+
+Returns the complete crafting database maintained by the game server.
+
+### Verified Contents
+
+Each recipe includes:
+
+- id
+- name
+- description
+- craftableBy
+- ingredients
+- durationSeconds
+- output
+
+### Verified Behavior
+
+The API serves as the authoritative source for crafting recipes.
+
+Skunkworks uses this endpoint to populate RecipeManager at startup rather than maintaining a local recipe database.

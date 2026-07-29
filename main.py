@@ -5,6 +5,7 @@ from src.api.client import GameClient
 from src.snapshot.manager import SnapshotManager
 from src.ui.dashboard import Dashboard
 from src.planner import Planner
+from src.recipes.manager import RecipeManager
 from src.operations.operations import (
     Operations,
 )
@@ -52,6 +53,8 @@ def main():
     client = GameClient()
 
     snapshot_manager = SnapshotManager(client)
+
+    recipe_manager = RecipeManager()
 
     print("Requesting player...")
     player = client.get_player()
@@ -109,9 +112,10 @@ def main():
         probe_name=probe["name"],
     )
 
-    operations = Operations(
-        world
-    )
+    recipes = client.get_crafting_recipes()
+    recipe_manager.load(recipes)
+
+    operations = Operations(world)
 
     planner = Planner(operations)
     tasks = planner.tasks()

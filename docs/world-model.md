@@ -22,6 +22,8 @@ Decision-making, planning, forecasting, and optimization are intentionally deleg
 
 The World Model evolves only when new observable game entities are introduced, not when new planning capabilities are added.
 
+The World Model should preserve game semantics whenever practical, introducing normalization only when it simplifies operational reasoning.
+
 ---
 
 # Current Structure
@@ -47,8 +49,9 @@ WorldModel
 ```
 Game API
       │
-      ▼
-Runtime Snapshot
+      ├──────────────┐
+      ▼              ▼
+Runtime Snapshot  RecipeManager
       │
       ▼
 Intelligence Layer
@@ -104,7 +107,10 @@ The World Model currently provides:
 - Sector state
 - Snapshot state
 
-The World Model intentionally contains only normalized application state. Operational Services consume the World Model to answer higher-level questions without exposing raw application state to the Planner. It does not perform operational reasoning or planning. The World Model intentionally represents facts rather than recommendations. It describes the current state of the game but does not determine what should happen next.
+The World Model intentionally contains only normalized application state.
+Operational Services consume the World Model to answer higher-level questions without exposing raw application state to the Planner.
+
+The World Model does not perform operational reasoning or planning. It represents facts rather than recommendations and describes the current state of the game without determining what should happen next.
 
 ---
 
@@ -119,6 +125,7 @@ Planned additions include:
 - Operational health
 - Local prediction state
 - Historical state
+- Logistics state
 
 # Domain Model
 The World Model mirrors the operational structure of the game rather than the layout of the user interface.
@@ -130,6 +137,6 @@ Current domains:
 - Sector
 - Snapshot
 
-Each domain represents an observable aspect of the game world. Higher-level systems combine these domains to answer operational questions, but the World Model itself remains a passive representation of current state.
+Each domain represents an observable aspect of the game world. Higher-level systems reason across these domains to answer operational questions, but the World Model itself remains a passive representation of current state.
 
 This approach keeps the architecture aligned with the game's API and allows future systems, such as the Planner, Data Engine, and Automation Layer, to reason about real game entities instead of UI-specific abstractions.

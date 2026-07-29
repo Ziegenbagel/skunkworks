@@ -12,12 +12,12 @@ class TravelService:
     def has_external_tanks(self):
 
         return bool(
-            self.world.fuel["external_tanks"]
+            self.world.probe["fuel"]["external_tanks"]
         )
 
     def fuel_percentage(self):
 
-        tanks = self.world.fuel[
+        tanks = self.world.probe["fuel"][
             "external_tanks"
         ]
 

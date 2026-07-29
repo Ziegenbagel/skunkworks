@@ -37,5 +37,6 @@ class SnapshotAnalyzer:
                 "%Y-%m-%d %H:%M:%S"
             ),
             "age": age_text,
+            "age_seconds": age_seconds,
             "fresh": age_seconds < 300,
         }

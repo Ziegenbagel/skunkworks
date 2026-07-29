@@ -1,6 +1,6 @@
 # Skunkworks Coding Standards
 
-Version: 0.1.0
+Version: 0.2.0
 
 ---
 
@@ -12,15 +12,20 @@ Research
 ↓
 Developer Toolkit
 ↓
-Knowledge
+Knowledge / API Research
 ↓
-Operations
+Infrastructure
+↓
+Intelligence
+↓
+World Model
+↓
+Operational Layer
 ↓
 Planner
 ↓
 Automation
 
-Automation should never rely on assumptions.
 Every feature should be built upon verified observations of the game API.
 
 ---
@@ -34,6 +39,9 @@ Every feature should be built upon verified observations of the game API.
 - Organize first, optimize later.
 - One responsibility per component.
 - Prefer composition over large classes.
+- Complete one working feature at a time.
+- Remove temporary verification code immediately after testing.
+- Update documentation before committing.
 
 ---
 
@@ -46,13 +54,16 @@ tools/
 Developer Toolkit.
 
 data/
-Snapshots and research data.
+Runtime snapshots and cached research data.
 
 docs/
 Project documentation.
 
 tests/
-Automated tests (future).
+Automated tests.
+
+.github/
+Repository automation.
 
 ---
 
@@ -82,7 +93,7 @@ APP_VERSION
 
 DIVIDER
 
-Every tool should display:
+Developer tools should present a consistent identity including:
 
 Skunkworks Laboratory
 
@@ -102,7 +113,7 @@ The main application should identify itself as:
 
 Skunkworks
 
-Mission Control
+Skunkworks
 
 Version
 
@@ -177,29 +188,19 @@ never bypass the game's intended mechanics.
 ## Mission Completion Workflow
 
 Plan
-
 ↓
-
 Implement
-
 ↓
-
 Run
-
 ↓
-
 Verify
-
 ↓
-
+Remove temporary verification code
+↓
 Update Documentation
-
 ↓
-
 Commit
-
 ↓
-
 Push
 
 ## Service Design
@@ -214,6 +215,21 @@ Services should consume normalized application state rather than raw API respons
 
 Services should expose stable, high-level operations without revealing implementation details.
 
+Services should expose questions, not workflows.
+
+Examples:
+
+    Good:
+
+    probe.is_idle()
+    travel.travel_ready()
+    manufacturing.can_build("manny")
+
+    Avoid:
+
+    prepare_everything()
+    expand_empire()
+
 ## Documentation Workflow
 
 After each completed mission:
@@ -221,5 +237,16 @@ After each completed mission:
 - Update README
 - Update Architecture documentation
 - Update Development Log
-- Review project documentation for accuracy
+- Review all documentation for architectural accuracy
 - Commit
+
+## Code Review Checklist
+
+Before committing:
+
+✓ Code runs without errors.
+✓ Temporary debug code removed.
+✓ Naming follows project standards.
+✓ Documentation updated.
+✓ No duplicated logic introduced.
+✓ Architecture still follows layer boundaries.

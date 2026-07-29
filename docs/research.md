@@ -352,6 +352,32 @@ Architectural Impact
 
 Skunkworks should manage its own focused probe rather than relying on the game's active UI selection.
 
+## Universe Generation
+
+Status
+
+Archived
+
+Priority
+
+Medium
+
+Source
+
+universe.json
+
+Major Findings
+
+- Neighbor influence exists.
+- Galaxy generation is probability based.
+- Wandering asteroid counts are configurable.
+- Black holes influence nearby sector generation.
+- Exploration can become prediction driven rather than random.
+
+Architectural Impact
+
+This data should eventually become the foundation of UniverseKnowledge and the Exploration Planner. Rather than simply recording explored sectors, Skunkworks should combine observed history with procedural generation rules to estimate where valuable discoveries are most likely to occur.
+
 ## Resource Stability
 
 Status

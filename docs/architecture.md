@@ -12,11 +12,12 @@ Infrastructure
     ▼
 GameClient
     │
-    ▼
-SnapshotManager
-    │
-    ▼
-Runtime Snapshot
+    ├──────────────┐
+    ▼              ▼
+SnapshotManager  RecipeManager
+    │              │
+    ▼              ▼
+Runtime Snapshot  Recipe Database
     │
     ▼
 Intelligence Layer
@@ -79,6 +80,21 @@ Responsibilities:
 - Maintain `latest.json`
 
 SnapshotManager does **not** analyze data.
+
+---
+
+## RecipeManager
+
+Responsible for managing the game's crafting recipes.
+
+Responsibilities:
+
+- Load recipes from the game API.
+- Normalize recipes for efficient lookup.
+- Provide recipe access by ID.
+- Provide a stable interface for manufacturing reasoning.
+
+RecipeManager does **not** perform manufacturing logic or inventory analysis.
 
 ---
 
@@ -156,9 +172,10 @@ The World Model contains normalized information and is consumed by the Dashboard
 ---
 
 ## Knowledge Layer
+
 The Knowledge Layer provides normalized access to the game's static rules.
 
-It interprets configuration data from gameplay.json and exposes stable interfaces that the rest of Skunkworks can consume without depending on raw game data.
+The Knowledge Layer provides access to game rules and reference information. Some knowledge is loaded from static configuration, while other knowledge—such as crafting recipes—is retrieved from the game API and normalized for the rest of the application.
 
 Current modules:
 
@@ -189,7 +206,7 @@ The Knowledge Layer does not communicate with the API and does not represent the
 
 ## Operational Layer
 
-The Operational Layer combines the live World Model with the static Knowledge Layer to answer operational questions.
+The Operational Layer combines the live World Model with supporting game knowledge to answer operational questions.
 
 Unlike the Intelligence Layer, Operational Services reason across multiple application layers rather than interpreting raw API responses.
 
@@ -278,11 +295,12 @@ Game API
       ▼
 GameClient
       │
-      ▼
-SnapshotManager
-      │
-      ▼
-Runtime Snapshot
+      ├──────────────┐
+      ▼              ▼
+SnapshotManager  RecipeManager
+      │              │
+      ▼              ▼
+Runtime Snapshot  Recipe Database
       │
       ▼
 Intelligence Layer
@@ -315,7 +333,8 @@ Knowledge Layer         Planner (Future)
 # Design Principles
 
 - Every component has one responsibility.
-- Business logic belongs in the Intelligence Layer.
+- Data interpretation belongs in the Intelligence Layer.
+- Operational reasoning belongs in the Operational Layer.
 - User interface code only displays information.
 - API communication occurs only through GameClient.
 - Runtime snapshots are the application's source of truth.
@@ -330,6 +349,24 @@ Knowledge Layer         Planner (Future)
 - Probe and Sector are the primary operational domains.
 - The Planner consumes Operational Services rather than raw application state.
 - Planning logic is organized into independent rule modules with a single responsibility.
+- Live game data is preferred over duplicated local data whenever the API provides it.
+- Normalize data only when it provides meaningful operational value.
+- Managers own data lifecycle; services own operational reasoning.
+- The Planner asks questions; services answer them.
+
+---
+
+## Explainable Planning
+
+Every recommendation produced by the Planner should be traceable.
+
+The Planner should explain:
+
+- What it recommends.
+- Why it recommends it.
+- Which operational constraints led to that recommendation.
+
+Operational services answer domain-specific questions, while the Planner combines those answers into an explainable task queue.
 
 ---
 

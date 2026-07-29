@@ -13,14 +13,14 @@ def plan(operations) -> list[Task]:
 
     tasks: list[Task] = []
 
-    probe = operations.world.probe
-    snapshot = operations.world.snapshot
+    probe_service = operations.probes
+    snapshot_service = operations.snapshots
 
     #
     # Snapshot freshness
     #
 
-    if not snapshot["fresh"]:
+    if not snapshot_service.is_fresh():
 
         tasks.append(
             Task(
@@ -35,9 +35,7 @@ def plan(operations) -> list[Task]:
     # Probe movement
     #
 
-    movement = probe["movement"]
-
-    if movement["status"] != "arrived":
+    if probe_service.is_traveling():
 
         tasks.append(
             Task(
@@ -48,6 +46,42 @@ def plan(operations) -> list[Task]:
                 ),
                 category="safety",
                 priority=CRITICAL,
+            )
+        )
+
+    #
+    # Inventory pressure
+    #
+
+    if probe_service.inventory_used_percent() >= 85:
+
+        tasks.append(
+            Task(
+                action="Unload Probe",
+                reason=(
+                    "Probe cargo capacity is becoming "
+                    "limited."
+                ),
+                category="safety",
+                priority=HIGH,
+            )
+        )
+
+    #
+    # Fuel awareness
+    #
+
+    if probe_service.fuel_percent() < 20:
+
+        tasks.append(
+            Task(
+                action="Refuel Probe",
+                reason=(
+                    "Internal deuterium reserves are "
+                    "running low."
+                ),
+                category="safety",
+                priority=HIGH,
             )
         )
 

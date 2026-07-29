@@ -4,6 +4,8 @@
 
 Skunkworks is an autonomous operations manager for the **Von Neumann Probe** game.
 
+Skunkworks is designed around layered architecture and explainable planning. Rather than hardcoding gameplay sequences, it models the current state of the game, reasons about desired outcomes, and generates understandable operational plans that can eventually be automated.
+
 Instead of manually managing repetitive tasks, Skunkworks continuously monitors your fleet, compares the current state against your desired state, and intelligently plans the work needed to achieve your objectives.
 
 Its goal is simple:
@@ -55,24 +57,16 @@ Current capabilities include:
     - Rule-based planning
     - Task model
     - Priority system
-- Manufacturing feasibility analysis
-- Recursive dependency analysis
-- Recursive resource analysis
-- Manufacturing reports
 - Shared application configuration
 - Developer Toolkit
 
-Developer Toolkit includes:
+Developer Toolkit (Planned)
 
 - API Explorer
-- JSON Tree Explorer
-- Snapshot Comparison Tool
-- Gameplay Explorer
-- Recipe Viewer
-- Dependency Viewer
-- Raw Resource Viewer
-- Manufacturing Report
-- Fleet Summary
+- JSON Explorer
+- Snapshot Comparison
+- Recipe Explorer
+- Manufacturing Explorer
 
 ---
 
@@ -130,14 +124,15 @@ Infrastructure
     ▼
 GameClient
     │
-    ▼
-SnapshotManager
-    │
-    ▼
-Runtime Snapshot
-    │
-    ▼
-Intelligence Layer
+    ├──────────────┐
+    ▼              ▼
+SnapshotManager  RecipeManager
+    │              │
+    ▼              ▼
+Runtime Snapshot  Recipe Database
+          │
+          ▼
+    Intelligence Layer
     │
     ├── FleetAnalyzer
     ├── ProbeAnalyzer
@@ -166,7 +161,7 @@ Dashboard     Operational Layer
             Automation (Future)
 ```
 
-Each layer has a single responsibility and communicates only with adjacent layers. The Operational Layer combines the live World Model with the Knowledge Layer to answer higher-level operational questions without exposing implementation details to the Planner.
+Each layer has a single responsibility and communicates only with adjacent layers. The Operational Layer combines the live World Model with supporting game knowledge—including live crafting recipes and static gameplay rules—to answer higher-level operational questions without exposing implementation details to the Planner.
 
 This architecture allows Skunkworks to grow without tightly coupling systems together.
 
@@ -264,11 +259,17 @@ Completed
 
 Current Version
 
-0.6.0
+0.6.1
 
 Current Milestone
 
-Mission 11 — Planner Intelligence
+Mission 10 — Planner Expansion
+
+Recently Completed
+
+- Live crafting recipe integration
+- RecipeManager
+- API-backed recipe database
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
@@ -302,6 +303,8 @@ Current Capabilities:
 - Sector Intelligence
 - Snapshot Intelligence
 - Operational dashboard
+- Live crafting recipes
+- RecipeManager
 
 ---
 
@@ -320,7 +323,7 @@ Its purpose is to function as an intelligent operations manager capable of:
 - Preparing infrastructure before it is needed
 - Reducing repetitive gameplay while keeping the player in control
 
-The player defines the destination.
+The player defines the destination, Skunkworks determines the route.
 
 Skunkworks combines live operational intelligence from the World Model with static game knowledge from the Knowledge Layer through its Operational Layer. This allows the Planner to identify operational constraints, generate explainable task queues, and continuously adapt recommendations as the game state evolves—all without relying on hardcoded automation.
 

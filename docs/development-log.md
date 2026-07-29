@@ -232,6 +232,15 @@ Goals:
 - Design manufacturing planning workflows.
 - Integrate the World Model with the Knowledge Layer.
 
+Retrospective (2026-07-28)
+
+The original CraftingKnowledge implementation based on `gameplay.json`
+was later replaced by live recipe retrieval from the
+`/api/crafting-recipes` endpoint.
+
+Gameplay knowledge remains static, while crafting recipes are now
+treated as live game data managed by RecipeManager.
+
 ## 2026-07-19
 
 ## Mission 8.5 - Knowledge Layer Refinement
@@ -458,7 +467,7 @@ The Planner now has a stable architectural foundation capable of supporting prog
 
 Next Session:
 
-Mission 11 — Planner Intelligence
+Mission 11 — Manufacturing Intelligence
 
 Goals:
 
@@ -468,3 +477,45 @@ Goals:
 - Move additional operational reasoning into Operational Services.
 - Continue replacing direct World Model inspection with operational queries.
 - Begin implementing constraint-based planning.
+
+## 2026-07-28
+
+## Mission 10 - Recipe Foundation
+
+Completed:
+
+- Added `/api/crafting-recipes` support to GameClient.
+- Introduced RecipeManager.
+- Replaced the temporary local recipe database with live API-backed recipes.
+- Normalized recipes into fast ID-based lookups.
+- Verified live loading of all available crafting recipes.
+
+Architecture Improvements:
+
+- Established the game API as the authoritative source for crafting recipes.
+- Separated recipe management from manufacturing reasoning.
+- Reinforced the principle of preferring live API data over duplicated local data.
+- Added RecipeManager as a dedicated infrastructure component.
+
+Major Discoveries:
+
+- The crafting API provides stable recipe identifiers.
+- Recipes include manufacturing capability (`craftableBy`), dependency information (`ingredients`), crafting duration, and output metadata.
+- The API exposes a richer crafting model than the original `gameplay.json`.
+
+Project Milestone:
+
+Mission 10 is now complete.
+
+The Planner now has both an operational reasoning layer and a live recipe database, providing the foundation for manufacturing planning and future constraint-based reasoning.
+
+Next Session:
+
+Mission 11 — Manufacturing Intelligence
+
+Goals:
+
+- Integrate RecipeManager into ManufacturingService.
+- Implement `can_build()`.
+- Add missing ingredient analysis.
+- Begin dependency-tree planning.
