@@ -13,294 +13,236 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: 12
+        spacing: 10
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 68
+            Layout.preferredHeight: 112
             color: Constants.panelColor
-            border.color: Constants.lineColor
+            border.color: Constants.cyanColor
+            radius: 3
 
-            RowLayout {
+            ColumnLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 22
-                anchors.rightMargin: 22
-                spacing: 16
+                spacing: 0
 
-                Column {
-                    Layout.preferredWidth: 245
-                    spacing: 1
-                    Label {
-                        text: "SKUNKWORKS"
-                        color: Constants.textColor
-                        font.family: Constants.displayFont
-                        font.pixelSize: 20
-                        font.bold: true
-                        font.letterSpacing: 2.2
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.leftMargin: 22
+                    Layout.rightMargin: 22
+
+                    Row {
+                        spacing: 10
+                        StatusPill { label: "◉"; statusColor: Constants.nominalColor }
+                        Column {
+                            Label { text: "SYSTEM STATUS"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+                            Label { text: "NOMINAL"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 11; font.bold: true }
+                        }
                     }
-                    Label {
-                        text: "VON NEUMANN OPERATIONS"
-                        color: Constants.cyanColor
-                        font.family: Constants.technicalFont
-                        font.pixelSize: 8
-                        font.letterSpacing: 2
+
+                    Item { Layout.fillWidth: true }
+                    Column {
+                        Label {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "SKUNKWORKS"
+                            color: Constants.textColor
+                            font.family: Constants.displayFont
+                            font.pixelSize: 25
+                            font.bold: true
+                            font.letterSpacing: 2.4
+                        }
+                        Label {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "AUTONOMOUS EXPLORATION & FLEET OPERATIONS"
+                            color: Constants.cyanColor
+                            font.family: Constants.technicalFont
+                            font.pixelSize: 8
+                            font.letterSpacing: 1.5
+                        }
+                    }
+                    Item { Layout.fillWidth: true }
+
+                    Row {
+                        spacing: 10
+                        Column {
+                            Label { text: "NETWORK"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+                            Label { text: "CONNECTED  ▮▮▮"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 11; font.bold: true }
+                        }
+                        Button { text: "■ STOP"; palette.buttonText: Constants.criticalColor }
                     }
                 }
 
-                Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 34; color: Constants.lineColor }
-                Label {
-                    text: "COMMAND OVERVIEW"
-                    color: Constants.mutedTextColor
-                    font.family: Constants.technicalFont
-                    font.pixelSize: 11
-                    font.letterSpacing: 1.4
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Constants.lineColor }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 38
+                    Layout.leftMargin: 14
+                    Layout.rightMargin: 14
+                    spacing: 3
+
+                    Repeater {
+                        model: ["MISSION CONTROL", "FLEET", "GALAXY MAP", "RESOURCES", "MISSIONS", "PRODUCTION", "RESEARCH", "SAFETY", "LOGBOOK", "SETTINGS"]
+                        delegate: Rectangle {
+                            id: topNavigation
+                            required property string modelData
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            color: topNavigation.modelData === "MISSION CONTROL" ? Constants.selectedColor : "transparent"
+                            border.color: topNavigation.modelData === "MISSION CONTROL" ? Constants.cyanColor : "transparent"
+                            Label {
+                                anchors.centerIn: parent
+                                text: topNavigation.modelData
+                                color: topNavigation.modelData === "MISSION CONTROL" ? Constants.cyanColor : Constants.mutedTextColor
+                                font.family: Constants.technicalFont
+                                font.pixelSize: 8
+                                font.bold: topNavigation.modelData === "MISSION CONTROL"
+                            }
+                        }
+                    }
                 }
-                Item { Layout.fillWidth: true }
-                Label {
-                    text: "FOCUSED PROBE"
-                    color: Constants.mutedTextColor
-                    font.family: Constants.technicalFont
-                    font.pixelSize: 8
-                }
-                ComboBox { Layout.preferredWidth: 210; model: ["MANNY ONE · GENERIC"] }
-                StatusPill { label: "CONNECTED" }
-                Button { text: "OBSERVE" }
-                Button { text: "■  EMERGENCY STOP"; palette.buttonText: Constants.criticalColor }
             }
         }
 
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 0
+            spacing: 10
 
-            Rectangle {
-                Layout.preferredWidth: 202
+            ColumnLayout {
+                Layout.preferredWidth: 275
                 Layout.fillHeight: true
-                color: "#0b1219"
-                border.color: Constants.lineColor
+                spacing: 10
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 6
-
-                    Repeater {
-                        model: ["OVERVIEW", "FLEET", "OPERATIONS", "NAVIGATION", "INDUSTRY", "COMMS", "TIMELINE", "SETTINGS"]
-                        delegate: Rectangle {
-                            id: navigationItem
-                            required property string modelData
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 43
-                            radius: 2
-                            color: navigationItem.modelData === "OVERVIEW" ? Constants.selectedColor : "transparent"
-                            Rectangle {
-                                visible: navigationItem.modelData === "OVERVIEW"
-                                width: 3
-                                anchors.left: parent.left
-                                anchors.top: parent.top
-                                anchors.bottom: parent.bottom
-                                color: Constants.cyanColor
-                            }
-                            Label {
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.left: parent.left
-                                anchors.leftMargin: 16
-                                text: navigationItem.modelData
-                                color: navigationItem.modelData === "OVERVIEW" ? Constants.cyanColor : Constants.mutedTextColor
-                                font.family: Constants.technicalFont
-                                font.pixelSize: 10
-                                font.bold: navigationItem.modelData === "OVERVIEW"
-                                font.letterSpacing: 0.8
+                PanelFrame {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 205
+                    title: "Fleet Status"
+                    contentItem: Row {
+                        spacing: 18
+                        Rectangle {
+                            width: 92; height: 92; radius: 46
+                            color: Constants.voidColor
+                            border.color: Constants.cyanColor; border.width: 8
+                            Column {
+                                anchors.centerIn: parent
+                                Label { anchors.horizontalCenter: parent.horizontalCenter; text: "14"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 26 }
+                                Label { anchors.horizontalCenter: parent.horizontalCenter; text: "TOTAL"; color: Constants.mutedTextColor; font.pixelSize: 8 }
                             }
                         }
+                        Column {
+                            spacing: 9
+                            Label { text: "12  OPERATIONAL"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
+                            Label { text: "01  LOW FUEL"; color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
+                            Label { text: "01  IN REPAIR"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
+                            Label { text: "00  CRITICAL"; color: Constants.criticalColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
+                        }
                     }
+                }
 
-                    Item { Layout.fillHeight: true }
-                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Constants.lineColor }
-                    Label {
-                        text: "API 104\nSYNC  00:14 AGO\nPOLICY  BALANCED"
-                        color: Constants.mutedTextColor
-                        font.family: Constants.technicalFont
-                        font.pixelSize: 9
-                        lineHeight: 1.5
+                PanelFrame {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 258
+                    title: "Resource Summary"
+                    contentItem: Column {
+                        width: parent.width
+                        spacing: 8
+                        TelemetryBar { width: parent.width; label: "DEUTERIUM"; value: 0.48; reading: "482 ECE" }
+                        TelemetryBar { width: parent.width; label: "METALS"; value: 0.72; reading: "2,814 ECE" }
+                        TelemetryBar { width: parent.width; label: "CARBON"; value: 0.36; reading: "921 ECE" }
+                        TelemetryBar { width: parent.width; label: "ICE"; value: 0.58; reading: "1,200 ECE" }
+                    }
+                }
+
+                PanelFrame {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    title: "Safety Overview"
+                    contentItem: Column {
+                        width: parent.width
+                        spacing: 14
+                        Image { width: 60; height: 60; anchors.horizontalCenter: parent.horizontalCenter; source: "../../assets/icons/status-shield.png"; fillMode: Image.PreserveAspectFit }
+                        Label { anchors.horizontalCenter: parent.horizontalCenter; text: "SYSTEMS NOMINAL"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 11; font.bold: true }
+                        Label { anchors.horizontalCenter: parent.horizontalCenter; text: "No active threats detected"; color: Constants.mutedTextColor; font.pixelSize: 10 }
                     }
                 }
             }
 
-            ScrollView {
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true
+                spacing: 10
 
-                ColumnLayout {
-                    width: Math.max(980, parent.width)
-                    spacing: 14
+                PanelFrame {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    title: "Live Sector · FCC 0 / 0 / 0"
+                    contentItem: SectorView { anchors.fill: parent }
+                }
 
-                    Item { Layout.preferredHeight: 4 }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 100
+                    color: "#150b0c"
+                    border.color: Constants.criticalColor
+                    radius: 3
                     RowLayout {
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 18
-                        Layout.rightMargin: 18
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        Image { source: "../../assets/icons/status-critical.png"; Layout.preferredWidth: 46; Layout.preferredHeight: 46; fillMode: Image.PreserveAspectFit }
                         Column {
-                            Layout.fillWidth: true
-                            Label {
-                                text: "GOOD MORNING, COMMANDER"
-                                color: Constants.textColor
-                                font.family: Constants.displayFont
-                                font.pixelSize: 23
-                                font.bold: true
-                                font.letterSpacing: 1.2
-                            }
-                            Label {
-                                text: "Fleet posture is stable. One condition requires review."
-                                color: Constants.mutedTextColor
-                                font.pixelSize: 12
-                            }
+                            Label { text: "PROBE EXPLORER-07"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                            Label { text: "LOW FUEL"; color: Constants.warningColor; font.bold: true }
                         }
-                        Label {
-                            text: "31 JUL 2026  ·  11:24 LOCAL"
-                            color: Constants.mutedTextColor
-                            font.family: Constants.technicalFont
-                            font.pixelSize: 10
+                        Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: "#682326" }
+                        Column {
+                            Label { text: "DEUTERIUM SOURCE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                            Label { text: "DEPLETING · 12h 34m"; color: Constants.warningColor; font.bold: true }
+                        }
+                        Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: "#682326" }
+                        Column {
+                            Label { text: "PRODUCTION QUEUE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                            Label { text: "BACKLOG · 2 DELAYED"; color: Constants.warningColor; font.bold: true }
+                        }
+                        Item { Layout.fillWidth: true }
+                        Button { text: "VIEW ALERTS  ›" }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 155
+                    spacing: 10
+                    PanelFrame {
+                        Layout.fillWidth: true; Layout.fillHeight: true; title: "Active Missions"
+                        contentItem: Column {
+                            width: parent.width; spacing: 10
+                            Label { text: "✧  Explorer-01    Journey to SCUT Origin       42%"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                            Label { text: "◇  Builder-02     Establish Forward Hub       68%"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                            Label { text: "◆  Miner-03       Deuterium Acquisition       25%"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
                         }
                     }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 18
-                        Layout.rightMargin: 18
-                        spacing: 10
-                        MetricTile { Layout.fillWidth: true; label: "FLEET READINESS"; value: "85%"; detail: "NOMINAL"; accentColor: Constants.nominalColor }
-                        MetricTile { Layout.fillWidth: true; label: "PROBES"; value: "03"; detail: "2 IDLE · 1 ACTIVE" }
-                        MetricTile { Layout.fillWidth: true; label: "MANNIES"; value: "08"; detail: "3 AVAILABLE" }
-                        MetricTile { Layout.fillWidth: true; label: "ACTIVE OPS"; value: "01"; detail: "0 BLOCKED" }
-                        MetricTile { Layout.fillWidth: true; label: "ATTENTION"; value: "01"; detail: "RESOURCE WARNING"; accentColor: Constants.warningColor }
-                    }
-
-                    GridLayout {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        Layout.leftMargin: 18
-                        Layout.rightMargin: 18
-                        Layout.bottomMargin: 18
-                        columns: 12
-                        rowSpacing: 14
-                        columnSpacing: 14
-
-                        PanelFrame {
-                            Layout.columnSpan: 5
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 270
-                            title: "Focused Probe · Manny One"
-                            contentItem: Column {
-                                width: parent.width
-                                spacing: 9
-                                Row {
-                                    spacing: 10
-                                    StatusPill { label: "IDLE" }
-                                    StatusPill { label: "GENERIC"; statusColor: Constants.noticeColor }
-                                    Label { anchors.verticalCenter: parent.verticalCenter; text: "FCC  0 / 0 / 0"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
-                                }
-                                TelemetryBar { width: parent.width; label: "DEUTERIUM"; value: 0.72; reading: "72 / 100" }
-                                TelemetryBar { width: parent.width; label: "CARGO UTILIZATION"; value: 0.45; reading: "4.5 / 10"; accentColor: Constants.noticeColor }
-                                TelemetryBar { width: parent.width; label: "SYSTEM INTEGRITY"; value: 0.96; reading: "96%"; accentColor: Constants.nominalColor }
-                            }
-                        }
-
-                        PanelFrame {
-                            Layout.columnSpan: 7
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 270
-                            title: "Live Sector View"
-                            contentItem: SectorView { anchors.fill: parent }
-                        }
-
-                        PanelFrame {
-                            Layout.columnSpan: 12
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 145
-                            title: "Current Operation"
-                            contentItem: RowLayout {
-                                width: parent.width
-                                Label { text: "EXPAND MINING · METALS"; color: Constants.textColor; font.bold: true; font.pixelSize: 14 }
-                                StatusPill { label: "ACTIVE"; statusColor: Constants.noticeColor }
-                                Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 42; color: Constants.lineColor }
-                                Column {
-                                    Label { text: "STEP 2 OF 4 · ESTABLISH STORAGE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
-                                    Label { text: "NEXT  Assign mining Mannys to MN-184"; color: Constants.mutedTextColor; font.pixelSize: 10 }
-                                }
-                                ProgressBar { Layout.fillWidth: true; value: 0.43 }
-                                Label { text: "ETA 01:42:18"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
-                                Button { text: "INSPECT" }
-                            }
-                        }
-
-                        PanelFrame {
-                            Layout.columnSpan: 4
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 245
-                            title: "Resource Outlook"
-                            contentItem: Column {
-                                width: parent.width
-                                spacing: 10
-                                TelemetryBar { width: parent.width; label: "METALS"; value: 0.64; reading: "128.4" }
-                                TelemetryBar { width: parent.width; label: "MINERALS"; value: 0.38; reading: "76.0"; accentColor: Constants.noticeColor }
-                                TelemetryBar { width: parent.width; label: "DEUTERIUM"; value: 0.19; reading: "38.2"; accentColor: Constants.warningColor }
-                                Label { text: "Deuterium source replacement advised"; color: Constants.warningColor; font.pixelSize: 10 }
-                            }
-                        }
-
-                        PanelFrame {
-                            Layout.columnSpan: 4
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 245
-                            title: "Attention Queue"
-                            contentItem: Column {
-                                width: parent.width
-                                spacing: 10
-                                StatusPill { label: "WARNING"; statusColor: Constants.warningColor }
-                                Label { width: parent.width; wrapMode: Text.WordWrap; text: "DEUTERIUM FIELD LOW\nAsteroid D-42 has fallen below the configured replacement threshold."; color: Constants.textColor; lineHeight: 1.25 }
-                                Label { text: "Replacement source: FCC 2 / 0 / 0"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-                                Button { text: "REVIEW PLAN" }
-                            }
-                        }
-
-                        PanelFrame {
-                            Layout.columnSpan: 4
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 245
-                            title: "Upcoming Events"
-                            contentItem: Column {
-                                width: parent.width
-                                spacing: 11
-                                Label { text: "00:04:32  ·  MANNY CRAFT COMPLETE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-                                Rectangle { width: parent.width; height: 1; color: Constants.lineColor }
-                                Label { text: "00:18:00  ·  DEPOT COLLECTION DUE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-                                Rectangle { width: parent.width; height: 1; color: Constants.lineColor }
-                                Label { text: "01:42:18  ·  OPERATION STEP ETA"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-                                Button { text: "OPEN TIMELINE" }
-                            }
+                    PanelFrame {
+                        Layout.fillWidth: true; Layout.fillHeight: true; title: "Production Queue"
+                        contentItem: Column {
+                            width: parent.width; spacing: 10
+                            Label { text: "MANNY                  02h 14m        76%"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                            Label { text: "STORAGE CONTAINER      01h 03m        54%"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                            Label { text: "PROBE                  05h 47m        31%"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
                         }
                     }
                 }
             }
         }
 
-        Rectangle {
+        RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 30
-            color: Constants.panelColor
-            border.color: Constants.lineColor
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 18
-                anchors.rightMargin: 18
-                Label { text: "SNAPSHOT CURRENT"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-                Label { text: "·  API v104  ·  AUTOMATION OBSERVE-ONLY"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-                Item { Layout.fillWidth: true }
-                Label { text: "SKUNKWORKS 0.7.0"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-            }
+            Layout.preferredHeight: 22
+            Label { text: "SKUNKWORKS UI CONCEPT v1.0"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 9; font.letterSpacing: 2 }
+            Item { Layout.fillWidth: true }
+            Label { text: "AEROSPACE OPERATIONS CONSOLE  ·  API v104  ·  OBSERVE-ONLY"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
         }
     }
 }

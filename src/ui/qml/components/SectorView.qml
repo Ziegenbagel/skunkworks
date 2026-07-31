@@ -27,13 +27,12 @@ Rectangle {
     Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: 1; height: parent.height; color: Qt.rgba(0.33, 0.78, 0.85, 0.18) }
     Rectangle { anchors.verticalCenter: parent.verticalCenter; height: 1; width: parent.width; color: Qt.rgba(0.33, 0.78, 0.85, 0.18) }
 
-    Rectangle {
+    Image {
         anchors.centerIn: parent
-        width: 16
-        height: 16
-        radius: 8
-        color: Constants.cyanColor
-        border.color: Constants.textColor
+        width: 64
+        height: 64
+        source: "../../assets/icons/probe.png"
+        fillMode: Image.PreserveAspectFit
         Label {
             anchors.left: parent.right
             anchors.leftMargin: 7
@@ -45,13 +44,13 @@ Rectangle {
         }
     }
 
-    Rectangle {
+    Image {
         x: root.width * 0.68
         y: root.height * 0.30
-        width: 21
-        height: 21
-        radius: 11
-        color: Constants.warningColor
+        width: 74
+        height: 74
+        source: "../../assets/icons/resource-asteroid.png"
+        fillMode: Image.PreserveAspectFit
         Label {
             anchors.left: parent.right
             anchors.leftMargin: 7
@@ -62,13 +61,13 @@ Rectangle {
         }
     }
 
-    Rectangle {
+    Image {
         x: root.width * 0.24
         y: root.height * 0.64
-        width: 13
-        height: 13
-        rotation: 45
-        color: Constants.noticeColor
+        width: 70
+        height: 70
+        source: "../../assets/icons/mining-site.png"
+        fillMode: Image.PreserveAspectFit
         Label {
             anchors.left: parent.right
             anchors.leftMargin: 8
@@ -76,8 +75,25 @@ Rectangle {
             color: Constants.noticeColor
             font.family: Constants.technicalFont
             font.pixelSize: 8
-            rotation: -45
         }
+    }
+
+    Image {
+        x: root.width * 0.43
+        y: root.height * 0.18
+        width: 58
+        height: 58
+        source: "../../assets/icons/scut-relay.png"
+        fillMode: Image.PreserveAspectFit
+    }
+
+    Image {
+        x: root.width * 0.78
+        y: root.height * 0.68
+        width: 72
+        height: 72
+        source: "../../assets/icons/habitable-world.png"
+        fillMode: Image.PreserveAspectFit
     }
 
     Row {

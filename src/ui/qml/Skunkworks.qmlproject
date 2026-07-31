@@ -7,6 +7,10 @@ Project {
         directory: "."
     }
 
+    ImageFiles {
+        directory: "../assets"
+    }
+
     Environment {
         QT_QUICK_CONTROLS_STYLE: "Basic"
     }

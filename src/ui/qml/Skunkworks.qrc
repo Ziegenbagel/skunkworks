@@ -3,6 +3,7 @@
         <file>App.qml</file>
         <file>components/MetricTile.qml</file>
         <file>components/PanelFrame.qml</file>
+        <file>components/SectorView.qml</file>
         <file>components/StatusPill.qml</file>
         <file>components/TelemetryBar.qml</file>
         <file>Constants.qml</file>
