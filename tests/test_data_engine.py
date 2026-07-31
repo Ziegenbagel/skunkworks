@@ -18,7 +18,7 @@ class DataEngineTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_schema_is_migrated(self):
-        self.assertEqual(self.engine.schema_version(), 3)
+        self.assertEqual(self.engine.schema_version(), 4)
 
     def test_remembers_selected_probe(self):
         self.engine.remember_probe(762)

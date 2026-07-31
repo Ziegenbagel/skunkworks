@@ -46,6 +46,13 @@ class HistorySynchronizer:
             )
             self._record_response(
                 failures,
+                "logbook_pages",
+                lambda: self.capabilities.probes.logbook_pages(probe_id),
+                "pages",
+                probe_id,
+            )
+            self._record_response(
+                failures,
                 "alerts",
                 lambda: self.capabilities.probes.alerts(
                     probe_id
@@ -62,6 +69,14 @@ class HistorySynchronizer:
                 "warnings",
                 probe_id,
             )
+
+        self._record_response(
+            failures,
+            "sent_messages",
+            self.capabilities.messaging.sent,
+            "messages",
+            None,
+        )
 
         self._record_response(
             failures,

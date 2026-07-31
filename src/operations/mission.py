@@ -134,6 +134,21 @@ class OperationFactory:
             "reserve_inputs", "assign_workers",
             "manufacture_batch", "verify_inventory",
         ),
+        "frontier_exploration": (
+            "select_frontier", "score_routes", "traverse_route", "record_discoveries",
+        ),
+        "destination_explorer": (
+            "select_destination", "score_routes", "traverse_route", "inspect_destination",
+        ),
+        "resource_search": (
+            "select_resource", "plan_search_corridor", "scan_sectors", "rank_sources",
+        ),
+        "investigation": (
+            "review_event", "extract_coordinates", "travel", "inspect_sector",
+        ),
+        "rescue_and_recovery": (
+            "locate_asset", "plan_search_corridor", "dispatch_support", "recover_asset",
+        ),
     }
 
     @classmethod

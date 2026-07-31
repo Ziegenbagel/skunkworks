@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class DataEngine:
@@ -544,6 +544,54 @@ class DataEngine:
             (asset_type,),
         )
 
+    def set_event_state(
+        self, domain, external_id, *, acknowledged=False,
+        priority="normal", linked_operation_id=None,
+    ):
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO event_state (
+                    domain, external_id, acknowledged, priority,
+                    linked_operation_id, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(domain, external_id) DO UPDATE SET
+                    acknowledged = excluded.acknowledged,
+                    priority = excluded.priority,
+                    linked_operation_id = excluded.linked_operation_id,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    domain, str(external_id), int(acknowledged), priority,
+                    linked_operation_id, self._now(),
+                ),
+            )
+
+    def event_state(self, domain, external_id):
+        rows = self._rows(
+            "SELECT * FROM event_state WHERE domain = ? AND external_id = ?",
+            (domain, str(external_id)),
+        )
+        return rows[0] if rows else None
+
+    def save_archive_report(self, report_id, title, content, kind="operational"):
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO archive_reports (id, title, kind, content, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    title = excluded.title, kind = excluded.kind,
+                    content = excluded.content
+                """,
+                (report_id, title, kind, content, self._now()),
+            )
+
+    def archive_reports(self):
+        return self._rows(
+            "SELECT * FROM archive_reports ORDER BY created_at DESC, id", ()
+        )
+
     def galaxy_map(self):
         """Rebuild the in-memory map from durable visit and observation data."""
 
@@ -783,6 +831,25 @@ class DataEngine:
                     updated_at TEXT NOT NULL,
                     PRIMARY KEY(asset_type, asset_id),
                     FOREIGN KEY(operation_id) REFERENCES operations(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS event_state (
+                    domain TEXT NOT NULL,
+                    external_id TEXT NOT NULL,
+                    acknowledged INTEGER NOT NULL DEFAULT 0,
+                    priority TEXT NOT NULL DEFAULT 'normal',
+                    linked_operation_id TEXT,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(domain, external_id),
+                    FOREIGN KEY(linked_operation_id) REFERENCES operations(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS archive_reports (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
                 );
                 """
             )

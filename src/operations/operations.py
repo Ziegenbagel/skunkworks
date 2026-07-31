@@ -23,6 +23,10 @@ from src.operations.galaxy import GalaxyService
 from src.operations.mannies import MannyService
 from src.operations.containers import ContainerService
 from src.operations.depots import DepotService
+from src.operations.exploration import ExplorationService
+from src.operations.health import OperationalHealthService
+from src.operations.messaging import EventService, MessagingService, MissionService
+from src.operations.predictions import PredictionService
 from src.safety.policy import TravelSafetyPolicy
 from src.safety.travel import TravelSafetyService
 from src.safety.resources import (
@@ -44,6 +48,7 @@ class Operations:
         travel_safety_policy=None,
         data_engine=None,
         resource_safety_policy=None,
+        capabilities=None,
     ):
 
         self.world = world
@@ -87,6 +92,12 @@ class Operations:
             self.containers,
         )
         self.galaxy = GalaxyService(world)
+        self.messaging = MessagingService(data_engine, capabilities) if data_engine else None
+        self.missions = MissionService(data_engine, capabilities) if data_engine else None
+        self.events = EventService(data_engine) if data_engine else None
+        self.exploration = ExplorationService(self)
+        self.predictions = PredictionService(self)
+        self.health = OperationalHealthService(self)
         self.travel_safety = TravelSafetyService(
             world,
             self.travel,

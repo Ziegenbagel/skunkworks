@@ -88,6 +88,26 @@ class MannyService:
             "at": instant.astimezone(UTC),
         }
 
+    def utilization_percent(self):
+        return (
+            (self.total() - len(self.idle())) / self.total() * 100
+            if self.total() else 0
+        )
+
+    def bottlenecks(self):
+        findings = []
+        if self.total() == 0:
+            findings.append("no_mannies")
+        elif not self.available():
+            findings.append("no_available_mannies")
+        if any(
+            manny.get("currentTask") is None
+            and not manny.get("canReceiveOrders", False)
+            for manny in self.all()
+        ):
+            findings.append("idle_but_unavailable")
+        return tuple(findings)
+
     @staticmethod
     def _task_type(manny):
         task = manny.get("currentTask")

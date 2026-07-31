@@ -837,3 +837,35 @@ Completed:
 Next Session:
 
 Mission 22 — Messaging, Missions, and Exploration Operations
+
+## 2026-07-31
+
+## Missions 22–23 — Coordination, Prediction, and UI Readiness
+
+Completed:
+
+- Added durable inbox/outbox, mission, alert, warning, and logbook timeline
+  services with acknowledgement, priority, and Operation-link state.
+- Added safe FCC coordinate extraction without automatic narrative replies.
+- Kept outgoing messages and mission abandonment behind explicit controls.
+- Added five exploration Operation templates, explainable route scoring, and
+  breadth-first FCC recovery corridors.
+- Added a UI-independent refresh scheduler with server hints, focused-probe
+  priority, background throttling, and immediate post-mutation invalidation.
+- Added task/resource/inventory/fleet predictions with confidence, basis,
+  assumptions, and drift measurement.
+- Added operational readiness and bottleneck assessment.
+- Added the Mission Control presentation boundary and a local archive separate
+  from the player-authored game logbook.
+- Added the complete Mission 24 preparation package in `docs/ui-preparation.md`.
+- Verified 93 repository tests without issuing live game mutations.
+
+Next Session:
+
+Mission 24 — Mission Control User Interface
+
+UI Platform Decision:
+
+- Ship Mission Control for macOS, Windows, and Linux simultaneously.
+- Establish all three packaging and CI targets with the first UI slice.
+- Require feature and safety parity across platforms for Mission 24 completion.

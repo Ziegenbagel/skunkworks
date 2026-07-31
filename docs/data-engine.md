@@ -30,6 +30,8 @@ The versioned schema currently stores:
 - Command lifecycle history and per-probe execution leases
 - Durable Operations and their resumable current step
 - Exclusive fleet-role assignments for probes and Mannys
+- Local acknowledgement, priority, and Operation links for synchronized events
+- A Skunkworks report archive kept separate from the player-authored game logbook
 
 Schema changes are recorded in `schema_migrations`.
 

@@ -169,7 +169,7 @@ Dashboard     Operational Layer
                Planner
                    │
                    ▼
-            Automation (Future)
+        Controlled Automation Runtime
 ```
 
 Each layer has a single responsibility and communicates only with adjacent layers. The Operational Layer combines the live World Model with supporting game knowledge—including live crafting recipes and static gameplay rules—to answer higher-level operational questions without exposing implementation details to the Planner.
@@ -282,11 +282,20 @@ Completed
 - Exclusive fleet roles, cargo delivery cycles, and tanker reserve planning
 - First-class Manny, container, and mining-depot intelligence
 
+## ✅ Missions 22–23 — Coordination and Operational Health
+
+- Unified communications, mission, alert, warning, and logbook timeline
+- Safe coordinate extraction and confirmed mission/message controls
+- Exploration route scoring, interruptions, and recovery search corridors
+- UI-independent refresh scheduler honoring server refresh hints
+- Local predictions with confidence, assumptions, and drift measurement
+- Fleet readiness, stale-state, capacity, fuel, worker, and depot health
+- Mission Control presentation contract and separate Skunkworks Archive
+
 ### Remaining to 1.0
 
-- Mission 22 — Messaging, Missions, and Exploration Operations
-- Mission 23 — Refresh Scheduler, Prediction, and Operational Health
 - Mission 24 — Mission Control User Interface
+  - Simultaneous macOS, Windows, and Linux release
 - Mission 25 — Continuous Autonomy, Recovery, and API Parity
 - Mission 26 — 1.0 Release Hardening
 
@@ -309,15 +318,16 @@ Completed
 
 🚧 Active Development
 
-Missions 11–21 complete. The roadmap through 1.0 is locked in
-[`docs/roadmap.md`](docs/roadmap.md). Next: Mission 22 — Messaging, Missions,
-and Exploration Operations.
+Missions 11–23 complete. The roadmap through 1.0 is locked in
+[`docs/roadmap.md`](docs/roadmap.md). Next: Mission 24 — Mission Control User
+Interface. Its implementation package is in
+[`docs/ui-preparation.md`](docs/ui-preparation.md).
 
 0.7.0
 
 Current Milestone
 
-Missions 19–21 — Controlled Operations and Logistics (Complete)
+Missions 22–23 — Coordination and Operational Health (Complete)
 
 Current Work
 
@@ -353,9 +363,9 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Resource Intelligence
 - Runtime snapshots
 
-The controlled execution runtime, durable Operation model, fleet logistics,
-and Manny/container/depot intelligence are complete. Development now moves to
-Mission 22: messaging, missions, and exploration operations.
+Messaging, mission/exploration coordination, intelligent refresh scheduling,
+predictions, and operational health are complete. Development now moves to
+Mission 24: the Mission Control UI.
 
 Current Capabilities:
 

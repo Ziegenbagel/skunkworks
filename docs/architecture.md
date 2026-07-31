@@ -46,7 +46,7 @@ Dashboard     Operational Layer
                 Planner
                    │
                    ▼
-          Automation (Future)
+     Controlled Automation Runtime
 ```
 
 ---
@@ -105,8 +105,8 @@ The versioned SQLite Data Engine stores probe, sector, resource, visit, message,
 alert, warning, and mission history. It also stores the remembered focused
 probe and reconstructs the galaxy map from durable observations.
 
-Schema version 2 adds the append-only action journal used for command previews,
-lifecycle tracking, and idempotency checks.
+Schema version 4 adds the action journal, durable Operations, fleet roles,
+event workflow state, execution leases, and the separate Skunkworks Archive.
 
 Live API responses remain authoritative. Persistence supports historical
 reasoning and never replaces live validation before a control action. See
@@ -270,10 +270,10 @@ Current services:
 - GalaxyService
 - TravelSafetyService
 - ResourceSustainabilityService
-
-Planned services:
-
-- MessagingService
+- MessagingService, MissionService, and EventService
+- ExplorationService
+- PredictionService
+- OperationalHealthService
 
 Typical responsibilities include:
 
@@ -312,8 +312,8 @@ contract-shaped commands. It applies probe-context validation, preflight
 checks, player policy, cycle limits, and idempotency before presenting a
 dry-run queue.
 
-This layer does not call API mutation gateways. Live dispatch remains a
-separate future Automation layer. See `docs/execution-boundary.md`.
+The controlled runtime dispatches only explicitly allowlisted typed commands
+after a fresh second preflight. See `docs/execution-boundary.md`.
 
 ## Safety Layer
 
@@ -408,10 +408,10 @@ Dashboard     Operational Layer
                      │
           ┌──────────┴──────────┐
           ▼                     ▼
-Knowledge Layer         Planner (Future)
+Knowledge Layer              Planner
                                 │
                                 ▼
-                        Automation (Future)
+                  Controlled Automation Runtime
 ```
 
 ---

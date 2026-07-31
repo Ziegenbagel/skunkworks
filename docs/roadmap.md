@@ -4,7 +4,7 @@
 
 This is the canonical Skunkworks roadmap as of 2026-07-31.
 
-Missions 1–21 are complete. Development continues with Mission 22 and targets
+Missions 1–23 are complete. Development continues with Mission 24 and targets
 the 1.0 release at Mission 26.
 
 This roadmap reconciles:
@@ -164,7 +164,7 @@ Release gate: Skunkworks can determine whether the fleet has sufficient
 workers, storage, transport, and source longevity for every planned industrial
 operation.
 
-## Remaining Roadmap to 1.0
+## Completed Operational Coordination
 
 ### Mission 22 — Messaging, Missions, and Exploration Operations
 
@@ -221,9 +221,15 @@ Release gate: the UI stays current through local prediction and reasoned
 refreshes, while Skunkworks warns before major operational constraints become
 failures.
 
+## Remaining Roadmap to 1.0
+
 ### Mission 24 — Mission Control User Interface
 
 Goal: provide a polished, complete player-facing operations console.
+
+Mission 24 ships simultaneously for macOS, Windows, and Linux. Cross-platform
+packaging, CI artifacts, keyboard behavior, fonts, filesystem conventions, and
+visual verification are part of the mission rather than post-release ports.
 
 - Persistent probe selector and fleet overview.
 - Probe, inventory, Manny, container, storage, production, and role controls.
