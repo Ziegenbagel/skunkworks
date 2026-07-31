@@ -3,8 +3,13 @@
 from .task import Task
 from .desired_state import DesiredState
 from .rules import (
+    fuel,
     idle,
+    inventory,
+    manufacturing,
+    mining,
     safety,
+    travel,
 )
 
 
@@ -29,8 +34,38 @@ class Planner:
         )
 
         tasks.extend(
-            idle.plan(self.operations)
+            inventory.plan(
+                self.operations,
+                self.desired_state,
+            )
         )
+        tasks.extend(
+            fuel.plan(
+                self.operations,
+                self.desired_state,
+            )
+        )
+        tasks.extend(
+            manufacturing.plan(
+                self.operations,
+                self.desired_state,
+            )
+        )
+        tasks.extend(
+            mining.plan(
+                self.operations,
+                self.desired_state,
+            )
+        )
+        tasks.extend(
+            travel.plan(
+                self.operations,
+                self.desired_state,
+            )
+        )
+
+        if not tasks:
+            tasks.extend(idle.plan(self.operations))
 
         tasks.sort(
             key=lambda task: task.priority

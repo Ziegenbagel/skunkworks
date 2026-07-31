@@ -11,6 +11,7 @@ class WorldModel:
         probe=None,
         sector=None,
         mannies=None,
+        galaxy=None,
     ):
 
         self.player = player
@@ -23,3 +24,4 @@ class WorldModel:
             "mannies": [],
             "nextUsefulRefreshDelayMs": 30000,
         }
+        self.galaxy = galaxy

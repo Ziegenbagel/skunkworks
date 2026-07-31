@@ -17,6 +17,9 @@ from src.operations.probes import (
 from src.operations.snapshots import (
     SnapshotService,
 )
+from src.operations.inventory import InventoryService
+from src.operations.mining import MiningService
+from src.operations.galaxy import GalaxyService
 
 
 class Operations:
@@ -61,3 +64,7 @@ class Operations:
                 world
             )
         )
+
+        self.inventory = InventoryService(world)
+        self.mining = MiningService(world)
+        self.galaxy = GalaxyService(world)

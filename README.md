@@ -52,11 +52,19 @@ Current capabilities include:
     - Probe Service
     - Travel Service
     - Manufacturing Service
+    - Inventory Service
+    - Mining Service
+    - Galaxy Service
 - Planner
 
     - Rule-based planning
     - Task model
     - Priority system
+    - Persisted Desired State
+    - Manufacturing, mining, fuel, inventory, and travel rules
+- Versioned SQLite Data Engine
+- Durable galaxy, probe, resource, visit, and event history
+- Interactive and remembered probe selection
 - Shared application configuration
 - Developer Toolkit
 
@@ -124,12 +132,12 @@ Infrastructure
     ▼
 GameClient
     │
-    ├──────────────┐
-    ▼              ▼
-SnapshotManager  RecipeManager
-    │              │
-    ▼              ▼
-Runtime Snapshot  Recipe Database
+    ├──────────────┬────────────────┐
+    ▼              ▼                ▼
+SnapshotManager  RecipeManager   Data Engine
+    │              │                │
+    ▼              ▼                ▼
+Runtime Snapshot  Recipes     History + Goals
           │
           ▼
     Intelligence Layer
@@ -152,7 +160,10 @@ Dashboard     Operational Layer
                    ├── FleetService
                    ├── ProbeService
                    ├── TravelService
-                   └── ManufacturingService
+                   ├── ManufacturingService
+                   ├── InventoryService
+                   ├── MiningService
+                   └── GalaxyService
                    │
                    ▼
                Planner
@@ -219,25 +230,18 @@ Completed
 
 ---
 
-## Planned Milestones
+## ✅ Missions 11–13 — Constraint-Based Planning
 
-### Planner
+Completed
 
-- Safety planning
-- Fuel planning
-- Inventory planning
-- Manufacturing planning
-- Mining planning
-- Travel planning
-- Desired State planning
-
-### Data Engine
-
-- Local galaxy model
-- Sector history
-- Probe history
-- Resource history
-- Event history
+- Persistent Desired State configuration
+- Manufacturing goals and feasibility recommendations
+- Manufacturing-shortage and resource-reserve mining plans
+- Fuel reserve planning
+- Inventory capacity planning
+- FCC travel routing and blocker analysis
+- Durable local galaxy access
+- Selected-probe planning context
 
 ### Automation
 
@@ -247,9 +251,9 @@ Completed
 
 ### Desired State
 
-- User objectives
+- User-facing objective editor
 - Fleet configuration
-- Production goals
+- Per-probe policy overrides
 
 ---
 
@@ -257,24 +261,23 @@ Completed
 
 🚧 Active Development
 
-Current Version
+Missions 11–13 complete. Next: Mission 14 — policy-controlled execution.
 
 0.7.0
 
 Current Milestone
 
-Mission 11 — Manufacturing Intelligence
+Missions 11–13 — Constraint-Based Planning (Complete)
 
 Current Work
 
-- RecipeManager integration with ManufacturingService
-- Live manufacturing feasibility analysis
-- Missing resource and item ingredient analysis
-- Recursive dependency-tree and raw-resource analysis
-- Server-faithful recursive manufacturing analysis
+- Persisted production, resource, fuel, inventory, and travel goals
+- Manufacturing and mining recommendations
+- Fuel and cargo-capacity safeguards
+- Deterministic FCC travel routing
+- Durable galaxy access
 - API v104 compatibility and rate-limit awareness
 - Authoritative Manny task-state loading
-- Declarative Desired State and production-goal foundation
 - Interactive and CLI probe selector
 - Explicit per-probe operational context
 - Complete capability gateways for game controls
@@ -290,7 +293,7 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Resource Intelligence
 - Runtime snapshots
 
-Development is currently focused on expanding the Operational Layer, which combines the live World Model with the Knowledge Layer to answer operational questions. These services will become the primary interface used by the Planner.
+Development now moves to Mission 14: safely translating planner tasks into typed, policy-controlled API commands with dry-run, approval, idempotency, and action-journal safeguards.
 
 Current Capabilities:
 
@@ -307,6 +310,9 @@ Current Capabilities:
 - Manufacturing Service
 - Probe Service
 - Travel Service
+- Inventory Service
+- Mining Service
+- Galaxy Service
 - Manufacturing feasibility analysis
 - Recursive dependency analysis
 - Recursive resource analysis
@@ -320,6 +326,8 @@ Current Capabilities:
 - RecipeManager
 - API compatibility validation
 - Canonical v104 telemetry normalization
+- Constraint-based Desired State planning
+- FCC travel routing
 
 ---
 

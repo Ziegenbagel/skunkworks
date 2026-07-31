@@ -615,3 +615,39 @@ Live Verification:
 - A later argument-free launch restored probe `762`.
 - History synchronization stored probe state, sector observations, 121 visit
   records, and 12 event records.
+
+## 2026-07-30
+
+## Missions 11–13 - Constraint-Based Planning
+
+Completed:
+
+- Added JSON-backed Desired State defaults and SQLite-persisted overrides.
+- Added typed production, resource-reserve, fuel, inventory, and travel goals.
+- Completed the manufacturing planner rule.
+- Converted manufacturing shortages into actionable mining requirements.
+- Added ranked current-sector mining targets and Manny availability checks.
+- Added fuel-reserve and free-capacity planning.
+- Added deterministic shortest-path routing across FCC sector coordinates.
+- Added travel blocker analysis for probe status, telemetry, and fuel.
+- Reconstructed the durable galaxy before planning and exposed it through
+  GalaxyService.
+- Added quantities to planner dashboard output.
+
+Verification:
+
+- Added end-to-end planner tests for Missions 11, 12, and 13.
+- Added Desired State serialization and persistence tests.
+- Full suite passes with 48 tests.
+- Live API v103 launch restored probe `762`, handled its cruising state without
+  a sector snapshot, rebuilt history, and produced the expected travel and fuel
+  recommendations without issuing game commands.
+
+Next Session:
+
+Mission 14 — Policy-Controlled Execution
+
+- Map planner tasks to typed API commands.
+- Require explicit player policy before mutations.
+- Add dry-run, approval, idempotency, and action-journal safeguards.
+- Begin multi-probe scheduling and message-driven coordination.

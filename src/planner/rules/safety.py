@@ -20,7 +20,11 @@ def plan(operations) -> list[Task]:
     # Snapshot freshness
     #
 
-    if not snapshot_service.is_fresh():
+    if (
+        not snapshot_service.is_fresh()
+        and probe_service.current()["telemetry_available"]
+        and not probe_service.is_traveling()
+    ):
 
         tasks.append(
             Task(
@@ -61,24 +65,6 @@ def plan(operations) -> list[Task]:
                 reason=(
                     "Probe cargo capacity is becoming "
                     "limited."
-                ),
-                category="safety",
-                priority=HIGH,
-            )
-        )
-
-    #
-    # Fuel awareness
-    #
-
-    if probe_service.fuel_percent() < 20:
-
-        tasks.append(
-            Task(
-                action="Refuel Probe",
-                reason=(
-                    "Internal deuterium reserves are "
-                    "running low."
                 ),
                 category="safety",
                 priority=HIGH,

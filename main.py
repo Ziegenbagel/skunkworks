@@ -1,8 +1,11 @@
+import requests
+
 from src.intelligence.world_builder import WorldBuilder
 from src.api.client import GameClient
 from src.snapshot.manager import SnapshotManager
 from src.ui.dashboard import Dashboard
 from src.planner import Planner
+from src.planner.desired_state_store import DesiredStateStore
 from src.recipes.manager import RecipeManager
 from src.operations.operations import (
     Operations,
@@ -89,21 +92,41 @@ def main():
             f"{probe['name']}..."
         )
 
-        snapshot, snapshot_path = (
-            snapshot_manager.refresh_sector(probe_id)
-        )
+        try:
+            snapshot, snapshot_path = (
+                snapshot_manager.refresh_sector(probe_id)
+            )
+        except requests.HTTPError as error:
+            if (
+                error.response is None
+                or error.response.status_code != 400
+            ):
+                raise
 
-        print(f"Snapshot updated: {snapshot_path}")
+            print(
+                "Sector snapshot unavailable for the "
+                f"probe's {probe['status']} state; "
+                "using movement telemetry."
+            )
+            world = builder.build_limited(
+                player=player,
+                probe_data=probe_data,
+                probe=probe_details["probe"],
+                probe_name=probe["name"],
+                mannies=mannies,
+            )
+        else:
+            print(f"Snapshot updated: {snapshot_path}")
 
-        world = builder.build(
-            player=player,
-            probe_data=probe_data,
-            probe=probe_details["probe"],
-            snapshot=snapshot,
-            snapshot_path=snapshot_path,
-            probe_name=probe["name"],
-            mannies=mannies,
-        )
+            world = builder.build(
+                player=player,
+                probe_data=probe_data,
+                probe=probe_details["probe"],
+                snapshot=snapshot,
+                snapshot_path=snapshot_path,
+                probe_name=probe["name"],
+                mannies=mannies,
+            )
     else:
         print()
         print(
@@ -120,14 +143,6 @@ def main():
     recipes = client.get_crafting_recipes()
     recipe_manager.load(recipes)
 
-    operations = Operations(
-        world,
-        recipe_manager,
-    )
-
-    planner = Planner(operations)
-    tasks = planner.tasks()
-
     history_failures = HistorySynchronizer(
         data_engine,
         capabilities,
@@ -136,6 +151,18 @@ def main():
         probe_id,
         reachable=probe.get("isReachable", True),
     )
+    world.galaxy = data_engine.galaxy_map()
+
+    operations = Operations(
+        world,
+        recipe_manager,
+    )
+
+    desired_state = DesiredStateStore(
+        data_engine
+    ).load()
+    planner = Planner(operations, desired_state)
+    tasks = planner.tasks()
 
     if history_failures:
         print()
@@ -143,8 +170,6 @@ def main():
             "History sync incomplete: "
             + ", ".join(history_failures)
         )
-    
-
     dashboard = Dashboard()
 
     dashboard.display(

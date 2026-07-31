@@ -16,22 +16,14 @@ The Operational Layer combines the live World Model with the static Knowledge La
 
 # Current Status
 
-Mission 10 — Planner
+Missions 11–13 — Constraint-Based Planner
 
 Status:
-Manufacturing Intelligence In Progress
+Complete
 
 Next Mission
 
-Mission 11 — Manufacturing Intelligence
-
-- RecipeManager integrated with ManufacturingService ✅
-- Live `can_build()` feasibility query ✅
-- Missing resource and item ingredient analysis ✅
-- Recursive dependency-tree analysis ✅
-- Server-faithful recursive production analysis ✅
-- Fabricator and cargo-capacity constraint analysis ✅
-- Manufacturing planner rule
+Mission 14 — Policy-Controlled Execution
 
 Mission 7
 
@@ -71,25 +63,41 @@ Current capabilities include:
 
 - Structured Task model
 - Declarative Desired State model
-- Typed production goals
+- Typed production, resource, fuel, inventory, and travel goals
+- JSON defaults with SQLite-persisted overrides
 - Structured task constraints
 - Rule-based planning architecture
 - Independent planning rules
 - Shared priority system
 - Dashboard integration
 - Safety planning
+- Manufacturing planning
+- Mining and reserve planning
+- Fuel planning
+- Inventory-capacity planning
+- FCC travel routing
+- Durable galaxy-map access
 - Idle probe assessment
 
-Mission 10
+Mission 11 — Manufacturing Intelligence ✅
 
-Current Focus
+- Production goals become craft or preparation tasks.
+- Recursive recipe shortages become mining requirements.
+- Fabricator, inventory, fuel, and probe-state blockers remain explicit.
 
-- Task prioritization
-- Manufacturing recommendations
-- Travel recommendations
-- Resource shortage analysis
-- Multi-probe planning
-- Desired State evaluation
+Mission 12 — Mining and Resource Intelligence ✅
+
+- Desired resource reserves generate shortage tasks.
+- Current-sector targets are ranked by amount and composition.
+- Idle Manny and selected-probe availability are enforced.
+- Fuel reserves generate deuterium recovery recommendations.
+
+Mission 13 — Logistics and Navigation Intelligence ✅
+
+- Minimum free-capacity goals generate cargo tasks.
+- Desired destinations generate shortest FCC routes.
+- Travel tasks expose fuel, state, and telemetry blockers.
+- Historical galaxy data is available through GalaxyService.
 
 Mission 10.5 — Fleet Interface
 
@@ -117,10 +125,13 @@ RecipeManager
 - TravelService
 - ProbeService
 
+- InventoryService
+- MiningService
+- GalaxyService
+
 Future
 
-- GalaxyService
-- MessagingService
+- MessagingService policy and automation
 
 Supporting Layers
 
@@ -257,16 +268,12 @@ Planning Engine
 
 Operational Intelligence
 
-- Fuel planning
-- Inventory planning
-- Manufacturing planning
 - Constraint solver
-- Desired State engine
 - Prediction engine
 - Resource forecasting
-- Manufacturing planning
-- Travel planning
 - Logistics planning
+- Cross-probe planning
+- Message-driven coordination
 
 Optimization
 
@@ -284,9 +291,9 @@ Fleet Intelligence
 
 Desired State
 
-- Desired State evaluation
-- Explainable planning
-- Goal-based planning
+- User-facing goal editor
+- Per-probe policy overrides
+- Goal conflict resolution
 
 ---
 

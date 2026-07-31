@@ -95,6 +95,7 @@ class WorldBuilder:
         probe_data,
         probe,
         probe_name,
+        mannies=None,
     ):
         """Build safe state for an owned probe outside telemetry range."""
 
@@ -115,4 +116,8 @@ class WorldBuilder:
             "age_seconds": 0,
             "fresh": False,
         }
+
+        if mannies is not None:
+            world.mannies = mannies
+
         return world

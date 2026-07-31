@@ -363,6 +363,11 @@ class Dashboard:
                     f"   Target: {task.target}"
                 )
 
+            if task.quantity != 1:
+                print(
+                    f"   Quantity: {task.quantity}"
+                )
+
             for constraint in task.constraints:
                 print(
                     f"   Constraint: {constraint}"

@@ -38,6 +38,22 @@ class ManufacturingService:
         plan = self.production_plan(recipe_id)
         return plan is not None and plan["achievable"]
 
+    def inventory_count(self, item_type):
+        """Return current inventory count for an output type."""
+
+        if item_type == "manny":
+            return len(
+                self.world.mannies.get("mannies", [])
+            )
+
+        return sum(
+            1
+            for item in self.world.probe[
+                "inventory"
+            ].get("items", [])
+            if item["type"] == item_type
+        )
+
     def raw_resources(self, recipe_id):
         """Return recursive costs after reusing current item inventory."""
 

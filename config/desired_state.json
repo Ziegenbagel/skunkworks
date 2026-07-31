@@ -1,0 +1,7 @@
+{
+  "production": [],
+  "resourceReserves": {},
+  "minimumFuelPercent": 20,
+  "minimumFreeCapacity": 1,
+  "travelTarget": null
+}

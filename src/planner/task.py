@@ -13,7 +13,7 @@ class Task:
     category: str = "general"
 
     target: str | None = None
-    quantity: int = 1
+    quantity: float = 1
     constraints: tuple[str, ...] = ()
 
     priority: int = 100
