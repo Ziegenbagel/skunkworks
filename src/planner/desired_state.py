@@ -60,6 +60,20 @@ class TravelGoal:
 
 
 @dataclass(frozen=True)
+class FleetGoal:
+    """Desired assembled fleet size by probe model."""
+
+    model: str
+    quantity: int
+
+    def __post_init__(self):
+        if self.model not in {"generic", "deuterium_tanker"}:
+            raise ValueError(f"Unsupported probe model: {self.model}")
+        if self.quantity < 0:
+            raise ValueError("Fleet goal quantity cannot be negative.")
+
+
+@dataclass(frozen=True)
 class DesiredState:
     """Declarative player goals with no planning logic."""
 
@@ -74,6 +88,7 @@ class DesiredState:
         default_factory=InventoryGoal
     )
     travel: TravelGoal | None = None
+    fleet: tuple[FleetGoal, ...] = field(default_factory=tuple)
 
     @classmethod
     def empty(cls):
@@ -130,6 +145,10 @@ class DesiredState:
                 if travel_target is not None
                 else None
             ),
+            fleet=tuple(
+                FleetGoal(model=model, quantity=int(quantity))
+                for model, quantity in value.get("fleetTargets", {}).items()
+            ),
         )
 
     def to_dict(self):
@@ -158,4 +177,7 @@ class DesiredState:
                 if self.travel is not None
                 else None
             ),
+            "fleetTargets": {
+                goal.model: goal.quantity for goal in self.fleet
+            },
         }

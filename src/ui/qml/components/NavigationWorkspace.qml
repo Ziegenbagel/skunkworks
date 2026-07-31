@@ -11,6 +11,7 @@ PanelFrame {
     property var availableProbes: []
     property int focusedProbeId: -1
     signal probeSelected(int probeId)
+    signal automationSettingsSaved(var settings)
 
     title: section
 
@@ -41,35 +42,11 @@ PanelFrame {
                         "title": item.codeLabel,
                         "detail": item.summary
                     }));
-        if (section === "GALAXY MAP")
-            return (dashboardData.sector && dashboardData.sector.objects || []).map(item => ({
-                        "title": item.name,
-                        "detail": String(item.type).split("_").join(" ").toUpperCase()
-                    }));
         if (section === "LOGBOOK")
             return (dashboardData.events || []).map(item => ({
                         "title": String(item.domain || "EVENT").toUpperCase(),
                         "detail": item.observedAt || "Recorded event"
                     }));
-        if (section === "SETTINGS")
-            return [
-                {
-                    "title": "CONNECTION",
-                    "detail": dashboardData.connectionLabel || "UNKNOWN"
-                },
-                {
-                    "title": "API VERSION",
-                    "detail": "v" + (dashboardData.apiVersion || "—")
-                },
-                {
-                    "title": "FOCUSED PROBE",
-                    "detail": dashboardData.focus ? dashboardData.focus.name : "None"
-                },
-                {
-                    "title": "AUTOMATION",
-                    "detail": "Observe-only"
-                }
-            ];
         if (section === "RESEARCH")
             return [
                 {
@@ -83,13 +60,27 @@ PanelFrame {
     contentItem: Item {
         anchors.fill: parent
 
+        GalaxyMap {
+            anchors.fill: parent
+            visible: root.section === "GALAXY MAP"
+            galaxyData: root.dashboardData.galaxy || ({})
+        }
+
+        AutomationSettings {
+            anchors.fill: parent
+            visible: root.section === "SETTINGS"
+            settingsData: root.dashboardData.automation || ({})
+            onSaveRequested: settings => root.automationSettingsSaved(settings)
+        }
+
         Column {
+            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS"
             anchors.fill: parent
             spacing: 12
 
             Label {
                 width: parent.width
-                text: root.section === "GALAXY MAP" && root.dashboardData.sector ? "CURRENT OBSERVATION · " + root.dashboardData.sector.label : root.section + " · LIVE ACCOUNT DATA"
+                text: root.section + " · LIVE ACCOUNT DATA"
                 color: Constants.cyanColor
                 font.family: Constants.technicalFont
                 font.pixelSize: 10

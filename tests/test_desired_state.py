@@ -6,6 +6,7 @@ from src.data import DataEngine
 from src.planner.desired_state import (
     DesiredState,
     FuelGoal,
+    FleetGoal,
     InventoryGoal,
     ProductionGoal,
     ResourceGoal,
@@ -54,6 +55,7 @@ class DesiredStateTests(unittest.TestCase):
             fuel=FuelGoal(35),
             inventory=InventoryGoal(2),
             travel=TravelGoal(SectorCoordinates(2, 0, 0)),
+            fleet=(FleetGoal("deuterium_tanker", 2),),
         )
 
         self.assertEqual(

@@ -74,5 +74,10 @@ ApplicationWindow {
             else
                 missionControl.focusedProbeId = probeId;
         }
+
+        function onAutomationSettingsSaved(settings) {
+            if (window.backend)
+                window.backend.saveAutomationSettings(settings);
+        }
     }
 }

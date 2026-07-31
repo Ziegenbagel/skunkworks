@@ -26,6 +26,7 @@ class UiPreparationTests(unittest.TestCase):
             self.assertIn("operations", view)
             self.assertIn("archive", view)
             self.assertIn("sector", view)
+            self.assertIn("galaxy", view)
             self.assertIn("resources", view)
             self.assertIn("alerts", view)
             self.assertIn("missions", view)
@@ -143,6 +144,20 @@ class UiPreparationTests(unittest.TestCase):
             ["82.00 ECE", "5.57 ECE", "2.06 ECE", "1.06 ECE"],
         )
         self.assertEqual(resources[0]["value"], 0.82)
+
+    def test_galaxy_view_exposes_discovered_nodes_and_neighbor_links(self):
+        from src.models.galaxy import GalaxyMap
+
+        base = build_operations()
+        galaxy = GalaxyMap()
+        galaxy.record_visit({"relativeCoordinates": {"x": 0, "y": 0, "z": 0}, "visitCount": 2})
+        galaxy.record_visit({"relativeCoordinates": {"x": 1, "y": 1, "z": 0}, "visitCount": 1})
+        base.world.galaxy = galaxy
+
+        view = MissionControlViewModelBuilder(base).build()["galaxy"]
+
+        self.assertEqual(view["sectorCount"], 2)
+        self.assertEqual(len(view["edges"]), 1)
 
 
 if __name__ == "__main__":

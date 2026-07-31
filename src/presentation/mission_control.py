@@ -54,6 +54,7 @@ class MissionControlViewModelBuilder:
             "alerts": self._alert_views(findings + self._event_alerts()),
             "resources": self._resources(probe),
             "sector": self._sector_view(world, coordinates),
+            "galaxy": self._galaxy_view(world, coordinates),
             "missions": self._missions(),
             "production": self._production(probe, world.mannies),
             "events": self.operations.events.timeline(probe["id"])
@@ -62,6 +63,38 @@ class MissionControlViewModelBuilder:
             "actions": self._action_records(),
             "archive": self._archive_records(),
         }
+
+    def _galaxy_view(self, world, focus_coordinates):
+        galaxy = getattr(world, "galaxy", None)
+        records = galaxy.sectors() if galaxy is not None else ()
+        nodes = []
+        for record in records:
+            coordinate = record.coordinates
+            observation = record.observed or {}
+            sector = observation.get("sector", observation)
+            objects = sector.get("objects", ()) or ()
+            object_types = [str(item.get("type", "unknown")) for item in objects]
+            nodes.append({
+                "id": f"{coordinate.x}:{coordinate.y}:{coordinate.z}",
+                "x": coordinate.x,
+                "y": coordinate.y,
+                "z": coordinate.z,
+                "label": self._sector_label({"x": coordinate.x, "y": coordinate.y, "z": coordinate.z}),
+                "visitCount": record.visit_count,
+                "lastVisitedAt": record.last_visited_at or "",
+                "probeIds": sorted(record.observed_by_probe_ids),
+                "objectCount": len(objects),
+                "objectTypes": object_types,
+                "knowledgeLevel": sector.get("knowledgeLevel", "visited"),
+                "confidence": float(sector.get("confidence", 0) or 0),
+                "isFocused": coordinate.x == focus_coordinates.get("x") and coordinate.y == focus_coordinates.get("y") and coordinate.z == focus_coordinates.get("z"),
+            })
+        edges = []
+        for index, source in enumerate(nodes):
+            for target in nodes[index + 1:]:
+                if max(abs(source[axis] - target[axis]) for axis in ("x", "y", "z")) == 1:
+                    edges.append({"from": source["id"], "to": target["id"]})
+        return {"nodes": tuple(nodes), "edges": tuple(edges), "sectorCount": len(nodes)}
 
     @staticmethod
     def _coordinates(probe):

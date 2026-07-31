@@ -19,6 +19,8 @@ from src.presentation import MissionControlViewModelBuilder
 from src.recipes.manager import RecipeManager
 from src.safety.policy import TravelSafetyPolicyStore
 from src.safety.resources import ResourceSafetyPolicyStore
+from src.planner.desired_state import DesiredState
+from src.planner.desired_state_store import DesiredStateStore
 from src.snapshot.manager import SnapshotManager
 
 
@@ -99,6 +101,23 @@ class MissionControlDataService:
         dashboard["probeOptions"] = options
         dashboard["syncFailures"] = sync_failures
         dashboard["emergencyStopActive"] = self.data_engine.emergency_stop_active()
+        desired_state = DesiredStateStore(self.data_engine).load()
+        automation = desired_state.to_dict()
+        probes = world.fleet.get("probes", ()) if getattr(world, "fleet", None) else (probe,)
+        model_counts = {}
+        for fleet_probe in probes:
+            model = fleet_probe.get("model", "generic")
+            model_counts[model] = model_counts.get(model, 0) + 1
+        automation["fleetStatus"] = [
+            {
+                "model": goal.model,
+                "current": model_counts.get(goal.model, 0),
+                "target": goal.quantity,
+                "shortage": max(0, goal.quantity - model_counts.get(goal.model, 0)),
+            }
+            for goal in desired_state.fleet
+        ]
+        dashboard["automation"] = automation
         return dashboard
 
     def _initialize(self):
@@ -251,6 +270,19 @@ class MissionControlController(QObject):
         if active != self._emergency_stop:
             self._emergency_stop = active
             self.emergencyStopChanged.emit()
+
+    @Slot("QVariantMap")
+    def saveAutomationSettings(self, settings):
+        if self.service is None:
+            self.service = MissionControlDataService()
+        try:
+            state = DesiredState.from_dict(self._qt_safe(settings))
+            DesiredStateStore(self.service.data_engine).save(state)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._dashboard["automation"] = self._qt_safe(state.to_dict())
+        self.dashboardChanged.emit()
 
     def _start_refresh(self, probe_id):
         if self._refreshing:

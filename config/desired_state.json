@@ -3,5 +3,9 @@
   "resourceReserves": {},
   "minimumFuelPercent": 20,
   "minimumFreeCapacity": 1,
-  "travelTarget": null
+  "travelTarget": null,
+  "fleetTargets": {
+    "generic": 0,
+    "deuterium_tanker": 0
+  }
 }
