@@ -5,6 +5,10 @@ import "components"
 
 Rectangle {
     id: root
+    width: Constants.width
+    height: Constants.height
+    implicitWidth: Constants.width
+    implicitHeight: Constants.height
     color: Constants.voidColor
 
     ColumnLayout {
