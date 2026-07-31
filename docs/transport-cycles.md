@@ -12,6 +12,7 @@ The player selects:
 - unload-until percentage, including zero for completely empty;
 - protected deuterium floor and contingency hops;
 - repeat or single-cycle behavior.
+- optional verified refueling sectors and minimum source amounts.
 
 The cycle advances through travel to source, loading, travel to destination,
 unloading, travel to the return point, and either repetition or completion.
@@ -27,6 +28,13 @@ available, automation pauses with `return_deuterium_reserve_unmet`.
 For tanker operations, only fuel above this computed reserve is transferable.
 The protected amount is visible and explainable; it is never silently offered
 as delivery cargo.
+
+When a cycle explicitly relies on endpoint refueling, every configured stop
+must have a fresh observation of a non-depleted deuterium source meeting the
+selected minimum amount. A refill-capable Manny must also be available. Missing,
+stale, insufficient, or unstaffed fuel stops pause the cycle before departure.
+Cycles without configured refueling stops remain fully self-fueled and reserve
+the complete loop rather than assuming fuel will be available en route.
 
 This is an automation invariant, not a claim that the game API prohibits risky
 travel. Manual player choices remain available with the normal safety warning

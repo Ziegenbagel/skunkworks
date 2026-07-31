@@ -81,6 +81,42 @@ class TransportCycleTests(unittest.TestCase):
             TransportCycleState.LOADING,
         )
 
+    def test_configured_refuel_stop_requires_fresh_sufficient_source(self):
+        from dataclasses import replace
+        plan = replace(
+            self.plan,
+            refuel_sectors=(self.plan.destination,),
+            minimum_refuel_source_amount=25,
+        )
+        service = RoundTripTransportService()
+        missing = service.assess(
+            plan, self.probe, cargo_amount=10, cargo_capacity=10,
+            state=TransportCycleState.TO_DESTINATION,
+        )
+        verified = service.assess(
+            plan, self.probe, cargo_amount=10, cargo_capacity=10,
+            state=TransportCycleState.TO_DESTINATION,
+            deuterium_sources=(
+                {"coordinates": {"x": 2, "y": 0, "z": 0},
+                 "amount": 30, "fresh": True},
+            ),
+        )
+        self.assertIn("deuterium_source_unknown:2,0,0", missing.blockers)
+        self.assertTrue(verified.ready)
+
+    def test_configured_refuel_stop_requires_available_manny(self):
+        from dataclasses import replace
+        plan = replace(self.plan, refuel_sectors=(self.plan.destination,))
+        assessment = RoundTripTransportService().assess(
+            plan, self.probe, cargo_amount=10, cargo_capacity=10,
+            state=TransportCycleState.TO_DESTINATION,
+            deuterium_sources=(
+                {"coordinates": self.plan.destination, "amount": 30, "fresh": True},
+            ),
+            refill_manny_available=False,
+        )
+        self.assertIn("refill_manny_unavailable", assessment.blockers)
+
 
 if __name__ == "__main__":
     unittest.main()
