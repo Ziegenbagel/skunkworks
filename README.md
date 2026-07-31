@@ -327,6 +327,8 @@ Current Work
 - Asteroid depletion warnings
 - Replacement-resource discovery
 - Hub, miner, and transport role plans
+- Deuterium-tanker normalization and model-specific travel safety
+- Tanker fuel-transfer API access
 - Durable galaxy access
 - API v104 compatibility and rate-limit awareness
 - Authoritative Manny task-state loading

@@ -106,10 +106,13 @@ Goal: plan objectives as resumable operations rather than disconnected tasks.
   - hub;
   - miner;
   - transport;
+  - deuterium tanker;
   - explorer;
   - builder/support;
   - unassigned.
 - Add transport capacity, pickup, storage transfer, and delivery-cycle plans.
+- Add tanker capacity, same-sector rendezvous, fuel-transfer, and return-reserve
+  planning.
 - Add hub reserve and shipment goals.
 - Add ordered and weighted production priorities with conditional overrides.
 - Prevent conflicting asset assignments.
@@ -149,8 +152,11 @@ domains.
   idle time, maintenance, and depletion.
 - Use stable game identifiers internally and public asteroid names in
   player-facing reports.
-- Keep deuterium in its distinct fuel pipeline unless the game adds compatible
-  transportable storage.
+- Keep deuterium in its distinct fuel pipeline: tanker probes transport fuel
+  between sectors and transfer it during same-sector rendezvous; ordinary and
+  detached storage containers still cannot hold it.
+- Apply tanker-specific container-risk limits and prefer minimal attached cargo
+  during fuel-delivery operations.
 - Recommend depot construction using expected time savings and break-even
   estimates.
 

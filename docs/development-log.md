@@ -784,3 +784,29 @@ Mission 19 — Controlled Automation Runtime
 - Refresh and revalidate immediately before dispatch.
 - Dispatch one allowlisted command.
 - Record the complete lifecycle and replan from the result.
+
+## 2026-07-31
+
+## Deuterium Tanker API Re-Audit
+
+Verified against upstream API v104 and game source commit
+`7961e4362abc8be2c8970f5185e75c8970e3573b`:
+
+- `deuterium_tanker` is an assembled probe model rather than a standard
+  crafting-recipe output.
+- Tanker capacity is 400 deuterium, or 800 with compression.
+- Tanker assembly adds 10 steel plates, 2 linear actuators, and 1 integrated
+  circuit to the generic probe components and consumes two empty containers.
+- A Manny can transfer tanker fuel to another owned probe in the same sector
+  through a five-minute task.
+- Requested transfer must remain below source reserves; target overflow is
+  returned to the source.
+- Tanker container risk starts at two additional containers, or four when
+  reinforced.
+
+Roadmap Impact:
+
+- Added a dedicated tanker fleet role and fuel-delivery cycle to Mission 20.
+- Added tanker rendezvous and model-specific safety requirements to Mission 21.
+- Recorded that API v104 changed in place, requiring capability/schema checks
+  in addition to the numeric API-version boundary.

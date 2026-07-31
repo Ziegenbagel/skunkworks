@@ -248,3 +248,42 @@ craft orders. Crafting deuterium comes from `probe.fuel.deuterium`, not
 - Probe models: `generic`, `deuterium_tanker`
 - External tanks: `inventory.externalTanks`
 - Movement fuel cost: 2 deuterium points per trip
+
+## Observation 011
+
+### Deuterium Tanker Probe
+
+The `deuterium_tanker` is a probe model assembled through the Manny
+`assemble-probe` action. It is not a normal entry in the crafting-recipe
+catalog.
+
+Assembly takes three hours and consumes the generic probe components plus:
+
+- 10 steel plates
+- 2 linear actuators
+- 1 integrated circuit
+- 2 selected, distinct, empty additional containers
+
+The completed tanker has:
+
+- 400 maximum deuterium by default
+- 800 maximum deuterium with the deuterium-compression improvement
+- the same fixed movement fuel cost as other probes
+- container-detachment risk beginning at 2 additional containers, or 4 with
+  reinforced container couplings
+
+`transfer-deuterium-to-probe` starts a five-minute Manny task. The source and
+target owned probes must be in the same sector, the Manny must be onboard and
+available, and the requested amount must be strictly lower than the source
+reserve. The target fills only to its maximum and surplus returns to the
+source.
+
+This makes tanker probes mobile fuel carriers, but not detached deuterium
+storage containers. Fuel logistics require rendezvous between probes.
+
+### Compatibility Note
+
+The tanker assembly details were added while the public API still identified
+itself as v104. API-version acceptance alone therefore cannot prove schema
+compatibility. Skunkworks should also validate required fields, models, task
+routes, and request shapes at startup.

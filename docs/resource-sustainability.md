@@ -67,6 +67,33 @@ These are planning roles, not current API commands. Fleet assignment, storage
 transfer, route scheduling, capacity selection, and delivery cycles remain part
 of the future logistics automation runtime.
 
+## Deuterium Tanker Logistics
+
+Deuterium remains outside ordinary storage-container logistics, but it is now
+transportable between probes through the `deuterium_tanker` model.
+
+A tanker provides 400 deuterium capacity, or 800 with deuterium compression.
+An onboard Manny can transfer a reserved amount to another owned probe in the
+same sector through a five-minute task. This creates a distinct fuel network:
+
+```text
+Deuterium source
+    -> tanker mining/refill
+    -> tanker travel
+    -> same-sector rendezvous
+    -> Manny fuel transfer
+    -> destination probe
+```
+
+Fuel planning must account for the tanker's own travel reserve, the rule that
+the transfer amount must remain below its current reserve, target free fuel
+capacity, rendezvous timing, and the possibility that surplus is returned.
+
+Tankers also have unusually fragile container handling. Additional-container
+detachment risk begins at two containers, or four with reinforced couplings.
+They should therefore carry fuel with as few attached cargo containers as the
+mission permits.
+
 ## Known Limits
 
 - A source observed only after substantial mining has an incomplete baseline.
@@ -76,3 +103,5 @@ of the future logistics automation runtime.
   timestamped observations.
 - Persistent stellar-system mineable targets and wandering asteroids follow
   different generation limits.
+- Tanker delivery throughput and minimum safe return reserve are not yet
+  modeled by the logistics planner.
