@@ -724,3 +724,36 @@ Mission 17 — Opt-In Automation Runtime
 - Refresh live state and recompute hazards immediately before dispatch.
 - Dispatch one command through an allowlisted capability adapter.
 - Record the complete lifecycle and replan after every result.
+
+## 2026-07-30
+
+## Missions 17–18 - Resource Sustainability and Logistics Blueprint
+
+Upstream Resource Audit:
+
+- Confirmed wandering fields generate one to five asteroids.
+- Confirmed black-hole regions can generate the same finite field.
+- Confirmed stellar-system asteroid belts use a separate maximum of four.
+- Confirmed mining persists reduced and exhausted resource amounts.
+- Found no replenishment or replacement-spawn mechanic.
+
+Completed:
+
+- Preserved exhausted mineable objects in normalized observations and history.
+- Added configurable low, critical, and absolute resource warning thresholds.
+- Compared live deposits with their highest historical observation.
+- Added latest-observation replacement-source queries.
+- Excluded deposits whose newest observation is exhausted.
+- Ranked replacement sources by FCC distance and remaining amount.
+- Added hub, persistent-miner, and transport role blueprints.
+- Added planner recommendations for replacement sourcing and logistics staging.
+
+Next Session:
+
+Mission 19 — Opt-In Automation Runtime
+
+- Add explicit command and risk approval.
+- Add player-owned fleet-role assignments.
+- Refresh replacement deposits before deployment.
+- Add transport capacity and delivery-cycle planning.
+- Dispatch one allowlisted command and replan from the result.

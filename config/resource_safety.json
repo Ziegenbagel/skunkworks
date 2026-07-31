@@ -1,0 +1,10 @@
+{
+  "warnOnLowAsteroids": true,
+  "warnOnFiniteWanderingFields": true,
+  "lowRemainingPercent": 25,
+  "criticalRemainingPercent": 10,
+  "minimumAbsoluteAmount": 0.25,
+  "replacementMinimumAmount": 1,
+  "replacementCandidateLimit": 5,
+  "planTransportLogistics": true
+}

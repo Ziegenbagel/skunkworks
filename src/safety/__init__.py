@@ -7,11 +7,19 @@ from .travel import (
     RouteOption,
     TravelSafetyService,
 )
+from .resources import (
+    ResourceSafetyPolicy,
+    ResourceSafetyPolicyStore,
+    ResourceSustainabilityService,
+)
 
 __all__ = [
     "Hazard",
     "RouteAssessment",
     "RouteOption",
+    "ResourceSafetyPolicy",
+    "ResourceSafetyPolicyStore",
+    "ResourceSustainabilityService",
     "TravelSafetyPolicy",
     "TravelSafetyPolicyStore",
     "TravelSafetyService",

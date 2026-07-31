@@ -247,6 +247,55 @@ class DataEngine:
             tuple(parameters),
         )
 
+    def resource_source_history(
+        self,
+        coordinates,
+        object_id,
+        resource_type,
+    ):
+        return self._rows(
+            """
+            SELECT * FROM resource_history
+            WHERE sector_x = ? AND sector_y = ? AND sector_z = ?
+              AND object_id = ? AND resource_type = ?
+            ORDER BY observed_at
+            """,
+            (
+                coordinates.x,
+                coordinates.y,
+                coordinates.z,
+                object_id,
+                resource_type,
+            ),
+        )
+
+    def latest_resource_sources(
+        self,
+        resource_type,
+        minimum_amount=0,
+    ):
+        return self._rows(
+            """
+            WITH ranked AS (
+                SELECT *,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY sector_x, sector_y,
+                            sector_z, object_id, resource_type
+                        ORDER BY observed_at DESC, id DESC
+                    ) AS rank
+                FROM resource_history
+                WHERE resource_type = ?
+                  AND sector_x IS NOT NULL
+                  AND sector_y IS NOT NULL
+                  AND sector_z IS NOT NULL
+            )
+            SELECT * FROM ranked
+            WHERE rank = 1 AND amount >= ?
+            ORDER BY amount DESC
+            """,
+            (resource_type, minimum_amount),
+        )
+
     def visits(self, probe_id=None):
         scope = (
             "fleet"

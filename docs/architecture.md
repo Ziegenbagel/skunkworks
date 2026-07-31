@@ -269,6 +269,7 @@ Current services:
 - MiningService
 - GalaxyService
 - TravelSafetyService
+- ResourceSustainabilityService
 
 Planned services:
 
@@ -324,6 +325,11 @@ Manny locations, and stored sector observations refine each assessment.
 Safety produces warnings and route comparisons. It does not silently prohibit
 risk. Player profiles decide when acknowledgement is recommended and whether
 risky commands should remain eligible. See `docs/travel-safety.md`.
+
+Resource Sustainability compares live deposits with durable resource history,
+identifies finite or depleted sources, ranks known replacements, and emits
+future hub/miner/transport role requirements. It does not assign probes or move
+cargo. See `docs/resource-sustainability.md`.
 
 Current planning rules:
 

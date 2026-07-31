@@ -17,13 +17,6 @@ class ResourceAnalyzer:
                 {}
             )
 
-            # Ignore exhausted wandering asteroids.
-            if (
-                sum(resource_amounts.values()) == 0
-                and obj.get("mannyMineable", False)
-            ):
-                continue
-
             resources.append(
                 {
                     "id": obj["id"],

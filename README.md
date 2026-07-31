@@ -260,6 +260,15 @@ Completed
 - Cumulative route-risk calculations
 - Advisory risk acknowledgement without removing player choice
 
+## ✅ Missions 17–18 — Resource Sustainability
+
+- Historical asteroid depletion warnings
+- Finite wandering-asteroid field notices
+- Exhausted-source exclusion
+- Ranked replacement-resource sectors
+- Hub, miner, and transport fleet-role blueprints
+- Future logistics handoff without premature automation
+
 ### Automation
 
 - Execute planner decisions
@@ -278,13 +287,13 @@ Completed
 
 🚧 Active Development
 
-Missions 11–16 complete. Next: Mission 17 — opt-in automation runtime.
+Missions 11–18 complete. Next: Mission 19 — opt-in automation runtime.
 
 0.7.0
 
 Current Milestone
 
-Missions 15–16 — Travel Safety and Routing (Complete)
+Missions 17–18 — Resource Sustainability and Logistics (Complete)
 
 Current Work
 
@@ -297,6 +306,9 @@ Current Work
 - Arrival-integrity estimates
 - Black-hole and forgotten-Manny warnings
 - SCUT-protected route detection
+- Asteroid depletion warnings
+- Replacement-resource discovery
+- Hub, miner, and transport role plans
 - Durable galaxy access
 - API v104 compatibility and rate-limit awareness
 - Authoritative Manny task-state loading
@@ -316,7 +328,7 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Runtime snapshots
 
 The intelligence, planning, safety, and pre-automation boundaries are complete.
-Development now moves to Mission 17: the opt-in automation runtime that can
+Development now moves to Mission 19: the opt-in automation runtime that can
 approve and dispatch prepared commands.
 
 Current Capabilities:
@@ -357,6 +369,9 @@ Current Capabilities:
 - Idempotency fingerprints and action journal
 - Advisory travel risk intelligence
 - Direct, segmented, and SCUT route comparison
+- Finite-resource continuity planning
+- Historical replacement-source ranking
+- Fleet logistics role blueprints
 
 ---
 

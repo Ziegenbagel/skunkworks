@@ -22,6 +22,10 @@ from src.operations.mining import MiningService
 from src.operations.galaxy import GalaxyService
 from src.safety.policy import TravelSafetyPolicy
 from src.safety.travel import TravelSafetyService
+from src.safety.resources import (
+    ResourceSafetyPolicy,
+    ResourceSustainabilityService,
+)
 
 
 class Operations:
@@ -35,6 +39,8 @@ class Operations:
         world,
         recipes,
         travel_safety_policy=None,
+        data_engine=None,
+        resource_safety_policy=None,
     ):
 
         self.world = world
@@ -75,4 +81,12 @@ class Operations:
             world,
             self.travel,
             travel_safety_policy or TravelSafetyPolicy(),
+        )
+        self.resource_sustainability = (
+            ResourceSustainabilityService(
+                world,
+                data_engine,
+                resource_safety_policy
+                or ResourceSafetyPolicy(),
+            )
         )

@@ -9,6 +9,7 @@ from .rules import (
     manufacturing,
     mining,
     safety,
+    sustainability,
     travel,
 )
 
@@ -56,6 +57,9 @@ class Planner:
                 self.operations,
                 self.desired_state,
             )
+        )
+        tasks.extend(
+            sustainability.plan(self.operations)
         )
         tasks.extend(
             travel.plan(

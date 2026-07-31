@@ -24,6 +24,7 @@ from src.execution import CommandPreparer
 from src.execution.journal import ActionJournal
 from src.execution.policy import ExecutionPolicyStore
 from src.safety.policy import TravelSafetyPolicyStore
+from src.safety.resources import ResourceSafetyPolicyStore
 
 DIVIDER = "=" * 40
 
@@ -165,11 +166,16 @@ def main():
         reachable=probe.get("isReachable", True),
     )
     travel_safety_policy = TravelSafetyPolicyStore().load()
+    resource_safety_policy = (
+        ResourceSafetyPolicyStore().load()
+    )
 
     operations = Operations(
         world,
         recipe_manager,
         travel_safety_policy,
+        data_engine,
+        resource_safety_policy,
     )
 
     desired_state = DesiredStateStore(

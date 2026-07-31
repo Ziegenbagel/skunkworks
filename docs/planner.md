@@ -56,7 +56,25 @@ Mission 16 — Risk-Aware Route Planning ✅
 
 Next Mission
 
-Mission 17 — Opt-In Automation Runtime
+Mission 17 — Resource Sustainability ✅
+
+- Tracks current deposits against their highest historical observation.
+- Warns at configurable low, critical, and absolute thresholds.
+- Preserves exhausted deposits in history.
+- Models wandering fields as finite one-to-five asteroid generation.
+- Excludes sources whose latest observation is exhausted.
+- Ranks known replacement deposits by distance and amount.
+
+Mission 18 — Fleet Logistics Blueprint ✅
+
+- Defines hub, miner, and transport roles.
+- Keeps one probe with the replacement mining operation.
+- Plans transport service back to the production hub.
+- Leaves probe assignment and cargo transfers advisory until automation.
+
+Next Mission
+
+Mission 19 — Opt-In Automation Runtime
 
 Mission 7
 
@@ -112,6 +130,9 @@ Current capabilities include:
 - Travel hazard intelligence
 - Configurable risk profiles
 - Risk-aware route comparison
+- Resource sustainability warnings
+- Replacement-source planning
+- Fleet logistics blueprints
 - Durable galaxy-map access
 - Idle probe assessment
 
