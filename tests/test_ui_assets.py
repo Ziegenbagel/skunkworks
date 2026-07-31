@@ -88,3 +88,13 @@ def test_dashboard_keeps_persistent_probe_selector_binding_seam():
     assert "signal probeSelected(int probeId)" in selector
     assert "signal refreshRequested" in selector
     assert '"deuterium_tanker"' in screen
+
+
+def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    panel = Path("src/ui/qml/components/SummaryListPanel.qml").read_text()
+
+    assert screen.count("SummaryListPanel") == 2
+    assert "onClicked: details.open()" in panel
+    assert "Dialog {" in panel
+    assert "ScrollView" in panel

@@ -18,18 +18,30 @@ class MissionControlViewModelBuilder:
             "probes": (probe,),
         }
         health = self.operations.health.assess()
+        coordinates = self._coordinates(probe)
+        findings = tuple(asdict(item) for item in health.findings)
+        connection = self._connection_state(probe, world.snapshot)
+        health_view = asdict(health)
+        health_view["stateLabel"] = health.state.upper()
+        health_view["summary"] = findings[0]["summary"] if findings else "No active threats detected"
         return {
-            "connection": self._connection_state(probe, world.snapshot),
+            "connection": connection,
+            "connectionLabel": connection.replace("_", " ").upper(),
             "focus": {
                 "probeId": probe["id"],
                 "name": probe.get("name", world.snapshot.get("probe", f"Probe {probe['id']}")),
                 "model": probe.get("model", "generic"),
                 "status": probe["status"],
+                "isReachable": probe.get("telemetry_available", True),
+                "sector": coordinates,
+                "sectorLabel": self._sector_label(coordinates),
             },
             "fleet": {
                 "total": fleet.get("total", len(fleet.get("probes", ()))),
                 "idle": fleet.get("idle", 0),
                 "probes": tuple(fleet.get("probes", ())),
+                "statusCounts": dict(fleet.get("status_counts", {})),
+                "readinessPercent": health.readiness_percent,
             },
             "probe": {
                 "fuelPercent": self.operations.travel.fuel_percentage(),
@@ -38,13 +50,206 @@ class MissionControlViewModelBuilder:
                 "mannyAvailable": len(self.operations.mannies.available()),
             },
             "depots": tuple(asdict(depot) for depot in self.operations.depots.all()),
-            "health": asdict(health),
+            "health": health_view,
+            "alerts": self._alert_views(findings + self._event_alerts()),
+            "resources": self._resources(probe),
+            "sector": self._sector_view(world, coordinates),
+            "missions": self._missions(),
+            "production": self._production(probe, world.mannies),
             "events": self.operations.events.timeline(probe["id"])
                 if self.operations.events else (),
             "operations": self._operation_records(),
             "actions": self._action_records(),
             "archive": self._archive_records(),
         }
+
+    @staticmethod
+    def _coordinates(probe):
+        sector = probe.get("sector") or {}
+        return sector.get("relative") or sector.get("relativeCoordinates") or {}
+
+    @staticmethod
+    def _sector_label(coordinates):
+        if not coordinates:
+            return "SECTOR UNKNOWN"
+        return "FCC {x} / {y} / {z}".format(
+            x=coordinates.get("x", "?"),
+            y=coordinates.get("y", "?"),
+            z=coordinates.get("z", "?"),
+        )
+
+    @staticmethod
+    def _resources(probe):
+        stocks = probe.get("inventory", {}).get("resourceStocks", ())
+        resources = []
+        for stock in stocks:
+            resource_type = stock.get("type") or stock.get("resourceType") or stock.get("name", "unknown")
+            resources.append({
+                "type": str(resource_type).lower().replace(" ", "_"),
+                "name": stock.get("name") or str(resource_type).replace("_", " ").title(),
+                "amount": float(stock.get("amount", 0) or 0),
+                "capacity": float(stock.get("capacity", 0) or 0),
+                "label": (stock.get("name") or str(resource_type).replace("_", " ")).upper(),
+                "reading": f"{float(stock.get('amount', 0) or 0):,.0f} ECE",
+                "value": min(1.0, float(stock.get("amount", 0) or 0) / float(stock.get("capacity", 1000) or 1000)),
+            })
+        return tuple(resources)
+
+    def _sector_view(self, world, coordinates):
+        snapshot = (world.sector or {}).get("snapshot") or {}
+        sector = snapshot.get("sector", snapshot)
+        objects = []
+        for item in sector.get("objects", ()) or ():
+            objects.append(self._sector_object(item))
+            for child in item.get("bookmarkTargets", ()) or ():
+                nested = self._sector_object(child)
+                nested["parentId"] = item.get("id")
+                objects.append(nested)
+        return {
+            "label": self._sector_label(coordinates),
+            "knowledgeLevel": sector.get("knowledgeLevel", "unknown"),
+            "confidence": float(sector.get("confidence", 0) or 0),
+            "objects": tuple(objects),
+        }
+
+    @staticmethod
+    def _sector_object(item):
+        return {
+            "id": str(item.get("id", "unknown")),
+            "type": item.get("type", "unknown"),
+            "name": item.get("name") or item.get("summary") or item.get("type", "Unknown").replace("_", " ").title(),
+            "category": item.get("category"),
+            "estimated": bool(item.get("estimated", False)),
+            "dangerLevel": item.get("dangerLevel", "unknown"),
+            "resources": item.get("resources") or item.get("resourceAmounts") or {},
+            "mode": item.get("mode"),
+            "status": item.get("status"),
+            "isTransitBeacon": bool(item.get("isTransitBeacon", False)),
+        }
+
+    def _event_alerts(self):
+        alerts = []
+        for event in self.operations.events.timeline(self.operations.world.probe["id"]) if self.operations.events else ():
+            if event["domain"] not in {"alerts", "damage_warnings"}:
+                continue
+            payload = event.get("payload", {})
+            alerts.append({
+                "code": str(event.get("id", "event")),
+                "severity": payload.get("severity", event.get("priority", "warning")),
+                "summary": payload.get("title") or payload.get("message") or payload.get("summary") or event["domain"].replace("_", " ").title(),
+                "entity_id": payload.get("probeId"),
+            })
+        return tuple(alerts)
+
+    @staticmethod
+    def _alert_views(alerts):
+        return tuple({
+            **item,
+            "codeLabel": str(item.get("code", "alert")).replace("_", " ").upper(),
+        } for item in alerts)
+
+    def _missions(self):
+        if not self.operations.missions:
+            return ()
+        missions = []
+        for item in self.operations.missions.all():
+            name = item.get("name") or item.get("title") or "Mission"
+            status = item.get("status", "unknown")
+            if status not in {"active", "accepted", "in_progress"}:
+                continue
+            progress = float(self.operations.missions.progress(item) or 0)
+            description = item.get("description") or item.get("objective") or item.get("summary") or "No additional mission description is available."
+            missions.append({
+                "id": str(item.get("id", item.get("uid", "mission"))),
+                "name": name,
+                "status": status,
+                "progress": progress,
+                "displayText": f"◇  {name}    {str(status).upper()}    {progress:.0f}%",
+                "detailText": f"Status: {str(status).replace('_', ' ').title()}\nProgress: {progress:.1f}%\n{description}",
+            })
+        return tuple(missions)
+
+    @staticmethod
+    def _production(probe, mannies):
+        work = []
+        for manny in (mannies or {}).get("mannies", ()):
+            task_type = manny.get("currentTask")
+            if not task_type:
+                continue
+            task = manny.get("task") if isinstance(manny.get("task"), dict) else {}
+            progress = float(manny.get("taskProgressPercent", 0) or 0)
+            eta = manny.get("taskEstimatedEndTime") or "—"
+            operation = MissionControlViewModelBuilder._task_name(task_type, task)
+            work.append({
+                "id": str(manny.get("id", manny.get("name", len(work)))),
+                "asset": manny.get("name", "Manny"),
+                "taskType": task_type,
+                "name": operation,
+                "progress": progress,
+                "eta": eta,
+                "displayText": f"{manny.get('name', 'MANNY')} · {operation.upper()}    {progress:.0f}%",
+                "detailText": MissionControlViewModelBuilder._task_details(
+                    manny.get("name", "Manny"), task_type, task, progress, eta,
+                ),
+            })
+
+        for item in probe.get("inventory", {}).get("items", ()):
+            if item.get("type") != "atomic_3d_printer" or not item.get("currentTask"):
+                continue
+            task = item.get("task") if isinstance(item.get("task"), dict) else {}
+            progress = float(item.get("taskProgressPercent", 0) or 0)
+            eta = item.get("taskEstimatedEndTime") or "—"
+            operation = MissionControlViewModelBuilder._task_name(item["currentTask"], task)
+            work.append({
+                "id": str(item.get("id", "atomic-printer")),
+                "asset": item.get("name", "Atomic printer"),
+                "taskType": item["currentTask"],
+                "name": operation,
+                "progress": progress,
+                "eta": eta,
+                "displayText": f"ATOMIC PRINTER · {operation.upper()}    {progress:.0f}%",
+                "detailText": MissionControlViewModelBuilder._task_details(
+                    item.get("name", "Atomic printer"), item["currentTask"], task,
+                    progress, eta,
+                ),
+            })
+        return tuple(work)
+
+    @staticmethod
+    def _task_name(task_type, task):
+        if task_type == "crafting":
+            return task.get("recipeName") or task.get("recipe") or "Crafting"
+        if task_type == "mining":
+            resources = task.get("resourceTypes") or [task.get("resourceType")]
+            resources = [str(item).replace("_", " ").title() for item in resources if item]
+            return "Mining " + (", ".join(resources) if resources else "resources")
+        if task_type == "assisting_atomic_printer":
+            return "Assisting atomic printer"
+        return str(task_type).replace("_", " ").title()
+
+    @staticmethod
+    def _task_details(asset, task_type, task, progress, eta):
+        lines = [
+            f"Asset: {asset}",
+            f"Operation: {str(task_type).replace('_', ' ').title()}",
+            f"Progress: {progress:.1f}%",
+            f"Estimated completion: {eta}",
+        ]
+        if task_type == "crafting":
+            lines.append(f"Recipe: {task.get('recipeName') or task.get('recipe') or 'Unknown'}")
+            output = task.get("output")
+            if isinstance(output, dict):
+                lines.append(f"Output: {output.get('name') or output.get('type') or 'Unknown'}")
+        elif task_type == "mining":
+            target = task.get("target") if isinstance(task.get("target"), dict) else {}
+            lines.append(f"Phase: {str(task.get('phase', 'unknown')).replace('_', ' ').title()}")
+            lines.append(f"Target: {task.get('objectId') or target.get('name') or 'Unknown'}")
+            lines.append(f"Trip: {task.get('tripIndex', '—')}")
+            if task.get("targetAmount") is not None:
+                lines.append(f"Target amount: {task['targetAmount']} ECE")
+            if task.get("depositedAmount") is not None:
+                lines.append(f"Deposited: {task['depositedAmount']} ECE")
+        return "\n".join(lines)
 
     @staticmethod
     def _connection_state(probe, snapshot):

@@ -77,9 +77,10 @@
         <file>App.qml</file>
         <file>AssetCatalog.qml</file>
         <file>components/MapObjectMarker.qml</file>
-        <file>components/ProbeSelector.qml</file>
         <file>components/MetricTile.qml</file>
         <file>components/PanelFrame.qml</file>
+        <file>components/ProbeSelector.qml</file>
+        <file>components/SummaryListPanel.qml</file>
         <file>components/ScutNetworkOverlay.qml</file>
         <file>components/SectorView.qml</file>
         <file>components/StatusPill.qml</file>

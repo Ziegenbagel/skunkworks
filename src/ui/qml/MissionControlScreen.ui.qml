@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -5,7 +6,49 @@ import "components"
 
 Rectangle {
     id: root
-    property var availableProbes: [
+    property bool liveMode: false
+    property bool refreshing: false
+    property string connectionError: ""
+    property var dashboardData: ({})
+    readonly property var focusData: dashboardData.focus || ({})
+    readonly property var fleetData: dashboardData.fleet || ({})
+    readonly property var probeData: dashboardData.probe || ({})
+    readonly property var healthData: dashboardData.health || ({})
+    readonly property var resourceRows: dashboardData.resources && dashboardData.resources.length ? dashboardData.resources : [
+        {
+            "name": "Deuterium",
+            "amount": 482,
+            "capacity": 1000,
+            "label": "DEUTERIUM",
+            "reading": "482 ECE",
+            "value": 0.48
+        },
+        {
+            "name": "Metals",
+            "amount": 2814,
+            "capacity": 4000,
+            "label": "METALS",
+            "reading": "2,814 ECE",
+            "value": 0.72
+        },
+        {
+            "name": "Carbon",
+            "amount": 921,
+            "capacity": 2500,
+            "label": "CARBON",
+            "reading": "921 ECE",
+            "value": 0.36
+        },
+        {
+            "name": "Ice",
+            "amount": 1200,
+            "capacity": 2000,
+            "label": "ICE",
+            "reading": "1,200 ECE",
+            "value": 0.58
+        }
+    ]
+    readonly property var previewProbes: [
         {
             "id": 1,
             "name": "Manny One",
@@ -23,6 +66,7 @@ Rectangle {
             "isReachable": true
         }
     ]
+    property var availableProbes: previewProbes
     property int focusedProbeId: availableProbes.length ? availableProbes[0].id : -1
     property alias probeSelectorControl: probeSelector
     readonly property real viewportScale: Math.min(width / Constants.width, height / Constants.height)
@@ -120,6 +164,7 @@ Rectangle {
                             Layout.preferredHeight: 58
                             probeModel: root.availableProbes
                             currentProbeId: root.focusedProbeId
+                            refreshing: root.refreshing
                         }
 
                         Item {
@@ -136,8 +181,8 @@ Rectangle {
                                     font.pixelSize: 8
                                 }
                                 Label {
-                                    text: "CONNECTED  ▮▮▮"
-                                    color: Constants.nominalColor
+                                    text: root.connectionError ? "ERROR  !" : root.refreshing ? "REFRESHING  …" : root.liveMode ? (root.dashboardData.connectionLabel || "CONNECTING") : "CONNECTED  ▮▮▮"
+                                    color: root.connectionError ? Constants.criticalColor : root.dashboardData.connection === "stale" || root.dashboardData.connection === "limited_telemetry" ? Constants.warningColor : Constants.nominalColor
                                     font.family: Constants.technicalFont
                                     font.pixelSize: 11
                                     font.bold: true
@@ -220,7 +265,7 @@ Rectangle {
                                     anchors.centerIn: parent
                                     Label {
                                         anchors.horizontalCenter: parent.horizontalCenter
-                                        text: "14"
+                                        text: root.fleetData.total !== undefined ? root.fleetData.total : "14"
                                         color: Constants.textColor
                                         font.family: Constants.technicalFont
                                         font.pixelSize: 26
@@ -236,25 +281,25 @@ Rectangle {
                             Column {
                                 spacing: 9
                                 Label {
-                                    text: "12  OPERATIONAL"
+                                    text: (root.fleetData.idle !== undefined ? root.fleetData.idle : "12") + "  OPERATIONAL"
                                     color: Constants.nominalColor
                                     font.family: Constants.technicalFont
                                     font.pixelSize: 10
                                 }
                                 Label {
-                                    text: "01  LOW FUEL"
+                                    text: root.healthData.findings && root.healthData.findings.length ? (root.healthData.findings.length < 10 ? "0" : "") + root.healthData.findings.length + "  FINDINGS" : "00  FINDINGS"
                                     color: Constants.warningColor
                                     font.family: Constants.technicalFont
                                     font.pixelSize: 10
                                 }
                                 Label {
-                                    text: "01  IN REPAIR"
+                                    text: (root.fleetData.total !== undefined ? root.fleetData.total - (root.fleetData.idle || 0) : "01") + "  ACTIVE"
                                     color: Constants.cyanColor
                                     font.family: Constants.technicalFont
                                     font.pixelSize: 10
                                 }
                                 Label {
-                                    text: "00  CRITICAL"
+                                    text: root.healthData.state === "critical" ? "01  CRITICAL" : "00  CRITICAL"
                                     color: Constants.criticalColor
                                     font.family: Constants.technicalFont
                                     font.pixelSize: 10
@@ -272,29 +317,16 @@ Rectangle {
                         contentItem: Column {
                             width: parent.width
                             spacing: 8
-                            TelemetryBar {
-                                width: parent.width
-                                label: "DEUTERIUM"
-                                value: 0.48
-                                reading: "482 ECE"
-                            }
-                            TelemetryBar {
-                                width: parent.width
-                                label: "METALS"
-                                value: 0.72
-                                reading: "2,814 ECE"
-                            }
-                            TelemetryBar {
-                                width: parent.width
-                                label: "CARBON"
-                                value: 0.36
-                                reading: "921 ECE"
-                            }
-                            TelemetryBar {
-                                width: parent.width
-                                label: "ICE"
-                                value: 0.58
-                                reading: "1,200 ECE"
+
+                            Repeater {
+                                model: root.resourceRows
+                                delegate: TelemetryBar {
+                                    required property var modelData
+                                    width: parent.width
+                                    label: modelData.label
+                                    value: modelData.value
+                                    reading: modelData.reading
+                                }
                             }
                         }
                     }
@@ -315,15 +347,15 @@ Rectangle {
                             }
                             Label {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: "SYSTEMS NOMINAL"
-                                color: Constants.nominalColor
+                                text: root.healthData.stateLabel || "SYSTEMS NOMINAL"
+                                color: root.healthData.state === "critical" ? Constants.criticalColor : root.healthData.state === "degraded" ? Constants.warningColor : Constants.nominalColor
                                 font.family: Constants.technicalFont
                                 font.pixelSize: 11
                                 font.bold: true
                             }
                             Label {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: "No active threats detected"
+                                text: root.healthData.summary || "No active threats detected"
                                 color: Constants.mutedTextColor
                                 font.pixelSize: 10
                             }
@@ -340,9 +372,12 @@ Rectangle {
                     PanelFrame {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        title: "Live Sector · FCC 0 / 0 / 0"
+                        title: "Live Sector · " + (root.dashboardData.sector ? root.dashboardData.sector.label : "FCC 0 / 0 / 0")
                         contentItem: SectorView {
                             anchors.fill: parent
+                            previewMode: !root.liveMode
+                            sectorData: root.dashboardData.sector || ({})
+                            focusProbe: root.focusData
                         }
                     }
 
@@ -363,53 +398,34 @@ Rectangle {
                                 Layout.preferredHeight: 46
                                 fillMode: Image.PreserveAspectFit
                             }
-                            Column {
-                                Label {
-                                    text: "PROBE EXPLORER-07"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                                Label {
-                                    text: "LOW FUEL"
-                                    color: Constants.warningColor
-                                    font.bold: true
-                                }
-                            }
-                            Rectangle {
-                                Layout.preferredWidth: 1
-                                Layout.fillHeight: true
-                                color: "#682326"
-                            }
-                            Column {
-                                Label {
-                                    text: "DEUTERIUM SOURCE"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                                Label {
-                                    text: "DEPLETING · 12h 34m"
-                                    color: Constants.warningColor
-                                    font.bold: true
-                                }
-                            }
-                            Rectangle {
-                                Layout.preferredWidth: 1
-                                Layout.fillHeight: true
-                                color: "#682326"
-                            }
-                            Column {
-                                Label {
-                                    text: "PRODUCTION QUEUE"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                                Label {
-                                    text: "BACKLOG · 2 DELAYED"
-                                    color: Constants.warningColor
-                                    font.bold: true
+                            Repeater {
+                                model: root.dashboardData.alerts && root.dashboardData.alerts.length ? root.dashboardData.alerts : [
+                                    {
+                                        "summary": "No active alerts",
+                                        "severity": "nominal",
+                                        "code": "SYSTEM",
+                                        "codeLabel": "SYSTEM"
+                                    }
+                                ]
+                                delegate: Column {
+                                    id: alertItem
+                                    required property var modelData
+                                    required property int index
+                                    visible: alertItem.index < 3
+                                    Layout.preferredWidth: visible ? 230 : 0
+                                    Label {
+                                        text: alertItem.modelData.codeLabel
+                                        color: Constants.textColor
+                                        font.family: Constants.technicalFont
+                                        font.pixelSize: 9
+                                    }
+                                    Label {
+                                        width: 220
+                                        text: alertItem.modelData.summary || "Unknown condition"
+                                        color: alertItem.modelData.severity === "critical" ? Constants.criticalColor : alertItem.modelData.severity === "nominal" ? Constants.nominalColor : Constants.warningColor
+                                        elide: Text.ElideRight
+                                        font.bold: true
+                                    }
                                 }
                             }
                             Item {
@@ -427,59 +443,23 @@ Rectangle {
                         Layout.minimumHeight: Layout.preferredHeight
                         Layout.maximumHeight: Layout.preferredHeight
                         spacing: 10
-                        PanelFrame {
+                        SummaryListPanel {
+                            objectName: "missionsSummaryPanel"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             title: "Active Missions"
-                            contentItem: Column {
-                                width: parent.width
-                                spacing: 10
-                                Label {
-                                    text: "✧  Explorer-01    Journey to SCUT Origin       42%"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                                Label {
-                                    text: "◇  Builder-02     Establish Forward Hub       68%"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                                Label {
-                                    text: "◆  Miner-03       Deuterium Acquisition       25%"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                            }
+                            detailTitle: "Active Missions · Full Details"
+                            emptyText: "No active missions"
+                            entries: root.dashboardData.missions || []
                         }
-                        PanelFrame {
+                        SummaryListPanel {
+                            objectName: "productionSummaryPanel"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             title: "Production Queue"
-                            contentItem: Column {
-                                width: parent.width
-                                spacing: 10
-                                Label {
-                                    text: "MANNY                  02h 14m        76%"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                                Label {
-                                    text: "STORAGE CONTAINER      01h 03m        54%"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                                Label {
-                                    text: "PROBE                  05h 47m        31%"
-                                    color: Constants.textColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 9
-                                }
-                            }
+                            detailTitle: "Production & Active Work · Full Details"
+                            emptyText: "No active crafting, mining, or production work"
+                            entries: root.dashboardData.production || []
                         }
                     }
                 }

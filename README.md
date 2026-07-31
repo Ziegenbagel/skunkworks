@@ -26,6 +26,23 @@ Rather than automating clicks, Skunkworks acts as an intelligent operations mana
 
 # Current Features
 
+## Launch Mission Control
+
+After placing `VON_NEUMANN_API_KEY` in `.env` and activating the project
+environment, launch the live desktop interface with:
+
+```bash
+python -m src.ui.app
+```
+
+Mission Control loads the account fleet asynchronously. Selecting a probe or
+pressing the refresh control rebuilds the read-only dashboard from authoritative
+probe, sector, inventory, Manny, mission, production, health, and history data.
+Qt Design Studio continues to use safe preview data when no live controller is
+attached.
+
+---
+
 Milestone 1 — Operational Dashboard
 
 Current capabilities include:

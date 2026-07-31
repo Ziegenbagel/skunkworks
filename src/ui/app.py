@@ -3,12 +3,16 @@
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuickControls2 import QQuickStyle
+
+from src.ui.controller import MissionControlController
 
 
-def run():
+def run(controller=None):
+    QQuickStyle.setStyle("Basic")
     application = QGuiApplication(sys.argv)
     application.setApplicationName("Skunkworks")
     application.setOrganizationName("Skunkworks")
@@ -20,6 +24,9 @@ def run():
 
     if not engine.rootObjects():
         return 1
+    controller = controller or MissionControlController()
+    engine.rootObjects()[0].setProperty("backend", controller)
+    QTimer.singleShot(0, controller.refresh)
     return application.exec()
 
 

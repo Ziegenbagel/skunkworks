@@ -5,6 +5,34 @@ import ".."
 
 Rectangle {
     id: root
+    property bool previewMode: true
+    property var sectorData: ({})
+    property var focusProbe: ({
+            "name": "Manny One",
+            "model": "generic"
+        })
+    readonly property var previewObjects: [
+        {
+            "id": "preview-resource",
+            "type": "asteroid",
+            "name": "D-42 · Deuterium",
+            "resources": {
+                "deuterium": 482
+            }
+        },
+        {
+            "id": "preview-depot",
+            "type": "detached_container",
+            "name": "Depot MN-184"
+        },
+        {
+            "id": "preview-world",
+            "type": "planet",
+            "category": "ocean",
+            "name": "Ocean world"
+        }
+    ]
+    readonly property var objectModel: previewMode ? previewObjects : (sectorData.objects || [])
     property string sectorLabel: "FCC 0 / 0 / 0"
     color: "#09141c"
     border.color: Constants.lineColor
@@ -38,69 +66,56 @@ Rectangle {
     }
 
     ScutNetworkOverlay {
+        visible: root.previewMode
         anchors.fill: parent
         anchors.margins: Math.max(18, Math.min(parent.width, parent.height) * 0.06)
         opacity: 0.72
     }
 
-    Image {
+    MapObjectMarker {
         anchors.centerIn: parent
         width: 64
         height: 64
-        source: "../../assets/icons/probe.png"
-        fillMode: Image.PreserveAspectFit
+        iconSource: AssetCatalog.probeIcon(root.focusProbe.model || "generic")
+        selected: true
         Label {
             anchors.left: parent.right
             anchors.leftMargin: 7
             anchors.verticalCenter: parent.verticalCenter
-            text: "MANNY ONE"
+            text: root.focusProbe.name || "FOCUSED PROBE"
             color: Constants.textColor
             font.family: Constants.technicalFont
             font.pixelSize: 8
         }
     }
 
-    Image {
-        x: root.width * 0.68
-        y: root.height * 0.30
-        width: 74
-        height: 74
-        source: "../../assets/icons/resource-asteroid.png"
-        fillMode: Image.PreserveAspectFit
-        Label {
-            anchors.left: parent.right
-            anchors.leftMargin: 7
-            text: "D-42 · DEUTERIUM"
-            color: Constants.warningColor
-            font.family: Constants.technicalFont
-            font.pixelSize: 8
-        }
-    }
+    Repeater {
+        model: root.objectModel
+        delegate: MapObjectMarker {
+            id: marker
+            required property var modelData
+            required property int index
+            readonly property real angle: (Math.PI * 2 * index / Math.max(1, root.objectModel.length)) - Math.PI / 2
+            width: modelData.type === "solar_system" ? 82 : 62
+            height: width
+            x: root.width * 0.5 + Math.cos(angle) * root.width * 0.32 - width / 2
+            y: root.height * 0.5 + Math.sin(angle) * root.height * 0.32 - height / 2
+            iconSource: modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(modelData.type, modelData)
+            dimmed: modelData.estimated || root.sectorData.confidence < 0.5
+            badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
 
-    Image {
-        x: root.width * 0.24
-        y: root.height * 0.64
-        width: 70
-        height: 70
-        source: "../../assets/icons/mining-site.png"
-        fillMode: Image.PreserveAspectFit
-        Label {
-            anchors.left: parent.right
-            anchors.leftMargin: 8
-            text: "DEPOT MN-184"
-            color: Constants.noticeColor
-            font.family: Constants.technicalFont
-            font.pixelSize: 8
+            Label {
+                anchors.left: parent.right
+                anchors.leftMargin: 7
+                anchors.verticalCenter: parent.verticalCenter
+                width: 150
+                text: marker.modelData.name || String(marker.modelData.type || "unknown").toUpperCase()
+                color: marker.modelData.dangerLevel === "high" ? Constants.criticalColor : Constants.textColor
+                elide: Text.ElideRight
+                font.family: Constants.technicalFont
+                font.pixelSize: 8
+            }
         }
-    }
-
-    Image {
-        x: root.width * 0.78
-        y: root.height * 0.68
-        width: 72
-        height: 72
-        source: "../../assets/icons/habitable-world.png"
-        fillMode: Image.PreserveAspectFit
     }
 
     Row {
@@ -109,14 +124,14 @@ Rectangle {
         anchors.margins: 10
         spacing: 14
         Label {
-            text: root.sectorLabel
+            text: root.sectorData.label || root.sectorLabel
             color: Constants.cyanColor
             font.family: Constants.technicalFont
             font.pixelSize: 9
         }
         Label {
-            text: "LIVE · DETAILED"
-            color: Constants.nominalColor
+            text: root.previewMode ? "PREVIEW · DETAILED" : "LIVE · " + String(root.sectorData.knowledgeLevel || "UNKNOWN").toUpperCase() + " · " + Number((root.sectorData.confidence || 0) * 100).toFixed(0) + "% CONFIDENCE"
+            color: root.previewMode || root.sectorData.confidence >= 0.75 ? Constants.nominalColor : Constants.warningColor
             font.family: Constants.technicalFont
             font.pixelSize: 9
         }
