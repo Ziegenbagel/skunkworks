@@ -757,3 +757,30 @@ Mission 19 — Opt-In Automation Runtime
 - Refresh replacement deposits before deployment.
 - Add transport capacity and delivery-cycle planning.
 - Dispatch one allowlisted command and replan from the result.
+
+## 2026-07-30
+
+## Roadmap Reconciliation Through 1.0
+
+Completed:
+
+- Reviewed the original Skunkworks development discussion.
+- Reviewed the complete Skunkworks Brainstorming Guide.
+- Reconciled proposed features with the implemented Missions 1–18.
+- Established `docs/roadmap.md` as the canonical release roadmap.
+- Locked Missions 19–26 as the path to 1.0.
+- Added durable Operations, planned and active queues, intelligent refresh,
+  predictive synchronization, exploration missions, operational briefings,
+  and recovery workflows to the 1.0 scope.
+- Preserved low-usage, tray, headless, remote, advanced strategic, and
+  empire-wide autonomy features as post-1.0 work.
+
+Next Session:
+
+Mission 19 — Controlled Automation Runtime
+
+- Add explicit command and risk approval.
+- Add emergency stop and execution leases.
+- Refresh and revalidate immediately before dispatch.
+- Dispatch one allowlisted command.
+- Record the complete lifecycle and replan from the result.

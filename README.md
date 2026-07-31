@@ -180,6 +180,10 @@ This architecture allows Skunkworks to grow without tightly coupling systems tog
 
 # Roadmap
 
+The canonical release plan is maintained in
+[`docs/roadmap.md`](docs/roadmap.md). It locks the current sequence through
+Mission 26 and separates the 1.0 release scope from the post-1.0 backlog.
+
 ## ✅ Milestone 1 — Operational Dashboard
 
 Completed
@@ -271,9 +275,14 @@ Completed
 
 ### Automation
 
-- Execute planner decisions
-- Fleet logistics
-- Production automation
+- Mission 19 — Controlled Automation Runtime
+- Mission 20 — Durable Operations and Fleet Logistics
+- Mission 21 — Manny, Container, and Depot Intelligence
+- Mission 22 — Messaging, Missions, and Exploration Operations
+- Mission 23 — Refresh Scheduler, Prediction, and Operational Health
+- Mission 24 — Mission Control User Interface
+- Mission 25 — Continuous Autonomy, Recovery, and API Parity
+- Mission 26 — 1.0 Release Hardening
 
 ### Desired State
 
@@ -281,13 +290,22 @@ Completed
 - Fleet configuration
 - Per-probe policy overrides
 
+### Post-1.0
+
+- Low Usage and background-operation modes
+- System tray and cross-device continuity
+- Headless and remote operation
+- Advanced strategic and empire-wide autonomy
+
 ---
 
 # Project Status
 
 🚧 Active Development
 
-Missions 11–18 complete. Next: Mission 19 — opt-in automation runtime.
+Missions 11–18 complete. The roadmap through 1.0 is locked in
+[`docs/roadmap.md`](docs/roadmap.md). Next: Mission 19 — Controlled Automation
+Runtime.
 
 0.7.0
 
@@ -328,8 +346,9 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Runtime snapshots
 
 The intelligence, planning, safety, and pre-automation boundaries are complete.
-Development now moves to Mission 19: the opt-in automation runtime that can
-approve and dispatch prepared commands.
+Development now moves to Mission 19: the Controlled Automation Runtime that
+can approve, freshly validate, dispatch, reconcile, and journal prepared
+commands.
 
 Current Capabilities:
 
