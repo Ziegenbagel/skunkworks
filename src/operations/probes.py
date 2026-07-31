@@ -52,8 +52,9 @@ class ProbeService:
         """
 
         return self.status() in {
+            "preparing",
             "accelerating",
-            "coasting",
+            "cruising",
             "decelerating",
         }
 
@@ -95,13 +96,13 @@ class ProbeService:
 
         inventory = self.inventory()
 
-        capacity = inventory["capacity"]
+        capacity = inventory.get("capacity", 0)
 
         if capacity == 0:
             return 0
 
         return (
-            inventory["usedCapacity"] / capacity
+            inventory.get("usedCapacity", 0) / capacity
         ) * 100
 
     def fuel_percent(self):

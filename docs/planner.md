@@ -29,7 +29,8 @@ Mission 11 — Manufacturing Intelligence
 - Live `can_build()` feasibility query ✅
 - Missing resource and item ingredient analysis ✅
 - Recursive dependency-tree analysis ✅
-- Inventory-aware production-chain planning ✅
+- Server-faithful recursive production analysis ✅
+- Fabricator and cargo-capacity constraint analysis ✅
 - Manufacturing planner rule
 
 Mission 7
@@ -69,6 +70,9 @@ The Planner foundation is now implemented.
 Current capabilities include:
 
 - Structured Task model
+- Declarative Desired State model
+- Typed production goals
+- Structured task constraints
 - Rule-based planning architecture
 - Independent planning rules
 - Shared priority system
@@ -126,6 +130,7 @@ Operational Services consume:
 - Probe
 - Sector
 - Snapshot
+- Authoritative Manny state
 
 Operational Services internally consume:
 

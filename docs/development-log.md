@@ -546,13 +546,23 @@ Mission 11 has begun.
 
 Part 2:
 
-- Added inventory-aware production planning.
-- Existing crafted components are consumed before new work is recommended.
-- Remaining crafts are ordered dependency-first.
-- Production plans report total raw-resource requirements, shortages, and
-  uncraftable item blockers.
-- Production plans expose whether the complete chain is currently achievable.
+- Initially modeled missing dependencies as separate production steps.
+
+Upstream Contract Review:
+
+- Reviewed Von Neumann Game API v104 and upstream game services.
+- Corrected the production model: the game recursively synthesizes missing
+  components inside one final-output craft order.
+- Added API compatibility validation and rate-limit awareness.
+- Added authoritative Manny state to the World Model.
+- Added safe normalization for out-of-range probes and current probe models.
+- Corrected canonical resource, movement, and travel rules.
+- Added fabricator, probe-state, fuel, and cargo-capacity constraints.
+- Synchronized static knowledge with upstream commit
+  `e5a5f17342ec5436f1879cd16df2e9906a33e66f`.
+- Expanded contract, normalization, travel, and manufacturing tests.
 
 Next Session:
 
-- Introduce the first Manufacturing planner rule.
+- Define Desired State production goals.
+- Introduce the first Manufacturing planner rule using real API actions.

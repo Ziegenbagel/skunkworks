@@ -10,7 +10,7 @@ RESOURCE_DEFINITIONS = {
     "ice": {
         "display_name": "Ice",
     },
-    "organic": {
+    "carbon_compounds": {
         "display_name": "Organic Compounds",
     },
     "deuterium": {

@@ -14,5 +14,6 @@ class Task:
 
     target: str | None = None
     quantity: int = 1
+    constraints: tuple[str, ...] = ()
 
     priority: int = 100

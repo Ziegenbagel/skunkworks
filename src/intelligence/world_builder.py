@@ -47,6 +47,7 @@ class WorldBuilder:
         snapshot,
         snapshot_path,
         probe_name,
+        mannies=None,
     ):
 
         snapshot_analyzer = (
@@ -76,6 +77,9 @@ class WorldBuilder:
                 snapshot
             )
         )
+
+        if mannies is not None:
+            world.mannies = mannies
 
         world.snapshot = (
             snapshot_analyzer.get_snapshot_info(

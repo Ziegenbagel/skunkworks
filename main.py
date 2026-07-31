@@ -51,6 +51,9 @@ def main():
     print()
 
     client = GameClient()
+    api_version = client.ensure_compatible_api()
+
+    print(f"Von Neumann Game API v{api_version}")
 
     snapshot_manager = SnapshotManager(client)
 
@@ -88,6 +91,7 @@ def main():
     probe_details = client.get_probe(
     probe_id
 )
+    mannies = client.get_mannies(probe_id)
 
     print()
     print(
@@ -110,6 +114,7 @@ def main():
         snapshot=snapshot,
         snapshot_path=snapshot_path,
         probe_name=probe["name"],
+        mannies=mannies,
     )
 
     recipes = client.get_crafting_recipes()

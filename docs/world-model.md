@@ -37,6 +37,8 @@ WorldModel
 │
 ├── Probe
 │
+├── Mannies
+│
 ├── Sector
 │
 └── Snapshot
@@ -104,6 +106,7 @@ The World Model currently provides:
 - Player information
 - Fleet state
 - Probe state
+- Authoritative Manny state and recommended refresh timing
 - Sector state
 - Snapshot state
 
@@ -134,6 +137,7 @@ Current domains:
 
 - Fleet
 - Probe
+- Mannies
 - Sector
 - Snapshot
 

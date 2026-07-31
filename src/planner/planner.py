@@ -1,6 +1,7 @@
 """Planner for generating recommended tasks."""
 
 from .task import Task
+from .desired_state import DesiredState
 from .rules import (
     idle,
     safety,
@@ -10,8 +11,13 @@ from .rules import (
 class Planner:
     """Generates recommended tasks from the current operational state."""
 
-    def __init__(self, operations):
+    def __init__(self, operations, desired_state=None):
         self.operations = operations
+        self.desired_state = (
+            desired_state
+            if desired_state is not None
+            else DesiredState.empty()
+        )
 
     def tasks(self) -> list[Task]:
         """Return the current recommended task list."""

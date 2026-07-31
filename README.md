@@ -271,7 +271,10 @@ Current Work
 - Live manufacturing feasibility analysis
 - Missing resource and item ingredient analysis
 - Recursive dependency-tree and raw-resource analysis
-- Inventory-aware, dependency-ordered production planning
+- Server-faithful recursive manufacturing analysis
+- API v104 compatibility and rate-limit awareness
+- Authoritative Manny task-state loading
+- Declarative Desired State and production-goal foundation
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
@@ -307,6 +310,8 @@ Current Capabilities:
 - Operational dashboard
 - Live crafting recipes
 - RecipeManager
+- API compatibility validation
+- Canonical v104 telemetry normalization
 
 ---
 

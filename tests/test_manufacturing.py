@@ -11,30 +11,49 @@ RECIPES = {
             "id": "steel_bar",
             "name": "Steel bar",
             "craftableBy": ["manny"],
+            "durationSeconds": 300,
             "ingredients": [
                 {
                     "type": "metals",
                     "quantity": 0.2,
+                    "unit": "earth_container_equivalent",
                     "kind": "resource",
                 },
             ],
+            "output": {
+                "type": "steel_bar",
+                "containerSpace": 0.01,
+            },
         },
         {
             "id": "electric_motor",
             "name": "Electric motor",
             "craftableBy": ["manny"],
+            "durationSeconds": 900,
             "ingredients": [
                 {
                     "type": "steel_bar",
                     "quantity": 2,
+                    "unit": "item",
                     "kind": "item",
                 },
                 {
                     "type": "carbon_compounds",
                     "quantity": 0.1,
+                    "unit": "earth_container_equivalent",
+                    "kind": "resource",
+                },
+                {
+                    "type": "deuterium",
+                    "quantity": 0.5,
+                    "unit": "earth_container_equivalent",
                     "kind": "resource",
                 },
             ],
+            "output": {
+                "type": "electric_motor",
+                "containerSpace": 0.006,
+            },
         },
     ],
 }
@@ -44,10 +63,22 @@ class ManufacturingServiceTests(unittest.TestCase):
     def setUp(self):
         recipes = RecipeManager()
         recipes.load(RECIPES)
-        world = SimpleNamespace(
+        self.world = SimpleNamespace(
             probe={
+                "status": "idle",
+                "telemetry_available": True,
+                "fuel": {
+                    "deuterium": 1.0,
+                    "maxDeuterium": 100,
+                },
                 "inventory": {
-                    "items": [{"type": "steel_bar"}],
+                    "freeCapacity": 1.0,
+                    "items": [
+                        {
+                            "type": "steel_bar",
+                            "containerSpace": 0.01,
+                        },
+                    ],
                     "resourceStocks": [
                         {"type": "metals", "amount": 1.0},
                         {
@@ -57,28 +88,90 @@ class ManufacturingServiceTests(unittest.TestCase):
                     ],
                 },
             },
-        )
-        self.service = ManufacturingService(world, recipes)
-
-    def test_reports_direct_missing_ingredients(self):
-        self.assertEqual(
-            self.service.missing_ingredients("electric_motor"),
-            {
-                "resources": {"carbon_compounds": 0.05},
-                "items": {"steel_bar": 1},
+            mannies={
+                "mannies": [
+                    {
+                        "currentTask": None,
+                        "canReceiveOrders": True,
+                        "location": {"type": "probe"},
+                    },
+                ],
             },
         )
-        self.assertFalse(
+        self.service = ManufacturingService(
+            self.world,
+            recipes,
+        )
+
+    def test_recursively_synthesizes_missing_components(self):
+        plan = self.service.production_plan(
+            "electric_motor"
+        )
+
+        self.assertEqual(
+            plan["orders"],
+            [
+                {
+                    "recipe_id": "electric_motor",
+                    "quantity": 1,
+                    "craftable_by": ("manny",),
+                },
+            ],
+        )
+        self.assertEqual(
+            plan["synthesized_components"],
+            {"steel_bar": 1},
+        )
+        self.assertEqual(
+            plan["consumed_inventory_items"],
+            {"steel_bar": 1},
+        )
+        self.assertEqual(plan["duration_seconds"], 1200)
+
+    def test_reports_only_terminal_shortages(self):
+        self.assertEqual(
+            self.service.missing_ingredients(
+                "electric_motor"
+            ),
+            {
+                "resources": {
+                    "carbon_compounds": 0.05,
+                },
+                "items": {},
+            },
+        )
+
+    def test_uses_probe_fuel_for_crafting_deuterium(self):
+        plan = self.service.production_plan(
+            "electric_motor"
+        )
+
+        self.assertNotIn(
+            "deuterium",
+            plan["missing_resources"],
+        )
+
+    def test_becomes_achievable_when_resources_exist(self):
+        self.world.probe["inventory"][
+            "resourceStocks"
+        ][1]["amount"] = 0.1
+
+        self.assertTrue(
             self.service.can_build("electric_motor")
         )
 
-    def test_expands_recursive_raw_resources(self):
-        self.assertEqual(
-            self.service.raw_resources("electric_motor"),
-            {
-                "metals": 0.4,
-                "carbon_compounds": 0.1,
-            },
+    def test_requires_an_available_fabricator(self):
+        self.world.mannies["mannies"][0][
+            "currentTask"
+        ] = "mining"
+
+        plan = self.service.production_plan(
+            "electric_motor"
+        )
+
+        self.assertIn(
+            "fabricator_unavailable",
+            plan["blockers"],
         )
 
     def test_builds_dependency_tree(self):
@@ -97,50 +190,12 @@ class ManufacturingServiceTests(unittest.TestCase):
         )
         self.assertFalse(self.service.can_build("unknown"))
 
-    def test_plans_missing_components_in_dependency_order(self):
-        plan = self.service.production_plan(
-            "electric_motor"
-        )
-
-        self.assertEqual(
-            [
-                (step["recipe_id"], step["quantity"])
-                for step in plan["steps"]
-            ],
-            [
-                ("steel_bar", 1),
-                ("electric_motor", 1),
-            ],
-        )
-        self.assertEqual(
-            plan["required_resources"],
-            {
-                "metals": 0.2,
-                "carbon_compounds": 0.1,
-            },
-        )
-        self.assertEqual(
-            plan["missing_resources"],
-            {"carbon_compounds": 0.05},
-        )
-        self.assertFalse(plan["achievable"])
-
     def test_plan_rejects_invalid_quantity(self):
         with self.assertRaises(ValueError):
             self.service.production_plan(
                 "electric_motor",
                 0,
             )
-
-    def test_report_includes_production_plan(self):
-        report = self.service.build_report(
-            "electric_motor"
-        )
-
-        self.assertEqual(
-            report["production_plan"]["target"],
-            "electric_motor",
-        )
 
 
 if __name__ == "__main__":

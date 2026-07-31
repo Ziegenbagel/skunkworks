@@ -60,12 +60,26 @@ Responsible for all communication with the Von Neumann Probe API.
 Responsibilities:
 
 - Authenticate with the API
+- Verify API compatibility
+- Capture rate-limit metadata
+- Convert rate-limit responses into typed application errors
 - Request player information
 - Request fleet information
 - Request probe information
+- Request authoritative Manny state
 - Request sector information
 
 GameClient does **not** save files or interpret data.
+
+## API Contract Boundary
+
+Skunkworks supports deployed API v103 through reviewed upstream API v104. The
+boundary rejects older contracts and unreviewed newer contracts, preserves canonical public
+identifiers, and isolates HTTP concerns from application reasoning.
+
+New response representations are normalized by the Intelligence Layer.
+Operational services and the Planner must never depend directly on API
+payloads.
 
 ---
 
@@ -157,6 +171,7 @@ Current contents:
 - Player
 - Fleet
 - Probe
+- Mannies
 - Sector
 - Snapshot
 
@@ -229,6 +244,8 @@ Typical responsibilities include:
 - Manufacturing feasibility
 - Live recipe dependency analysis
 - Missing resource and item ingredient analysis
+- Server-faithful recursive crafting feasibility
+- Fabricator and cargo-capacity constraints
 - Resource availability
 - Travel decisions
 - Operational messaging
@@ -246,6 +263,7 @@ Rather than interacting directly with raw game data, the Planner consumes the Op
 Current components:
 
 - Planner
+- Desired State and production goals
 - Task model
 - Rule-based planning
 - Priority system
@@ -266,6 +284,9 @@ Future planning rules:
 - Expansion
 
 The Planner does not execute actions. It generates explainable recommendations that may later be consumed by the Automation Layer.
+
+Desired State owns player intent and contains no planning logic. Planning rules
+compare it with operational facts and emit tasks with explicit constraints.
 
 The Planner is designed around operational constraints rather than scripted actions. It compares the current state of the fleet against the player's Desired State, identifies the constraints preventing that goal, and produces an explainable sequence of tasks to remove those constraints.
 
@@ -339,7 +360,8 @@ Knowledge Layer         Planner (Future)
 - Operational reasoning belongs in the Operational Layer.
 - User interface code only displays information.
 - API communication occurs only through GameClient.
-- Runtime snapshots are the application's source of truth.
+- Live API responses are authoritative for mutable state.
+- Runtime snapshots preserve observable sector history and diagnostics.
 - Construction is handled exclusively by WorldBuilder.
 - The World Model is the single source of truth for application state.
 - Presentation consumes the World Model rather than raw API responses.
@@ -352,6 +374,11 @@ Knowledge Layer         Planner (Future)
 - The Planner consumes Operational Services rather than raw application state.
 - Planning logic is organized into independent rule modules with a single responsibility.
 - Live game data is preferred over duplicated local data whenever the API provides it.
+- Canonical API identifiers are preserved across internal layers.
+- Static knowledge records its upstream version and is synchronized before
+  planning logic depends on it.
+- Planner tasks represent real API actions. Explanatory dependency nodes are
+  not executable actions unless the API exposes them as such.
 - Normalize data only when it provides meaningful operational value.
 - Managers own data lifecycle; services own operational reasoning.
 - The Planner asks questions; services answer them.

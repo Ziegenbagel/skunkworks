@@ -35,8 +35,8 @@ class ResourceAnalyzer:
                     ),
 
                     "resource_types": (
-                        obj.get("resources")
-                        or obj.get("resourceTypes")
+                        obj.get("resourceTypes")
+                        or obj.get("resources")
                         or []
                     ),
 

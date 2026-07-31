@@ -1,11 +1,10 @@
-"""
-Movement knowledge.
+"""Canonical movement rules required by operational reasoning."""
 
-This module will provide normalized access to
-movement-related game rules, including travel,
-jump limits, integrity loss, and fuel
-consumption.
+MOVEMENT_FUEL_COST_POINTS = 2.0
 
-Implementation intentionally deferred until the
-Operational Layer begins.
-"""
+
+class MovementKnowledge:
+    """Expose stable movement rules used by operational services."""
+
+    def fuel_cost(self):
+        return MOVEMENT_FUEL_COST_POINTS

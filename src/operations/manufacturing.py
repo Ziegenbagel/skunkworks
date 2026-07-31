@@ -3,7 +3,7 @@ from math import ceil
 
 class ManufacturingService:
     """
-    Answers manufacturing questions using live recipes and probe inventory.
+    Mirror the server's recursive, single-order crafting analysis.
     """
 
     def __init__(self, world, recipes):
@@ -11,58 +11,67 @@ class ManufacturingService:
         self.recipes = recipes
 
     def build_report(self, recipe_id):
-        """Return a complete manufacturing report for a recipe."""
+        """Return operational and explanatory manufacturing intelligence."""
 
         recipe = self.recipes.get(recipe_id)
 
         if recipe is None:
             return None
 
+        order = self.production_plan(recipe_id)
+
         return {
             "recipe": recipe,
             "dependencies": self.dependencies(recipe_id),
-            "raw_resources": self.raw_resources(recipe_id),
             "dependency_tree": self.dependency_tree(recipe_id),
-            "missing_ingredients": self.missing_ingredients(
-                recipe_id
-            ),
-            "production_plan": self.production_plan(
-                recipe_id
-            ),
+            "production_plan": order,
+            "raw_resources": order["required_resources"],
+            "missing_ingredients": {
+                "resources": order["missing_resources"],
+                "items": order["uncraftable_items"],
+            },
         }
 
     def can_build(self, recipe_id):
-        """Return whether the recipe can start from current inventory."""
+        """Return whether one server craft order can start now."""
 
-        missing = self.missing_ingredients(recipe_id)
-
-        if missing is None:
-            return False
-
-        return not missing["resources"] and not missing["items"]
+        plan = self.production_plan(recipe_id)
+        return plan is not None and plan["achievable"]
 
     def raw_resources(self, recipe_id):
-        """Return recursively required raw resources."""
+        """Return recursive costs after reusing current item inventory."""
 
-        if self.recipes.get(recipe_id) is None:
+        plan = self.production_plan(
+            recipe_id,
+            include_operational_constraints=False,
+        )
+
+        if plan is None:
             return None
 
-        totals = {}
-        self._collect_raw_resources(recipe_id, totals, set())
-        return totals
+        return plan["required_resources"]
 
     def missing_resources(self, recipe_id):
-        """Return direct raw-resource shortages for a recipe."""
+        plan = self.production_plan(recipe_id)
 
-        missing = self.missing_ingredients(recipe_id)
-
-        if missing is None:
+        if plan is None:
             return None
 
-        return missing["resources"]
+        return plan["missing_resources"]
+
+    def missing_ingredients(self, recipe_id):
+        plan = self.production_plan(recipe_id)
+
+        if plan is None:
+            return None
+
+        return {
+            "resources": plan["missing_resources"],
+            "items": plan["uncraftable_items"],
+        }
 
     def dependencies(self, recipe_id):
-        """Return item ingredients required directly by a recipe."""
+        """Return direct item ingredients for explanatory displays."""
 
         recipe = self.recipes.get(recipe_id)
 
@@ -75,49 +84,27 @@ class ManufacturingService:
             if self._ingredient_kind(ingredient) == "item"
         }
 
-    def missing_ingredients(self, recipe_id):
-        """Return direct resource and item shortages for a recipe."""
-
-        recipe = self.recipes.get(recipe_id)
-
-        if recipe is None:
-            return None
-
-        resources, items = self._inventory()
-        missing = {"resources": {}, "items": {}}
-
-        for ingredient in recipe["ingredients"]:
-            ingredient_type = ingredient["type"]
-            required = ingredient["quantity"]
-            kind = self._ingredient_kind(ingredient)
-            available = (
-                resources.get(ingredient_type, 0)
-                if kind == "resource"
-                else items.get(ingredient_type, 0)
-            )
-
-            if available < required:
-                missing[kind + "s"][ingredient_type] = round(
-                    required - available,
-                    3,
-                )
-
-        return missing
-
     def dependency_tree(self, recipe_id):
-        """Return the recursive recipe dependency tree for an item."""
+        """Return the complete explanatory recipe dependency tree."""
 
         if self.recipes.get(recipe_id) is None:
             return None
 
         return self._dependency_tree(recipe_id, set())
 
-    def production_plan(self, recipe_id, quantity=1):
+    def production_plan(
+        self,
+        recipe_id,
+        quantity=1,
+        include_operational_constraints=True,
+    ):
         """
-        Build an inventory-aware, dependency-first production plan.
+        Analyze repeated server craft orders without inventing sub-orders.
         """
 
-        if self.recipes.get(recipe_id) is None:
+        recipe = self.recipes.get(recipe_id)
+
+        if recipe is None:
             return None
 
         if quantity < 1 or int(quantity) != quantity:
@@ -125,48 +112,268 @@ class ManufacturingService:
                 "Production quantity must be a positive integer."
             )
 
-        resources, items = self._inventory()
+        resources, item_pool = self._inventory()
         required_resources = {}
+        consumed_items = []
+        synthesized = {}
         uncraftable_items = {}
-        steps = []
-        step_positions = {}
+        duration_seconds = 0
 
-        self._plan_recipe(
-            recipe_id,
-            int(quantity),
-            items,
+        for _ in range(int(quantity)):
+            duration_seconds += self._resolve_recipe(
+                recipe_id,
+                item_pool,
+                required_resources,
+                consumed_items,
+                synthesized,
+                uncraftable_items,
+                set(),
+            )
+
+        missing_resources = self._missing_resources(
             required_resources,
-            uncraftable_items,
-            steps,
-            step_positions,
-            set(),
+            resources,
         )
+        blockers = []
 
-        missing_resources = {}
+        if missing_resources:
+            blockers.append("missing_resources")
 
-        for resource, required in required_resources.items():
-            available = resources.get(resource, 0)
+        if uncraftable_items:
+            blockers.append("uncraftable_items")
 
-            if available < required:
-                missing_resources[resource] = round(
-                    required - available,
-                    3,
+        if include_operational_constraints:
+            blockers.extend(
+                self._operational_blockers(
+                    recipe,
+                    int(quantity),
+                    required_resources,
+                    consumed_items,
                 )
+            )
 
         return {
             "target": recipe_id,
             "quantity": int(quantity),
-            "steps": steps,
+            "orders": [
+                {
+                    "recipe_id": recipe_id,
+                    "quantity": int(quantity),
+                    "craftable_by": tuple(
+                        recipe.get("craftableBy", [])
+                    ),
+                }
+            ],
+            "synthesized_components": synthesized,
+            "consumed_inventory_items": self._item_counts(
+                consumed_items
+            ),
             "required_resources": self._rounded(
                 required_resources
             ),
             "missing_resources": missing_resources,
-            "uncraftable_items": uncraftable_items,
-            "achievable": (
-                not missing_resources
-                and not uncraftable_items
+            "uncraftable_items": self._rounded(
+                uncraftable_items
             ),
+            "duration_seconds": duration_seconds,
+            "blockers": tuple(dict.fromkeys(blockers)),
+            "achievable": not blockers,
         }
+
+    def _resolve_recipe(
+        self,
+        recipe_id,
+        item_pool,
+        required_resources,
+        consumed_items,
+        synthesized,
+        uncraftable_items,
+        ancestors,
+    ):
+        if recipe_id in ancestors:
+            raise ValueError(
+                f"Circular recipe dependency: {recipe_id}"
+            )
+
+        recipe = self.recipes.get(recipe_id)
+        branch = ancestors | {recipe_id}
+        duration = int(recipe.get("durationSeconds", 0))
+
+        for ingredient in recipe["ingredients"]:
+            ingredient_type = ingredient["type"]
+            required = ingredient["quantity"]
+
+            if self._ingredient_kind(ingredient) == "resource":
+                required_resources[ingredient_type] = (
+                    required_resources.get(ingredient_type, 0)
+                    + required
+                )
+                continue
+
+            required_count = ceil(required)
+            available = item_pool.get(ingredient_type, [])
+            consumed_count = min(
+                required_count,
+                len(available),
+            )
+
+            for _ in range(consumed_count):
+                consumed_items.append(available.pop())
+
+            missing_count = required_count - consumed_count
+
+            if missing_count <= 0:
+                continue
+
+            component = self.recipes.get(ingredient_type)
+
+            if component is None or not component.get(
+                "craftableBy"
+            ):
+                uncraftable_items[ingredient_type] = (
+                    uncraftable_items.get(ingredient_type, 0)
+                    + missing_count
+                )
+                continue
+
+            synthesized[ingredient_type] = (
+                synthesized.get(ingredient_type, 0)
+                + missing_count
+            )
+
+            for _ in range(missing_count):
+                duration += self._resolve_recipe(
+                    ingredient_type,
+                    item_pool,
+                    required_resources,
+                    consumed_items,
+                    synthesized,
+                    uncraftable_items,
+                    branch,
+                )
+
+        return duration
+
+    def _operational_blockers(
+        self,
+        recipe,
+        quantity,
+        required_resources,
+        consumed_items,
+    ):
+        blockers = []
+        probe = self.world.probe
+
+        if not probe.get("telemetry_available", True):
+            return ["probe_out_of_range"]
+
+        if probe["status"] != "idle":
+            blockers.append("probe_unavailable")
+
+        fabricators = recipe.get("craftableBy", [])
+
+        if not any(
+            self._fabricator_available(fabricator)
+            for fabricator in fabricators
+        ):
+            blockers.append("fabricator_unavailable")
+
+        inventory = probe["inventory"]
+        freed_capacity = sum(
+            amount
+            for resource, amount in required_resources.items()
+            if resource != "deuterium"
+        )
+        freed_capacity += sum(
+            item.get("containerSpace", 0)
+            for item in consumed_items
+        )
+        output_space = (
+            recipe.get("output", {}).get("containerSpace", 0)
+            * quantity
+        )
+        free_after_consumption = (
+            inventory.get("freeCapacity", 0)
+            + freed_capacity
+        )
+
+        if free_after_consumption + 0.00001 < output_space:
+            blockers.append("insufficient_cargo_capacity")
+
+        return blockers
+
+    def _fabricator_available(self, fabricator):
+        idle_mannies = self._idle_onboard_mannies()
+
+        if fabricator == "manny":
+            return bool(idle_mannies)
+
+        if fabricator == "atomic_3d_printer":
+            printer = next(
+                (
+                    item
+                    for item in self.world.probe[
+                        "inventory"
+                    ].get("items", [])
+                    if item["type"] == "atomic_3d_printer"
+                ),
+                None,
+            )
+            return (
+                printer is not None
+                and printer.get("currentTask") is None
+                and bool(idle_mannies)
+            )
+
+        return False
+
+    def _idle_onboard_mannies(self):
+        return [
+            manny
+            for manny in self.world.mannies.get(
+                "mannies",
+                [],
+            )
+            if manny.get("currentTask") is None
+            and manny.get("canReceiveOrders", False)
+            and manny.get("location", {}).get("type") == "probe"
+        ]
+
+    def _inventory(self):
+        probe = self.world.probe
+        inventory = probe["inventory"]
+        resources = {
+            stock["type"]: stock["amount"]
+            for stock in inventory.get("resourceStocks", [])
+        }
+        resources["deuterium"] = probe["fuel"].get(
+            "deuterium",
+            0,
+        )
+        item_pool = {}
+
+        for item in inventory.get("items", []):
+            item_pool.setdefault(item["type"], []).append(
+                item.copy()
+            )
+
+        return resources, item_pool
+
+    def _missing_resources(self, required, available):
+        return {
+            resource: round(amount - available.get(resource, 0), 3)
+            for resource, amount in required.items()
+            if available.get(resource, 0) < amount
+        }
+
+    def _item_counts(self, items):
+        counts = {}
+
+        for item in items:
+            item_type = item["type"]
+            counts[item_type] = counts.get(item_type, 0) + 1
+
+        return counts
 
     def _dependency_tree(self, recipe_id, ancestors):
         if recipe_id in ancestors:
@@ -202,126 +409,14 @@ class ManufacturingService:
             "children": children,
         }
 
-    def _collect_raw_resources(
-        self,
-        recipe_id,
-        totals,
-        ancestors,
-        multiplier=1,
-    ):
-        if recipe_id in ancestors:
-            raise ValueError(
-                f"Circular recipe dependency: {recipe_id}"
-            )
-
-        recipe = self.recipes.get(recipe_id)
-        branch = ancestors | {recipe_id}
-
-        for ingredient in recipe["ingredients"]:
-            amount = ingredient["quantity"] * multiplier
-
-            if self._ingredient_kind(ingredient) == "resource":
-                ingredient_type = ingredient["type"]
-                totals[ingredient_type] = (
-                    totals.get(ingredient_type, 0) + amount
-                )
-            elif ingredient["type"] in self.recipes:
-                self._collect_raw_resources(
-                    ingredient["type"],
-                    totals,
-                    branch,
-                    amount,
-                )
-
-    def _plan_recipe(
-        self,
-        recipe_id,
-        quantity,
-        inventory_items,
-        required_resources,
-        uncraftable_items,
-        steps,
-        step_positions,
-        ancestors,
-    ):
-        if recipe_id in ancestors:
-            raise ValueError(
-                f"Circular recipe dependency: {recipe_id}"
-            )
-
-        recipe = self.recipes.get(recipe_id)
-        branch = ancestors | {recipe_id}
-
-        for ingredient in recipe["ingredients"]:
-            ingredient_type = ingredient["type"]
-            required = ingredient["quantity"] * quantity
-
-            if self._ingredient_kind(ingredient) == "resource":
-                required_resources[ingredient_type] = (
-                    required_resources.get(ingredient_type, 0)
-                    + required
-                )
-                continue
-
-            available = inventory_items.get(ingredient_type, 0)
-            consumed = min(available, required)
-            inventory_items[ingredient_type] = (
-                available - consumed
-            )
-            shortage = required - consumed
-
-            if shortage <= 0:
-                continue
-
-            if ingredient_type not in self.recipes:
-                uncraftable_items[ingredient_type] = (
-                    uncraftable_items.get(ingredient_type, 0)
-                    + shortage
-                )
-                continue
-
-            self._plan_recipe(
-                ingredient_type,
-                ceil(shortage),
-                inventory_items,
-                required_resources,
-                uncraftable_items,
-                steps,
-                step_positions,
-                branch,
-            )
-
-        self._add_plan_step(
-            recipe,
-            quantity,
-            steps,
-            step_positions,
-        )
-
-    def _add_plan_step(
-        self,
-        recipe,
-        quantity,
-        steps,
-        step_positions,
-    ):
-        recipe_id = recipe["id"]
-
-        if recipe_id in step_positions:
-            position = step_positions[recipe_id]
-            steps[position]["quantity"] += quantity
-            return
-
-        step_positions[recipe_id] = len(steps)
-        steps.append(
-            {
-                "recipe_id": recipe_id,
-                "name": recipe["name"],
-                "quantity": quantity,
-                "craftable_by": tuple(
-                    recipe.get("craftableBy", [])
-                ),
-            }
+    def _ingredient_kind(self, ingredient):
+        return ingredient.get(
+            "kind",
+            (
+                "item"
+                if ingredient.get("unit") == "item"
+                else "resource"
+            ),
         )
 
     def _rounded(self, values):
@@ -329,28 +424,3 @@ class ManufacturingService:
             key: round(value, 3)
             for key, value in values.items()
         }
-
-    def _inventory(self):
-        inventory = self.world.probe["inventory"]
-        resources = {
-            stock["type"]: stock["amount"]
-            for stock in inventory.get("resourceStocks", [])
-        }
-        items = {}
-
-        for item in inventory.get("items", []):
-            item_type = item["type"]
-            items[item_type] = items.get(item_type, 0) + 1
-
-        return resources, items
-
-    def _ingredient_kind(self, ingredient):
-        kind = ingredient.get("kind")
-
-        if kind is not None:
-            return kind
-
-        if ingredient["type"] in self.recipes:
-            return "item"
-
-        return "resource"

@@ -10,6 +10,18 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 # Verified Observations
 
+## Contract Baseline
+
+Skunkworks supports deployed API v103 through upstream API v104 at revision
+`e5a5f17342ec5436f1879cd16df2e9906a33e66f`.
+
+The application checks `/api/version` before loading operational state.
+Authenticated routes are rate limited to 60 requests per sliding 60-second
+window, with `Retry-After` supplied on `429`.
+
+General probe telemetry contains lightweight Manny inventory entries. The
+Manny endpoints provide authoritative task state.
+
 ## Observation 001
 
 ### Endpoint
@@ -214,3 +226,25 @@ Each recipe includes:
 The API serves as the authoritative source for crafting recipes.
 
 Skunkworks uses this endpoint to populate RecipeManager at startup rather than maintaining a local recipe database.
+
+## Observation 009
+
+### Recursive Crafting
+
+A craft request represents one final-output order. The server consumes existing
+components first, recursively synthesizes missing craftable components inside
+that order, and adds their durations to the task.
+
+Dependency trees in Skunkworks are explanatory rather than separate executable
+craft orders. Crafting deuterium comes from `probe.fuel.deuterium`, not
+`inventory.resourceStocks`.
+
+## Observation 010
+
+### Canonical Public Values
+
+- Stored material: `carbon_compounds`
+- Movement phase: `cruising`
+- Probe models: `generic`, `deuterium_tanker`
+- External tanks: `inventory.externalTanks`
+- Movement fuel cost: 2 deuterium points per trip

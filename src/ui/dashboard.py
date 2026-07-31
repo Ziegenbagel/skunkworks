@@ -363,6 +363,11 @@ class Dashboard:
                     f"   Target: {task.target}"
                 )
 
+            for constraint in task.constraints:
+                print(
+                    f"   Constraint: {constraint}"
+                )
+
             print(
                 f"   Reason: {task.reason}"
             )

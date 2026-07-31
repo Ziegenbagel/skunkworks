@@ -10,6 +10,7 @@ class WorldModel:
         snapshot=None,
         probe=None,
         sector=None,
+        mannies=None,
     ):
 
         self.player = player
@@ -18,3 +19,7 @@ class WorldModel:
 
         self.probe = probe
         self.sector = sector
+        self.mannies = mannies or {
+            "mannies": [],
+            "nextUsefulRefreshDelayMs": 30000,
+        }
