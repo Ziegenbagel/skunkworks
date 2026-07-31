@@ -19,6 +19,9 @@ from src.application.probe_selector import (
 from src.api.capabilities import GameCapabilities
 from src.application.history_sync import HistorySynchronizer
 from src.data import DataEngine
+from src.execution import CommandPreparer
+from src.execution.journal import ActionJournal
+from src.execution.policy import ExecutionPolicyStore
 
 DIVIDER = "=" * 40
 
@@ -163,6 +166,13 @@ def main():
     ).load()
     planner = Planner(operations, desired_state)
     tasks = planner.tasks()
+    execution_policy = ExecutionPolicyStore().load()
+    commands = CommandPreparer(
+        operations,
+        probe_id,
+        execution_policy,
+        ActionJournal(data_engine),
+    ).prepare(tasks)
 
     if history_failures:
         print()
@@ -175,6 +185,7 @@ def main():
     dashboard.display(
         world,
         tasks,
+        commands,
     )
 
 

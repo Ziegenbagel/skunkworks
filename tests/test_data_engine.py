@@ -18,7 +18,7 @@ class DataEngineTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_schema_is_migrated(self):
-        self.assertEqual(self.engine.schema_version(), 1)
+        self.assertEqual(self.engine.schema_version(), 2)
 
     def test_remembers_selected_probe(self):
         self.engine.remember_probe(762)
@@ -125,6 +125,35 @@ class DataEngineTests(unittest.TestCase):
         self.assertEqual(
             json.loads(records[0]["payload_json"])["status"],
             "read",
+        )
+
+    def test_action_journal_supports_idempotency_checks(self):
+        command = {
+            "type": "move_probe",
+            "probeId": 762,
+            "payload": {"target": {"x": 1, "y": 1, "z": 0}},
+        }
+        self.engine.record_action(
+            "fingerprint",
+            command,
+            "dry_run",
+        )
+
+        self.assertFalse(
+            self.engine.action_was_successful("fingerprint")
+        )
+
+        self.engine.record_action(
+            "fingerprint",
+            command,
+            "succeeded",
+        )
+        self.assertTrue(
+            self.engine.action_was_successful("fingerprint")
+        )
+        self.assertEqual(
+            len(self.engine.action_history(762)),
+            2,
         )
 
 

@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from src.models.galaxy import SectorCoordinates
+
 
 @dataclass(frozen=True)
 class Task:
@@ -15,5 +17,7 @@ class Task:
     target: str | None = None
     quantity: float = 1
     constraints: tuple[str, ...] = ()
+    resource_type: str | None = None
+    destination: SectorCoordinates | None = None
 
     priority: int = 100

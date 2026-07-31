@@ -32,6 +32,7 @@ def plan(operations, desired_state) -> list[Task]:
             category="travel",
             target=f"{target.x}:{target.y}:{target.z}",
             constraints=blockers,
+            destination=target,
             priority=NORMAL,
         )
     ]

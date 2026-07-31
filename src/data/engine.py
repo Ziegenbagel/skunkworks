@@ -2,11 +2,12 @@
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class DataEngine:
@@ -281,6 +282,71 @@ class DataEngine:
             (domain, probe_id),
         )
 
+    def record_action(
+        self,
+        fingerprint,
+        command,
+        status,
+        blockers=(),
+        observed_at=None,
+    ):
+        """Append one immutable command lifecycle event."""
+
+        observed_at = observed_at or self._now()
+
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO action_journal (
+                    fingerprint, probe_id, command_type,
+                    status, observed_at, command_json,
+                    blockers_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    fingerprint,
+                    command["probeId"],
+                    command["type"],
+                    status,
+                    observed_at,
+                    self._json(command),
+                    self._json(list(blockers)),
+                ),
+            )
+            return cursor.lastrowid
+
+    def action_history(self, probe_id=None):
+        if probe_id is None:
+            return self._rows(
+                """
+                SELECT * FROM action_journal
+                ORDER BY id
+                """,
+                (),
+            )
+
+        return self._rows(
+            """
+            SELECT * FROM action_journal
+            WHERE probe_id = ?
+            ORDER BY id
+            """,
+            (probe_id,),
+        )
+
+    def action_was_successful(self, fingerprint):
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT 1 FROM action_journal
+                WHERE fingerprint = ? AND status = 'succeeded'
+                LIMIT 1
+                """,
+                (fingerprint,),
+            ).fetchone()
+
+        return row is not None
+
     def galaxy_map(self):
         """Rebuild the in-memory map from durable visit and observation data."""
 
@@ -468,6 +534,25 @@ class DataEngine:
                     payload_json TEXT NOT NULL,
                     PRIMARY KEY (domain, external_id, scope)
                 );
+
+                CREATE TABLE IF NOT EXISTS action_journal (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    fingerprint TEXT NOT NULL,
+                    probe_id INTEGER NOT NULL,
+                    command_type TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    observed_at TEXT NOT NULL,
+                    command_json TEXT NOT NULL,
+                    blockers_json TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_action_journal_fingerprint_status
+                ON action_journal(fingerprint, status);
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_action_journal_probe_time
+                ON action_journal(probe_id, observed_at);
                 """
             )
             connection.execute(
@@ -498,12 +583,18 @@ class DataEngine:
             "visitCount": row["visit_count"],
         }
 
+    @contextmanager
     def _connect(self):
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA journal_mode = WAL")
-        return connection
+
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def _json(self, value):
         return json.dumps(

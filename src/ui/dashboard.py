@@ -10,6 +10,7 @@ class Dashboard:
         self,
         world,
         tasks,
+        commands=(),
     ):
 
         print(DIVIDER)
@@ -34,6 +35,7 @@ class Dashboard:
             world.sector["resources"]
         )
         self.planner_section(tasks)
+        self.command_section(commands)
         self.alerts_section()
 
         print(DIVIDER)
@@ -387,3 +389,34 @@ class Dashboard:
         print("No active alerts.")
 
         print()
+
+    def command_section(self, commands):
+        print("Command Preview")
+        print(SECTION)
+
+        if not commands:
+            print("No actionable commands prepared.")
+            print()
+            return
+
+        for index, prepared in enumerate(commands, start=1):
+            command = prepared.command
+            print(
+                f"{index}. [{prepared.disposition}] "
+                f"{command.type.value}"
+            )
+            print(f"   Probe: {command.probe_id}")
+
+            if command.target_id is not None:
+                print(f"   Target: {command.target_id}")
+
+            print(f"   Payload: {command.payload}")
+            print(
+                f"   Idempotency: "
+                f"{command.fingerprint[:12]}"
+            )
+
+            for blocker in prepared.blockers:
+                print(f"   Blocker: {blocker}")
+
+            print()

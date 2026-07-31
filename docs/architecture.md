@@ -105,6 +105,9 @@ The versioned SQLite Data Engine stores probe, sector, resource, visit, message,
 alert, warning, and mission history. It also stores the remembered focused
 probe and reconstructs the galaxy map from durable observations.
 
+Schema version 2 adds the append-only action journal used for command previews,
+lifecycle tracking, and idempotency checks.
+
 Live API responses remain authoritative. Persistence supports historical
 reasoning and never replaces live validation before a control action. See
 `docs/data-engine.md`.
@@ -262,10 +265,12 @@ Current services:
 - ProbeService
 - TravelService
 - ManufacturingService
+- InventoryService
+- MiningService
+- GalaxyService
 
 Planned services:
 
-- GalaxyService
 - MessagingService
 
 Typical responsibilities include:
@@ -297,6 +302,16 @@ Current components:
 - Task model
 - Rule-based planning
 - Priority system
+
+## Execution Boundary
+
+The Execution Boundary translates eligible planner tasks into typed,
+contract-shaped commands. It applies probe-context validation, preflight
+checks, player policy, cycle limits, and idempotency before presenting a
+dry-run queue.
+
+This layer does not call API mutation gateways. Live dispatch remains a
+separate future Automation layer. See `docs/execution-boundary.md`.
 
 Current planning rules:
 

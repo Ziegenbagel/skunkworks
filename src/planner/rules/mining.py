@@ -71,6 +71,7 @@ def plan(operations, desired_state) -> list[Task]:
                 ),
                 quantity=round(amount, 3),
                 constraints=tuple(constraints),
+                resource_type=resource_type,
                 priority=(
                     HIGH
                     if resource_type in manufacturing_resources

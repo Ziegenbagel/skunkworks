@@ -261,7 +261,7 @@ Completed
 
 🚧 Active Development
 
-Missions 11–13 complete. Next: Mission 14 — policy-controlled execution.
+Missions 11–14 complete. Next: Mission 15 — opt-in automation runtime.
 
 0.7.0
 
@@ -293,7 +293,9 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Resource Intelligence
 - Runtime snapshots
 
-Development now moves to Mission 14: safely translating planner tasks into typed, policy-controlled API commands with dry-run, approval, idempotency, and action-journal safeguards.
+Mission 14's pre-automation boundary is complete. Development now moves to
+Mission 15: the opt-in automation runtime that can approve and dispatch
+prepared commands.
 
 Current Capabilities:
 
@@ -328,6 +330,9 @@ Current Capabilities:
 - Canonical v104 telemetry normalization
 - Constraint-based Desired State planning
 - FCC travel routing
+- Typed dry-run command preparation
+- Execution policy and preflight validation
+- Idempotency fingerprints and action journal
 
 ---
 

@@ -21,9 +21,22 @@ Missions 11–13 — Constraint-Based Planner
 Status:
 Complete
 
+Mission 14 — Safe Execution Foundation ✅
+
+- Typed command model
+- Planner-to-command translation
+- Preflight validation
+- Observe, approve, and automatic policy model
+- Automatic-mode command allowlist
+- Per-cycle command limits
+- Stable idempotency fingerprints
+- Durable action journal
+- Dashboard dry-run preview
+- No mutation dispatcher
+
 Next Mission
 
-Mission 14 — Policy-Controlled Execution
+Mission 15 — Opt-In Automation Runtime
 
 Mission 7
 

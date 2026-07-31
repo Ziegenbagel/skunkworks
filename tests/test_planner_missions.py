@@ -94,6 +94,7 @@ def build_operations(
         mannies={
             "mannies": [
                 {
+                    "id": 101,
                     "currentTask": None,
                     "canReceiveOrders": True,
                     "location": {"type": "probe"},

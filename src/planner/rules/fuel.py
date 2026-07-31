@@ -41,6 +41,7 @@ def plan(operations, desired_state) -> list[Task]:
                 else "deuterium"
             ),
             constraints=tuple(constraints),
+            resource_type="deuterium",
             priority=HIGH,
         )
     ]

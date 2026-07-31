@@ -651,3 +651,36 @@ Mission 14 — Policy-Controlled Execution
 - Require explicit player policy before mutations.
 - Add dry-run, approval, idempotency, and action-journal safeguards.
 - Begin multi-probe scheduling and message-driven coordination.
+
+## 2026-07-30
+
+## Mission 14 - Safe Execution Foundation
+
+Completed:
+
+- Added typed Manny craft, atomic-printer craft, mining, and movement commands.
+- Added planner-to-command translation using reviewed API request shapes.
+- Added explicit probe binding and just-in-time preflight validation.
+- Added observe, approve, and automatic policy modes.
+- Added a master live-execution intent, command allowlist, and cycle limit.
+- Added stable command fingerprints and completed-action suppression.
+- Migrated the Data Engine to schema version 2 with an action journal.
+- Added a dry-run Command Preview to the dashboard.
+- Closed SQLite connections deterministically.
+
+Safety Boundary:
+
+- The default policy is observe-only.
+- Live execution is disabled.
+- No command dispatcher exists.
+- No game mutation can occur through this layer.
+
+Next Session:
+
+Mission 15 — Opt-In Automation Runtime
+
+- Build the approval queue and emergency stop.
+- Add a capability dispatcher behind the policy boundary.
+- Refresh and revalidate immediately before every mutation.
+- Record complete command lifecycle events.
+- Replan after every terminal result.

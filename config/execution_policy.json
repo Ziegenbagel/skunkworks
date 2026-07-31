@@ -1,0 +1,6 @@
+{
+  "mode": "observe",
+  "liveExecutionEnabled": false,
+  "allowedCommandTypes": [],
+  "maxCommandsPerCycle": 1
+}
