@@ -5,6 +5,26 @@ import "components"
 
 Rectangle {
     id: root
+    property var availableProbes: [
+        {
+            "id": 1,
+            "name": "Manny One",
+            "model": "generic",
+            "status": "idle",
+            "sectorLabel": "FCC 0 / 0 / 0",
+            "isReachable": true
+        },
+        {
+            "id": 2,
+            "name": "D-Tanker 01",
+            "model": "deuterium_tanker",
+            "status": "idle",
+            "sectorLabel": "FCC 4 / -2 / 1",
+            "isReachable": true
+        }
+    ]
+    property int focusedProbeId: availableProbes.length ? availableProbes[0].id : -1
+    property alias probeSelectorControl: probeSelector
     readonly property real viewportScale: Math.min(width / Constants.width, height / Constants.height)
     readonly property real uiScale: 1.0
     readonly property int gutter: Math.round(12 * uiScale)
@@ -92,6 +112,18 @@ Rectangle {
                         }
                         Item {
                             Layout.fillWidth: true
+                        }
+
+                        ProbeSelector {
+                            id: probeSelector
+                            Layout.preferredWidth: 390
+                            Layout.preferredHeight: 58
+                            probeModel: root.availableProbes
+                            currentProbeId: root.focusedProbeId
+                        }
+
+                        Item {
+                            Layout.preferredWidth: 18
                         }
 
                         Row {

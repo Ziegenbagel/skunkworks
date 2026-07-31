@@ -28,13 +28,13 @@ QtObject {
     }
 
     function compositionBadge(composition) {
-        return icon("badge-composition-" + composition.replaceAll("_", "-"));
+        return icon("badge-composition-" + String(composition).split("_").join("-"));
     }
 
     function objectIcon(type, properties) {
         const details = properties || {};
         if (type === "planet" && details.category)
-            return icon("planet-" + details.category.replaceAll("_", "-"));
+            return icon("planet-" + String(details.category).split("_").join("-"));
         if (type === "star" && details.remnant)
             return icon("star-remnant");
 

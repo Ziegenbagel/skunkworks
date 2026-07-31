@@ -1,15 +1,90 @@
 <RCC>
     <qresource>
+        <file>../assets/icons/anomaly.png</file>
+        <file>../assets/icons/badge-composition-carbonaceous.png</file>
+        <file>../assets/icons/badge-composition-ice.png</file>
+        <file>../assets/icons/badge-composition-iron.png</file>
+        <file>../assets/icons/badge-composition-rare-metals.png</file>
+        <file>../assets/icons/badge-composition-silicate.png</file>
+        <file>../assets/icons/badge-container-on-planet.png</file>
+        <file>../assets/icons/badge-hidden-container.png</file>
+        <file>../assets/icons/badge-manny-abandoned.png</file>
+        <file>../assets/icons/badge-mining-target.png</file>
+        <file>../assets/icons/badge-relay-active.png</file>
+        <file>../assets/icons/badge-relay-degraded.png</file>
+        <file>../assets/icons/badge-relay-offline.png</file>
+        <file>../assets/icons/badge-resource-carbon-compounds.png</file>
+        <file>../assets/icons/badge-resource-depleted.png</file>
+        <file>../assets/icons/badge-resource-deuterium.png</file>
+        <file>../assets/icons/badge-resource-ice.png</file>
+        <file>../assets/icons/badge-resource-metals.png</file>
+        <file>../assets/icons/badge-salvageable.png</file>
+        <file>../assets/icons/badge-scan-high.png</file>
+        <file>../assets/icons/badge-scan-low.png</file>
+        <file>../assets/icons/badge-scut-transit-beacon.png</file>
+        <file>../assets/icons/badge-selected-object.png</file>
+        <file>../assets/icons/badge-unknown-ownership.png</file>
+        <file>../assets/icons/black-hole.png</file>
+        <file>../assets/icons/civilization.png</file>
+        <file>../assets/icons/detached-container.png</file>
+        <file>../assets/icons/deuterium-station.png</file>
+        <file>../assets/icons/dormant-construct.png</file>
+        <file>../assets/icons/drifting-item.png</file>
+        <file>../assets/icons/dust-cloud.png</file>
+        <file>../assets/icons/habitable-world.png</file>
+        <file>../assets/icons/hub.png</file>
+        <file>../assets/icons/manny.png</file>
+        <file>../assets/icons/map-badges-master-chroma.png</file>
+        <file>../assets/icons/map-badges-master.png</file>
+        <file>../assets/icons/map-icons-expansion-master-chroma.png</file>
+        <file>../assets/icons/map-icons-expansion-master.png</file>
+        <file>../assets/icons/map-icons-master-chroma.png</file>
+        <file>../assets/icons/map-icons-master.png</file>
+        <file>../assets/icons/mining-site.png</file>
+        <file>../assets/icons/planet-dwarf.png</file>
+        <file>../assets/icons/planet-frozen.png</file>
+        <file>../assets/icons/planet-gas-giant.png</file>
+        <file>../assets/icons/planet-ice-giant.png</file>
+        <file>../assets/icons/planet-lava.png</file>
+        <file>../assets/icons/planet-ocean.png</file>
+        <file>../assets/icons/planet-rocky.png</file>
+        <file>../assets/icons/probe-tanker.png</file>
+        <file>../assets/icons/probe.png</file>
+        <file>../assets/icons/quest.png</file>
+        <file>../assets/icons/resource-asteroid.png</file>
+        <file>../assets/icons/scut-relay.png</file>
+        <file>../assets/icons/solar-system.png</file>
+        <file>../assets/icons/star-remnant.png</file>
+        <file>../assets/icons/star.png</file>
+        <file>../assets/icons/status-communication.png</file>
+        <file>../assets/icons/status-critical.png</file>
+        <file>../assets/icons/status-fuel.png</file>
+        <file>../assets/icons/status-icons-master-chroma.png</file>
+        <file>../assets/icons/status-icons-master.png</file>
+        <file>../assets/icons/status-info.png</file>
+        <file>../assets/icons/status-offline.png</file>
+        <file>../assets/icons/status-online.png</file>
+        <file>../assets/icons/status-power.png</file>
+        <file>../assets/icons/status-research.png</file>
+        <file>../assets/icons/status-settings.png</file>
+        <file>../assets/icons/status-shield.png</file>
+        <file>../assets/icons/status-success.png</file>
+        <file>../assets/icons/status-warning.png</file>
+        <file>../assets/icons/storage-container.png</file>
+        <file>../assets/icons/unknown-object.png</file>
+        <file>../assets/icons/wandering-asteroid.png</file>
+        <file>../assets/icons/waypoint-bookmark.png</file>
         <file>App.qml</file>
+        <file>AssetCatalog.qml</file>
+        <file>components/MapObjectMarker.qml</file>
+        <file>components/ProbeSelector.qml</file>
         <file>components/MetricTile.qml</file>
         <file>components/PanelFrame.qml</file>
-        <file>components/SectorView.qml</file>
         <file>components/ScutNetworkOverlay.qml</file>
-        <file>components/MapObjectMarker.qml</file>
+        <file>components/SectorView.qml</file>
         <file>components/StatusPill.qml</file>
         <file>components/TelemetryBar.qml</file>
         <file>Constants.qml</file>
-        <file>AssetCatalog.qml</file>
         <file>MissionControlScreen.ui.qml</file>
         <file>Skunkworks.qmlproject</file>
     </qresource>

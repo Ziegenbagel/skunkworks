@@ -12,6 +12,21 @@ ApplicationWindow {
     color: Constants.voidColor
 
     MissionControlScreen {
+        id: missionControl
         anchors.fill: parent
+    }
+
+    Connections {
+        target: missionControl.probeSelectorControl
+
+        function onProbeSelected(probeId) {
+            missionControl.focusedProbeId = probeId;
+        }
+
+        function onRefreshRequested() {
+            // The Python controller will replace this seam with an account
+            // refresh when live API testing is enabled.
+            console.info("Focused probe refresh requested");
+        }
     }
 }

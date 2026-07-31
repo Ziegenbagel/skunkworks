@@ -9,3 +9,4 @@ TelemetryBar 1.0 components/TelemetryBar.qml
 SectorView 1.0 components/SectorView.qml
 ScutNetworkOverlay 1.0 components/ScutNetworkOverlay.qml
 MapObjectMarker 1.0 components/MapObjectMarker.qml
+ProbeSelector 1.0 components/ProbeSelector.qml

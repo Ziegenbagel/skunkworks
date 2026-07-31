@@ -77,3 +77,14 @@ def test_asset_catalog_covers_current_api_objects_and_tanker():
         "deuterium_tanker",
     ):
         assert f'"{object_type}"' in catalog
+
+
+def test_dashboard_keeps_persistent_probe_selector_binding_seam():
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text()
+
+    assert "property alias probeSelectorControl" in screen
+    assert "ProbeSelector" in screen
+    assert "signal probeSelected(int probeId)" in selector
+    assert "signal refreshRequested" in selector
+    assert '"deuterium_tanker"' in screen
