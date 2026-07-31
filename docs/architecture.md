@@ -227,6 +227,8 @@ Typical responsibilities include:
 
 - Fleet operations
 - Manufacturing feasibility
+- Live recipe dependency analysis
+- Missing resource and item ingredient analysis
 - Resource availability
 - Travel decisions
 - Operational messaging

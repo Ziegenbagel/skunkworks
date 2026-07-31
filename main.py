@@ -115,7 +115,10 @@ def main():
     recipes = client.get_crafting_recipes()
     recipe_manager.load(recipes)
 
-    operations = Operations(world)
+    operations = Operations(
+        world,
+        recipe_manager,
+    )
 
     planner = Planner(operations)
     tasks = planner.tasks()

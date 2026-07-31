@@ -28,14 +28,14 @@ class RecipeManager:
         Return all loaded recipes.
         """
 
-        return self._recipes.values()
+        return tuple(self._recipes.values())
 
     def ids(self):
         """
         Return all available recipe IDs.
         """
 
-        return self._recipes.keys()
+        return tuple(self._recipes.keys())
 
     def __contains__(self, recipe_id):
         return recipe_id in self._recipes

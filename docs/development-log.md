@@ -519,3 +519,33 @@ Goals:
 - Implement `can_build()`.
 - Add missing ingredient analysis.
 - Begin dependency-tree planning.
+
+## 2026-07-30
+
+## Mission 11 - Manufacturing Intelligence (Part 1)
+
+Completed:
+
+- Integrated the live RecipeManager with ManufacturingService.
+- Replaced obsolete static crafting reports in operational reasoning.
+- Corrected manufacturing inventory access to use the selected probe model.
+- Implemented live `can_build()` feasibility analysis.
+- Added direct missing resource and crafted-item ingredient analysis.
+- Added recursive recipe dependency trees.
+- Added recursive raw-resource requirement analysis.
+- Added focused manufacturing tests.
+
+Architecture Improvements:
+
+- RecipeManager remains an infrastructure lookup component.
+- Manufacturing reasoning now lives entirely in ManufacturingService.
+- The Planner can consume live manufacturing facts without inspecting recipes
+  or probe inventory directly.
+
+Mission 11 has begun.
+
+Next Session:
+
+- Make dependency planning account for crafted components already in inventory.
+- Produce an ordered manufacturing chain for missing components.
+- Introduce the first Manufacturing planner rule.

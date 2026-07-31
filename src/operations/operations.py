@@ -28,6 +28,7 @@ class Operations:
     def __init__(
         self,
         world,
+        recipes,
     ):
 
         self.world = world
@@ -38,7 +39,8 @@ class Operations:
     
         self.manufacturing = (
             ManufacturingService(
-                world
+                world,
+                recipes,
             )
         )
 

@@ -259,17 +259,18 @@ Completed
 
 Current Version
 
-0.6.1
+0.7.0
 
 Current Milestone
 
-Mission 10 — Planner Expansion
+Mission 11 — Manufacturing Intelligence
 
-Recently Completed
+Current Work
 
-- Live crafting recipe integration
-- RecipeManager
-- API-backed recipe database
+- RecipeManager integration with ManufacturingService
+- Live manufacturing feasibility analysis
+- Missing resource and item ingredient analysis
+- Recursive dependency-tree and raw-resource analysis
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 

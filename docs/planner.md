@@ -19,11 +19,17 @@ The Operational Layer combines the live World Model with the static Knowledge La
 Mission 10 — Planner
 
 Status:
-Foundation Complete
+Manufacturing Intelligence In Progress
 
 Next Mission
 
 Mission 11 — Manufacturing Intelligence
+
+- RecipeManager integrated with ManufacturingService ✅
+- Live `can_build()` feasibility query ✅
+- Missing resource and item ingredient analysis ✅
+- Recursive dependency-tree analysis ✅
+- Inventory-aware production-chain planning
 
 Mission 7
 
