@@ -268,6 +268,7 @@ Current services:
 - InventoryService
 - MiningService
 - GalaxyService
+- TravelSafetyService
 
 Planned services:
 
@@ -312,6 +313,17 @@ dry-run queue.
 
 This layer does not call API mutation gateways. Live dispatch remains a
 separate future Automation layer. See `docs/execution-boundary.md`.
+
+## Safety Layer
+
+The Safety Layer combines reviewed game rules with live hazard context. Static
+fallbacks cover collision, integrity, black-hole, and model-specific container
+rules. Live damage-warning rules, probe improvements, SCUT networks, inventory,
+Manny locations, and stored sector observations refine each assessment.
+
+Safety produces warnings and route comparisons. It does not silently prohibit
+risk. Player profiles decide when acknowledgement is recommended and whether
+risky commands should remain eligible. See `docs/travel-safety.md`.
 
 Current planning rules:
 

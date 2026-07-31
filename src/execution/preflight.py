@@ -59,6 +59,28 @@ class PreflightValidator:
 
         return tuple(dict.fromkeys(blockers))
 
+    def warnings(self, command):
+        if command.type != CommandType.MOVE_PROBE:
+            return ()
+
+        target = command.payload.get("target")
+
+        try:
+            from src.models.galaxy import SectorCoordinates
+
+            coordinates = SectorCoordinates.from_api(target)
+        except (KeyError, TypeError, ValueError):
+            return ()
+
+        assessment = self.operations.travel_safety.assess(
+            coordinates
+        )
+        return (
+            assessment.hazards
+            if assessment is not None
+            else ()
+        )
+
     def _move_blockers(self, command):
         target = command.payload.get("target")
 

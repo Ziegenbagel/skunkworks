@@ -12,6 +12,7 @@ class WorldModel:
         sector=None,
         mannies=None,
         galaxy=None,
+        hazard_context=None,
     ):
 
         self.player = player
@@ -25,3 +26,4 @@ class WorldModel:
             "nextUsefulRefreshDelayMs": 30000,
         }
         self.galaxy = galaxy
+        self.hazard_context = hazard_context or {}

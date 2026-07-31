@@ -18,10 +18,12 @@ from src.application.probe_selector import (
 )
 from src.api.capabilities import GameCapabilities
 from src.application.history_sync import HistorySynchronizer
+from src.application.hazard_context import HazardContextLoader
 from src.data import DataEngine
 from src.execution import CommandPreparer
 from src.execution.journal import ActionJournal
 from src.execution.policy import ExecutionPolicyStore
+from src.safety.policy import TravelSafetyPolicyStore
 
 DIVIDER = "=" * 40
 
@@ -155,10 +157,19 @@ def main():
         reachable=probe.get("isReachable", True),
     )
     world.galaxy = data_engine.galaxy_map()
+    world.hazard_context = HazardContextLoader(
+        capabilities
+    ).load(
+        world,
+        probe_id,
+        reachable=probe.get("isReachable", True),
+    )
+    travel_safety_policy = TravelSafetyPolicyStore().load()
 
     operations = Operations(
         world,
         recipe_manager,
+        travel_safety_policy,
     )
 
     desired_state = DesiredStateStore(

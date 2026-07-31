@@ -684,3 +684,43 @@ Mission 15 — Opt-In Automation Runtime
 - Refresh and revalidate immediately before every mutation.
 - Record complete command lifecycle events.
 - Replan after every terminal result.
+
+## 2026-07-30
+
+## Missions 15–16 - Travel Safety and Risk-Aware Routing
+
+Upstream Hazard Audit:
+
+- Confirmed collision destruction at 5%, 12%, 25%, and 40% for direct
+  distances 3, 4, 5, and 6+.
+- Confirmed zero collision risk through distance 2.
+- Confirmed SCUT transit corridors remove collision risk only.
+- Confirmed generic container risk starts at five, or ten with reinforcement.
+- Confirmed tanker container risk starts at two, or four with reinforcement.
+- Confirmed one container-detachment roll occurs per movement.
+- Confirmed arrival integrity loss ranges from zero to 3% per sector.
+- Confirmed black-hole entrapment occurs 90–180 minutes after arrival.
+- Confirmed departure can leave outside Mannies behind as forgotten objects.
+
+Completed:
+
+- Added live hazard-rule, improvement, and SCUT-network loading.
+- Added configurable cautious, balanced, bold, and custom safety profiles.
+- Added independent warning toggles and risk acknowledgement thresholds.
+- Added collision, cumulative container, integrity, black-hole, unknown-sector,
+  and forgotten-Manny hazard reports.
+- Added direct and segmented FCC route comparison.
+- Added SCUT-protected direct-route recognition.
+- Added per-hop route fuel accounting and intermediate-sector hazard checks.
+- Propagated warnings into planner tasks and command previews.
+- Kept risky travel advisory by default.
+
+Next Session:
+
+Mission 17 — Opt-In Automation Runtime
+
+- Add explicit approval and risk-acknowledgement controls.
+- Add emergency stop and execution leases.
+- Refresh live state and recompute hazards immediately before dispatch.
+- Dispatch one command through an allowlisted capability adapter.
+- Record the complete lifecycle and replan after every result.

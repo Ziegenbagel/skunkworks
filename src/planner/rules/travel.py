@@ -14,8 +14,18 @@ def plan(operations, desired_state) -> list[Task]:
     if blockers == ("already_at_destination",):
         return []
 
-    route = operations.travel.route_to(target)
-    distance = len(route) if route is not None else 0
+    assessment = operations.travel_safety.assess(target)
+    route = (
+        assessment.recommended.hops
+        if assessment is not None
+        else ()
+    )
+    distance = len(route)
+    route_name = (
+        assessment.recommended.name
+        if assessment is not None
+        else "unavailable"
+    )
 
     return [
         Task(
@@ -27,12 +37,19 @@ def plan(operations, desired_state) -> list[Task]:
             reason=(
                 f"Desired destination is "
                 f"{target.x}:{target.y}:{target.z}; "
-                f"FCC distance is {distance}."
+                f"recommended route is {route_name} "
+                f"with {distance} hop(s)."
             ),
             category="travel",
             target=f"{target.x}:{target.y}:{target.z}",
             constraints=blockers,
             destination=target,
+            route=route,
+            hazards=(
+                assessment.hazards
+                if assessment is not None
+                else ()
+            ),
             priority=NORMAL,
         )
     ]

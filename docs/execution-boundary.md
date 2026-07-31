@@ -61,6 +61,8 @@ file cannot execute a command because no dispatcher exists.
 - Live telemetry and idle state are checked immediately before queueing.
 - Manny commands require an existing, orderable Manny.
 - Movement commands are validated as FCC coordinates and use one hop.
+- Movement commands carry advisory hazard warnings from the selected route.
+- Risk acknowledgement and outright risk refusal are separate policy choices.
 - Stable fingerprints support retries and completed-action suppression.
 - Proposed command state is appended to the SQLite action journal.
 - Command preparation has no reference to mutation gateways.

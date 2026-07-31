@@ -34,9 +34,29 @@ Mission 14 — Safe Execution Foundation ✅
 - Dashboard dry-run preview
 - No mutation dispatcher
 
+Mission 15 — Hazard Intelligence ✅
+
+- Reviewed upstream movement implementation and configuration.
+- Models distance-based destruction probabilities.
+- Uses live effective container-break thresholds when available.
+- Handles generic and deuterium-tanker thresholds.
+- Estimates intersector integrity loss.
+- Warns about black-hole entrapment and forgotten Mannies.
+- Recognizes confirmed SCUT transit protection.
+- Treats unknown destination knowledge as unknown rather than safe.
+
+Mission 16 — Risk-Aware Route Planning ✅
+
+- Compares direct and segmented shortest FCC routes.
+- Calculates compounded risk across multiple movements.
+- Prevents the false assumption that more hops are always safer.
+- Provides cautious, balanced, bold, and custom profiles.
+- Separates warnings, acknowledgement, and explicit player refusal.
+- Keeps risky travel available when the player allows it.
+
 Next Mission
 
-Mission 15 — Opt-In Automation Runtime
+Mission 17 — Opt-In Automation Runtime
 
 Mission 7
 
@@ -89,6 +109,9 @@ Current capabilities include:
 - Fuel planning
 - Inventory-capacity planning
 - FCC travel routing
+- Travel hazard intelligence
+- Configurable risk profiles
+- Risk-aware route comparison
 - Durable galaxy-map access
 - Idle probe assessment
 

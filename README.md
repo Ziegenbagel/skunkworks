@@ -243,6 +243,23 @@ Completed
 - Durable local galaxy access
 - Selected-probe planning context
 
+## ✅ Mission 14 — Safe Execution Foundation
+
+- Typed dry-run commands
+- Preflight validation
+- Execution policy
+- Idempotency and action journal
+
+## ✅ Missions 15–16 — Travel Safety and Routing
+
+- Player-selectable cautious, balanced, bold, and custom safety profiles
+- Collision, container, integrity, black-hole, and Manny-loss warnings
+- Live damage-rule, improvement, and SCUT-network context
+- Direct versus segmented FCC route comparison
+- SCUT transit-corridor recognition
+- Cumulative route-risk calculations
+- Advisory risk acknowledgement without removing player choice
+
 ### Automation
 
 - Execute planner decisions
@@ -261,13 +278,13 @@ Completed
 
 🚧 Active Development
 
-Missions 11–14 complete. Next: Mission 15 — opt-in automation runtime.
+Missions 11–16 complete. Next: Mission 17 — opt-in automation runtime.
 
 0.7.0
 
 Current Milestone
 
-Missions 11–13 — Constraint-Based Planning (Complete)
+Missions 15–16 — Travel Safety and Routing (Complete)
 
 Current Work
 
@@ -275,6 +292,11 @@ Current Work
 - Manufacturing and mining recommendations
 - Fuel and cargo-capacity safeguards
 - Deterministic FCC travel routing
+- Configurable travel-safety profiles
+- Route collision and container-detachment probabilities
+- Arrival-integrity estimates
+- Black-hole and forgotten-Manny warnings
+- SCUT-protected route detection
 - Durable galaxy access
 - API v104 compatibility and rate-limit awareness
 - Authoritative Manny task-state loading
@@ -293,9 +315,9 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Resource Intelligence
 - Runtime snapshots
 
-Mission 14's pre-automation boundary is complete. Development now moves to
-Mission 15: the opt-in automation runtime that can approve and dispatch
-prepared commands.
+The intelligence, planning, safety, and pre-automation boundaries are complete.
+Development now moves to Mission 17: the opt-in automation runtime that can
+approve and dispatch prepared commands.
 
 Current Capabilities:
 
@@ -333,6 +355,8 @@ Current Capabilities:
 - Typed dry-run command preparation
 - Execution policy and preflight validation
 - Idempotency fingerprints and action journal
+- Advisory travel risk intelligence
+- Direct, segmented, and SCUT route comparison
 
 ---
 

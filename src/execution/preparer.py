@@ -12,6 +12,7 @@ class PreparedCommand:
     command: object
     disposition: str
     blockers: tuple[str, ...] = ()
+    warnings: tuple[object, ...] = ()
 
 
 class CommandPreparer:
@@ -45,6 +46,16 @@ class CommandPreparer:
                 continue
 
             blockers = list(self.validator.blockers(command))
+            warnings = self.validator.warnings(command)
+
+            if (
+                warnings
+                and not self.validator.operations
+                .travel_safety.policy.allow_risky_travel
+            ):
+                blockers.append(
+                    "travel_risk_disabled_by_player"
+                )
 
             if (
                 self.journal is not None
@@ -57,11 +68,13 @@ class CommandPreparer:
             disposition = self._disposition(
                 command,
                 blockers,
+                warnings,
             )
             item = PreparedCommand(
                 command=command,
                 disposition=disposition,
                 blockers=tuple(blockers),
+                warnings=warnings,
             )
             prepared.append(item)
 
@@ -76,7 +89,7 @@ class CommandPreparer:
             prepared[: self.policy.max_commands_per_cycle]
         )
 
-    def _disposition(self, command, blockers):
+    def _disposition(self, command, blockers, warnings):
         if blockers:
             return "blocked"
 
@@ -88,6 +101,12 @@ class CommandPreparer:
 
         if self.policy.mode == ExecutionMode.APPROVE:
             return "awaiting_approval"
+
+        if any(
+            warning.acknowledgement_recommended
+            for warning in warnings
+        ):
+            return "awaiting_risk_acknowledgement"
 
         if (
             command.type

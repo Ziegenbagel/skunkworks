@@ -1,0 +1,14 @@
+{
+  "profile": "cautious",
+  "allowRiskyTravel": true,
+  "warnOnCollisionRisk": true,
+  "warnOnContainerRisk": true,
+  "warnOnIntegrityRisk": true,
+  "warnOnBlackHoles": true,
+  "warnOnForgottenMannies": true,
+  "warnOnUnknownDestination": true,
+  "preferScutCorridors": true,
+  "collisionAcknowledgementPercent": 0,
+  "containerAcknowledgementPercent": 0,
+  "minimumArrivalIntegrityPercent": 50
+}

@@ -19,5 +19,7 @@ class Task:
     constraints: tuple[str, ...] = ()
     resource_type: str | None = None
     destination: SectorCoordinates | None = None
+    route: tuple[SectorCoordinates, ...] = ()
+    hazards: tuple[object, ...] = ()
 
     priority: int = 100

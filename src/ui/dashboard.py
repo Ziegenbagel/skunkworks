@@ -375,6 +375,17 @@ class Dashboard:
                     f"   Constraint: {constraint}"
                 )
 
+            for hazard in task.hazards:
+                acknowledgement = (
+                    " — acknowledgement recommended"
+                    if hazard.acknowledgement_recommended
+                    else ""
+                )
+                print(
+                    f"   Warning [{hazard.severity}]: "
+                    f"{hazard.message}{acknowledgement}"
+                )
+
             print(
                 f"   Reason: {task.reason}"
             )
@@ -418,5 +429,11 @@ class Dashboard:
 
             for blocker in prepared.blockers:
                 print(f"   Blocker: {blocker}")
+
+            for warning in prepared.warnings:
+                print(
+                    f"   Warning [{warning.severity}]: "
+                    f"{warning.message}"
+                )
 
             print()

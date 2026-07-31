@@ -76,7 +76,7 @@ class TaskCommandTranslator:
         )
 
     def _move(self, task):
-        route = self.operations.travel.route_to(
+        route = task.route or self.operations.travel.route_to(
             task.destination
         )
 
@@ -104,6 +104,17 @@ class TaskCommandTranslator:
                     "z": task.destination.z,
                 },
                 "remainingHops": len(route),
+                "hazards": [
+                    {
+                        "code": hazard.code,
+                        "severity": hazard.severity,
+                        "message": hazard.message,
+                        "acknowledgementRecommended": (
+                            hazard.acknowledgement_recommended
+                        ),
+                    }
+                    for hazard in task.hazards
+                ],
             },
         )
 

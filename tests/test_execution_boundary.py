@@ -89,7 +89,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
             },
         )
 
-    def test_travel_command_moves_only_one_fcc_hop(self):
+    def test_travel_command_uses_safe_direct_distance(self):
         prepared = self.prepare(
             DesiredState(
                 fuel=FuelGoal(0),
@@ -107,7 +107,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
         )
         self.assertEqual(
             command.metadata["remainingHops"],
-            2,
+            1,
         )
         self.assertEqual(
             sum(command.payload["target"].values()) % 2,
@@ -155,6 +155,27 @@ class ExecutionBoundaryTests(unittest.TestCase):
             prepared[0].disposition,
             "awaiting_approval",
         )
+
+    def test_travel_warning_is_advisory_by_default(self):
+        self.operations.world.probe["inventory"][
+            "containers"
+        ] = [
+            {"kind": "probe"},
+            *({"kind": "container"} for _ in range(5)),
+        ]
+        prepared = self.prepare(
+            DesiredState(
+                fuel=FuelGoal(0),
+                inventory=InventoryGoal(0),
+                travel=TravelGoal(
+                    SectorCoordinates(2, 0, 0)
+                ),
+            )
+        )[0]
+
+        self.assertEqual(prepared.disposition, "dry_run")
+        self.assertEqual(prepared.blockers, ())
+        self.assertTrue(prepared.warnings)
 
     def test_journal_blocks_completed_command(self):
         with tempfile.TemporaryDirectory() as directory:

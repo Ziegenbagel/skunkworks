@@ -20,6 +20,8 @@ from src.operations.snapshots import (
 from src.operations.inventory import InventoryService
 from src.operations.mining import MiningService
 from src.operations.galaxy import GalaxyService
+from src.safety.policy import TravelSafetyPolicy
+from src.safety.travel import TravelSafetyService
 
 
 class Operations:
@@ -32,6 +34,7 @@ class Operations:
         self,
         world,
         recipes,
+        travel_safety_policy=None,
     ):
 
         self.world = world
@@ -68,3 +71,8 @@ class Operations:
         self.inventory = InventoryService(world)
         self.mining = MiningService(world)
         self.galaxy = GalaxyService(world)
+        self.travel_safety = TravelSafetyService(
+            world,
+            self.travel,
+            travel_safety_policy or TravelSafetyPolicy(),
+        )
