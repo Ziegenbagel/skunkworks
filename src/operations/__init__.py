@@ -8,6 +8,8 @@ from .mission import (
 from .logistics import (
     CargoDeliveryPlan,
     CargoLogisticsService,
+    DeuteriumDeliverySequence,
+    DeuteriumTransferLeg,
     FleetRoleService,
     TankerDeliveryPlan,
     TankerLogisticsService,
@@ -31,6 +33,8 @@ __all__ = [
     "OperationStore",
     "CargoDeliveryPlan",
     "CargoLogisticsService",
+    "DeuteriumDeliverySequence",
+    "DeuteriumTransferLeg",
     "FleetRoleService",
     "TankerDeliveryPlan",
     "TankerLogisticsService",

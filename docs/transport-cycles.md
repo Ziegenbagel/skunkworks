@@ -29,6 +29,13 @@ For tanker operations, only fuel above this computed reserve is transferable.
 The protected amount is visible and explainable; it is never silently offered
 as delivery cargo.
 
+At a delivery sector, an arriving tanker first searches for eligible idle
+same-sector tanker probes. Tankers assigned the `deuterium_reserve` role are
+filled first, allowing a stationary hub reserve to supply crafting and local
+operations. Remaining deliverable fuel is then offered to the designated hub
+probe and other eligible local probes. Every transfer is capped by receiver
+capacity and the arriving tanker's protected return reserve.
+
 When a cycle explicitly relies on endpoint refueling, every configured stop
 must have a fresh observation of a non-depleted deuterium source meeting the
 selected minimum amount. A refill-capable Manny must also be available. Missing,

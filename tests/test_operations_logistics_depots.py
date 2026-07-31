@@ -60,6 +60,58 @@ class OperationsLogisticsDepotTests(unittest.TestCase):
         self.assertEqual(plan.deliverable_amount, 90)
         self.assertEqual(plan.blockers, ())
 
+    def test_arriving_tanker_fills_reserve_tanker_before_hub(self):
+        sector = {"relative": {"x": 0, "y": 0, "z": 0}}
+        arriving = {
+            "id": 8, "model": "deuterium_tanker", "status": "idle",
+            "sector": sector,
+            "fuel": {"deuterium": 500, "maxDeuterium": 800},
+        }
+        reserve = {
+            "id": 9, "model": "deuterium_tanker", "status": "idle",
+            "sector": sector,
+            "fuel": {"deuterium": 300, "maxDeuterium": 400},
+        }
+        hub = {
+            "id": 10, "model": "generic", "status": "idle",
+            "sector": sector,
+            "fuel": {"deuterium": 20, "maxDeuterium": 100},
+        }
+
+        sequence = TankerLogisticsService().plan_delivery_sequence(
+            arriving, (reserve, hub), requested_amount=180,
+            return_reserve=100,
+            roles={9: "deuterium_reserve", 10: "hub"},
+            hub_probe_id=10,
+        )
+
+        self.assertEqual(
+            [(leg.target_probe_id, leg.target_kind, leg.amount) for leg in sequence.legs],
+            [(9, "reserve_tanker", 100), (10, "hub_probe", 80)],
+        )
+        self.assertEqual(sequence.undelivered_amount, 0)
+        self.assertEqual(sequence.blockers, ())
+
+    def test_tanker_sequence_never_spends_return_reserve(self):
+        sector = {"relative": {"x": 0, "y": 0, "z": 0}}
+        arriving = {
+            "id": 8, "model": "deuterium_tanker", "status": "idle",
+            "sector": sector,
+            "fuel": {"deuterium": 130, "maxDeuterium": 400},
+        }
+        reserve = {
+            "id": 9, "model": "deuterium_tanker", "status": "idle",
+            "sector": sector,
+            "fuel": {"deuterium": 0, "maxDeuterium": 400},
+        }
+
+        sequence = TankerLogisticsService().plan_delivery_sequence(
+            arriving, (reserve,), requested_amount=200, return_reserve=100,
+        )
+
+        self.assertEqual(sequence.legs[0].amount, 30)
+        self.assertEqual(sequence.undelivered_amount, 170)
+
     def test_cargo_delivery_reports_capacity_and_trip_count(self):
         plan = CargoLogisticsService().plan_delivery(
             "metals", 12, source_available=20,

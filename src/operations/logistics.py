@@ -17,6 +17,25 @@ class TankerDeliveryPlan:
 
 
 @dataclass(frozen=True)
+class DeuteriumTransferLeg:
+    source_probe_id: int
+    target_probe_id: int
+    target_kind: str
+    amount: float
+    priority: int
+
+
+@dataclass(frozen=True)
+class DeuteriumDeliverySequence:
+    source_probe_id: int
+    requested_amount: float
+    source_return_reserve: float
+    legs: tuple[DeuteriumTransferLeg, ...]
+    undelivered_amount: float
+    blockers: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class CargoDeliveryPlan:
     resource_type: str
     requested_amount: float
@@ -36,6 +55,7 @@ class FleetRoleService:
             "miner",
             "transport",
             "deuterium_tanker",
+            "deuterium_reserve",
             "explorer",
             "builder_support",
             "unassigned",
@@ -114,6 +134,100 @@ class TankerLogisticsService:
     @staticmethod
     def _sector(probe):
         return (probe.get("sector") or {}).get("relative")
+
+    def plan_delivery_sequence(
+        self,
+        arriving_tanker,
+        sector_probes,
+        requested_amount,
+        return_reserve,
+        *,
+        roles=None,
+        hub_probe_id=None,
+    ):
+        """Fill same-sector reserve tankers before the hub/main probe."""
+        roles = roles or {}
+        blockers = []
+        if arriving_tanker.get("model") != "deuterium_tanker":
+            blockers.append("source_not_tanker")
+        if arriving_tanker.get("status") != "idle":
+            blockers.append("tanker_unavailable")
+
+        source_fuel = self._fuel(arriving_tanker)
+        available = min(
+            max(0.0, requested_amount),
+            max(0.0, source_fuel - return_reserve),
+        )
+        if available <= 0:
+            blockers.append("source_return_reserve_required")
+
+        same_sector = tuple(
+            probe for probe in sector_probes
+            if probe.get("id") != arriving_tanker.get("id")
+            and self._sector(probe) == self._sector(arriving_tanker)
+            and probe.get("status") == "idle"
+        )
+        reserve_tankers = sorted(
+            (
+                probe for probe in same_sector
+                if probe.get("model") == "deuterium_tanker"
+            ),
+            key=lambda probe: (
+                roles.get(probe["id"]) != "deuterium_reserve",
+                probe["id"],
+            ),
+        )
+        hub_targets = sorted(
+            (
+                probe for probe in same_sector
+                if probe.get("model") != "deuterium_tanker"
+            ),
+            key=lambda probe: (
+                probe.get("id") != hub_probe_id,
+                roles.get(probe["id"]) != "hub",
+                probe["id"],
+            ),
+        )
+
+        legs = []
+        remaining = available
+        for priority, (kind, targets) in enumerate(
+            (("reserve_tanker", reserve_tankers), ("hub_probe", hub_targets)),
+            start=1,
+        ):
+            for target in targets:
+                if remaining <= 0:
+                    break
+                amount = min(remaining, self._free_fuel_capacity(target))
+                if amount <= 0:
+                    continue
+                legs.append(
+                    DeuteriumTransferLeg(
+                        arriving_tanker["id"], target["id"], kind,
+                        amount, priority,
+                    )
+                )
+                remaining -= amount
+
+        if available > 0 and not legs:
+            blockers.append("no_eligible_same_sector_receiver")
+        return DeuteriumDeliverySequence(
+            source_probe_id=arriving_tanker["id"],
+            requested_amount=requested_amount,
+            source_return_reserve=return_reserve,
+            legs=tuple(legs),
+            undelivered_amount=max(0.0, requested_amount - sum(leg.amount for leg in legs)),
+            blockers=tuple(dict.fromkeys(blockers)),
+        )
+
+    @staticmethod
+    def _fuel(probe):
+        return (probe.get("fuel") or {}).get("deuterium", 0)
+
+    @classmethod
+    def _free_fuel_capacity(cls, probe):
+        fuel = probe.get("fuel") or {}
+        return max(0.0, fuel.get("maxDeuterium", 0) - cls._fuel(probe))
 
 
 class CargoLogisticsService:
