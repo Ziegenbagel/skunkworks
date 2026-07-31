@@ -131,6 +131,8 @@ Operational Services consume:
 - Sector
 - Snapshot
 - Authoritative Manny state
+- Selected Probe Context
+- Galaxy Map
 
 Operational Services internally consume:
 

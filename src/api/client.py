@@ -28,11 +28,13 @@ class GameClient:
         ).rstrip("/")
         self.session = session or requests.Session()
         self.rate_limit = {}
+        self.api_version = None
 
     def ensure_compatible_api(self):
         """Verify that the server satisfies the required API contract."""
 
         version = self.get_api_version()
+        self.api_version = version
 
         if not (
             MINIMUM_API_VERSION
@@ -48,7 +50,7 @@ class GameClient:
         return version
 
     def get_api_version(self):
-        response = self._request(
+        response = self.request(
             "GET",
             "/api/version",
             authenticated=False,
@@ -56,17 +58,17 @@ class GameClient:
         return int(response["apiVersion"])
 
     def get_player(self):
-        return self._request("GET", "/api/me")
+        return self.request("GET", "/api/me")
 
     def get_probes(self):
         """Return every probe owned by the authenticated player."""
 
-        return self._request("GET", "/api/probes")
+        return self.request("GET", "/api/probes")
 
     def get_probe(self, probe_id):
         """Return detailed information for one probe."""
 
-        return self._request(
+        return self.request(
             "GET",
             f"/api/probe/{probe_id}",
         )
@@ -74,7 +76,7 @@ class GameClient:
     def get_sector(self, probe_id):
         """Return observable sector and onboard inventory for one probe."""
 
-        return self._request(
+        return self.request(
             "GET",
             f"/api/probe/{probe_id}/sector",
         )
@@ -82,7 +84,7 @@ class GameClient:
     def get_mannies(self, probe_id):
         """Return authoritative Manny task state for one probe."""
 
-        return self._request(
+        return self.request(
             "GET",
             f"/api/probe/{probe_id}/mannies",
         )
@@ -90,12 +92,12 @@ class GameClient:
     def get_crafting_recipes(self):
         """Return all available crafting recipes."""
 
-        return self._request(
+        return self.request(
             "GET",
             "/api/crafting-recipes",
         )
 
-    def _request(
+    def request(
         self,
         method,
         path,

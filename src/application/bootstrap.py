@@ -7,6 +7,9 @@ from src.snapshot.manager import (
 from src.intelligence.world_builder import (
     WorldBuilder,
 )
+from src.api.capabilities import GameCapabilities
+from src.application.probe_selector import ProbeSelector
+from src.recipes.manager import RecipeManager
 
 
 class Application:
@@ -20,6 +23,9 @@ class Application:
     ):
 
         self.client = GameClient()
+        self.capabilities = GameCapabilities(
+            self.client
+        )
 
         self.snapshot_manager = (
             SnapshotManager(
@@ -28,6 +34,16 @@ class Application:
         )
 
         self.builder = WorldBuilder()
+        self.recipes = RecipeManager()
+        self.probe_selector = ProbeSelector()
+
+    def select_probe(self, probe_data, arguments=None):
+        """Resolve the focused probe for this application session."""
+
+        return self.probe_selector.select(
+            probe_data,
+            arguments,
+        )
 
     def build_world(
         self,
@@ -37,4 +53,6 @@ class Application:
         WorldModel.
         """
 
-        pass
+        raise NotImplementedError(
+            "Use WorldBuilder with an explicitly selected probe."
+        )

@@ -88,3 +88,31 @@ class WorldBuilder:
         )
 
         return world
+
+    def build_limited(
+        self,
+        player,
+        probe_data,
+        probe,
+        probe_name,
+    ):
+        """Build safe state for an owned probe outside telemetry range."""
+
+        world = WorldModel()
+        world.player = player
+        world.fleet = self.fleet_analyzer.get_fleet(
+            probe_data
+        )
+        world.probe = self.probe_analyzer.analyze(probe)
+        world.sector = {
+            "resources": [],
+            "snapshot": None,
+        }
+        world.snapshot = {
+            "probe": probe_name,
+            "last_refresh": "Unavailable",
+            "age": "N/A",
+            "age_seconds": 0,
+            "fresh": False,
+        }
+        return world

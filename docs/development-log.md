@@ -566,3 +566,29 @@ Next Session:
 
 - Define Desired State production goals.
 - Introduce the first Manufacturing planner rule using real API actions.
+
+## 2026-07-30
+
+## Capability and Multi-Probe Foundation
+
+Completed:
+
+- Added interactive, ID-based, name-based, and default probe selection.
+- Made every probe-scoped capability require an explicit probe ID.
+- Added limited telemetry support for owned probes outside SCUT range.
+- Added domain gateways for account, probes, storage, Mannies, messaging,
+  galaxy observations, missions, and community features.
+- Exposed every public Manny task and atomic batch assignment.
+- Added logbook, alert, warning, improvement, SCUT, inventory, and movement
+  controls.
+- Added FCC sector coordinates, neighbors, distance, exploration history, and
+  observation-ready galaxy map models.
+- Added an application context seam for future UI, Planner, and Automation.
+
+Architecture:
+
+- Gateways own public route construction.
+- Intelligence owns map construction and telemetry normalization.
+- Operational Services answer questions from normalized state.
+- Planner rules decide which real API action should be recommended.
+- Automation remains a separate, policy-controlled execution layer.

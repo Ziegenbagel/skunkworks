@@ -81,6 +81,24 @@ New response representations are normalized by the Intelligence Layer.
 Operational services and the Planner must never depend directly on API
 payloads.
 
+## Game Capabilities
+
+`GameCapabilities` composes domain gateways for account, probe, storage, Manny,
+messaging, galaxy, mission, and community features. All probe-scoped methods
+require an explicit probe ID.
+
+The gateways expose every supported game control while remaining separate from
+planning and automation policy. See `docs/capabilities.md`.
+
+## Probe Context
+
+`ProbeSelector` establishes the focused probe for each session. `ProbeContext`
+preserves its ID, name, model, status, default status, and reachability.
+
+Reachable probes receive full sector, inventory, and Manny telemetry. Owned
+probes outside SCUT range receive a safe limited World Model rather than falling
+back silently to the default probe.
+
 ---
 
 ## SnapshotManager
@@ -136,6 +154,7 @@ Current modules:
 - FleetAnalyzer
 - ProbeAnalyzer
 - SectorAnalyzer
+- GalaxyMapBuilder
 
 Future modules:
 
@@ -174,6 +193,7 @@ Current contents:
 - Mannies
 - Sector
 - Snapshot
+- Galaxy map model (constructed independently until persistence is introduced)
 
 Future additions include:
 

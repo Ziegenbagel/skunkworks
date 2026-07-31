@@ -275,6 +275,11 @@ Current Work
 - API v104 compatibility and rate-limit awareness
 - Authoritative Manny task-state loading
 - Declarative Desired State and production-goal foundation
+- Interactive and CLI probe selector
+- Explicit per-probe operational context
+- Complete capability gateways for game controls
+- Messaging, missions, storage, logs, alerts, SCUT, and community access
+- FCC galaxy and sector-map foundation
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 
