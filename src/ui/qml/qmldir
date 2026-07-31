@@ -1,8 +1,11 @@
 module Skunkworks
 singleton Constants 1.0 Constants.qml
+singleton AssetCatalog 1.0 AssetCatalog.qml
 MissionControlScreen 1.0 MissionControlScreen.ui.qml
 PanelFrame 1.0 components/PanelFrame.qml
 StatusPill 1.0 components/StatusPill.qml
 MetricTile 1.0 components/MetricTile.qml
 TelemetryBar 1.0 components/TelemetryBar.qml
 SectorView 1.0 components/SectorView.qml
+ScutNetworkOverlay 1.0 components/ScutNetworkOverlay.qml
+MapObjectMarker 1.0 components/MapObjectMarker.qml

@@ -24,8 +24,24 @@ Rectangle {
         }
     }
 
-    Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: 1; height: parent.height; color: Qt.rgba(0.33, 0.78, 0.85, 0.18) }
-    Rectangle { anchors.verticalCenter: parent.verticalCenter; height: 1; width: parent.width; color: Qt.rgba(0.33, 0.78, 0.85, 0.18) }
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: 1
+        height: parent.height
+        color: Qt.rgba(0.33, 0.78, 0.85, 0.18)
+    }
+    Rectangle {
+        anchors.verticalCenter: parent.verticalCenter
+        height: 1
+        width: parent.width
+        color: Qt.rgba(0.33, 0.78, 0.85, 0.18)
+    }
+
+    ScutNetworkOverlay {
+        anchors.fill: parent
+        anchors.margins: Math.max(18, Math.min(parent.width, parent.height) * 0.06)
+        opacity: 0.72
+    }
 
     Image {
         anchors.centerIn: parent
@@ -79,15 +95,6 @@ Rectangle {
     }
 
     Image {
-        x: root.width * 0.43
-        y: root.height * 0.18
-        width: 58
-        height: 58
-        source: "../../assets/icons/scut-relay.png"
-        fillMode: Image.PreserveAspectFit
-    }
-
-    Image {
         x: root.width * 0.78
         y: root.height * 0.68
         width: 72
@@ -101,7 +108,17 @@ Rectangle {
         anchors.bottom: parent.bottom
         anchors.margins: 10
         spacing: 14
-        Label { text: root.sectorLabel; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-        Label { text: "LIVE · DETAILED"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+        Label {
+            text: root.sectorLabel
+            color: Constants.cyanColor
+            font.family: Constants.technicalFont
+            font.pixelSize: 9
+        }
+        Label {
+            text: "LIVE · DETAILED"
+            color: Constants.nominalColor
+            font.family: Constants.technicalFont
+            font.pixelSize: 9
+        }
     }
 }

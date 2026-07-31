@@ -4,9 +4,12 @@
         <file>components/MetricTile.qml</file>
         <file>components/PanelFrame.qml</file>
         <file>components/SectorView.qml</file>
+        <file>components/ScutNetworkOverlay.qml</file>
+        <file>components/MapObjectMarker.qml</file>
         <file>components/StatusPill.qml</file>
         <file>components/TelemetryBar.qml</file>
         <file>Constants.qml</file>
+        <file>AssetCatalog.qml</file>
         <file>MissionControlScreen.ui.qml</file>
         <file>Skunkworks.qmlproject</file>
     </qresource>

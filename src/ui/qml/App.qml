@@ -5,8 +5,8 @@ ApplicationWindow {
     id: window
     width: Constants.width
     height: Constants.height
-    minimumWidth: 1120
-    minimumHeight: 700
+    minimumWidth: Constants.minimumWidth
+    minimumHeight: Constants.minimumHeight
     visible: true
     title: "Skunkworks Mission Control"
     color: Constants.voidColor

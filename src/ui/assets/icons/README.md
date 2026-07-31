@@ -14,6 +14,33 @@ processed locally from a flat magenta chroma background into transparent PNGs.
 - Transparent master atlases and chroma-key source atlases for future controlled
   re-exporting.
 
+## Map expansion
+
+The API-parity expansion adds twenty 512×512 RGBA assets:
+
+- Deuterium tanker probe, live star, stellar remnant, solar system, and dust cloud.
+- Rocky, frozen, ocean, lava, dwarf, gas-giant, and ice-giant planets.
+- Drifting item, detached container, dormant construct, unknown contact, and
+  waypoint bookmark.
+- SCUT transit-beacon, hidden-container, and salvageable-object overlay badges.
+
+An additional twenty-icon semantic badge atlas supplies active/degraded/offline
+relay states, planet-dropped containers, abandoned Mannys, mining and selection
+targets, ownership and scan confidence, four resource types plus depletion, and
+all five asteroid-composition classes. Medium scan confidence is represented by
+the high-confidence badge at reduced opacity, avoiding a redundant raster.
+
+`map-icons-expansion-master-chroma.png` is the generated 5×4 source atlas and
+`map-icons-expansion-master.png` is its transparent master. Run
+`tools/ui/slice_icon_atlas.py` after intentionally replacing the master to
+rebuild the individual files. The equivalent badge sources are
+`map-badges-master-chroma.png` and `map-badges-master.png`. `AssetCatalog.qml` is the canonical runtime
+mapping from API object types and probe models to these assets.
+
+SCUT connections are intentionally not raster assets. `ScutNetworkOverlay.qml`
+draws outlined, dashed paths only between relay nodes whose transit beacons are
+installed, allowing paths to follow live galaxy coordinates and state.
+
 All individual files use transparent RGBA backgrounds and generous square
 padding so QML can scale them consistently on galaxy maps, sector maps, cards,
 and status controls.

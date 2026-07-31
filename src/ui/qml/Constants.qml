@@ -2,8 +2,12 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property int width: 1440
-    readonly property int height: 900
+    // 1080p is the authoring baseline. Qt's device-independent pixels and the
+    // responsive layout in MissionControlScreen also cover HiDPI/4K displays.
+    readonly property int width: 1920
+    readonly property int height: 1080
+    readonly property int minimumWidth: 1280
+    readonly property int minimumHeight: 720
 
     readonly property color voidColor: "#080d12"
     readonly property color panelColor: "#101922"
