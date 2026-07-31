@@ -114,6 +114,7 @@ class MissionControlDataService:
                 "current": model_counts.get(goal.model, 0),
                 "target": goal.quantity,
                 "shortage": max(0, goal.quantity - model_counts.get(goal.model, 0)),
+                "priority": goal.priority,
             }
             for goal in desired_state.fleet
         ]

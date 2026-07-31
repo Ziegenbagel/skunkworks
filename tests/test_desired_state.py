@@ -15,6 +15,7 @@ from src.planner.desired_state import (
 from src.planner.desired_state_store import DesiredStateStore
 from src.planner.planner import Planner
 from src.models.galaxy import SectorCoordinates
+from tests.test_planner_missions import build_operations
 
 
 class DesiredStateTests(unittest.TestCase):
@@ -48,14 +49,31 @@ class DesiredStateTests(unittest.TestCase):
                 quantity=-1,
             )
 
+    def test_priority_must_be_positive(self):
+        with self.assertRaises(ValueError):
+            FleetGoal("deuterium_tanker", 1, priority=0)
+
+    def test_tanker_target_enters_planner_at_selected_priority(self):
+        operations = build_operations()
+        operations.world.fleet = {"probes": [{"model": "generic"}]}
+
+        tasks = Planner(
+            operations,
+            DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=4),)),
+        ).tasks()
+
+        tanker = next(task for task in tasks if task.target == "deuterium_tanker")
+        self.assertEqual(tanker.action, "Prepare Probe Assembly")
+        self.assertEqual(tanker.priority, 4)
+
     def test_round_trips_all_goal_types(self):
         state = DesiredState(
-            production=(ProductionGoal("manny", 6),),
-            resources=(ResourceGoal("metals", 4.5),),
-            fuel=FuelGoal(35),
-            inventory=InventoryGoal(2),
+            production=(ProductionGoal("manny", 6, priority=12),),
+            resources=(ResourceGoal("metals", 4.5, priority=18),),
+            fuel=FuelGoal(35, priority=8),
+            inventory=InventoryGoal(2, priority=25),
             travel=TravelGoal(SectorCoordinates(2, 0, 0)),
-            fleet=(FleetGoal("deuterium_tanker", 2),),
+            fleet=(FleetGoal("deuterium_tanker", 2, priority=1),),
         )
 
         self.assertEqual(

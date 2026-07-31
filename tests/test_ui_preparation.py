@@ -141,7 +141,7 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(
             [item["reading"] for item in resources],
-            ["82.00 ECE", "5.57 ECE", "2.06 ECE", "1.06 ECE"],
+            ["82%  ·  82 / 100", "5.57 ECE", "2.06 ECE", "1.06 ECE"],
         )
         self.assertEqual(resources[0]["value"], 0.82)
 

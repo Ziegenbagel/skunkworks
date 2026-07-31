@@ -125,7 +125,11 @@ class MissionControlViewModelBuilder:
             "amount": deuterium,
             "capacity": maximum_deuterium,
             "label": "DEUTERIUM",
-            "reading": MissionControlViewModelBuilder._resource_reading(deuterium),
+            "reading": (
+                f"{(deuterium / maximum_deuterium * 100):.0f}%"
+                f"  ·  {deuterium:g} / {maximum_deuterium:g}"
+                if maximum_deuterium else "CAPACITY UNKNOWN"
+            ),
             "value": min(1.0, deuterium / maximum_deuterium) if maximum_deuterium else 0,
         }]
         for stock in stocks:
@@ -151,17 +155,49 @@ class MissionControlViewModelBuilder:
         snapshot = (world.sector or {}).get("snapshot") or {}
         sector = snapshot.get("sector", snapshot)
         objects = []
+        system = None
         for item in sector.get("objects", ()) or ():
-            objects.append(self._sector_object(item))
-            for child in item.get("bookmarkTargets", ()) or ():
+            view = self._sector_object(item)
+            if item.get("type") == "solar_system":
+                system = {
+                    **view,
+                    "systemId": str(item.get("id") or item.get("name") or "UNKNOWN"),
+                }
+            else:
+                view["layoutRole"] = "free_object"
+                objects.append(view)
+            for orbit_index, child in enumerate(item.get("bookmarkTargets", ()) or ()):
                 nested = self._sector_object(child)
                 nested["parentId"] = item.get("id")
+                nested["layoutRole"] = "orbital_body"
+                nested["orbitIndex"] = orbit_index
                 objects.append(nested)
+        active_mannies = []
+        for manny in (world.mannies or {}).get("mannies", ()):
+            current_task = manny.get("currentTask")
+            task = manny.get("task") if isinstance(manny.get("task"), dict) else {}
+            if isinstance(current_task, dict):
+                task = current_task
+                current_task = current_task.get("type")
+            if not current_task:
+                continue
+            target = task.get("objectId") or task.get("targetObjectId")
+            if isinstance(task.get("target"), dict):
+                target = target or task["target"].get("id")
+            active_mannies.append({
+                "id": str(manny.get("id", manny.get("name", "manny"))),
+                "name": manny.get("name", "Manny"),
+                "task": str(current_task),
+                "targetObjectId": str(target) if target is not None else "",
+                "progress": float(manny.get("taskProgressPercent", 0) or 0),
+            })
         return {
             "label": self._sector_label(coordinates),
             "knowledgeLevel": sector.get("knowledgeLevel", "unknown"),
             "confidence": float(sector.get("confidence", 0) or 0),
             "objects": tuple(objects),
+            "system": system or {},
+            "activeMannies": tuple(active_mannies),
         }
 
     @staticmethod

@@ -4,6 +4,7 @@ from .task import Task
 from .desired_state import DesiredState
 from .rules import (
     fuel,
+    fleet,
     idle,
     inventory,
     manufacturing,
@@ -52,6 +53,7 @@ class Planner:
                 self.desired_state,
             )
         )
+        tasks.extend(fleet.plan(self.operations, self.desired_state))
         tasks.extend(
             mining.plan(
                 self.operations,

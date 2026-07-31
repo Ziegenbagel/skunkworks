@@ -9,6 +9,10 @@ def plan(operations, desired_state) -> list[Task]:
         desired_state.resources
     )
     manufacturing_resources = set()
+    priorities = {
+        goal.resource_type: goal.priority
+        for goal in desired_state.resources
+    }
 
     for goal in desired_state.production:
         current = operations.manufacturing.inventory_count(
@@ -36,6 +40,10 @@ def plan(operations, desired_state) -> list[Task]:
                 amount,
             )
             manufacturing_resources.add(resource_type)
+            priorities[resource_type] = min(
+                priorities.get(resource_type, goal.priority),
+                goal.priority,
+            )
 
     tasks = []
 
@@ -72,10 +80,9 @@ def plan(operations, desired_state) -> list[Task]:
                 quantity=round(amount, 3),
                 constraints=tuple(constraints),
                 resource_type=resource_type,
-                priority=(
-                    HIGH
-                    if resource_type in manufacturing_resources
-                    else NORMAL
+                priority=priorities.get(
+                    resource_type,
+                    HIGH if resource_type in manufacturing_resources else NORMAL,
                 ),
             )
         )

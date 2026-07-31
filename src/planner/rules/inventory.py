@@ -24,6 +24,6 @@ def plan(operations, desired_state) -> list[Task]:
             target="Current Probe",
             quantity=round(minimum - current, 3),
             constraints=("inventory_capacity_low",),
-            priority=HIGH,
+            priority=desired_state.inventory.priority,
         )
     ]

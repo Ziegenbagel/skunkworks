@@ -30,7 +30,7 @@ def plan(operations, desired_state) -> list[Task]:
                     target=goal.recipe_id,
                     quantity=shortage,
                     constraints=("unknown_recipe",),
-                    priority=NORMAL,
+                    priority=goal.priority,
                 )
             )
             continue
@@ -50,7 +50,7 @@ def plan(operations, desired_state) -> list[Task]:
                 target=goal.recipe_id,
                 quantity=shortage,
                 constraints=production["blockers"],
-                priority=NORMAL,
+                priority=goal.priority,
             )
         )
 

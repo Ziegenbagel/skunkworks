@@ -2,10 +2,17 @@
   "production": [],
   "resourceReserves": {},
   "minimumFuelPercent": 20,
+  "fuelPriority": 30,
   "minimumFreeCapacity": 1,
+  "inventoryPriority": 30,
   "travelTarget": null,
   "fleetTargets": {
     "generic": 0,
     "deuterium_tanker": 0
-  }
+  },
+  "fleetPriorities": {
+    "generic": 50,
+    "deuterium_tanker": 10
+  },
+  "resourcePriorities": {}
 }

@@ -9,6 +9,7 @@ from src.models.galaxy import SectorCoordinates
 class ProductionGoal:
     recipe_id: str
     quantity: int
+    priority: int = 50
 
     def __post_init__(self):
         if not self.recipe_id:
@@ -18,40 +19,51 @@ class ProductionGoal:
             raise ValueError(
                 "Production goal quantity cannot be negative."
             )
+        if not 1 <= self.priority <= 999:
+            raise ValueError("Goal priority must be between 1 and 999.")
 
 
 @dataclass(frozen=True)
 class ResourceGoal:
     resource_type: str
     minimum_amount: float
+    priority: int = 50
 
     def __post_init__(self):
         if self.minimum_amount < 0:
             raise ValueError(
                 "Resource reserve cannot be negative."
             )
+        if not 1 <= self.priority <= 999:
+            raise ValueError("Goal priority must be between 1 and 999.")
 
 
 @dataclass(frozen=True)
 class FuelGoal:
     minimum_percent: float = 20
+    priority: int = 30
 
     def __post_init__(self):
         if not 0 <= self.minimum_percent <= 100:
             raise ValueError(
                 "Minimum fuel percent must be between 0 and 100."
             )
+        if not 1 <= self.priority <= 999:
+            raise ValueError("Goal priority must be between 1 and 999.")
 
 
 @dataclass(frozen=True)
 class InventoryGoal:
     minimum_free_capacity: float = 1
+    priority: int = 30
 
     def __post_init__(self):
         if self.minimum_free_capacity < 0:
             raise ValueError(
                 "Minimum free capacity cannot be negative."
             )
+        if not 1 <= self.priority <= 999:
+            raise ValueError("Goal priority must be between 1 and 999.")
 
 
 @dataclass(frozen=True)
@@ -65,12 +77,15 @@ class FleetGoal:
 
     model: str
     quantity: int
+    priority: int = 50
 
     def __post_init__(self):
         if self.model not in {"generic", "deuterium_tanker"}:
             raise ValueError(f"Unsupported probe model: {self.model}")
         if self.quantity < 0:
             raise ValueError("Fleet goal quantity cannot be negative.")
+        if not 1 <= self.priority <= 999:
+            raise ValueError("Goal priority must be between 1 and 999.")
 
 
 @dataclass(frozen=True)
@@ -102,6 +117,7 @@ class DesiredState:
                 ProductionGoal(
                     recipe_id=recipe_id,
                     quantity=int(quantity),
+                    priority=int(value.get("productionPriorities", {}).get(recipe_id, 50)),
                 )
                 for recipe_id, quantity in value.get(
                     "production",
@@ -113,6 +129,7 @@ class DesiredState:
                 ProductionGoal(
                     recipe_id=goal["recipeId"],
                     quantity=int(goal["quantity"]),
+                    priority=int(goal.get("priority", 50)),
                 )
                 for goal in value.get("production", [])
             ),
@@ -120,6 +137,7 @@ class DesiredState:
                 ResourceGoal(
                     resource_type=resource_type,
                     minimum_amount=float(amount),
+                    priority=int(value.get("resourcePriorities", {}).get(resource_type, 50)),
                 )
                 for resource_type, amount in value.get(
                     "resourceReserves",
@@ -129,12 +147,14 @@ class DesiredState:
             fuel=FuelGoal(
                 minimum_percent=float(
                     value.get("minimumFuelPercent", 20)
-                )
+                ),
+                priority=int(value.get("fuelPriority", 30)),
             ),
             inventory=InventoryGoal(
                 minimum_free_capacity=float(
                     value.get("minimumFreeCapacity", 1)
-                )
+                ),
+                priority=int(value.get("inventoryPriority", 30)),
             ),
             travel=(
                 TravelGoal(
@@ -146,7 +166,11 @@ class DesiredState:
                 else None
             ),
             fleet=tuple(
-                FleetGoal(model=model, quantity=int(quantity))
+                FleetGoal(
+                    model=model,
+                    quantity=int(quantity),
+                    priority=int(value.get("fleetPriorities", {}).get(model, 50)),
+                )
                 for model, quantity in value.get("fleetTargets", {}).items()
             ),
         )
@@ -157,6 +181,7 @@ class DesiredState:
                 {
                     "recipeId": goal.recipe_id,
                     "quantity": goal.quantity,
+                    "priority": goal.priority,
                 }
                 for goal in self.production
             ],
@@ -164,10 +189,15 @@ class DesiredState:
                 goal.resource_type: goal.minimum_amount
                 for goal in self.resources
             },
+            "resourcePriorities": {
+                goal.resource_type: goal.priority for goal in self.resources
+            },
             "minimumFuelPercent": self.fuel.minimum_percent,
+            "fuelPriority": self.fuel.priority,
             "minimumFreeCapacity": (
                 self.inventory.minimum_free_capacity
             ),
+            "inventoryPriority": self.inventory.priority,
             "travelTarget": (
                 {
                     "x": self.travel.target.x,
@@ -179,5 +209,8 @@ class DesiredState:
             ),
             "fleetTargets": {
                 goal.model: goal.quantity for goal in self.fleet
+            },
+            "fleetPriorities": {
+                goal.model: goal.priority for goal in self.fleet
             },
         }
