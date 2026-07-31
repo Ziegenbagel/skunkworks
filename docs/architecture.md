@@ -99,6 +99,16 @@ Reachable probes receive full sector, inventory, and Manny telemetry. Owned
 probes outside SCUT range receive a safe limited World Model rather than falling
 back silently to the default probe.
 
+## Data Engine
+
+The versioned SQLite Data Engine stores probe, sector, resource, visit, message,
+alert, warning, and mission history. It also stores the remembered focused
+probe and reconstructs the galaxy map from durable observations.
+
+Live API responses remain authoritative. Persistence supports historical
+reasoning and never replaces live validation before a control action. See
+`docs/data-engine.md`.
+
 ---
 
 ## SnapshotManager

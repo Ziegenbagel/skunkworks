@@ -592,3 +592,26 @@ Architecture:
 - Operational Services answer questions from normalized state.
 - Planner rules decide which real API action should be recommended.
 - Automation remains a separate, policy-controlled execution layer.
+
+## 2026-07-30
+
+## Data Engine and Remembered Probe
+
+Completed:
+
+- Added a versioned local SQLite Data Engine.
+- Persisted the focused probe and restored it on later launches.
+- Added probe-state, sector-observation, and resource history.
+- Added fleet-wide and per-probe visited-sector history.
+- Added generic durable records for messages, alerts, warnings, missions, and
+  future event domains.
+- Added best-effort startup history synchronization.
+- Added galaxy-map reconstruction from durable history.
+- Normalized moving-probe sector responses that omit observable objects.
+
+Live Verification:
+
+- Selected and remembered probe `762`.
+- A later argument-free launch restored probe `762`.
+- History synchronization stored probe state, sector observations, 121 visit
+  records, and 12 event records.

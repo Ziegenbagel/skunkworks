@@ -37,12 +37,18 @@ class Application:
         self.recipes = RecipeManager()
         self.probe_selector = ProbeSelector()
 
-    def select_probe(self, probe_data, arguments=None):
+    def select_probe(
+        self,
+        probe_data,
+        arguments=None,
+        preferred_probe_id=None,
+    ):
         """Resolve the focused probe for this application session."""
 
         return self.probe_selector.select(
             probe_data,
             arguments,
+            preferred_probe_id,
         )
 
     def build_world(

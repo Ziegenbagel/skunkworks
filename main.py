@@ -13,6 +13,9 @@ from src.application.probe_selector import (
     ProbeSelectionError,
     ProbeSelector,
 )
+from src.api.capabilities import GameCapabilities
+from src.application.history_sync import HistorySynchronizer
+from src.data import DataEngine
 
 DIVIDER = "=" * 40
 
@@ -23,6 +26,8 @@ def main():
     print()
 
     client = GameClient()
+    capabilities = GameCapabilities(client)
+    data_engine = DataEngine()
     api_version = client.ensure_compatible_api()
 
     print(f"Von Neumann Game API v{api_version}")
@@ -58,12 +63,18 @@ def main():
         )
 
     try:
-        probe = ProbeSelector().select(probe_data)
+        probe = ProbeSelector().select(
+            probe_data,
+            preferred_probe_id=(
+                data_engine.remembered_probe_id()
+            ),
+        )
     except ProbeSelectionError as error:
         print(error)
         raise SystemExit(2) from error
 
     probe_id = probe["id"]
+    data_engine.remember_probe(probe_id)
 
     builder = WorldBuilder()
 
@@ -116,6 +127,22 @@ def main():
 
     planner = Planner(operations)
     tasks = planner.tasks()
+
+    history_failures = HistorySynchronizer(
+        data_engine,
+        capabilities,
+    ).sync(
+        world,
+        probe_id,
+        reachable=probe.get("isReachable", True),
+    )
+
+    if history_failures:
+        print()
+        print(
+            "History sync incomplete: "
+            + ", ".join(history_failures)
+        )
     
 
     dashboard = Dashboard()

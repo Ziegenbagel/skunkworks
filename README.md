@@ -280,6 +280,9 @@ Current Work
 - Complete capability gateways for game controls
 - Messaging, missions, storage, logs, alerts, SCUT, and community access
 - FCC galaxy and sector-map foundation
+- Versioned SQLite Data Engine
+- Remembered focused probe
+- Probe, sector, resource, visit, message, alert, and mission history
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 

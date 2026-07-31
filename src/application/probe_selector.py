@@ -20,7 +20,12 @@ class ProbeSelector:
         self.output_fn = output_fn
         self.interactive = interactive
 
-    def select(self, probe_data, arguments=None):
+    def select(
+        self,
+        probe_data,
+        arguments=None,
+        preferred_probe_id=None,
+    ):
         probes = probe_data["probes"]
         arguments = list(
             sys.argv[1:]
@@ -61,6 +66,15 @@ class ProbeSelector:
 
         if arguments:
             raise ProbeSelectionError(self.usage())
+
+        if preferred_probe_id is not None:
+            try:
+                return self._by_id(
+                    probes,
+                    preferred_probe_id,
+                )
+            except ProbeSelectionError:
+                pass
 
         if self._interactive_enabled() and len(probes) > 1:
             return self._prompt(probes)

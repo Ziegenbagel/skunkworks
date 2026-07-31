@@ -68,7 +68,7 @@ class ResourceAnalyzer:
 
         mineables = []
 
-        for obj in sector["objects"]:
+        for obj in sector.get("objects", []):
 
             # Persistent mineable targets.
             mineables.extend(

@@ -12,6 +12,11 @@ data/snapshots/*.json
 # Runtime snapshots
 data/snapshots/runtime/
 
+# Local Data Engine
+data/*.sqlite3
+data/*.sqlite3-shm
+data/*.sqlite3-wal
+
 # Virtual environments
 .venv
 
