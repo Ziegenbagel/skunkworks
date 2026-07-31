@@ -1,0 +1,13 @@
+import QmlProject 1.1
+
+Project {
+    mainFile: "App.qml"
+
+    QmlFiles {
+        directory: "."
+    }
+
+    Environment {
+        QT_QUICK_CONTROLS_STYLE: "Basic"
+    }
+}

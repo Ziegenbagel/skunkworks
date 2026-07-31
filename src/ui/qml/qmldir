@@ -1,0 +1,5 @@
+module Skunkworks
+singleton Constants 1.0 Constants.qml
+MissionControlScreen 1.0 MissionControlScreen.ui.qml
+PanelFrame 1.0 components/PanelFrame.qml
+StatusPill 1.0 components/StatusPill.qml
