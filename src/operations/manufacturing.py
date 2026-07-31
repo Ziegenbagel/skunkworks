@@ -1,3 +1,6 @@
+from math import ceil
+
+
 class ManufacturingService:
     """
     Answers manufacturing questions using live recipes and probe inventory.
@@ -21,6 +24,9 @@ class ManufacturingService:
             "raw_resources": self.raw_resources(recipe_id),
             "dependency_tree": self.dependency_tree(recipe_id),
             "missing_ingredients": self.missing_ingredients(
+                recipe_id
+            ),
+            "production_plan": self.production_plan(
                 recipe_id
             ),
         }
@@ -106,6 +112,62 @@ class ManufacturingService:
 
         return self._dependency_tree(recipe_id, set())
 
+    def production_plan(self, recipe_id, quantity=1):
+        """
+        Build an inventory-aware, dependency-first production plan.
+        """
+
+        if self.recipes.get(recipe_id) is None:
+            return None
+
+        if quantity < 1 or int(quantity) != quantity:
+            raise ValueError(
+                "Production quantity must be a positive integer."
+            )
+
+        resources, items = self._inventory()
+        required_resources = {}
+        uncraftable_items = {}
+        steps = []
+        step_positions = {}
+
+        self._plan_recipe(
+            recipe_id,
+            int(quantity),
+            items,
+            required_resources,
+            uncraftable_items,
+            steps,
+            step_positions,
+            set(),
+        )
+
+        missing_resources = {}
+
+        for resource, required in required_resources.items():
+            available = resources.get(resource, 0)
+
+            if available < required:
+                missing_resources[resource] = round(
+                    required - available,
+                    3,
+                )
+
+        return {
+            "target": recipe_id,
+            "quantity": int(quantity),
+            "steps": steps,
+            "required_resources": self._rounded(
+                required_resources
+            ),
+            "missing_resources": missing_resources,
+            "uncraftable_items": uncraftable_items,
+            "achievable": (
+                not missing_resources
+                and not uncraftable_items
+            ),
+        }
+
     def _dependency_tree(self, recipe_id, ancestors):
         if recipe_id in ancestors:
             raise ValueError(
@@ -170,6 +232,103 @@ class ManufacturingService:
                     branch,
                     amount,
                 )
+
+    def _plan_recipe(
+        self,
+        recipe_id,
+        quantity,
+        inventory_items,
+        required_resources,
+        uncraftable_items,
+        steps,
+        step_positions,
+        ancestors,
+    ):
+        if recipe_id in ancestors:
+            raise ValueError(
+                f"Circular recipe dependency: {recipe_id}"
+            )
+
+        recipe = self.recipes.get(recipe_id)
+        branch = ancestors | {recipe_id}
+
+        for ingredient in recipe["ingredients"]:
+            ingredient_type = ingredient["type"]
+            required = ingredient["quantity"] * quantity
+
+            if self._ingredient_kind(ingredient) == "resource":
+                required_resources[ingredient_type] = (
+                    required_resources.get(ingredient_type, 0)
+                    + required
+                )
+                continue
+
+            available = inventory_items.get(ingredient_type, 0)
+            consumed = min(available, required)
+            inventory_items[ingredient_type] = (
+                available - consumed
+            )
+            shortage = required - consumed
+
+            if shortage <= 0:
+                continue
+
+            if ingredient_type not in self.recipes:
+                uncraftable_items[ingredient_type] = (
+                    uncraftable_items.get(ingredient_type, 0)
+                    + shortage
+                )
+                continue
+
+            self._plan_recipe(
+                ingredient_type,
+                ceil(shortage),
+                inventory_items,
+                required_resources,
+                uncraftable_items,
+                steps,
+                step_positions,
+                branch,
+            )
+
+        self._add_plan_step(
+            recipe,
+            quantity,
+            steps,
+            step_positions,
+        )
+
+    def _add_plan_step(
+        self,
+        recipe,
+        quantity,
+        steps,
+        step_positions,
+    ):
+        recipe_id = recipe["id"]
+
+        if recipe_id in step_positions:
+            position = step_positions[recipe_id]
+            steps[position]["quantity"] += quantity
+            return
+
+        step_positions[recipe_id] = len(steps)
+        steps.append(
+            {
+                "recipe_id": recipe_id,
+                "name": recipe["name"],
+                "quantity": quantity,
+                "craftable_by": tuple(
+                    recipe.get("craftableBy", [])
+                ),
+            }
+        )
+
+    def _rounded(self, values):
+        return {
+            key: round(value, 3)
+            for key, value in values.items()
+        }
 
     def _inventory(self):
         inventory = self.world.probe["inventory"]

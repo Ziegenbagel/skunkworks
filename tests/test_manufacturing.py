@@ -10,6 +10,7 @@ RECIPES = {
         {
             "id": "steel_bar",
             "name": "Steel bar",
+            "craftableBy": ["manny"],
             "ingredients": [
                 {
                     "type": "metals",
@@ -21,6 +22,7 @@ RECIPES = {
         {
             "id": "electric_motor",
             "name": "Electric motor",
+            "craftableBy": ["manny"],
             "ingredients": [
                 {
                     "type": "steel_bar",
@@ -94,6 +96,51 @@ class ManufacturingServiceTests(unittest.TestCase):
             self.service.missing_ingredients("unknown")
         )
         self.assertFalse(self.service.can_build("unknown"))
+
+    def test_plans_missing_components_in_dependency_order(self):
+        plan = self.service.production_plan(
+            "electric_motor"
+        )
+
+        self.assertEqual(
+            [
+                (step["recipe_id"], step["quantity"])
+                for step in plan["steps"]
+            ],
+            [
+                ("steel_bar", 1),
+                ("electric_motor", 1),
+            ],
+        )
+        self.assertEqual(
+            plan["required_resources"],
+            {
+                "metals": 0.2,
+                "carbon_compounds": 0.1,
+            },
+        )
+        self.assertEqual(
+            plan["missing_resources"],
+            {"carbon_compounds": 0.05},
+        )
+        self.assertFalse(plan["achievable"])
+
+    def test_plan_rejects_invalid_quantity(self):
+        with self.assertRaises(ValueError):
+            self.service.production_plan(
+                "electric_motor",
+                0,
+            )
+
+    def test_report_includes_production_plan(self):
+        report = self.service.build_report(
+            "electric_motor"
+        )
+
+        self.assertEqual(
+            report["production_plan"]["target"],
+            "electric_motor",
+        )
 
 
 if __name__ == "__main__":

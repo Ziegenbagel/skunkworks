@@ -271,6 +271,7 @@ Current Work
 - Live manufacturing feasibility analysis
 - Missing resource and item ingredient analysis
 - Recursive dependency-tree and raw-resource analysis
+- Inventory-aware, dependency-ordered production planning
 
 Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
 

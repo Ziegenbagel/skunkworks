@@ -29,7 +29,8 @@ Mission 11 — Manufacturing Intelligence
 - Live `can_build()` feasibility query ✅
 - Missing resource and item ingredient analysis ✅
 - Recursive dependency-tree analysis ✅
-- Inventory-aware production-chain planning
+- Inventory-aware production-chain planning ✅
+- Manufacturing planner rule
 
 Mission 7
 

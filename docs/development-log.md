@@ -544,8 +544,15 @@ Architecture Improvements:
 
 Mission 11 has begun.
 
+Part 2:
+
+- Added inventory-aware production planning.
+- Existing crafted components are consumed before new work is recommended.
+- Remaining crafts are ordered dependency-first.
+- Production plans report total raw-resource requirements, shortages, and
+  uncraftable item blockers.
+- Production plans expose whether the complete chain is currently achievable.
+
 Next Session:
 
-- Make dependency planning account for crafted components already in inventory.
-- Produce an ordered manufacturing chain for missing components.
 - Introduce the first Manufacturing planner rule.
