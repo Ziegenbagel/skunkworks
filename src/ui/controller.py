@@ -90,10 +90,15 @@ class MissionControlDataService:
         ).build()
         dashboard["apiVersion"] = self.api_version
         dashboard["player"] = self._player_view(player)
-        dashboard["probeOptions"] = tuple(
-            self._probe_option(item) for item in probe_data.get("probes", ())
-        )
+        options = [self._probe_option(item) for item in probe_data.get("probes", ())]
+        for option in options:
+            if option["id"] == selected["id"]:
+                option["sectorLabel"] = dashboard["focus"]["sectorLabel"]
+                option["status"] = dashboard["focus"]["status"]
+                option["model"] = dashboard["focus"]["model"]
+        dashboard["probeOptions"] = options
         dashboard["syncFailures"] = sync_failures
+        dashboard["emergencyStopActive"] = self.data_engine.emergency_stop_active()
         return dashboard
 
     def _initialize(self):
@@ -186,6 +191,7 @@ class MissionControlController(QObject):
     focusedProbeIdChanged = Signal()
     refreshingChanged = Signal()
     errorChanged = Signal()
+    emergencyStopChanged = Signal()
 
     def __init__(self, service=None, thread_pool=None):
         super().__init__()
@@ -196,6 +202,7 @@ class MissionControlController(QObject):
         self._focused_probe_id = -1
         self._refreshing = False
         self._error = ""
+        self._emergency_stop = False
         self._worker = None
 
     @Property("QVariantMap", notify=dashboardChanged)
@@ -218,6 +225,10 @@ class MissionControlController(QObject):
     def error(self):
         return self._error
 
+    @Property(bool, notify=emergencyStopChanged)
+    def emergencyStopActive(self):
+        return self._emergency_stop
+
     @Slot()
     def refresh(self):
         self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
@@ -227,6 +238,19 @@ class MissionControlController(QObject):
         if self._refreshing or probe_id == self._focused_probe_id:
             return
         self._start_refresh(probe_id)
+
+    @Slot(bool)
+    def setEmergencyStop(self, active):
+        if self.service is None:
+            try:
+                self.service = MissionControlDataService()
+            except Exception as error:
+                self._set_error(str(error) or type(error).__name__)
+                return
+        self.service.data_engine.set_emergency_stop(active)
+        if active != self._emergency_stop:
+            self._emergency_stop = active
+            self.emergencyStopChanged.emit()
 
     def _start_refresh(self, probe_id):
         if self._refreshing:
@@ -248,8 +272,14 @@ class MissionControlController(QObject):
 
     @Slot(object)
     def _accept_dashboard(self, payload):
-        self._dashboard = dict(payload)
+        payload = self._qt_safe(payload)
+        self._dashboard = payload
         self.dashboardChanged.emit()
+
+        emergency_stop = bool(payload.get("emergencyStopActive", False))
+        if emergency_stop != self._emergency_stop:
+            self._emergency_stop = emergency_stop
+            self.emergencyStopChanged.emit()
 
         probes = [dict(item) for item in payload.get("probeOptions", ())]
         if probes != self._available_probes:
@@ -261,6 +291,18 @@ class MissionControlController(QObject):
             self._focused_probe_id = probe_id
             self.focusedProbeIdChanged.emit()
         self._finish_refresh()
+
+    @classmethod
+    def _qt_safe(cls, value):
+        """Convert nested Python containers into predictable QVariant shapes."""
+
+        if isinstance(value, dict):
+            return {str(key): cls._qt_safe(item) for key, item in value.items()}
+        if isinstance(value, (tuple, list, set)):
+            return [cls._qt_safe(item) for item in value]
+        if hasattr(value, "keys") and not isinstance(value, (str, bytes)):
+            return {str(key): cls._qt_safe(value[key]) for key in value.keys()}
+        return value
 
     @Slot(str)
     def _reject_dashboard(self, message):

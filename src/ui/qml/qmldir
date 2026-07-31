@@ -11,3 +11,5 @@ ScutNetworkOverlay 1.0 components/ScutNetworkOverlay.qml
 MapObjectMarker 1.0 components/MapObjectMarker.qml
 ProbeSelector 1.0 components/ProbeSelector.qml
 SummaryListPanel 1.0 components/SummaryListPanel.qml
+TopNavigationBar 1.0 components/TopNavigationBar.qml
+NavigationWorkspace 1.0 components/NavigationWorkspace.qml

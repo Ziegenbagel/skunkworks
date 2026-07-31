@@ -98,3 +98,13 @@ def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
     assert "onClicked: details.open()" in panel
     assert "Dialog {" in panel
     assert "ScrollView" in panel
+
+
+def test_top_navigation_is_interactive_and_has_connected_workspace():
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    navigation = Path("src/ui/qml/components/TopNavigationBar.qml").read_text()
+
+    assert "TopNavigationBar" in screen
+    assert "NavigationWorkspace" in screen
+    assert "signal sectionSelected(string section)" in navigation
+    assert "onClicked: root.sectionSelected" in navigation

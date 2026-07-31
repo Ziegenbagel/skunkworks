@@ -80,20 +80,39 @@ class MissionControlViewModelBuilder:
 
     @staticmethod
     def _resources(probe):
-        stocks = probe.get("inventory", {}).get("resourceStocks", ())
-        resources = []
+        inventory = probe.get("inventory", {})
+        stocks = inventory.get("resourceStocks", ())
+        capacity = float(inventory.get("capacity", 0) or 0)
+        fuel = probe.get("fuel", {})
+        deuterium = float(fuel.get("deuterium", 0) or 0)
+        maximum_deuterium = float(fuel.get("maxDeuterium", 0) or 0)
+        resources = [{
+            "type": "deuterium",
+            "name": "Deuterium",
+            "amount": deuterium,
+            "capacity": maximum_deuterium,
+            "label": "DEUTERIUM",
+            "reading": MissionControlViewModelBuilder._resource_reading(deuterium),
+            "value": min(1.0, deuterium / maximum_deuterium) if maximum_deuterium else 0,
+        }]
         for stock in stocks:
             resource_type = stock.get("type") or stock.get("resourceType") or stock.get("name", "unknown")
+            amount = float(stock.get("amount", 0) or 0)
             resources.append({
                 "type": str(resource_type).lower().replace(" ", "_"),
                 "name": stock.get("name") or str(resource_type).replace("_", " ").title(),
-                "amount": float(stock.get("amount", 0) or 0),
-                "capacity": float(stock.get("capacity", 0) or 0),
+                "amount": amount,
+                "capacity": capacity,
                 "label": (stock.get("name") or str(resource_type).replace("_", " ")).upper(),
-                "reading": f"{float(stock.get('amount', 0) or 0):,.0f} ECE",
-                "value": min(1.0, float(stock.get("amount", 0) or 0) / float(stock.get("capacity", 1000) or 1000)),
+                "reading": MissionControlViewModelBuilder._resource_reading(amount),
+                "value": min(1.0, amount / capacity) if capacity else 0,
             })
         return tuple(resources)
+
+    @staticmethod
+    def _resource_reading(amount):
+        precision = 0 if amount >= 100 else 2 if amount >= 1 else 4
+        return f"{amount:,.{precision}f} ECE"
 
     def _sector_view(self, world, coordinates):
         snapshot = (world.sector or {}).get("snapshot") or {}

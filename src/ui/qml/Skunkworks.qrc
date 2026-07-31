@@ -81,6 +81,8 @@
         <file>components/PanelFrame.qml</file>
         <file>components/ProbeSelector.qml</file>
         <file>components/SummaryListPanel.qml</file>
+        <file>components/TopNavigationBar.qml</file>
+        <file>components/NavigationWorkspace.qml</file>
         <file>components/ScutNetworkOverlay.qml</file>
         <file>components/SectorView.qml</file>
         <file>components/StatusPill.qml</file>

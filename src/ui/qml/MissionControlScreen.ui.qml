@@ -6,9 +6,11 @@ import "components"
 
 Rectangle {
     id: root
+    objectName: "missionControlScreen"
     property bool liveMode: false
     property bool refreshing: false
     property string connectionError: ""
+    property bool emergencyStopActive: false
     property var dashboardData: ({})
     readonly property var focusData: dashboardData.focus || ({})
     readonly property var fleetData: dashboardData.fleet || ({})
@@ -68,7 +70,12 @@ Rectangle {
     ]
     property var availableProbes: previewProbes
     property int focusedProbeId: availableProbes.length ? availableProbes[0].id : -1
+    property string currentNavigation: "MISSION CONTROL"
     property alias probeSelectorControl: probeSelector
+    property alias navigationBarControl: navigationBar
+    property alias navigationWorkspaceControl: navigationWorkspace
+    property alias emergencyStopControl: emergencyStopButton
+    property alias alertsButtonControl: alertsButton
     readonly property real viewportScale: Math.min(width / Constants.width, height / Constants.height)
     readonly property real uiScale: 1.0
     readonly property int gutter: Math.round(12 * uiScale)
@@ -113,7 +120,7 @@ Rectangle {
                             spacing: 10
                             StatusPill {
                                 label: "◉"
-                                statusColor: Constants.nominalColor
+                                statusColor: root.connectionError || root.healthData.state === "critical" ? Constants.criticalColor : root.healthData.state === "degraded" ? Constants.warningColor : Constants.nominalColor
                             }
                             Column {
                                 Label {
@@ -123,8 +130,8 @@ Rectangle {
                                     font.pixelSize: 8
                                 }
                                 Label {
-                                    text: "NOMINAL"
-                                    color: Constants.nominalColor
+                                    text: root.emergencyStopActive ? "AUTOMATION STOPPED" : root.healthData.stateLabel || (root.refreshing ? "REFRESHING" : "NOMINAL")
+                                    color: root.emergencyStopActive || root.healthData.state === "critical" ? Constants.criticalColor : root.healthData.state === "degraded" ? Constants.warningColor : Constants.nominalColor
                                     font.family: Constants.technicalFont
                                     font.pixelSize: 11
                                     font.bold: true
@@ -189,7 +196,8 @@ Rectangle {
                                 }
                             }
                             Button {
-                                text: "■ STOP"
+                                id: emergencyStopButton
+                                text: root.emergencyStopActive ? "▶ RESUME" : "■ STOP"
                                 palette.buttonText: Constants.criticalColor
                             }
                         }
@@ -201,40 +209,20 @@ Rectangle {
                         color: Constants.lineColor
                     }
 
-                    RowLayout {
+                    TopNavigationBar {
+                        id: navigationBar
+                        objectName: "topNavigationBar"
                         Layout.fillWidth: true
                         Layout.preferredHeight: Math.round(38 * root.uiScale)
                         Layout.leftMargin: Math.round(14 * root.uiScale)
                         Layout.rightMargin: Math.round(14 * root.uiScale)
-                        spacing: 3
-
-                        Repeater {
-                            model: ["MISSION CONTROL", "FLEET", "GALAXY MAP", "RESOURCES", "MISSIONS", "PRODUCTION", "RESEARCH", "SAFETY", "LOGBOOK", "SETTINGS"]
-                            delegate: Rectangle {
-                                id: topNavigation
-                                required property string modelData
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                color: topNavigation.modelData === "MISSION CONTROL" ? Constants.selectedColor : "transparent"
-                                border.color: topNavigation.modelData === "MISSION CONTROL" ? Constants.cyanColor : "transparent"
-                                Label {
-                                    anchors.centerIn: parent
-                                    width: parent.width - 4
-                                    text: topNavigation.modelData
-                                    horizontalAlignment: Text.AlignHCenter
-                                    elide: Text.ElideRight
-                                    color: topNavigation.modelData === "MISSION CONTROL" ? Constants.cyanColor : Constants.mutedTextColor
-                                    font.family: Constants.technicalFont
-                                    font.pixelSize: 8
-                                    font.bold: topNavigation.modelData === "MISSION CONTROL"
-                                }
-                            }
-                        }
+                        currentSection: root.currentNavigation
                     }
                 }
             }
 
             RowLayout {
+                visible: root.currentNavigation === "MISSION CONTROL"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: Math.round(10 * root.uiScale)
@@ -432,6 +420,7 @@ Rectangle {
                                 Layout.fillWidth: true
                             }
                             Button {
+                                id: alertsButton
                                 text: "VIEW ALERTS  ›"
                             }
                         }
@@ -463,6 +452,18 @@ Rectangle {
                         }
                     }
                 }
+            }
+
+            NavigationWorkspace {
+                id: navigationWorkspace
+                objectName: "navigationWorkspace"
+                visible: root.currentNavigation !== "MISSION CONTROL"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                section: root.currentNavigation
+                dashboardData: root.dashboardData
+                availableProbes: root.availableProbes
+                focusedProbeId: root.focusedProbeId
             }
 
             RowLayout {

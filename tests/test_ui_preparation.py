@@ -55,6 +55,7 @@ class UiPreparationTests(unittest.TestCase):
                         {"id": 9, "name": "Tanker", "model": "deuterium_tanker"},
                     ),
                     "connection": "connected",
+                    "missions": ({"id": "mission-1"},),
                 }
 
         class ImmediatePool:
@@ -68,6 +69,7 @@ class UiPreparationTests(unittest.TestCase):
         controller.refresh()
         self.assertEqual(controller.focusedProbeId, 7)
         self.assertEqual(len(controller.availableProbes), 2)
+        self.assertIsInstance(controller.dashboard["missions"], list)
         self.assertFalse(controller.refreshing)
 
         controller.selectProbe(9)
@@ -118,6 +120,29 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("STEEL PLATE", work[0]["displayText"])
         self.assertIn("MINING METALS, ICE", work[1]["displayText"])
         self.assertIn("Estimated completion", work[0]["detailText"])
+
+    def test_resource_summary_uses_current_probe_fuel_and_inventory_amounts(self):
+        resources = MissionControlViewModelBuilder._resources({
+            "fuel": {"deuterium": 82, "maxDeuterium": 100},
+            "inventory": {
+                "capacity": 26,
+                "resourceStocks": [
+                    {"type": "metals", "name": "Metals", "amount": 5.57},
+                    {"type": "ice", "name": "Ice", "amount": 2.0595},
+                    {
+                        "type": "carbon_compounds",
+                        "name": "Carbon compounds",
+                        "amount": 1.0605,
+                    },
+                ],
+            },
+        })
+
+        self.assertEqual(
+            [item["reading"] for item in resources],
+            ["82.00 ECE", "5.57 ECE", "2.06 ECE", "1.06 ECE"],
+        )
+        self.assertEqual(resources[0]["value"], 0.82)
 
 
 if __name__ == "__main__":
