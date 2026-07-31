@@ -2,9 +2,9 @@
 
 ## Status
 
-This is the canonical Skunkworks roadmap as of 2026-07-30.
+This is the canonical Skunkworks roadmap as of 2026-07-31.
 
-Missions 1–18 are complete. Development continues with Mission 19 and targets
+Missions 1–21 are complete. Development continues with Mission 22 and targets
 the 1.0 release at Mission 26.
 
 This roadmap reconciles:
@@ -67,7 +67,7 @@ backend redesign.
 - Replacement-source discovery.
 - Hub, miner, and transport logistics blueprints.
 
-## Roadmap to 1.0
+## Completed Automation Foundation
 
 ### Mission 19 — Controlled Automation Runtime
 
@@ -163,6 +163,8 @@ domains.
 Release gate: Skunkworks can determine whether the fleet has sufficient
 workers, storage, transport, and source longevity for every planned industrial
 operation.
+
+## Remaining Roadmap to 1.0
 
 ### Mission 22 — Messaging, Missions, and Exploration Operations
 

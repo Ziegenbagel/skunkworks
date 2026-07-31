@@ -20,6 +20,9 @@ from src.operations.snapshots import (
 from src.operations.inventory import InventoryService
 from src.operations.mining import MiningService
 from src.operations.galaxy import GalaxyService
+from src.operations.mannies import MannyService
+from src.operations.containers import ContainerService
+from src.operations.depots import DepotService
 from src.safety.policy import TravelSafetyPolicy
 from src.safety.travel import TravelSafetyService
 from src.safety.resources import (
@@ -76,6 +79,13 @@ class Operations:
 
         self.inventory = InventoryService(world)
         self.mining = MiningService(world)
+        self.mannies = MannyService(world)
+        self.containers = ContainerService(world)
+        self.depots = DepotService(
+            world,
+            self.mannies,
+            self.containers,
+        )
         self.galaxy = GalaxyService(world)
         self.travel_safety = TravelSafetyService(
             world,

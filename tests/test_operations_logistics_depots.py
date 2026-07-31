@@ -1,0 +1,104 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from src.data import DataEngine
+from src.operations import (
+    CargoLogisticsService,
+    FleetRoleService,
+    OperationFactory,
+    OperationState,
+    OperationStore,
+    TankerLogisticsService,
+)
+from tests.test_planner_missions import build_operations
+
+
+class OperationsLogisticsDepotTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.engine = DataEngine(Path(self.temporary.name) / "ops.sqlite3")
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def test_operation_templates_persist_and_resume(self):
+        operation = OperationFactory.create("fuel_recovery", probe_id=1).activate()
+        store = OperationStore(self.engine)
+        store.save(operation)
+
+        restored = store.all(OperationState.ACTIVE)
+
+        self.assertEqual(len(restored), 1)
+        self.assertEqual(restored[0], operation)
+        self.assertEqual(restored[0].current.action, "select_deuterium_source")
+
+    def test_fleet_role_assignment_is_single_and_durable(self):
+        roles = FleetRoleService(self.engine)
+        roles.assign("probe", 8, "explorer")
+        roles.assign("probe", 8, "deuterium_tanker", metadata={"reserve": 80})
+
+        records = roles.all("probe")
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["role"], "deuterium_tanker")
+
+    def test_tanker_delivery_preserves_return_reserve(self):
+        tanker = {
+            "id": 8, "model": "deuterium_tanker", "status": "idle",
+            "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+            "fuel": {"deuterium": 500, "maxDeuterium": 800},
+        }
+        target = {
+            "id": 9, "status": "idle",
+            "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+            "fuel": {"deuterium": 10, "maxDeuterium": 100},
+        }
+
+        plan = TankerLogisticsService().plan_delivery(tanker, target, 150, 100)
+
+        self.assertEqual(plan.deliverable_amount, 90)
+        self.assertEqual(plan.blockers, ())
+
+    def test_cargo_delivery_reports_capacity_and_trip_count(self):
+        plan = CargoLogisticsService().plan_delivery(
+            "metals", 12, source_available=20,
+            carrier_capacity=5, target_free_capacity=20,
+        )
+
+        self.assertEqual(plan.deliverable_amount, 5)
+        self.assertEqual(plan.remaining_amount, 7)
+        self.assertEqual(plan.trips_required, 3)
+
+    def test_manny_container_and_depot_views_use_real_entities(self):
+        operations = build_operations()
+        operations.world.mannies["mannies"][0].update(
+            {
+                "currentTask": {"type": "mining", "objectId": "asteroid-1"},
+                "taskProgressPercent": 40,
+                "location": {"type": "asteroid", "objectId": "asteroid-1"},
+            }
+        )
+        operations.world.sector["snapshot"] = {
+            "sector": {
+                "objects": [
+                    {
+                        "id": "container-1", "type": "detached_container",
+                        "asteroidId": "asteroid-1", "capacity": 10,
+                        "usedCapacity": 9,
+                    }
+                ]
+            }
+        }
+
+        depot = operations.depots.all()[0]
+
+        self.assertEqual(operations.mannies.progress(), {101: 40})
+        self.assertEqual(len(operations.containers.detached()), 1)
+        self.assertEqual(depot.status, "operational")
+        self.assertEqual(depot.storage_fill_percent, 90)
+        self.assertTrue(depot.needs_transport)
+
+
+if __name__ == "__main__":
+    unittest.main()

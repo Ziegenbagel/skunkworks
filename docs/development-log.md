@@ -810,3 +810,30 @@ Roadmap Impact:
 - Added tanker rendezvous and model-specific safety requirements to Mission 21.
 - Recorded that API v104 changed in place, requiring capability/schema checks
   in addition to the numeric API-version boundary.
+
+## 2026-07-31
+
+## Missions 19–21 — Controlled Operations and Logistics
+
+Completed:
+
+- Added the opt-in `AutomationRuntime` and allowlisted capability dispatcher.
+- Kept observe-only and live-disabled defaults while supporting approval and
+  automatic policy modes.
+- Added independent command approval and hazard acknowledgement, a durable
+  emergency stop, per-probe execution leases, fresh-state second preflight,
+  completed-command suppression, bounded retry/cooldown, lifecycle journaling,
+  and terminal-result replanning.
+- Added schema version 3 with durable Operations and exclusive fleet roles.
+- Added six resumable operation templates for mining, depot, fuel recovery,
+  hub construction, asset recovery, and production campaigns.
+- Added generic cargo capacity/trip plans plus tanker rendezvous, delivery,
+  target-capacity, and return-reserve planning.
+- Added first-class Manny, attached/detached container, and derived Mining Depot
+  services, including task progress, storage fill state, and transport need.
+- Verified the complete repository with 81 passing tests; no live game mutation
+  was performed.
+
+Next Session:
+
+Mission 22 — Messaging, Missions, and Exploration Operations

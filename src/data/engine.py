@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 class DataEngine:
@@ -396,6 +396,154 @@ class DataEngine:
 
         return row is not None
 
+    def set_emergency_stop(self, active):
+        self.set_preference(
+            "automation_emergency_stop",
+            "1" if active else "0",
+        )
+
+    def emergency_stop_active(self):
+        return self.get_preference(
+            "automation_emergency_stop",
+            "0",
+        ) == "1"
+
+    def acquire_execution_lease(
+        self,
+        probe_id,
+        fingerprint,
+        owner,
+        expires_at,
+    ):
+        """Acquire one unexpired execution lease per probe."""
+
+        now = self._now()
+        with self._connect() as connection:
+            connection.execute(
+                "DELETE FROM execution_leases WHERE expires_at <= ?",
+                (now,),
+            )
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO execution_leases (
+                        probe_id, fingerprint, owner,
+                        acquired_at, expires_at
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        probe_id,
+                        fingerprint,
+                        owner,
+                        now,
+                        expires_at,
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                return False
+        return True
+
+    def release_execution_lease(self, probe_id, fingerprint):
+        with self._connect() as connection:
+            connection.execute(
+                """
+                DELETE FROM execution_leases
+                WHERE probe_id = ? AND fingerprint = ?
+                """,
+                (probe_id, fingerprint),
+            )
+
+    def save_operation(self, operation):
+        payload = operation.to_dict()
+        now = self._now()
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO operations (
+                    id, name, objective, state, probe_id,
+                    current_step, payload_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name = excluded.name,
+                    objective = excluded.objective,
+                    state = excluded.state,
+                    probe_id = excluded.probe_id,
+                    current_step = excluded.current_step,
+                    payload_json = excluded.payload_json,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    operation.id,
+                    operation.name,
+                    operation.objective,
+                    operation.state.value,
+                    operation.probe_id,
+                    operation.current_step,
+                    self._json(payload),
+                    now,
+                    now,
+                ),
+            )
+
+    def operation_records(self, state=None):
+        if state is None:
+            return self._rows(
+                "SELECT * FROM operations ORDER BY created_at, id",
+                (),
+            )
+        return self._rows(
+            """
+            SELECT * FROM operations
+            WHERE state = ? ORDER BY created_at, id
+            """,
+            (str(state),),
+        )
+
+    def assign_fleet_role(
+        self,
+        asset_type,
+        asset_id,
+        role,
+        operation_id=None,
+        metadata=None,
+    ):
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO fleet_roles (
+                    asset_type, asset_id, role,
+                    operation_id, metadata_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(asset_type, asset_id) DO UPDATE SET
+                    role = excluded.role,
+                    operation_id = excluded.operation_id,
+                    metadata_json = excluded.metadata_json,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    asset_type,
+                    str(asset_id),
+                    role,
+                    operation_id,
+                    self._json(metadata or {}),
+                    self._now(),
+                ),
+            )
+
+    def fleet_roles(self, asset_type=None):
+        if asset_type is None:
+            return self._rows(
+                "SELECT * FROM fleet_roles ORDER BY asset_type, asset_id",
+                (),
+            )
+        return self._rows(
+            """
+            SELECT * FROM fleet_roles
+            WHERE asset_type = ? ORDER BY asset_id
+            """,
+            (asset_type,),
+        )
+
     def galaxy_map(self):
         """Rebuild the in-memory map from durable visit and observation data."""
 
@@ -602,6 +750,40 @@ class DataEngine:
                 CREATE INDEX IF NOT EXISTS
                     idx_action_journal_probe_time
                 ON action_journal(probe_id, observed_at);
+
+                CREATE TABLE IF NOT EXISTS execution_leases (
+                    probe_id INTEGER PRIMARY KEY,
+                    fingerprint TEXT NOT NULL UNIQUE,
+                    owner TEXT NOT NULL,
+                    acquired_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS operations (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    objective TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    probe_id INTEGER,
+                    current_step INTEGER NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_operations_state
+                ON operations(state, updated_at);
+
+                CREATE TABLE IF NOT EXISTS fleet_roles (
+                    asset_type TEXT NOT NULL,
+                    asset_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    operation_id TEXT,
+                    metadata_json TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(asset_type, asset_id),
+                    FOREIGN KEY(operation_id) REFERENCES operations(id)
+                );
                 """
             )
             connection.execute(

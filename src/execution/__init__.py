@@ -4,6 +4,8 @@ from .commands import Command, CommandType
 from .journal import ActionJournal
 from .policy import ExecutionMode, ExecutionPolicy
 from .preparer import CommandPreparer, PreparedCommand
+from .dispatcher import CapabilityDispatcher
+from .runtime import AutomationRuntime, ExecutionResult
 
 __all__ = [
     "Command",
@@ -13,4 +15,7 @@ __all__ = [
     "ExecutionMode",
     "ExecutionPolicy",
     "PreparedCommand",
+    "CapabilityDispatcher",
+    "AutomationRuntime",
+    "ExecutionResult",
 ]

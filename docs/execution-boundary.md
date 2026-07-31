@@ -2,8 +2,9 @@
 
 ## Status
 
-Mission 14 is complete as a pre-automation foundation. Skunkworks can prepare,
-validate, classify, display, and journal commands, but it cannot dispatch them.
+Missions 14 and 19 are complete. Skunkworks can prepare, validate, approve,
+dispatch, reconcile, and journal one policy-allowed command per execution cycle.
+The shipped configuration remains observe-only with live execution disabled.
 
 ## Flow
 
@@ -26,9 +27,19 @@ ExecutionPolicy
 Dry-Run Command Queue
     |
     v
-Action Journal
-
-No API mutation dispatcher exists yet.
+Approval / Risk Acknowledgement
+    |
+    v
+Fresh World Refresh + Second Preflight
+    |
+    v
+Per-Probe Execution Lease
+    |
+    v
+Allowlisted Capability Dispatcher
+    |
+    v
+Action Journal + Replan
 ```
 
 ## Supported Prepared Commands
@@ -51,8 +62,9 @@ planner output only.
 - `allowedCommandTypes`: automatic-mode allowlist
 - `maxCommandsPerCycle`: queue safety limit
 
-The shipped policy is observe-only with live execution disabled. Changing the
-file cannot execute a command because no dispatcher exists.
+The shipped policy is observe-only with live execution disabled. Enabling live
+execution still requires an allowlisted command type and the selected mode's
+approval requirements.
 
 ## Safety Guarantees
 
@@ -66,14 +78,21 @@ file cannot execute a command because no dispatcher exists.
 - Stable fingerprints support retries and completed-action suppression.
 - Proposed command state is appended to the SQLite action journal.
 - Command preparation has no reference to mutation gateways.
+- Dispatch refreshes the selected probe and repeats preflight validation.
+- Command approval and hazard acknowledgement are independent.
+- A durable emergency stop cancels execution before any gateway call.
+- Short-lived per-probe leases prevent overlapping mutations.
+- Completed fingerprints cannot be dispatched twice.
+- Retryable timeouts, connection failures, rate limits, and server errors use
+  bounded retry/cooldown handling.
+- Every terminal execution result triggers replanning when a callback is
+  configured.
 
-## Automation Handoff
+## Remaining Automation Handoff
 
-The future automation runtime must add:
+Later missions must add:
 
-- An explicit approval interface.
-- A dispatcher mapping each command type to its existing capability gateway.
-- Just-in-time world refresh and a second preflight.
-- Lifecycle events for approved, started, succeeded, failed, and cancelled.
-- API retry, cooldown, rate-limit, and emergency-stop controls.
-- Replanning after every completed or rejected action.
+- A player-facing approval interface (Mission 24).
+- Long-running multi-command scheduling and recovery (Missions 23 and 25).
+- Broader command translation coverage after each command receives dedicated
+  preflight rules.

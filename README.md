@@ -273,11 +273,17 @@ Completed
 - Hub, miner, and transport fleet-role blueprints
 - Future logistics handoff without premature automation
 
-### Automation
+## ✅ Missions 19–21 — Controlled Operations and Logistics
 
-- Mission 19 — Controlled Automation Runtime
-- Mission 20 — Durable Operations and Fleet Logistics
-- Mission 21 — Manny, Container, and Depot Intelligence
+- Opt-in, allowlisted one-command execution with fresh preflight validation
+- Independent approval and risk acknowledgement
+- Emergency stop, execution leases, lifecycle journal, bounded retry, and replan
+- Durable resumable Operations and six initial operation templates
+- Exclusive fleet roles, cargo delivery cycles, and tanker reserve planning
+- First-class Manny, container, and mining-depot intelligence
+
+### Remaining to 1.0
+
 - Mission 22 — Messaging, Missions, and Exploration Operations
 - Mission 23 — Refresh Scheduler, Prediction, and Operational Health
 - Mission 24 — Mission Control User Interface
@@ -303,15 +309,15 @@ Completed
 
 🚧 Active Development
 
-Missions 11–18 complete. The roadmap through 1.0 is locked in
-[`docs/roadmap.md`](docs/roadmap.md). Next: Mission 19 — Controlled Automation
-Runtime.
+Missions 11–21 complete. The roadmap through 1.0 is locked in
+[`docs/roadmap.md`](docs/roadmap.md). Next: Mission 22 — Messaging, Missions,
+and Exploration Operations.
 
 0.7.0
 
 Current Milestone
 
-Missions 17–18 — Resource Sustainability and Logistics (Complete)
+Missions 19–21 — Controlled Operations and Logistics (Complete)
 
 Current Work
 
@@ -347,10 +353,9 @@ Skunkworks now provides live operational information directly from the Von Neuma
 - Resource Intelligence
 - Runtime snapshots
 
-The intelligence, planning, safety, and pre-automation boundaries are complete.
-Development now moves to Mission 19: the Controlled Automation Runtime that
-can approve, freshly validate, dispatch, reconcile, and journal prepared
-commands.
+The controlled execution runtime, durable Operation model, fleet logistics,
+and Manny/container/depot intelligence are complete. Development now moves to
+Mission 22: messaging, missions, and exploration operations.
 
 Current Capabilities:
 

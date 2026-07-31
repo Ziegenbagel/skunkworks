@@ -27,6 +27,9 @@ The versioned schema currently stores:
 - Damage warnings
 - Missions
 - Future event domains through a generic event-record table
+- Command lifecycle history and per-probe execution leases
+- Durable Operations and their resumable current step
+- Exclusive fleet-role assignments for probes and Mannys
 
 Schema changes are recorded in `schema_migrations`.
 
