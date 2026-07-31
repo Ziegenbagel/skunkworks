@@ -16,6 +16,12 @@ from .exploration import ExplorationService, RouteScore
 from .health import HealthFinding, OperationalHealth, OperationalHealthService
 from .messaging import EventService, MessagingService, MissionService
 from .predictions import Prediction, PredictionDrift, PredictionService
+from .transport_cycles import (
+    RoundTripTransportPlan,
+    RoundTripTransportService,
+    TransportCycleAssessment,
+    TransportCycleState,
+)
 
 __all__ = [
     "Operation",
@@ -39,4 +45,8 @@ __all__ = [
     "Prediction",
     "PredictionDrift",
     "PredictionService",
+    "RoundTripTransportPlan",
+    "RoundTripTransportService",
+    "TransportCycleAssessment",
+    "TransportCycleState",
 ]

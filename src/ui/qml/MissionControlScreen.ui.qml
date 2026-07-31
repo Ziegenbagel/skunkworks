@@ -212,26 +212,27 @@ Rectangle {
                             Layout.columnSpan: 7
                             Layout.fillWidth: true
                             Layout.preferredHeight: 270
+                            title: "Live Sector View"
+                            contentItem: SectorView { anchors.fill: parent }
+                        }
+
+                        PanelFrame {
+                            Layout.columnSpan: 12
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 145
                             title: "Current Operation"
-                            contentItem: Column {
+                            contentItem: RowLayout {
                                 width: parent.width
-                                spacing: 12
-                                RowLayout {
-                                    width: parent.width
-                                    Label { text: "EXPAND MINING · METALS"; color: Constants.textColor; font.bold: true; font.pixelSize: 15 }
-                                    Item { Layout.fillWidth: true }
-                                    StatusPill { label: "ACTIVE"; statusColor: Constants.noticeColor }
+                                Label { text: "EXPAND MINING · METALS"; color: Constants.textColor; font.bold: true; font.pixelSize: 14 }
+                                StatusPill { label: "ACTIVE"; statusColor: Constants.noticeColor }
+                                Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 42; color: Constants.lineColor }
+                                Column {
+                                    Label { text: "STEP 2 OF 4 · ESTABLISH STORAGE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
+                                    Label { text: "NEXT  Assign mining Mannys to MN-184"; color: Constants.mutedTextColor; font.pixelSize: 10 }
                                 }
-                                Label { text: "STEP 2 OF 4  ·  ESTABLISH STORAGE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
-                                ProgressBar { width: parent.width; value: 0.43 }
-                                Rectangle { width: parent.width; height: 1; color: Constants.lineColor }
-                                Label { text: "NEXT  Assign mining Mannys to Asteroid MN-184"; color: Constants.textColor }
-                                Label { text: "ETA  01:42:18  ·  CONFIDENCE  78%"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
-                                Row {
-                                    spacing: 8
-                                    Button { text: "INSPECT" }
-                                    Button { text: "PAUSE" }
-                                }
+                                ProgressBar { Layout.fillWidth: true; value: 0.43 }
+                                Label { text: "ETA 01:42:18"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 10 }
+                                Button { text: "INSPECT" }
                             }
                         }
 

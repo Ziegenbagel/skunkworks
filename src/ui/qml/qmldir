@@ -5,3 +5,4 @@ PanelFrame 1.0 components/PanelFrame.qml
 StatusPill 1.0 components/StatusPill.qml
 MetricTile 1.0 components/MetricTile.qml
 TelemetryBar 1.0 components/TelemetryBar.qml
+SectorView 1.0 components/SectorView.qml

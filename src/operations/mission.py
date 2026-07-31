@@ -149,6 +149,10 @@ class OperationFactory:
         "rescue_and_recovery": (
             "locate_asset", "plan_search_corridor", "dispatch_support", "recover_asset",
         ),
+        "round_trip_transport": (
+            "travel_to_source", "load_to_threshold", "travel_to_destination",
+            "unload_to_threshold", "protect_return_fuel", "repeat_or_complete",
+        ),
     }
 
     @classmethod

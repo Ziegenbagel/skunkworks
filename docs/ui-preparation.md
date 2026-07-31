@@ -42,6 +42,9 @@ Window archetypes:
 - Critical findings and approval queue.
 - Upcoming events and away/command briefing.
 - Resource sustainability and depot collection warnings.
+- A live sector view occupies the visual center, showing the focused probe,
+  observable objects, asteroids, Mannys, containers, infrastructure, hazards,
+  and current route context at the available knowledge level.
 
 ### Fleet
 
@@ -56,6 +59,9 @@ Window archetypes:
 - Pause/resume/cancel controls, blockers, assigned assets, and explanations.
 - Command preview, approval, separate hazard acknowledgement, and execution
   lifecycle.
+- Round-trip transport editor with probe, source, destination, return point,
+  resource, load/unload thresholds, repeat behavior, and protected-deuterium
+  reserve preview.
 
 ### Navigation
 
