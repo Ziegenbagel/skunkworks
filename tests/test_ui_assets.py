@@ -167,14 +167,26 @@ def test_navigation_separates_manual_transport_and_scanning_workflows():
 def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     inventory = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
     resources = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text()
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
 
-    assert "RENAME PROBE" in inventory
+    assert "RENAME FOCUSED PROBE" in fleet
     assert "RENAME" in inventory
-    assert "Priority routing" in inventory
-    assert "Exclusion routing" in inventory
-    assert "Strict exclusion" in inventory
+    assert "PREFERRED CONTENTS" in inventory
+    assert "ANY CONTENTS" in inventory
     assert "MOVE STOCK BETWEEN CONTAINERS" in inventory
     assert "STORED ITEMS & EQUIPMENT" in inventory
     assert "CONFIRM STORAGE TRANSFER" in inventory
     assert "INVENTORY & CONTAINERS" in resources
     assert "replaceAll(" not in inventory
+
+
+def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
+    logbook = Path("src/ui/qml/components/LogbookWorkspace.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text()
+
+    assert "PROBE LOGBOOK PAGES" in logbook
+    assert "+ NEW PAGE" in logbook
+    assert "SAVE CHANGES" in logbook
+    assert "DELETE LOGBOOK PAGE?" in logbook
+    assert "AUTO-LOG MAJOR SKUNKWORKS REPORTS & DISCOVERIES" in logbook
+    assert "loadLogbookPage" in app

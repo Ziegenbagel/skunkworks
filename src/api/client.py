@@ -128,6 +128,8 @@ class GameClient:
             raise ApiRateLimitError(retry_after)
 
         response.raise_for_status()
+        if response.status_code == 204:
+            return {}
         return response.json()
 
     def _capture_rate_limit(self, response):

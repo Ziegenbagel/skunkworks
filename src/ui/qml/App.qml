@@ -164,5 +164,25 @@ ApplicationWindow {
         function onStorageMoveRequested(payload) {
             if (window.backend) window.backend.moveStorage(payload);
         }
+
+        function onLogbookCreateRequested(title, content) {
+            if (window.backend) window.backend.createLogbookPage(title, content);
+        }
+
+        function onLogbookUpdateRequested(pageId, title, content) {
+            if (window.backend) window.backend.updateLogbookPage(pageId, title, content);
+        }
+
+        function onLogbookDeleteRequested(pageId) {
+            if (window.backend) window.backend.deleteLogbookPage(pageId);
+        }
+
+        function onAutoLogbookChanged(enabled) {
+            if (window.backend) window.backend.setAutoLogbookEnabled(enabled);
+        }
+
+        function onLogbookPageOpenRequested(pageId) {
+            if (window.backend) window.backend.loadLogbookPage(pageId);
+        }
     }
 }

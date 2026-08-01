@@ -30,6 +30,11 @@ PanelFrame {
     signal containerRenameRequested(string containerId, string label)
     signal storageRulesSaveRequested(string containerId, var rules)
     signal storageMoveRequested(var payload)
+    signal logbookCreateRequested(string title, string content)
+    signal logbookUpdateRequested(int pageId, string title, string content)
+    signal logbookDeleteRequested(int pageId)
+    signal autoLogbookChanged(bool enabled)
+    signal logbookPageOpenRequested(int pageId)
 
     title: section
 
@@ -131,8 +136,28 @@ PanelFrame {
             onStorageMoveRequested: payload => root.storageMoveRequested(payload)
         }
 
+        FleetWorkspace {
+            anchors.fill: parent
+            visible: root.section === "FLEET"
+            probes: root.availableProbes
+            focusedProbeId: root.focusedProbeId
+            onProbeSelected: probeId => root.probeSelected(probeId)
+            onProbeRenameRequested: name => root.probeRenameRequested(name)
+        }
+
+        LogbookWorkspace {
+            anchors.fill: parent
+            visible: root.section === "LOGBOOK"
+            logbookData: root.dashboardData.logbook || ({})
+            onCreateRequested: (title, content) => root.logbookCreateRequested(title, content)
+            onUpdateRequested: (pageId, title, content) => root.logbookUpdateRequested(pageId, title, content)
+            onDeleteRequested: pageId => root.logbookDeleteRequested(pageId)
+            onAutoLoggingChanged: enabled => root.autoLogbookChanged(enabled)
+            onPageOpenRequested: pageId => root.logbookPageOpenRequested(pageId)
+        }
+
         Column {
-            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES"
+            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES" && root.section !== "FLEET" && root.section !== "LOGBOOK"
             anchors.fill: parent
             spacing: 12
 

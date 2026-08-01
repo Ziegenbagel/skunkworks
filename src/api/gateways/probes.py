@@ -89,10 +89,11 @@ class ProbeGateway:
             json=changes,
         )
 
-    def logbook_pages(self, probe_id):
+    def logbook_pages(self, probe_id, limit=100, offset=0):
         return self.client.request(
             "GET",
             f"/api/probe/{probe_id}/logbook-pages",
+            params={"limit": limit, "offset": offset},
         )
 
     def create_logbook_page(self, probe_id, payload):

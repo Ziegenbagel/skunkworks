@@ -13,8 +13,22 @@ Item {
     signal storageRulesSaveRequested(string containerId, var rules)
     signal storageMoveRequested(var payload)
 
-    function splitRules(value) {
-        return String(value || "").split(",").map(item => item.trim()).filter(item => item.length > 0);
+    readonly property var preferredContentOptions: [
+        {"text": "ANY CONTENTS", "value": "any"},
+        {"text": "METALS", "value": "metals"},
+        {"text": "ICE", "value": "ice"},
+        {"text": "CARBON COMPOUNDS", "value": "carbon_compounds"}
+    ]
+    function preferredContent(container) {
+        const priority = container.rules && container.rules.priority || [];
+        for (let i = 0; i < priority.length; ++i)
+            if (["metals", "ice", "carbon_compounds"].indexOf(String(priority[i])) >= 0) return String(priority[i]);
+        return "any";
+    }
+    function simpleRules(value) {
+        if (value === "any") return {"priority": [], "exclusion": [], "strictExclusion": []};
+        const resources = ["metals", "ice", "carbon_compounds"];
+        return {"priority": [value], "exclusion": [], "strictExclusion": resources.filter(item => item !== value)};
     }
     function movePayload() {
         const payload = {
@@ -38,16 +52,6 @@ Item {
             width: root.width - 20; spacing: 18
             Label { text: "INVENTORY & CONTAINER CONTROL"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
             Label { Layout.fillWidth: true; text: "Manage the focused probe and its attached storage. Every transfer is performed by an available onboard Manny and requires confirmation."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap }
-
-            GroupBox {
-                title: "PROBE IDENTITY"; Layout.fillWidth: true
-                RowLayout {
-                    anchors.fill: parent
-                    Label { text: "CURRENT NAME · " + (root.inventoryData.probeName || "Probe"); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
-                    TextField { id: probeName; Layout.fillWidth: true; placeholderText: "New probe name" }
-                    Button { text: "RENAME PROBE"; enabled: probeName.text.trim().length > 0; onClicked: root.probeRenameRequested(probeName.text) }
-                }
-            }
 
             GroupBox {
                 title: "MOVE STOCK BETWEEN CONTAINERS"; Layout.fillWidth: true
@@ -81,16 +85,18 @@ Item {
                     delegate: Rectangle {
                         id: containerCard; required property var modelData
                         Layout.preferredWidth: (root.width - (containerGrid.columns - 1) * containerGrid.columnSpacing) / containerGrid.columns
-                        implicitHeight: containerControls.implicitHeight + 36; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
+                        implicitHeight: 220; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
                         ColumnLayout {
                             id: containerControls; anchors.fill: parent; anchors.margins: 18; spacing: 10
                             Label { Layout.fillWidth: true; text: String(containerCard.modelData.label || containerCard.modelData.id).toUpperCase() + " · " + Number(containerCard.modelData.usedCapacity || 0).toFixed(2) + " / " + Number(containerCard.modelData.capacity || 0).toFixed(2) + " ECE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true; wrapMode: Text.Wrap }
                             RowLayout { Layout.fillWidth: true; TextField { id: containerLabel; Layout.fillWidth: true; placeholderText: "New container label" } Button { text: "RENAME"; enabled: containerLabel.text.trim().length > 0; onClicked: root.containerRenameRequested(String(containerCard.modelData.id), containerLabel.text) } }
-                            Label { text: "Comma-separated inventory types, such as metals, ice, manny, scut_relay"; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 13; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                            TextField { id: priorityRules; Layout.fillWidth: true; placeholderText: "Priority routing"; text: (containerCard.modelData.rules && containerCard.modelData.rules.priority || []).join(", ") }
-                            TextField { id: exclusionRules; Layout.fillWidth: true; placeholderText: "Exclusion routing"; text: (containerCard.modelData.rules && containerCard.modelData.rules.exclusion || []).join(", ") }
-                            TextField { id: strictRules; Layout.fillWidth: true; placeholderText: "Strict exclusion"; text: (containerCard.modelData.rules && containerCard.modelData.rules.strictExclusion || []).join(", ") }
-                            Button { text: "SAVE ROUTING RULES"; Layout.alignment: Qt.AlignRight; onClicked: root.storageRulesSaveRequested(String(containerCard.modelData.id), {"priority": root.splitRules(priorityRules.text), "exclusion": root.splitRules(exclusionRules.text), "strictExclusion": root.splitRules(strictRules.text)}) }
+                            Label { text: "PREFERRED CONTENTS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                ComboBox { id: preferredContents; Layout.fillWidth: true; textRole: "text"; valueRole: "value"; model: root.preferredContentOptions; Component.onCompleted: currentIndex = Math.max(0, ["any", "metals", "ice", "carbon_compounds"].indexOf(root.preferredContent(containerCard.modelData))) }
+                                Button { text: "SAVE CONTENT RULE"; onClicked: root.storageRulesSaveRequested(String(containerCard.modelData.id), root.simpleRules(String(preferredContents.currentValue))) }
+                            }
+                            Label { Layout.fillWidth: true; text: preferredContents.currentValue === "any" ? "New resources and items may be routed here normally." : "Prioritizes " + String(preferredContents.currentText).toLowerCase() + " and prevents automatic placement of other resource categories."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 13; wrapMode: Text.Wrap }
                         }
                     }
                 }
@@ -104,10 +110,11 @@ Item {
                     delegate: Rectangle {
                         id: itemCard; required property var modelData
                         Layout.preferredWidth: (root.width - (itemGrid.columns - 1) * itemGrid.columnSpacing) / itemGrid.columns
-                        implicitHeight: itemDetails.implicitHeight + 28; color: Constants.panelColor; border.color: Constants.lineColor; radius: 3
+                        implicitHeight: 94; color: Constants.panelColor; border.color: Constants.lineColor; radius: 3
                         ColumnLayout { id: itemDetails; anchors.fill: parent; anchors.margins: 14
                             Label { Layout.fillWidth: true; text: itemCard.modelData.name; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap }
-                            Label { Layout.fillWidth: true; text: String(itemCard.modelData.type).split("_").join(" ").toUpperCase() + " · " + itemCard.modelData.containerLabel + " · " + Number(itemCard.modelData.containerSpace).toFixed(2) + " ECE"; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
+                            Label { Layout.fillWidth: true; text: "STORED IN · " + String(itemCard.modelData.containerLabel || itemCard.modelData.containerId).toUpperCase(); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true; wrapMode: Text.Wrap }
+                            Label { Layout.fillWidth: true; text: String(itemCard.modelData.type).split("_").join(" ").toUpperCase() + " · " + Number(itemCard.modelData.containerSpace).toFixed(2) + " ECE"; color: Constants.mutedTextColor; font.pixelSize: 12; wrapMode: Text.Wrap }
                         }
                     }
                 }
