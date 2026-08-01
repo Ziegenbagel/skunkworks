@@ -119,3 +119,16 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "View3D" in galaxy
     assert "OrbitCameraController" in galaxy
     assert "Repeater3D" in galaxy
+
+
+def test_settings_exposes_policy_gated_automation_queue_and_approval():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text()
+
+    assert "AUTOMATION EXECUTION" in settings
+    assert "ENABLE LIVE API COMMANDS" in settings
+    assert "COMMAND ALLOWLIST" in settings
+    assert "PROPOSED COMMAND QUEUE" in settings
+    assert "automationApprovalRequested" in settings
+    assert "saveExecutionPolicy" in app
+    assert "runAutomationCycle" in app

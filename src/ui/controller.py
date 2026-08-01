@@ -6,7 +6,7 @@ import traceback
 from dataclasses import asdict
 
 import requests
-from PySide6.QtCore import QObject, Property, QRunnable, QThreadPool, Signal, Slot
+from PySide6.QtCore import QObject, Property, QRunnable, QThreadPool, QTimer, Signal, Slot
 
 from src.api.capabilities import GameCapabilities
 from src.api.client import GameClient
@@ -27,6 +27,12 @@ from src.planner.desired_state_store import DesiredStateStore
 from src.models.galaxy import SectorCoordinates
 from src.snapshot.manager import SnapshotManager
 from src.security import CredentialStore
+from src.planner.planner import Planner
+from src.execution import (
+    AutomationRuntime, CapabilityDispatcher, CommandPreparer,
+    ExecutionMode, ExecutionPolicy,
+)
+from src.execution.policy import ExecutionPolicyStore
 
 
 class MissionControlDataService:
@@ -52,6 +58,7 @@ class MissionControlDataService:
         self._operations = None
         self._selected_probe_id = None
         self._last_scan_result = None
+        self._prepared_commands = ()
 
     def load(self, probe_id=None):
         self._initialize()
@@ -135,7 +142,89 @@ class MissionControlDataService:
             for row in FleetRoleService(self.data_engine).all("probe")
         }
         dashboard["automation"] = automation
+        dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
         return dashboard
+
+    def automation_view(self, operations=None, probe_id=None):
+        operations = operations or self._operations
+        probe_id = probe_id or self._selected_probe_id
+        policy = ExecutionPolicyStore().load()
+        if operations is None or probe_id is None:
+            self._prepared_commands = ()
+        else:
+            tasks = Planner(
+                operations,
+                DesiredStateStore(self.data_engine).load(),
+            ).tasks()
+            self._prepared_commands = CommandPreparer(
+                operations, probe_id, policy,
+            ).prepare(tasks)
+        return {
+            "mode": policy.mode.value,
+            "liveExecutionEnabled": policy.live_execution_enabled,
+            "allowedCommandTypes": [item.value for item in sorted(policy.allowed_command_types, key=lambda item: item.value)],
+            "maxCommandsPerCycle": policy.max_commands_per_cycle,
+            "queue": [self._prepared_view(item) for item in self._prepared_commands],
+            "emergencyStopActive": self.data_engine.emergency_stop_active(),
+        }
+
+    @staticmethod
+    def _prepared_view(prepared):
+        command = prepared.command
+        return {
+            "fingerprint": command.fingerprint,
+            "type": command.type.value,
+            "probeId": command.probe_id,
+            "targetId": command.target_id,
+            "reason": command.reason,
+            "priority": command.priority,
+            "disposition": prepared.disposition,
+            "blockers": list(prepared.blockers),
+            "warnings": [asdict(item) for item in prepared.warnings],
+            "payload": command.payload,
+        }
+
+    def save_execution_policy(self, value):
+        policy = ExecutionPolicy.from_dict(value)
+        ExecutionPolicyStore().save(policy)
+        return self.automation_view()
+
+    def run_automation_cycle(self, fingerprint=None, risk_acknowledged=False):
+        policy = ExecutionPolicyStore().load()
+        self.automation_view()
+        candidates = [
+            item for item in self._prepared_commands
+            if fingerprint is None or item.command.fingerprint == fingerprint
+        ]
+        if not candidates:
+            return {"status": "idle", "message": "No actionable automation command is queued."}
+        prepared = candidates[0]
+        if policy.mode == ExecutionMode.OBSERVE:
+            return {"status": "observe_only", "message": "Observe mode never sends commands."}
+        if policy.mode == ExecutionMode.APPROVE and fingerprint is None:
+            return {"status": "awaiting_approval", "message": "Select and approve a queued command."}
+        runtime = AutomationRuntime(
+            capabilities=self.capabilities,
+            data_engine=self.data_engine,
+            policy=policy,
+            dispatcher=CapabilityDispatcher(self.capabilities),
+            refresh=self._refresh_operations,
+        )
+        result = runtime.execute(
+            prepared,
+            approved=policy.mode == ExecutionMode.APPROVE,
+            risk_acknowledged=risk_acknowledged,
+        )
+        return {
+            "status": result.status,
+            "message": result.status.replace("_", " ").title(),
+            "blockers": list(result.blockers),
+            "fingerprint": prepared.command.fingerprint,
+        }
+
+    def _refresh_operations(self, probe_id):
+        self.load(probe_id)
+        return self._operations
 
     def preview_travel(self, probe_id, target, route_mode="segmented"):
         if self._operations is None or int(probe_id) != int(self._selected_probe_id):
@@ -313,6 +402,9 @@ class MissionControlController(QObject):
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
+        self._automation_timer = QTimer(self)
+        self._automation_timer.setInterval(60_000)
+        self._automation_timer.timeout.connect(self._automation_tick)
 
     @Property("QVariantMap", notify=dashboardChanged)
     def dashboard(self):
@@ -419,6 +511,60 @@ class MissionControlController(QObject):
         self.settings_engine.set_preference("onboarding_complete", "false")
         self.onboardingChanged.emit()
 
+    @Slot("QVariantMap")
+    def saveExecutionPolicy(self, value):
+        if self.service is None:
+            self._set_error("Refresh live account data before configuring automation.")
+            return
+        try:
+            runtime = self.service.save_execution_policy(self._qt_safe(value))
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._dashboard["automationRuntime"] = self._qt_safe(runtime)
+        self._configure_automation_timer(runtime)
+        self._set_error("")
+        self.dashboardChanged.emit()
+
+    @Slot()
+    def runAutomationCycle(self):
+        self._run_automation(None, False)
+
+    @Slot(str, bool)
+    def approveAutomationCommand(self, fingerprint, risk_acknowledged=False):
+        self._run_automation(fingerprint, risk_acknowledged)
+
+    def _run_automation(self, fingerprint, risk_acknowledged):
+        if self.service is None or self._refreshing:
+            return
+        try:
+            result = self.service.run_automation_cycle(fingerprint, risk_acknowledged)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        runtime = dict(self._dashboard.get("automationRuntime", {}))
+        runtime["lastResult"] = self._qt_safe(result)
+        self._dashboard["automationRuntime"] = runtime
+        self.dashboardChanged.emit()
+        if result.get("status") == "succeeded":
+            self._start_refresh(self._focused_probe_id)
+
+    def _automation_tick(self):
+        runtime = self._dashboard.get("automationRuntime", {})
+        if (
+            runtime.get("mode") == "automatic"
+            and runtime.get("liveExecutionEnabled")
+            and not self._emergency_stop
+        ):
+            self._run_automation(None, False)
+
+    def _configure_automation_timer(self, runtime):
+        enabled = runtime.get("mode") == "automatic" and runtime.get("liveExecutionEnabled")
+        if enabled and not self._automation_timer.isActive():
+            self._automation_timer.start()
+        elif not enabled:
+            self._automation_timer.stop()
+
     def _set_credential_message(self, message):
         if message == self._credential_message:
             return
@@ -472,6 +618,10 @@ class MissionControlController(QObject):
             self._set_error(str(error) or type(error).__name__)
             return
         self._dashboard["automation"] = self._qt_safe(state.to_dict())
+        runtime = self.service.automation_view()
+        self._dashboard["automationRuntime"] = self._qt_safe(runtime)
+        self._configure_automation_timer(runtime)
+        self._set_error("")
         self.dashboardChanged.emit()
 
     @Slot(int, str)
@@ -592,6 +742,7 @@ class MissionControlController(QObject):
         }
         payload = self._qt_safe(payload)
         self._dashboard = payload
+        self._configure_automation_timer(payload.get("automationRuntime", {}))
         self.dashboardChanged.emit()
 
         emergency_stop = bool(payload.get("emergencyStopActive", False))

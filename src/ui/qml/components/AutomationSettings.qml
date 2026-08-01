@@ -7,6 +7,7 @@ import ".."
 Item {
     id: root
     property var settingsData: ({})
+    property var runtimeData: ({})
     property var availableProbes: []
     property var credentialData: ({})
     signal saveRequested(var settings)
@@ -15,6 +16,9 @@ Item {
     signal apiKeyTestRequested()
     signal apiKeyRemoveRequested()
     signal onboardingResetRequested()
+    signal executionPolicySaveRequested(var policy)
+    signal automationCycleRequested()
+    signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -31,6 +35,34 @@ Item {
     }
     function reserve(resource) { return Number((settingsData.resourceReserves || {})[resource] || 0); }
     function roleFor(probeId) { return (settingsData.probeRoles || {})[String(probeId)] || "unassigned"; }
+    function commandAllowed(commandType) {
+        return (runtimeData.allowedCommandTypes || []).indexOf(commandType) >= 0;
+    }
+    function executionPolicyPayload() {
+        const allowed = [];
+        if (craftCommands.checked) {
+            allowed.push("manny_craft");
+            allowed.push("atomic_printer_craft");
+        }
+        if (miningCommands.checked) allowed.push("manny_mine");
+        if (travelCommands.checked) allowed.push("move_probe");
+        return {
+            "mode": executionMode.currentValue,
+            "liveExecutionEnabled": liveExecution.checked,
+            "allowedCommandTypes": allowed,
+            "maxCommandsPerCycle": commandsPerCycle.value
+        };
+    }
+    function syncExecutionControls() {
+        executionMode.currentIndex = Math.max(0, ["observe", "approve", "automatic"].indexOf(String(runtimeData.mode || "observe")));
+        liveExecution.checked = Boolean(runtimeData.liveExecutionEnabled);
+        commandsPerCycle.value = Number(runtimeData.maxCommandsPerCycle || 1);
+        craftCommands.checked = commandAllowed("manny_craft") || commandAllowed("atomic_printer_craft");
+        miningCommands.checked = commandAllowed("manny_mine");
+        travelCommands.checked = commandAllowed("move_probe");
+    }
+    onRuntimeDataChanged: syncExecutionControls()
+    Component.onCompleted: syncExecutionControls()
     function payload() {
         const production = [];
         const existing = settingsData.production || [];
@@ -82,6 +114,83 @@ Item {
                     Label { text: root.credentialData.configured ? "CONFIGURED · " + String(root.credentialData.source || "vault").split("_").join(" ").toUpperCase() : "NOT CONFIGURED"; color: root.credentialData.configured ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { visible: Boolean(root.credentialData.message); Layout.fillWidth: true; text: root.credentialData.message || ""; color: Constants.cyanColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                     Button { text: "RUN FIRST-LAUNCH WALKTHROUGH AGAIN"; onClicked: root.onboardingResetRequested() }
+                }
+            }
+
+            GroupBox {
+                title: "AUTOMATION EXECUTION"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 10
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Targets create proposed actions. Observe only previews them; Approval requires a click for each command; Automatic evaluates the queue every 60 seconds. Every command is refreshed, safety-checked, allowlisted, and stopped by the emergency stop."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    GridLayout {
+                        Layout.fillWidth: true; columns: 4; columnSpacing: 18; rowSpacing: 8
+                        Label { text: "EXECUTION MODE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        ComboBox {
+                            id: executionMode
+                            Layout.preferredWidth: 190
+                            textRole: "text"; valueRole: "value"
+                            model: [
+                                {"text": "OBSERVE ONLY", "value": "observe"},
+                                {"text": "REQUIRE APPROVAL", "value": "approve"},
+                                {"text": "AUTOMATIC", "value": "automatic"}
+                            ]
+                        }
+                        CheckBox { id: liveExecution; text: "ENABLE LIVE API COMMANDS"; checked: Boolean(root.runtimeData.liveExecutionEnabled) }
+                        SpinBox { id: commandsPerCycle; from: 1; to: 10; value: Number(root.runtimeData.maxCommandsPerCycle || 1) }
+                        Label { text: "COMMAND ALLOWLIST"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        CheckBox { id: craftCommands; text: "CRAFTING"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") }
+                        CheckBox { id: miningCommands; text: "MINING"; checked: root.commandAllowed("manny_mine") }
+                        CheckBox { id: travelCommands; text: "TRAVEL"; checked: root.commandAllowed("move_probe") }
+                    }
+                    Label {
+                        visible: Boolean(root.runtimeData.emergencyStopActive)
+                        text: "EMERGENCY STOP ACTIVE · NO AUTOMATION COMMANDS CAN BE SENT"
+                        color: Constants.criticalColor; font.family: Constants.technicalFont; font.bold: true
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Button { text: "SAVE EXECUTION POLICY"; onClicked: root.executionPolicySaveRequested(root.executionPolicyPayload()) }
+                        Button { text: "EVALUATE / RUN ONE CYCLE"; enabled: !root.runtimeData.emergencyStopActive; onClicked: root.automationCycleRequested() }
+                        Label {
+                            Layout.fillWidth: true
+                            text: root.runtimeData.lastResult ? String(root.runtimeData.lastResult.message || root.runtimeData.lastResult.status).toUpperCase() : "NO EXECUTION ATTEMPT THIS SESSION"
+                            color: Constants.mutedTextColor; font.family: Constants.technicalFont; horizontalAlignment: Text.AlignRight
+                        }
+                    }
+                    Label { text: "PROPOSED COMMAND QUEUE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    Repeater {
+                        model: root.runtimeData.queue || []
+                        delegate: Rectangle {
+                            id: commandRow
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: commandDetails.implicitHeight + 20
+                            color: Constants.raisedColor; border.color: Constants.lineColor; radius: 2
+                            RowLayout {
+                                id: commandDetails
+                                anchors.fill: parent; anchors.margins: 10; spacing: 12
+                                Label { text: "P" + commandRow.modelData.priority; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                                ColumnLayout {
+                                    Layout.fillWidth: true; spacing: 3
+                                    Label { Layout.fillWidth: true; text: String(commandRow.modelData.type).split("_").join(" ").toUpperCase() + " · " + String(commandRow.modelData.disposition).split("_").join(" ").toUpperCase(); color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true }
+                                    Label { Layout.fillWidth: true; text: commandRow.modelData.reason || "Proposed automation action"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                    Label { visible: (commandRow.modelData.blockers || []).length > 0; Layout.fillWidth: true; text: "BLOCKED · " + (commandRow.modelData.blockers || []).join(", "); color: Constants.criticalColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                }
+                                CheckBox { id: riskAcknowledgement; visible: (commandRow.modelData.warnings || []).length > 0; text: "ACKNOWLEDGE RISK" }
+                                Button {
+                                    text: "APPROVE"
+                                    visible: String(root.runtimeData.mode) === "approve"
+                                    enabled: !(commandRow.modelData.blockers || []).length && !root.runtimeData.emergencyStopActive
+                                    onClicked: root.automationApprovalRequested(String(commandRow.modelData.fingerprint), riskAcknowledgement.checked)
+                                }
+                            }
+                        }
+                    }
+                    Label { visible: !(root.runtimeData.queue || []).length; text: "NO ACTIONABLE COMMANDS · TARGETS MAY ALREADY BE SATISFIED OR NO READY ASSET IS AVAILABLE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                 }
             }
 

@@ -10,6 +10,7 @@ from src.execution import (
     ExecutionPolicy,
 )
 from src.execution.journal import ActionJournal
+from src.execution.policy import ExecutionPolicyStore
 from src.models.galaxy import SectorCoordinates
 from src.planner.desired_state import (
     DesiredState,
@@ -155,6 +156,20 @@ class ExecutionBoundaryTests(unittest.TestCase):
             prepared[0].disposition,
             "awaiting_approval",
         )
+
+    def test_execution_policy_store_round_trips_live_controls(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            store = ExecutionPolicyStore(Path(temporary) / "execution.json")
+            expected = ExecutionPolicy(
+                mode=ExecutionMode.AUTOMATIC,
+                live_execution_enabled=True,
+                allowed_command_types=frozenset({CommandType.MANNY_CRAFT}),
+                max_commands_per_cycle=3,
+            )
+
+            store.save(expected)
+
+            self.assertEqual(store.load(), expected)
 
     def test_travel_warning_is_advisory_by_default(self):
         self.operations.world.probe["inventory"][

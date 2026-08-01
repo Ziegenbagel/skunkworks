@@ -62,3 +62,14 @@ class ExecutionPolicyStore:
 
         with self.path.open("r", encoding="utf-8") as file:
             return ExecutionPolicy.from_dict(json.load(file))
+
+    def save(self, policy):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8") as file:
+            json.dump({
+                "mode": policy.mode.value,
+                "liveExecutionEnabled": policy.live_execution_enabled,
+                "allowedCommandTypes": sorted(item.value for item in policy.allowed_command_types),
+                "maxCommandsPerCycle": policy.max_commands_per_cycle,
+            }, file, indent=2)
+            file.write("\n")

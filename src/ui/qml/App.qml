@@ -132,5 +132,17 @@ ApplicationWindow {
         function onOnboardingResetRequested() {
             if (window.backend) window.backend.resetOnboarding();
         }
+
+        function onExecutionPolicySaveRequested(policy) {
+            if (window.backend) window.backend.saveExecutionPolicy(policy);
+        }
+
+        function onAutomationCycleRequested() {
+            if (window.backend) window.backend.runAutomationCycle();
+        }
+
+        function onAutomationApprovalRequested(fingerprint, riskAcknowledged) {
+            if (window.backend) window.backend.approveAutomationCommand(fingerprint, riskAcknowledged);
+        }
     }
 }

@@ -124,6 +124,20 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("MINING METALS, ICE", work[1]["displayText"])
         self.assertIn("Estimated completion", work[0]["detailText"])
 
+    def test_production_includes_idle_mannies_and_order_readiness(self):
+        work = MissionControlViewModelBuilder._production(
+            {"inventory": {"items": []}},
+            {"mannies": [
+                {"id": "ready", "name": "Manny Ready", "currentTask": None, "canReceiveOrders": True},
+                {"id": "busy", "name": "Manny Offline", "currentTask": None, "canReceiveOrders": False},
+            ]},
+        )
+
+        self.assertEqual(len(work), 2)
+        self.assertEqual(work[0]["taskType"], "idle")
+        self.assertIn("IDLE · READY", work[0]["displayText"])
+        self.assertIn("Can receive automation order: No", work[1]["detailText"])
+
     def test_controller_persists_probe_role_and_updates_live_settings(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")

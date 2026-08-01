@@ -21,6 +21,9 @@ PanelFrame {
     signal apiKeyTestRequested()
     signal apiKeyRemoveRequested()
     signal onboardingResetRequested()
+    signal executionPolicySaveRequested(var policy)
+    signal automationCycleRequested()
+    signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
 
     title: section
 
@@ -80,6 +83,7 @@ PanelFrame {
             anchors.fill: parent
             visible: root.section === "SETTINGS"
             settingsData: root.dashboardData.automation || ({})
+            runtimeData: root.dashboardData.automationRuntime || ({})
             credentialData: root.dashboardData.credentials || ({})
             availableProbes: root.availableProbes
             onSaveRequested: settings => root.automationSettingsSaved(settings)
@@ -88,6 +92,9 @@ PanelFrame {
             onApiKeyTestRequested: root.apiKeyTestRequested()
             onApiKeyRemoveRequested: root.apiKeyRemoveRequested()
             onOnboardingResetRequested: root.onboardingResetRequested()
+            onExecutionPolicySaveRequested: policy => root.executionPolicySaveRequested(policy)
+            onAutomationCycleRequested: root.automationCycleRequested()
+            onAutomationApprovalRequested: (fingerprint, riskAcknowledged) => root.automationApprovalRequested(fingerprint, riskAcknowledged)
         }
 
         NavigationControl {

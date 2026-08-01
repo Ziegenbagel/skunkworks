@@ -316,6 +316,20 @@ class MissionControlViewModelBuilder:
         for manny in (mannies or {}).get("mannies", ()):
             task_type = manny.get("currentTask")
             if not task_type:
+                ready = bool(manny.get("canReceiveOrders", False))
+                work.append({
+                    "id": str(manny.get("id", manny.get("name", len(work)))),
+                    "asset": manny.get("name", "Manny"),
+                    "taskType": "idle",
+                    "name": "Idle · Ready" if ready else "Idle · Unavailable",
+                    "progress": 0,
+                    "eta": "—",
+                    "displayText": f"{manny.get('name', 'MANNY')} · IDLE · {'READY' if ready else 'UNAVAILABLE'}",
+                    "detailText": (
+                        f"Asset: {manny.get('name', 'Manny')}\n"
+                        f"Status: Idle\nCan receive automation order: {'Yes' if ready else 'No'}"
+                    ),
+                })
                 continue
             task = manny.get("task") if isinstance(manny.get("task"), dict) else {}
             progress = float(manny.get("taskProgressPercent", 0) or 0)
