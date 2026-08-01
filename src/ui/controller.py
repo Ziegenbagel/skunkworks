@@ -61,6 +61,7 @@ class MissionControlDataService:
         self._selected_probe_id = None
         self._last_scan_result = None
         self._prepared_commands = ()
+        self._logbook_page_probes = {}
 
     def load(self, probe_id=None):
         self._initialize()
@@ -150,29 +151,53 @@ class MissionControlDataService:
         ]
         dashboard["automation"] = automation
         dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
-        dashboard["logbook"] = self.logbook_view(selected["id"])
+        dashboard["logbook"] = self.logbook_view(
+            selected["id"], probe_data.get("probes", ()),
+        )
         return dashboard
 
-    def logbook_view(self, probe_id=None):
+    def logbook_view(self, probe_id=None, probes=None):
         probe_id = probe_id or self._selected_probe_id
-        summaries = self.capabilities.probes.logbook_pages(probe_id, limit=25).get("pages", ())
+        probes = tuple(probes or ({"id": probe_id, "name": f"Probe {probe_id}"},))
+        summaries = []
+        self._logbook_page_probes = {}
+        failures = []
+        for probe in probes:
+            candidate_id = probe.get("id")
+            try:
+                response = self.capabilities.probes.logbook_pages(candidate_id, limit=100)
+            except requests.RequestException as error:
+                failures.append({"probeId": candidate_id, "message": str(error)})
+                continue
+            for page in response.get("pages", ()):
+                item = dict(page)
+                item["sourceProbeId"] = candidate_id
+                item["sourceProbeName"] = probe.get("name") or f"Probe {candidate_id}"
+                summaries.append(item)
+                self._logbook_page_probes[int(item["id"])] = candidate_id
+        summaries.sort(key=lambda item: (item.get("updatedAt", ""), item.get("id", 0)), reverse=True)
         return {
-            "pages": list(summaries),
+            "pages": summaries,
+            "focusedProbeId": probe_id,
+            "failures": failures,
             "autoLoggingEnabled": self.data_engine.get_preference("auto_game_logbook", "false") == "true",
         }
 
     def get_logbook_page(self, page_id):
-        response = self.capabilities.probes.get_logbook_page(self._selected_probe_id, page_id)
+        owner = self._logbook_page_probes.get(int(page_id), self._selected_probe_id)
+        response = self.capabilities.probes.get_logbook_page(owner, page_id)
         return response.get("page", response)
 
     def create_logbook_page(self, payload):
         return self.capabilities.probes.create_logbook_page(self._selected_probe_id, payload)
 
     def update_logbook_page(self, page_id, payload):
-        return self.capabilities.probes.update_logbook_page(self._selected_probe_id, page_id, payload)
+        owner = self._logbook_page_probes.get(int(page_id), self._selected_probe_id)
+        return self.capabilities.probes.update_logbook_page(owner, page_id, payload)
 
     def delete_logbook_page(self, page_id):
-        return self.capabilities.probes.delete_logbook_page(self._selected_probe_id, page_id)
+        owner = self._logbook_page_probes.get(int(page_id), self._selected_probe_id)
+        return self.capabilities.probes.delete_logbook_page(owner, page_id)
 
     def automation_view(self, operations=None, probe_id=None):
         operations = operations or self._operations
@@ -180,6 +205,7 @@ class MissionControlDataService:
         policy = ExecutionPolicyStore().load()
         if operations is None or probe_id is None:
             self._prepared_commands = ()
+            tasks = ()
         else:
             tasks = Planner(
                 operations,
@@ -194,6 +220,13 @@ class MissionControlDataService:
             "allowedCommandTypes": [item.value for item in sorted(policy.allowed_command_types, key=lambda item: item.value)],
             "maxCommandsPerCycle": policy.max_commands_per_cycle,
             "queue": [self._prepared_view(item) for item in self._prepared_commands],
+            "planning": [{
+                "priority": task.priority,
+                "action": task.action,
+                "target": task.target or "",
+                "reason": task.reason,
+                "blockers": list(task.constraints),
+            } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
         }
 

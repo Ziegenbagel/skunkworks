@@ -197,6 +197,22 @@ Item {
                         }
                     }
                     Label { visible: !(root.runtimeData.queue || []).length; text: "NO ACTIONABLE COMMANDS · TARGETS MAY ALREADY BE SATISFIED OR NO READY ASSET IS AVAILABLE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                    Label { visible: !(root.runtimeData.queue || []).length && (root.runtimeData.planning || []).length; text: "PLANNER STATUS · WHY ORDERS ARE WAITING"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                    Repeater {
+                        model: !(root.runtimeData.queue || []).length ? (root.runtimeData.planning || []).slice(0, 8) : []
+                        delegate: Rectangle {
+                            id: waitingRow
+                            required property var modelData
+                            Layout.fillWidth: true; implicitHeight: waitingDetails.implicitHeight + 18
+                            color: Constants.raisedColor; border.color: Constants.lineColor; radius: 2
+                            ColumnLayout {
+                                id: waitingDetails; anchors.fill: parent; anchors.margins: 9; spacing: 3
+                                Label { Layout.fillWidth: true; text: "P" + waitingRow.modelData.priority + " · " + String(waitingRow.modelData.action).toUpperCase() + " · " + String(waitingRow.modelData.target).replace(/_/g, " ").toUpperCase(); color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
+                                Label { Layout.fillWidth: true; text: waitingRow.modelData.reason; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                Label { visible: (waitingRow.modelData.blockers || []).length > 0; Layout.fillWidth: true; text: "WAITING FOR · " + (waitingRow.modelData.blockers || []).join(", ").replace(/_/g, " ").toUpperCase(); color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                            }
+                        }
+                    }
                 }
             }
 

@@ -36,7 +36,7 @@ Item {
         anchors.fill: parent; spacing: 18
         ColumnLayout {
             Layout.preferredWidth: Math.max(360, root.width * 0.32); Layout.fillHeight: true; spacing: 10
-            Label { text: "PROBE LOGBOOK PAGES"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+            Label { text: "FLEET LOGBOOK PAGES"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
             Button { text: "+ NEW PAGE"; onClicked: root.clearEditor() }
             ListView {
                 id: pageList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.logbookData.pages || []
@@ -45,6 +45,7 @@ Item {
                     width: pageList.width; height: 92; color: Number(modelData.id) === root.selectedPageId ? Constants.selectedColor : Constants.raisedColor; border.color: Number(modelData.id) === root.selectedPageId ? Constants.cyanColor : Constants.lineColor; radius: 4
                     Column { anchors.fill: parent; anchors.margins: 13; spacing: 6
                         Label { width: parent.width; text: pageCard.modelData.title || "Untitled"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; elide: Text.ElideRight }
+                        Label { width: parent.width; text: "PROBE · " + String(pageCard.modelData.sourceProbeName || pageCard.modelData.probeId || "Unknown").toUpperCase(); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 11; elide: Text.ElideRight }
                         Label { width: parent.width; text: "UPDATED · " + (pageCard.modelData.updatedAt || "Unknown"); color: Constants.mutedTextColor; font.pixelSize: 12; elide: Text.ElideRight }
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.selectPage(pageCard.modelData); root.pageOpenRequested(Number(pageCard.modelData.id)); } }

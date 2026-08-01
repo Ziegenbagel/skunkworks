@@ -72,7 +72,11 @@ class MissionControlViewModelBuilder:
     @staticmethod
     def _inventory_management(world):
         inventory = world.probe.get("inventory", {})
-        containers = tuple(inventory.get("containers", ()) or ())
+        probe_name = world.probe.get("name", "Probe")
+        containers = tuple(
+            MissionControlViewModelBuilder._normalized_container(container, probe_name)
+            for container in (inventory.get("containers", ()) or ())
+        )
         items = []
         for item in inventory.get("items", ()) or ():
             container = item.get("container") or {}
@@ -81,7 +85,7 @@ class MissionControlViewModelBuilder:
                 "type": item.get("type", "unknown"),
                 "name": item.get("name") or str(item.get("type", "Unknown")).replace("_", " ").title(),
                 "containerId": container.get("id", "unknown"),
-                "containerLabel": container.get("label", "Unknown container"),
+                "containerLabel": MissionControlViewModelBuilder._container_label(container, probe_name),
                 "containerSpace": float(item.get("containerSpace", 0) or 0),
                 "currentTask": item.get("currentTask"),
             })
@@ -93,7 +97,7 @@ class MissionControlViewModelBuilder:
                     "resourceType": stock.get("type"),
                     "name": stock.get("name") or str(stock.get("type", "resource")).replace("_", " ").title(),
                     "containerId": container.get("id"),
-                    "containerLabel": container.get("label", "Unknown container"),
+                    "containerLabel": MissionControlViewModelBuilder._container_label(container, probe_name),
                     "amount": float(placement.get("amount", 0) or 0),
                 })
         idle_mannies = tuple({
@@ -109,6 +113,19 @@ class MissionControlViewModelBuilder:
             "resourcePlacements": tuple(resource_lines),
             "idleMannies": idle_mannies,
         }
+
+    @staticmethod
+    def _container_label(container, probe_name):
+        label = str(container.get("label") or "").strip()
+        if container.get("kind") == "probe" or container.get("id") == "probe-core" or label.casefold() == "sonde":
+            return f"Probe · {probe_name}"
+        return label or "Unknown container"
+
+    @classmethod
+    def _normalized_container(cls, container, probe_name):
+        result = dict(container)
+        result["label"] = cls._container_label(container, probe_name)
+        return result
 
     @classmethod
     def _resource_ledger(cls, world):

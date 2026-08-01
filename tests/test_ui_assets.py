@@ -184,7 +184,7 @@ def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     logbook = Path("src/ui/qml/components/LogbookWorkspace.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()
 
-    assert "PROBE LOGBOOK PAGES" in logbook
+    assert "FLEET LOGBOOK PAGES" in logbook
     assert "+ NEW PAGE" in logbook
     assert "SAVE CHANGES" in logbook
     assert "DELETE LOGBOOK PAGE?" in logbook

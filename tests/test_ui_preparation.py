@@ -212,7 +212,7 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(inventory["probeName"], "Carrier")
         self.assertEqual(inventory["items"][0]["type"], "deuterium_engine")
-        self.assertEqual(inventory["items"][0]["containerLabel"], "Probe")
+        self.assertEqual(inventory["items"][0]["containerLabel"], "Probe · Carrier")
 
     def test_galaxy_view_exposes_discovered_nodes_and_neighbor_links(self):
         from src.models.galaxy import GalaxyMap
