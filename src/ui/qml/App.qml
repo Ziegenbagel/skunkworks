@@ -79,5 +79,10 @@ ApplicationWindow {
             if (window.backend)
                 window.backend.saveAutomationSettings(settings);
         }
+
+        function onProbeRoleAssigned(probeId, role) {
+            if (window.backend)
+                window.backend.assignProbeRole(probeId, role);
+        }
     }
 }

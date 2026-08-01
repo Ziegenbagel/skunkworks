@@ -122,6 +122,18 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("MINING METALS, ICE", work[1]["displayText"])
         self.assertIn("Estimated completion", work[0]["detailText"])
 
+    def test_controller_persists_probe_role_and_updates_live_settings(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            service = type("Service", (), {"data_engine": engine})()
+            controller = MissionControlController(service)
+            controller._dashboard = {"automation": {"probeRoles": {}}}
+
+            controller.assignProbeRole(9, "deuterium_reserve")
+
+            self.assertEqual(controller.dashboard["automation"]["probeRoles"]["9"], "deuterium_reserve")
+            self.assertEqual(engine.fleet_roles("probe")[0]["role"], "deuterium_reserve")
+
     def test_resource_summary_uses_current_probe_fuel_and_inventory_amounts(self):
         resources = MissionControlViewModelBuilder._resources({
             "fuel": {"deuterium": 82, "maxDeuterium": 100},

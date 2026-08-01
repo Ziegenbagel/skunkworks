@@ -7,7 +7,10 @@ import ".."
 Item {
     id: root
     property var settingsData: ({})
+    property var availableProbes: []
     signal saveRequested(var settings)
+    signal roleAssignmentRequested(int probeId, string role)
+    readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
         const rows = settingsData.production || [];
@@ -22,6 +25,7 @@ Item {
         return 50;
     }
     function reserve(resource) { return Number((settingsData.resourceReserves || {})[resource] || 0); }
+    function roleFor(probeId) { return (settingsData.probeRoles || {})[String(probeId)] || "unassigned"; }
     function payload() {
         const production = [];
         const existing = settingsData.production || [];
@@ -60,23 +64,48 @@ Item {
             GroupBox {
                 title: "FLEET ASSEMBLY TARGETS"; Layout.fillWidth: true
                 GridLayout {
-                    anchors.fill: parent; columns: 4; columnSpacing: 18; rowSpacing: 10
+                    anchors.fill: parent; columns: 3; columnSpacing: 18; rowSpacing: 10
+                    Label { text: "AUTOMATION TARGET"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { text: "DESIRED QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "GENERIC PROBES"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: genericTarget; from: 0; to: 99; value: Number((root.settingsData.fleetTargets || {}).generic || 0) }
                     SpinBox { id: genericPriority; from: 1; to: 999; value: Number((root.settingsData.fleetPriorities || {}).generic || 50) }
-                    Label { text: "Manny assemble-probe workflow"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                     Label { text: "DEUTERIUM TANKERS"; color: Constants.cyanColor; font.family: Constants.technicalFont }
                     SpinBox { id: tankerTarget; from: 0; to: 99; value: Number((root.settingsData.fleetTargets || {}).deuterium_tanker || 0) }
                     SpinBox { id: tankerPriority; from: 1; to: 999; value: Number((root.settingsData.fleetPriorities || {}).deuterium_tanker || 10) }
-                    Label { text: "Requires two empty containers per tanker"; color: Constants.warningColor; font.family: Constants.technicalFont }
                     Label { text: "MANNYS"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: mannyTarget; from: 0; to: 999; value: root.productionQuantity("manny") }
                     SpinBox { id: mannyPriority; from: 1; to: 999; value: root.productionPriority("manny") }
-                    Label { text: "Crafted inventory target"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                     Label { text: "ADDITIONAL CONTAINERS"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: containerTarget; from: 0; to: 999; value: root.productionQuantity("additional_container") }
                     SpinBox { id: containerPriority; from: 1; to: 999; value: root.productionPriority("additional_container") }
-                    Label { text: "Crafted inventory target"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                }
+            }
+
+            GroupBox {
+                title: "OWNED PROBE ROLES"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    Label { Layout.fillWidth: true; text: "Roles guide mining, transport, hub, tanker, reserve, exploration, and construction planning."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                    Repeater {
+                        model: root.availableProbes
+                        delegate: RowLayout {
+                            id: probeRoleRow
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Label { Layout.preferredWidth: 250; text: probeRoleRow.modelData.name; color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true }
+                            Label { Layout.preferredWidth: 180; text: String(probeRoleRow.modelData.model || "generic").split("_").join(" ").toUpperCase(); color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                            ComboBox {
+                                id: roleSelector
+                                Layout.preferredWidth: 230
+                                model: root.roleOptions
+                                currentIndex: Math.max(0, root.roleOptions.indexOf(root.roleFor(probeRoleRow.modelData.id)))
+                                onActivated: root.roleAssignmentRequested(Number(probeRoleRow.modelData.id), String(currentText))
+                            }
+                            Label { Layout.fillWidth: true; text: probeRoleRow.modelData.sectorLabel || "SECTOR UNKNOWN"; color: Constants.cyanColor; font.family: Constants.technicalFont }
+                        }
+                    }
                 }
             }
 
@@ -104,7 +133,10 @@ Item {
             GroupBox {
                 title: "RESOURCE & SAFETY FLOORS"; Layout.fillWidth: true
                 GridLayout {
-                    anchors.fill: parent; columns: 6; columnSpacing: 12; rowSpacing: 10
+                    anchors.fill: parent; columns: 3; columnSpacing: 18; rowSpacing: 10
+                    Label { text: "AUTOMATION FLOOR"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { text: "MINIMUM QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "DEUTERIUM"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: deuteriumReserve; from: 0; to: 100000; value: root.reserve("deuterium") }
                     SpinBox { id: deuteriumPriority; from: 1; to: 999; value: Number((root.settingsData.resourcePriorities || {}).deuterium || 50) }

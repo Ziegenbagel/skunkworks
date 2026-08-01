@@ -12,6 +12,7 @@ PanelFrame {
     property int focusedProbeId: -1
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
+    signal probeRoleAssigned(int probeId, string role)
 
     title: section
 
@@ -70,7 +71,9 @@ PanelFrame {
             anchors.fill: parent
             visible: root.section === "SETTINGS"
             settingsData: root.dashboardData.automation || ({})
+            availableProbes: root.availableProbes
             onSaveRequested: settings => root.automationSettingsSaved(settings)
+            onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
         }
 
         Column {

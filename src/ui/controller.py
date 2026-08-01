@@ -15,6 +15,7 @@ from src.application.probe_selector import ProbeSelector
 from src.data import DataEngine
 from src.intelligence.world_builder import WorldBuilder
 from src.operations.operations import Operations
+from src.operations.logistics import FleetRoleService
 from src.presentation import MissionControlViewModelBuilder
 from src.recipes.manager import RecipeManager
 from src.safety.policy import TravelSafetyPolicyStore
@@ -118,6 +119,10 @@ class MissionControlDataService:
             }
             for goal in desired_state.fleet
         ]
+        automation["probeRoles"] = {
+            str(row["asset_id"]): row["role"]
+            for row in FleetRoleService(self.data_engine).all("probe")
+        }
         dashboard["automation"] = automation
         return dashboard
 
@@ -283,6 +288,22 @@ class MissionControlController(QObject):
             self._set_error(str(error) or type(error).__name__)
             return
         self._dashboard["automation"] = self._qt_safe(state.to_dict())
+        self.dashboardChanged.emit()
+
+    @Slot(int, str)
+    def assignProbeRole(self, probe_id, role):
+        if self.service is None:
+            self.service = MissionControlDataService()
+        try:
+            FleetRoleService(self.service.data_engine).assign("probe", probe_id, role)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        automation = dict(self._dashboard.get("automation", {}))
+        roles = dict(automation.get("probeRoles", {}))
+        roles[str(probe_id)] = role
+        automation["probeRoles"] = roles
+        self._dashboard["automation"] = automation
         self.dashboardChanged.emit()
 
     def _start_refresh(self, probe_id):
