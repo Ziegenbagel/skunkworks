@@ -25,6 +25,7 @@ class PreflightValidator:
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_MINE,
+            CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MOVE_PROBE,
         } and probe["status"] != "idle":
             blockers.append("probe_unavailable")
@@ -37,6 +38,7 @@ class PreflightValidator:
         if command.type in {
             CommandType.MANNY_CRAFT,
             CommandType.MANNY_MINE,
+            CommandType.MANNY_ASSEMBLE_PROBE,
         }:
             manny = next(
                 (

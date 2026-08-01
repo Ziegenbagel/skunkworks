@@ -76,8 +76,10 @@ class DesiredStateTests(unittest.TestCase):
             DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=4),)),
         ).tasks()
 
-        tanker = next(task for task in tasks if task.target == "deuterium_tanker")
-        self.assertEqual(tanker.action, "Prepare Probe Assembly")
+        tanker = next(task for task in tasks if task.category == "fleet_assembly")
+        self.assertEqual(tanker.action, "Prepare Manufacturing")
+        self.assertEqual(tanker.target, "deuterium_engine")
+        self.assertIn("tanker goal", tanker.reason)
         self.assertEqual(tanker.priority, 4)
 
     def test_round_trips_all_goal_types(self):

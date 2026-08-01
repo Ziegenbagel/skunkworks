@@ -2,6 +2,7 @@
 
 from src.planner.priorities import HIGH, NORMAL
 from src.planner.task import Task
+from src.planner.assembly import tanker_shortage
 
 
 def plan(operations, desired_state) -> list[Task]:
@@ -45,6 +46,29 @@ def plan(operations, desired_state) -> list[Task]:
                 goal.priority,
             )
 
+    for goal in desired_state.fleet:
+        if goal.model != "deuterium_tanker":
+            continue
+        current_fleet = sum(
+            probe.get("model", "generic") == goal.model
+            for probe in (getattr(operations.world, "fleet", None) or {}).get("probes", ())
+        )
+        if current_fleet >= goal.quantity:
+            continue
+        missing = tanker_shortage(operations)
+        if missing is None:
+            continue
+        component, amount, _, _ = missing
+        production = operations.manufacturing.production_plan(
+            component, quantity=amount, include_operational_constraints=False,
+        )
+        if production is None:
+            continue
+        for resource_type, resource_amount in production["missing_resources"].items():
+            shortages[resource_type] = max(shortages.get(resource_type, 0), resource_amount)
+            manufacturing_resources.add(resource_type)
+            priorities[resource_type] = min(priorities.get(resource_type, goal.priority), goal.priority)
+
     tasks = []
 
     for resource_type, amount in shortages.items():
@@ -77,10 +101,8 @@ def plan(operations, desired_state) -> list[Task]:
                     if not constraints
                     else "Locate Mining Opportunity"
                 ),
-                reason=(
-                    f"Need {amount:.3f} additional "
-                    f"{resource_type.replace('_', ' ')}."
-                ),
+                reason=(f"Need {amount:.3f} additional {resource_type.replace('_', ' ')} "
+                        f"for the highest-priority unmet goal."),
                 category="mining",
                 target=(
                     target["id"]

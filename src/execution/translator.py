@@ -18,6 +18,7 @@ class TaskCommandTranslator:
             "Mine Resource": self._mine,
             "Mine Deuterium": self._mine,
             "Move Probe": self._move,
+            "Assemble Probe": self._assemble_probe,
         }.get(task.action)
 
         return handler(task) if handler is not None else None
@@ -64,7 +65,8 @@ class TaskCommandTranslator:
 
         cargo = manny.get("cargo") or {}
         trip_capacity = float(cargo.get("capacity", 0.05) or 0.05)
-        target_amount = round(min(float(task.quantity), trip_capacity), 3)
+        target_amount = round(min(float(task.quantity), 0.55), 3)
+        trips = max(1, int((target_amount / trip_capacity) + 0.999999))
 
         return Command(
             type=CommandType.MANNY_MINE,
@@ -78,7 +80,31 @@ class TaskCommandTranslator:
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
-            metadata={"remainingAmount": max(0, round(float(task.quantity) - target_amount, 3))},
+            metadata={
+                "requestedNeed": round(float(task.quantity), 3),
+                "orderAmount": target_amount,
+                "mannyCargoPerTrip": trip_capacity,
+                "estimatedTrips": trips,
+                "remainingAmount": max(0, round(float(task.quantity) - target_amount, 3)),
+            },
+        )
+
+    def _assemble_probe(self, task):
+        from src.planner.assembly import empty_assembly_containers
+
+        manny = self._claim_idle_manny()
+        containers = empty_assembly_containers(self.operations)
+        if manny is None or len(containers) < 2:
+            return None
+        return Command(
+            type=CommandType.MANNY_ASSEMBLE_PROBE,
+            probe_id=self.probe_id,
+            target_id=manny["id"],
+            payload={"containerIds": containers[:2]},
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+            metadata={"model": "deuterium_tanker", "durationSeconds": 10800},
         )
 
     def _move(self, task):

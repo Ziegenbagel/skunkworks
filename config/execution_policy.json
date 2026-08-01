@@ -4,6 +4,7 @@
   "allowedCommandTypes": [
     "atomic_printer_craft",
     "manny_craft",
+    "manny_assemble_probe",
     "manny_mine"
   ],
   "maxCommandsPerCycle": 10

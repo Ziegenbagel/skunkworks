@@ -43,6 +43,7 @@ Item {
         if (craftCommands.checked) {
             allowed.push("manny_craft");
             allowed.push("atomic_printer_craft");
+            allowed.push("manny_assemble_probe");
         }
         if (miningCommands.checked) allowed.push("manny_mine");
         if (travelCommands.checked) allowed.push("move_probe");
@@ -57,7 +58,7 @@ Item {
         executionMode.currentIndex = Math.max(0, ["observe", "approve", "automatic"].indexOf(String(runtimeData.mode || "observe")));
         liveExecution.checked = Boolean(runtimeData.liveExecutionEnabled);
         commandsPerCycle.value = Number(runtimeData.maxCommandsPerCycle || 1);
-        craftCommands.checked = commandAllowed("manny_craft") || commandAllowed("atomic_printer_craft");
+        craftCommands.checked = commandAllowed("manny_craft") || commandAllowed("atomic_printer_craft") || commandAllowed("manny_assemble_probe");
         miningCommands.checked = commandAllowed("manny_mine");
         travelCommands.checked = commandAllowed("move_probe");
     }
@@ -145,7 +146,7 @@ Item {
                             SpinBox { id: commandsPerCycle; from: 1; to: 10; value: Number(root.runtimeData.maxCommandsPerCycle || 1); ToolTip.visible: hovered; ToolTip.text: "Safety and rate limit: the most separate Manny, crafting, or travel orders Skunkworks may send in one automatic cycle." }
                         }
                         Label { text: "COMMAND ALLOWLIST"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                        CheckBox { id: craftCommands; text: "CRAFTING"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") }
+                        CheckBox { id: craftCommands; text: "CRAFTING & PROBE ASSEMBLY"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") || root.commandAllowed("manny_assemble_probe") }
                         CheckBox { id: miningCommands; text: "MINING"; checked: root.commandAllowed("manny_mine") }
                         CheckBox { id: travelCommands; text: "TRAVEL"; checked: root.commandAllowed("move_probe") }
                     }
@@ -182,6 +183,7 @@ Item {
                                     Layout.fillWidth: true; spacing: 3
                                     Label { Layout.fillWidth: true; text: String(commandRow.modelData.type).split("_").join(" ").toUpperCase() + " · " + String(commandRow.modelData.disposition).split("_").join(" ").toUpperCase(); color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true }
                                     Label { Layout.fillWidth: true; text: commandRow.modelData.reason || "Proposed automation action"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                    Label { visible: String(commandRow.modelData.type) === "manny_mine"; Layout.fillWidth: true; text: "ORDER " + Number((commandRow.modelData.metadata || {}).orderAmount || 0).toFixed(3) + " ECE · " + Number((commandRow.modelData.metadata || {}).estimatedTrips || 0) + " AUTOMATIC MANNY TRIPS · " + Number((commandRow.modelData.metadata || {}).remainingAmount || 0).toFixed(3) + " ECE STILL NEEDED"; color: Constants.cyanColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                                     Label { visible: (commandRow.modelData.blockers || []).length > 0; Layout.fillWidth: true; text: "BLOCKED · " + (commandRow.modelData.blockers || []).join(", "); color: Constants.criticalColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                                 }
                                 CheckBox { id: riskAcknowledgement; visible: (commandRow.modelData.warnings || []).length > 0; text: "ACKNOWLEDGE RISK" }

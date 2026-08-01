@@ -211,6 +211,7 @@ class MissionControlDataService:
             "blockers": list(prepared.blockers),
             "warnings": [asdict(item) for item in prepared.warnings],
             "payload": command.payload,
+            "metadata": command.metadata,
         }
 
     def save_execution_policy(self, value):

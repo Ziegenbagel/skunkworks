@@ -12,6 +12,7 @@ class CapabilityDispatcher:
             CommandType.MANNY_CRAFT: self._manny_craft,
             CommandType.ATOMIC_PRINTER_CRAFT: self._printer_craft,
             CommandType.MANNY_MINE: self._manny_mine,
+            CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,
             CommandType.MOVE_PROBE: self._move_probe,
         }
         try:
@@ -41,6 +42,14 @@ class CapabilityDispatcher:
             command.probe_id,
             command.target_id,
             "mine",
+            command.payload,
+        )
+
+    def _manny_assemble_probe(self, command):
+        return self.capabilities.mannies.start_task(
+            command.probe_id,
+            command.target_id,
+            "assemble-probe",
             command.payload,
         )
 

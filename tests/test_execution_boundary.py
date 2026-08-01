@@ -16,6 +16,7 @@ from src.models.galaxy import SectorCoordinates
 from src.planner.desired_state import (
     DesiredState,
     FuelGoal,
+    FleetGoal,
     InventoryGoal,
     ProductionGoal,
     ResourceGoal,
@@ -87,10 +88,11 @@ class ExecutionBoundaryTests(unittest.TestCase):
             {
                 "objectId": "asteroid-1",
                 "resources": ["metals"],
-                "targetAmount": 0.05,
+                "targetAmount": 0.55,
             },
         )
-        self.assertEqual(command.metadata["remainingAmount"], 0.95)
+        self.assertEqual(command.metadata["remainingAmount"], 0.45)
+        self.assertEqual(command.metadata["estimatedTrips"], 11)
 
     def test_prepared_mining_orders_claim_distinct_idle_mannies(self):
         self.operations.world.mannies["mannies"].append({
@@ -112,6 +114,30 @@ class ExecutionBoundaryTests(unittest.TestCase):
         ))
 
         self.assertEqual({first.target_id, second.target_id}, {101, 202})
+
+    def test_ready_tanker_goal_becomes_special_assembly_command(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        inventory = self.operations.world.probe["inventory"]
+        inventory["items"] = [
+            {"id": f"{item}-{index}", "type": item}
+            for item, quantity in TANKER_COMPONENTS
+            for index in range(quantity)
+        ]
+        inventory["containers"] = [
+            {"id": "container-a", "kind": "container", "capacity": 1, "usedCapacity": 0},
+            {"id": "container-b", "kind": "container", "capacity": 1, "usedCapacity": 0},
+        ]
+
+        prepared = self.prepare(DesiredState(
+            fleet=(FleetGoal("deuterium_tanker", 1, priority=1),),
+        ))
+        command = prepared[0].command
+
+        self.assertEqual(command.type, CommandType.MANNY_ASSEMBLE_PROBE)
+        self.assertEqual(command.priority, 1)
+        self.assertEqual(command.payload, {"containerIds": ["container-a", "container-b"]})
 
     def test_travel_command_uses_safe_direct_distance(self):
         prepared = self.prepare(
