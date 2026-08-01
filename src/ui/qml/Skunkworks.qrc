@@ -81,6 +81,7 @@
         <file>components/MapObjectMarker.qml</file>
         <file>components/MetricTile.qml</file>
         <file>components/NavigationWorkspace.qml</file>
+        <file>components/NavigationControl.qml</file>
         <file>components/PanelFrame.qml</file>
         <file>components/ProbeSelector.qml</file>
         <file>components/ScutNetworkOverlay.qml</file>

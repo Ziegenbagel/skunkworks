@@ -13,5 +13,6 @@ ProbeSelector 1.0 components/ProbeSelector.qml
 SummaryListPanel 1.0 components/SummaryListPanel.qml
 TopNavigationBar 1.0 components/TopNavigationBar.qml
 NavigationWorkspace 1.0 components/NavigationWorkspace.qml
+NavigationControl 1.0 components/NavigationControl.qml
 GalaxyMap 1.0 components/GalaxyMap.qml
 AutomationSettings 1.0 components/AutomationSettings.qml

@@ -7,7 +7,7 @@ import ".."
 RowLayout {
     id: root
 
-    property var sections: ["MISSION CONTROL", "FLEET", "GALAXY MAP", "RESOURCES", "MISSIONS", "PRODUCTION", "RESEARCH", "SAFETY", "LOGBOOK", "SETTINGS"]
+    property var sections: ["MISSION CONTROL", "FLEET", "GALAXY MAP", "NAVIGATION", "RESOURCES", "MISSIONS", "PRODUCTION", "RESEARCH", "SAFETY", "LOGBOOK", "SETTINGS"]
     property string currentSection: "MISSION CONTROL"
     signal sectionSelected(string section)
 

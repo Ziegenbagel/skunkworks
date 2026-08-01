@@ -52,12 +52,11 @@ class SnapshotManager:
 
         self._save_json(snapshot_path, snapshot)
 
-        self._save_json(
-            self.latest_snapshot,
-            snapshot,
-        )
+        probe_latest = self.snapshot_directory / f"latest_probe_{probe_id}.json"
+        self._save_json(probe_latest, snapshot)
+        self._save_json(self.latest_snapshot, snapshot)
 
-        return snapshot, self.latest_snapshot
+        return snapshot, probe_latest
 
     def _save_json(self, path, data):
         """

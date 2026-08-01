@@ -1,6 +1,7 @@
 """Stable UI view model assembled only from application services."""
 
 from dataclasses import asdict
+from src.models.galaxy import SectorCoordinates
 
 
 class MissionControlViewModelBuilder:
@@ -24,7 +25,7 @@ class MissionControlViewModelBuilder:
         health_view = asdict(health)
         health_view["stateLabel"] = health.state.upper()
         health_view["summary"] = findings[0]["summary"] if findings else "No active threats detected"
-        return {
+        result = {
             "connection": connection,
             "connectionLabel": connection.replace("_", " ").upper(),
             "focus": {
@@ -63,6 +64,8 @@ class MissionControlViewModelBuilder:
             "actions": self._action_records(),
             "archive": self._archive_records(),
         }
+        result["navigation"] = self.navigation_view()
+        return result
 
     def _galaxy_view(self, world, focus_coordinates):
         galaxy = getattr(world, "galaxy", None)
@@ -198,7 +201,57 @@ class MissionControlViewModelBuilder:
             "objects": tuple(objects),
             "system": system or {},
             "activeMannies": tuple(active_mannies),
+            "emptyReason": (
+                "Detailed scan reports no celestial or artificial objects in this sector."
+                if not objects and system is None and sector.get("knowledgeLevel") == "detailed"
+                else ""
+            ),
         }
+
+    def navigation_view(self):
+        world = self.operations.world
+        current = self.operations.travel.current_sector()
+        if current is None:
+            return {"current": {}, "neighbors": (), "travelReady": False}
+        galaxy = getattr(world, "galaxy", None)
+        neighbors = []
+        for coordinates in current.neighbors():
+            record = galaxy.get(coordinates) if galaxy is not None else None
+            observed = (record.observed or {}) if record is not None else {}
+            sector = observed.get("sector", observed)
+            neighbors.append({
+                "x": coordinates.x, "y": coordinates.y, "z": coordinates.z,
+                "label": self._sector_label({"x": coordinates.x, "y": coordinates.y, "z": coordinates.z}),
+                "visited": bool(record and record.visit_count),
+                "visitCount": record.visit_count if record else 0,
+                "knowledgeLevel": sector.get("knowledgeLevel", "unscanned"),
+                "confidence": float(sector.get("confidence", 0) or 0),
+                "objectCount": len(sector.get("objects", ()) or ()),
+                "scutCoverage": self._scut_coverage(world, coordinates),
+            })
+        return {
+            "current": {"x": current.x, "y": current.y, "z": current.z, "label": self._sector_label({"x": current.x, "y": current.y, "z": current.z})},
+            "neighbors": tuple(neighbors),
+            "travelReady": self.operations.travel.travel_ready(),
+            "fuelPercent": self.operations.travel.fuel_percentage(),
+            "fuelAvailable": self.operations.travel.fuel_available(),
+            "fuelCost": self.operations.travel.fuel_cost(),
+            "probeStatus": world.probe.get("status", "unknown"),
+            "telemetryAvailable": world.probe.get("telemetry_available", False),
+        }
+
+    @staticmethod
+    def _scut_coverage(world, coordinates):
+        for response in getattr(world, "hazard_context", {}).get("scutNetworks", ()):
+            network = response.get("network", {})
+            for relay in network.get("relays", ()):
+                relative = (relay.get("sector") or {}).get("relative")
+                if not relative or relay.get("status") != "on":
+                    continue
+                relay_coordinates = SectorCoordinates.from_api(relative)
+                if relay_coordinates.distance_to(coordinates) <= int(relay.get("coverageRadiusSectors", 0)):
+                    return {"covered": True, "networkName": network.get("name", "SCUT network"), "relayId": relay.get("id")}
+        return {"covered": False, "networkName": "", "relayId": None}
 
     @staticmethod
     def _sector_object(item):

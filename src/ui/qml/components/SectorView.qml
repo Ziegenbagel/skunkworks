@@ -145,6 +145,17 @@ Rectangle {
         }
     }
 
+    Rectangle {
+        visible: Boolean(root.sectorData.emptyReason)
+        anchors.centerIn: parent; width: Math.min(parent.width * 0.58, 620); height: 92
+        color: Constants.panelColor; border.color: Constants.cyanColor; radius: 3
+        Column {
+            anchors.centerIn: parent; spacing: 7
+            Label { anchors.horizontalCenter: parent.horizontalCenter; text: "EMPTY SECTOR CONFIRMED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; font.pixelSize: 12 }
+            Label { width: 550; horizontalAlignment: Text.AlignHCenter; text: root.sectorData.emptyReason || ""; color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+        }
+    }
+
     Row {
         anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 10; spacing: 14
         Label { text: root.sectorData.label || root.sectorLabel; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 9 }

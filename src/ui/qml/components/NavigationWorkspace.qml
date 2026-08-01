@@ -13,6 +13,10 @@ PanelFrame {
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)
+    signal travelPreviewRequested(int x, int y, int z, string routeMode)
+    signal travelExecuteRequested(bool riskAcknowledged)
+    signal sectorScanRequested(int x, int y, int z)
+    signal autonomousTravelTargetRequested(int x, int y, int z)
 
     title: section
 
@@ -76,8 +80,20 @@ PanelFrame {
             onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
         }
 
+        NavigationControl {
+            anchors.fill: parent
+            visible: root.section === "NAVIGATION"
+            navigationData: root.dashboardData.navigation || ({})
+            travelPreview: root.dashboardData.travelPreview || ({})
+            automationData: root.dashboardData.automation || ({})
+            onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
+            onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
+            onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
+            onAutonomousTargetRequested: (x, y, z) => root.autonomousTravelTargetRequested(x, y, z)
+        }
+
         Column {
-            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS"
+            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION"
             anchors.fill: parent
             spacing: 12
 

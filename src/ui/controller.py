@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import traceback
+from dataclasses import asdict
 
 import requests
 from PySide6.QtCore import QObject, Property, QRunnable, QThreadPool, Signal, Slot
@@ -21,7 +22,9 @@ from src.recipes.manager import RecipeManager
 from src.safety.policy import TravelSafetyPolicyStore
 from src.safety.resources import ResourceSafetyPolicyStore
 from src.planner.desired_state import DesiredState
+from src.planner.desired_state import TravelGoal
 from src.planner.desired_state_store import DesiredStateStore
+from src.models.galaxy import SectorCoordinates
 from src.snapshot.manager import SnapshotManager
 
 
@@ -45,6 +48,8 @@ class MissionControlDataService:
         self.probe_selector = ProbeSelector()
         self._initialized = False
         self.api_version = None
+        self._operations = None
+        self._selected_probe_id = None
 
     def load(self, probe_id=None):
         self._initialize()
@@ -87,6 +92,8 @@ class MissionControlDataService:
             ResourceSafetyPolicyStore().load(),
             self.capabilities,
         )
+        self._operations = operations
+        self._selected_probe_id = selected["id"]
         dashboard = MissionControlViewModelBuilder(
             operations,
             self.data_engine,
@@ -125,6 +132,69 @@ class MissionControlDataService:
         }
         dashboard["automation"] = automation
         return dashboard
+
+    def preview_travel(self, probe_id, target, route_mode="segmented"):
+        if self._operations is None or int(probe_id) != int(self._selected_probe_id):
+            raise RuntimeError("Refresh the selected probe before planning travel.")
+        destination = SectorCoordinates.from_api(target)
+        blockers = self._operations.travel.travel_blockers(destination)
+        assessment = self._operations.travel_safety.assess(destination)
+        if assessment is None:
+            raise RuntimeError("Current sector is unavailable.")
+        selected = next(
+            (option for option in assessment.options if option.name == route_mode),
+            assessment.recommended,
+        )
+        execution = selected.hops[0] if selected.hops else destination
+        acknowledgement_required = (
+            assessment.acknowledgement_recommended
+            if selected.name == assessment.recommended.name
+            else selected.collision_risk_percent > 0 or selected.container_risk_percent > 0
+        )
+        return {
+            "probeId": int(probe_id),
+            "target": target,
+            "targetLabel": f"FCC {destination.x} / {destination.y} / {destination.z}",
+            "blockers": list(blockers),
+            "canExecute": not blockers,
+            "acknowledgementRequired": acknowledgement_required,
+            "recommendedRoute": assessment.recommended.name,
+            "selectedRoute": selected.name,
+            "executionTarget": {"x": execution.x, "y": execution.y, "z": execution.z},
+            "executionLabel": f"FCC {execution.x} / {execution.y} / {execution.z}",
+            "hazards": [asdict(hazard) for hazard in assessment.hazards],
+            "options": [{
+                "name": option.name,
+                "hops": len(option.hops),
+                "collisionRiskPercent": option.collision_risk_percent,
+                "containerRiskPercent": option.container_risk_percent,
+                "fuelCost": option.fuel_cost,
+                "fuelSufficient": option.fuel_sufficient,
+                "scutProtected": option.scut_protected,
+            } for option in assessment.options],
+        }
+
+    def execute_travel(self, preview, risk_acknowledged=False):
+        if preview.get("blockers"):
+            raise RuntimeError("Travel is blocked: " + ", ".join(preview["blockers"]))
+        if preview.get("acknowledgementRequired") and not risk_acknowledged:
+            raise RuntimeError("Risk acknowledgement is required.")
+        return self.capabilities.probes.move(preview["probeId"], preview["executionTarget"])
+
+    def scan_sector(self, target):
+        response = self.capabilities.galaxy.observe_sector(target["x"], target["y"], target["z"])
+        sector = response.get("sector", response)
+        return {
+            "target": target,
+            "label": "FCC {x} / {y} / {z}".format(**target),
+            "knowledgeLevel": sector.get("knowledgeLevel", "unknown"),
+            "confidence": float(sector.get("confidence", 0) or 0),
+            "objectCount": len(sector.get("objects", ()) or ()),
+            "possibleObjects": sector.get("possibleObjects", ()),
+            "estimatedObjects": sector.get("estimatedObjects", {}),
+            "dangerEstimate": sector.get("dangerEstimate", sector.get("navigationalRisk", "unknown")),
+            "scan": sector.get("scan", {}),
+        }
 
     def _initialize(self):
         if self._initialized:
@@ -229,6 +299,7 @@ class MissionControlController(QObject):
         self._error = ""
         self._emergency_stop = False
         self._worker = None
+        self._pending_probe_id = None
 
     @Property("QVariantMap", notify=dashboardChanged)
     def dashboard(self):
@@ -260,7 +331,10 @@ class MissionControlController(QObject):
 
     @Slot(int)
     def selectProbe(self, probe_id):
-        if self._refreshing or probe_id == self._focused_probe_id:
+        if self._refreshing:
+            self._pending_probe_id = probe_id
+            return
+        if probe_id == self._focused_probe_id:
             return
         self._start_refresh(probe_id)
 
@@ -304,6 +378,79 @@ class MissionControlController(QObject):
         roles[str(probe_id)] = role
         automation["probeRoles"] = roles
         self._dashboard["automation"] = automation
+        self.dashboardChanged.emit()
+
+    @Slot(int, int, int, str)
+    def previewTravel(self, x, y, z, route_mode="segmented"):
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Select and refresh a probe before planning travel.")
+            return
+        try:
+            preview = self.service.preview_travel(
+                self._focused_probe_id, {"x": x, "y": y, "z": z}, route_mode,
+            )
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._dashboard["travelPreview"] = self._qt_safe(preview)
+        self._set_error("")
+        self.dashboardChanged.emit()
+
+    @Slot(bool)
+    def executeTravel(self, risk_acknowledged=False):
+        preview = self._dashboard.get("travelPreview")
+        if not preview or self.service is None:
+            self._set_error("Preview a route before confirming travel.")
+            return
+        try:
+            self.service.execute_travel(preview, risk_acknowledged)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._dashboard["travelPreview"] = {}
+        self.dashboardChanged.emit()
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot(int, int, int)
+    def scanSector(self, x, y, z):
+        if self.service is None:
+            self._set_error("Refresh live account data before scanning.")
+            return
+        try:
+            result = self.service.scan_sector({"x": x, "y": y, "z": z})
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        navigation = dict(self._dashboard.get("navigation", {}))
+        navigation["scanResult"] = self._qt_safe(result)
+        self._dashboard["navigation"] = navigation
+        self._set_error("")
+        self.dashboardChanged.emit()
+
+    @Slot(int, int, int)
+    def setAutonomousTravelTarget(self, x, y, z):
+        if self.service is None:
+            self._set_error("Refresh live account data before setting automation.")
+            return
+        try:
+            store = DesiredStateStore(self.service.data_engine)
+            current = store.load()
+            state = DesiredState(
+                production=current.production,
+                resources=current.resources,
+                fuel=current.fuel,
+                inventory=current.inventory,
+                travel=TravelGoal(SectorCoordinates(x, y, z)),
+                fleet=current.fleet,
+            )
+            store.save(state)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        automation = dict(self._dashboard.get("automation", {}))
+        automation["travelTarget"] = {"x": x, "y": y, "z": z}
+        self._dashboard["automation"] = automation
+        self._set_error("")
         self.dashboardChanged.emit()
 
     def _start_refresh(self, probe_id):
@@ -366,6 +513,10 @@ class MissionControlController(QObject):
     def _finish_refresh(self):
         self._worker = None
         self._set_refreshing(False)
+        pending = self._pending_probe_id
+        self._pending_probe_id = None
+        if pending is not None and pending != self._focused_probe_id:
+            self._start_refresh(pending)
 
     def _set_refreshing(self, value):
         if value == self._refreshing:

@@ -31,6 +31,8 @@ class UiPreparationTests(unittest.TestCase):
             self.assertIn("alerts", view)
             self.assertIn("missions", view)
             self.assertIn("production", view)
+            self.assertIn("navigation", view)
+            self.assertEqual(len(view["navigation"]["neighbors"]), 12)
             self.assertEqual(view["connectionLabel"], "CONNECTED")
 
     def test_archive_is_separate_from_game_logbook(self):
@@ -170,6 +172,21 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(view["sectorCount"], 2)
         self.assertEqual(len(view["edges"]), 1)
+
+    def test_empty_detailed_sector_is_explicit_in_view_model(self):
+        base = build_operations()
+        base.world.sector["snapshot"] = {
+            "sector": {
+                "relativeCoordinates": {"x": 0, "y": 0, "z": 0},
+                "knowledgeLevel": "detailed",
+                "confidence": 1,
+                "objects": [],
+            }
+        }
+
+        sector = MissionControlViewModelBuilder(base).build()["sector"]
+
+        self.assertIn("reports no celestial", sector["emptyReason"])
 
 
 if __name__ == "__main__":

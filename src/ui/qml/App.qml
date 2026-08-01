@@ -84,5 +84,25 @@ ApplicationWindow {
             if (window.backend)
                 window.backend.assignProbeRole(probeId, role);
         }
+
+        function onTravelPreviewRequested(x, y, z, routeMode) {
+            if (window.backend)
+                window.backend.previewTravel(x, y, z, routeMode);
+        }
+
+        function onTravelExecuteRequested(riskAcknowledged) {
+            if (window.backend)
+                window.backend.executeTravel(riskAcknowledged);
+        }
+
+        function onSectorScanRequested(x, y, z) {
+            if (window.backend)
+                window.backend.scanSector(x, y, z);
+        }
+
+        function onAutonomousTravelTargetRequested(x, y, z) {
+            if (window.backend)
+                window.backend.setAutonomousTravelTarget(x, y, z);
+        }
     }
 }
