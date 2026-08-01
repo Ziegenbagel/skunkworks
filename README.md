@@ -1,464 +1,98 @@
 # Skunkworks
 
-> **Configure your fleet. Define your objectives. Let Skunkworks handle the rest.**
+> Configure your fleet. Define your objectives. Let Skunkworks handle the
+> repetitive operations while you retain strategic control.
 
-Skunkworks is an autonomous operations manager for the **Von Neumann Probe** game.
+Skunkworks is a cross-platform mission-control and autonomous operations client
+for the Von Neumann Game. It reads the official API, builds a persistent world
+model, compares live state with player-defined goals, explains proposed work,
+and dispatches only commands permitted by the selected execution and safety
+policies.
 
-Skunkworks is designed around layered architecture and explainable planning. Rather than hardcoding gameplay sequences, it models the current state of the game, reasons about desired outcomes, and generates understandable operational plans that can eventually be automated.
+## Current capabilities
 
-Instead of manually managing repetitive tasks, Skunkworks continuously monitors your fleet, compares the current state against your desired state, and intelligently plans the work needed to achieve your objectives.
+- Live multi-probe selection, fleet status, resources, missions, production,
+  logbooks, messages, alerts, and sector/galaxy visualization.
+- Manual travel, scanning, inventory/container operations, Manny control,
+  deuterium transfer, mining destinations, and movement cancellation.
+- Desired quantities and 1–10 priorities for probes, tankers, Mannies,
+  containers, SCUT relays, and transit beacons.
+- Explainable manufacturing/mining planning with active-production accounting,
+  priority resource reservations, and container-capacity reservations.
+- Per-probe observe, approval, and automatic execution policies with allowlists,
+  leases, refreshed preflight checks, and an emergency stop.
+- Travel, fuel, cargo-detachment, depletion, depot, tanker, and round-trip
+  logistics safeguards that warn without unnecessarily removing operator choice.
+- Persistent SQLite history for the galaxy, sectors, probes, resources,
+  operations, actions, messages, alerts, missions, and settings.
+- Von Neumann Game API v103–v106 compatibility with automatic six-hour
+  compatibility monitoring and safe pause on an unreviewed version.
+- Native Qt/PySide desktop UI designed for macOS, Windows, and Linux, scaling
+  from 1080p through 4K.
 
-Its goal is simple:
+## Run Mission Control
 
-> **When you sit down to play, your fleet should already be prepared. Skunkworks doesn't replace strategic decision-making—it eliminates repetitive operational work so the player can focus on exploration and long-term planning.**
-
----
-
-# Mission
-
-Players should focus on exploration, expansion, and strategy.
-
-Skunkworks focuses on logistics, production, operational awareness, and efficiency.
-
-Rather than automating clicks, Skunkworks acts as an intelligent operations manager that keeps your empire running smoothly while respecting the game's mechanics and API.
-
----
-
-# Current Features
-
-## Launch Mission Control
-
-After placing `VON_NEUMANN_API_KEY` in `.env` and activating the project
-environment, launch the live desktop interface with:
+Skunkworks currently requires Python 3.14 and the dependencies declared in
+`pyproject.toml`.
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
 python -m src.ui.app
 ```
 
-Mission Control loads the account fleet asynchronously. Selecting a probe or
-pressing the refresh control rebuilds the read-only dashboard from authoritative
-probe, sector, inventory, Manny, mission, production, health, and history data.
-Qt Design Studio continues to use safe preview data when no live controller is
-attached.
+On Windows, activate with `.venv\Scripts\activate`. The first-launch wizard or
+Settings page stores the game API key in the operating-system credential vault;
+it is not written into project settings or logs.
 
----
+## Safety model
 
-Milestone 1 — Operational Dashboard
+Skunkworks never treats a plan as permission. Every live command passes through
+fresh-state validation, normalization, safety review, execution policy,
+allowlist, API compatibility, idempotency, and emergency-stop checks. Risk
+profiles control warnings and acknowledgements while preserving allowed operator
+decisions.
 
-Current capabilities include:
+## Documentation
 
-- Live API authentication
-- Player information
-- Fleet operational dashboard
-- Runtime Snapshot Manager
-- Snapshot Intelligence
-- Probe Intelligence
-- Sector Intelligence
-- Fleet Intelligence
-- World Model
-- World Builder
-- Knowledge Layer
-- Gameplay Knowledge
-- Crafting Knowledge
-- Resource Knowledge
-- Movement Knowledge
-- Operational Layer
+- [Documentation index](docs/README.md)
+- [Operator Manual](docs/user-guide/Skunkworks_Operator_Manual.docx)
+- [User-visible changelog](docs/user-guide/CHANGELOG.md)
+- [Architecture](docs/architecture.md)
+- [Reviewed API and game observations](docs/api-notes.md)
+- [Planner and automation](docs/planner.md)
+- [Logistics and safety](docs/logistics-and-safety.md)
+- [Roadmap](docs/roadmap.md)
+- [Engineering guide](docs/engineering-guide.md)
 
-    - Operations Facade
-    - Fleet Service
-    - Probe Service
-    - Travel Service
-    - Manufacturing Service
-    - Inventory Service
-    - Mining Service
-    - Galaxy Service
-- Planner
+Historical mission notes and superseded design packages are retained under
+`docs/archive/` but are not current product contracts.
 
-    - Rule-based planning
-    - Task model
-    - Priority system
-    - Persisted Desired State
-    - Manufacturing, mining, fuel, inventory, and travel rules
-- Versioned SQLite Data Engine
-- Durable galaxy, probe, resource, visit, and event history
-- Interactive and remembered probe selection
-- Shared application configuration
-- Developer Toolkit
+## Development checks
 
-Developer Toolkit (Planned)
-
-- API Explorer
-- JSON Explorer
-- Snapshot Comparison
-- Recipe Explorer
-- Manufacturing Explorer
-
----
-
-# Core Principles
-
-Skunkworks is built around three simple ideas:
-
-- **Awareness** — Always know the current state of your fleet.
-- **Desired State** — Define what your fleet should become.
-- **Planning** — Automatically determine the most efficient path between the two.
-
----
-
-# Design Philosophy
-
-## Desired State
-
-Players describe **what** they want.
-
-Skunkworks determines **how** to achieve it.
-
----
-
-## Planning Over Scripting
-
-Instead of executing fixed sequences of actions, Skunkworks evaluates the current game state and continuously replans as conditions change.
-
----
-
-## Safety First
-
-The planner prefers safe and predictable behavior over risky optimizations.
-
-Whenever game mechanics introduce tradeoffs, Skunkworks presents recommendations instead of making hidden assumptions.
-
----
-
-## Transparency
-
-Every action taken by the planner should be understandable.
-
-The player should always know:
-
-- What Skunkworks is doing
-- Why it is doing it
-- What it plans to do next
-
----
-
-# Current Architecture
-
-```
-Infrastructure
-    │
-    ▼
-GameClient
-    │
-    ├──────────────┬────────────────┐
-    ▼              ▼                ▼
-SnapshotManager  RecipeManager   Data Engine
-    │              │                │
-    ▼              ▼                ▼
-Runtime Snapshot  Recipes     History + Goals
-          │
-          ▼
-    Intelligence Layer
-    │
-    ├── FleetAnalyzer
-    ├── ProbeAnalyzer
-    ├── SectorAnalyzer
-    └── SnapshotAnalyzer
-    │
-    ▼
-World Builder
-    │
-    ▼
-World Model
-    │
-    ├──────────────┐
-    ▼              ▼
-Dashboard     Operational Layer
-                   │
-                   ├── FleetService
-                   ├── ProbeService
-                   ├── TravelService
-                   ├── ManufacturingService
-                   ├── InventoryService
-                   ├── MiningService
-                   └── GalaxyService
-                   │
-                   ▼
-               Planner
-                   │
-                   ▼
-        Controlled Automation Runtime
+```bash
+python -m pytest -q tests
+pyside6-qmllint -I src/ui/qml src/ui/qml/App.qml
+git diff --check
 ```
 
-Each layer has a single responsibility and communicates only with adjacent layers. The Operational Layer combines the live World Model with supporting game knowledge—including live crafting recipes and static gameplay rules—to answer higher-level operational questions without exposing implementation details to the Planner.
+Live diagnostic scripts under `tools/` are intentionally separate from the
+automated test suite because they access the real game service.
 
-This architecture allows Skunkworks to grow without tightly coupling systems together.
+## Project status
 
----
+The architecture, desktop interface, safety foundation, and controlled
+automation runtime are implemented. Remaining 1.0 work focuses on long-running
+autonomy/recovery, API parity testing, packaging/signing, migrations, and public
+release hardening. See the [release roadmap](docs/roadmap.md) for the maintained
+scope.
 
-# Roadmap
+## Acknowledgements
 
-The canonical release plan is maintained in
-[`docs/roadmap.md`](docs/roadmap.md). It locks the current sequence through
-Mission 26 and separates the 1.0 release scope from the post-1.0 backlog.
+Skunkworks is an independent companion project for the open-source
+[Von Neumann Game](https://github.com/gnieark/Von-Neumann-Game).
 
-## ✅ Milestone 1 — Operational Dashboard
+## License
 
-Completed
-
-- Live API connection
-- Runtime Snapshot Manager
-- Fleet dashboard
-- Resource Intelligence
-- Developer Toolkit
-
----
-
-## ✅ Milestone 2 — Operational Intelligence
-
-Completed
-
-- Snapshot Intelligence
-- Probe Intelligence
-- Sector Intelligence
-- Fleet Intelligence
-- World Model
-- World Builder
-- Operational dashboard
-
----
-
-## ✅ Milestone 3 — Operational Layer
-
-Completed
-
-- Operations facade
-- Fleet Service
-- Probe Service
-- Travel Service
-- Manufacturing Service
-- Operational manufacturing reasoning
-- Manufacturing feasibility analysis
-- Missing resource analysis
-- Operations facade
-
-Completed
-
-- Planner framework
-- Rule architecture
-- Task model
-- Priority system
-- Dashboard integration
-
----
-
-## ✅ Missions 11–13 — Constraint-Based Planning
-
-Completed
-
-- Persistent Desired State configuration
-- Manufacturing goals and feasibility recommendations
-- Manufacturing-shortage and resource-reserve mining plans
-- Fuel reserve planning
-- Inventory capacity planning
-- FCC travel routing and blocker analysis
-- Durable local galaxy access
-- Selected-probe planning context
-
-## ✅ Mission 14 — Safe Execution Foundation
-
-- Typed dry-run commands
-- Preflight validation
-- Execution policy
-- Idempotency and action journal
-
-## ✅ Missions 15–16 — Travel Safety and Routing
-
-- Player-selectable cautious, balanced, bold, and custom safety profiles
-- Collision, container, integrity, black-hole, and Manny-loss warnings
-- Live damage-rule, improvement, and SCUT-network context
-- Direct versus segmented FCC route comparison
-- SCUT transit-corridor recognition
-- Cumulative route-risk calculations
-- Advisory risk acknowledgement without removing player choice
-
-## ✅ Missions 17–18 — Resource Sustainability
-
-- Historical asteroid depletion warnings
-- Finite wandering-asteroid field notices
-- Exhausted-source exclusion
-- Ranked replacement-resource sectors
-- Hub, miner, and transport fleet-role blueprints
-- Future logistics handoff without premature automation
-
-## ✅ Missions 19–21 — Controlled Operations and Logistics
-
-- Opt-in, allowlisted one-command execution with fresh preflight validation
-- Independent approval and risk acknowledgement
-- Emergency stop, execution leases, lifecycle journal, bounded retry, and replan
-- Durable resumable Operations and six initial operation templates
-- Exclusive fleet roles, cargo delivery cycles, and tanker reserve planning
-- First-class Manny, container, and mining-depot intelligence
-
-## ✅ Missions 22–23 — Coordination and Operational Health
-
-- Unified communications, mission, alert, warning, and logbook timeline
-- Safe coordinate extraction and confirmed mission/message controls
-- Exploration route scoring, interruptions, and recovery search corridors
-- UI-independent refresh scheduler honoring server refresh hints
-- Local predictions with confidence, assumptions, and drift measurement
-- Fleet readiness, stale-state, capacity, fuel, worker, and depot health
-- Mission Control presentation contract and separate Skunkworks Archive
-
-### Remaining to 1.0
-
-- Mission 24 — Mission Control User Interface
-  - Simultaneous macOS, Windows, and Linux release
-- Mission 25 — Continuous Autonomy, Recovery, and API Parity
-- Mission 26 — 1.0 Release Hardening
-
-### Desired State
-
-- User-facing objective editor
-- Fleet configuration
-- Per-probe policy overrides
-
-### Post-1.0
-
-- Low Usage and background-operation modes
-- System tray and cross-device continuity
-- Headless and remote operation
-- Advanced strategic and empire-wide autonomy
-
----
-
-# Project Status
-
-🚧 Active Development
-
-Missions 11–23 complete. The roadmap through 1.0 is locked in
-[`docs/roadmap.md`](docs/roadmap.md). Next: Mission 24 — Mission Control User
-Interface. Its implementation package is in
-[`docs/ui-preparation.md`](docs/ui-preparation.md).
-
-0.7.0
-
-Current Milestone
-
-Missions 22–23 — Coordination and Operational Health (Complete)
-
-Current Work
-
-- Persisted production, resource, fuel, inventory, and travel goals
-- Manufacturing and mining recommendations
-- Fuel and cargo-capacity safeguards
-- Deterministic FCC travel routing
-- Configurable travel-safety profiles
-- Route collision and container-detachment probabilities
-- Arrival-integrity estimates
-- Black-hole and forgotten-Manny warnings
-- SCUT-protected route detection
-- Asteroid depletion warnings
-- Replacement-resource discovery
-- Hub, miner, and transport role plans
-- Deuterium-tanker normalization and model-specific travel safety
-- Tanker fuel-transfer API access
-- Durable galaxy access
-- API v106 compatibility and rate-limit awareness
-- Authoritative Manny task-state loading
-- Interactive and CLI probe selector
-- Explicit per-probe operational context
-- Complete capability gateways for game controls
-- Messaging, missions, storage, logs, alerts, SCUT, and community access
-- FCC galaxy and sector-map foundation
-- Versioned SQLite Data Engine
-- Remembered focused probe
-- Probe, sector, resource, visit, message, alert, and mission history
-
-Skunkworks now provides live operational information directly from the Von Neumann Probe API, including:
-
-- Fleet status
-- Resource Intelligence
-- Runtime snapshots
-
-Messaging, mission/exploration coordination, intelligent refresh scheduling,
-predictions, and operational health are complete. Development now moves to
-Mission 24: the Mission Control UI.
-
-Current Capabilities:
-
-- Live API connection
-- Runtime snapshot management
-- World Model
-- World Builder
-- Gameplay Knowledge
-- Crafting Knowledge
-- Resource Knowledge
-- Movement Knowledge
-- Operational Layer
-- Fleet Service
-- Manufacturing Service
-- Probe Service
-- Travel Service
-- Inventory Service
-- Mining Service
-- Galaxy Service
-- Manufacturing feasibility analysis
-- Recursive dependency analysis
-- Recursive resource analysis
-- Manufacturing reports
-- Fleet Intelligence
-- Probe Intelligence
-- Sector Intelligence
-- Snapshot Intelligence
-- Operational dashboard
-- Live crafting recipes
-- RecipeManager
-- API compatibility validation
-- Canonical v104 telemetry normalization
-- Constraint-based Desired State planning
-- FCC travel routing
-- Typed dry-run command preparation
-- Execution policy and preflight validation
-- Idempotency fingerprints and action journal
-- Advisory travel risk intelligence
-- Direct, segmented, and SCUT route comparison
-- Finite-resource continuity planning
-- Historical replacement-source ranking
-- Fleet logistics role blueprints
-
----
-
-# Long-Term Vision
-
-Skunkworks is designed to become more than an automation tool.
-
-Its purpose is to function as an intelligent operations manager capable of:
-
-- Monitoring your fleet
-- Maintaining production goals
-- Maintaining an accurate, continuously synchronized local model of the discovered universe
-- Identifying the operational constraints preventing the player's desired state
-- Managing logistics
-- Optimizing resource gathering
-- Preparing infrastructure before it is needed
-- Reducing repetitive gameplay while keeping the player in control
-
-The player defines the destination, Skunkworks determines the route.
-
-Skunkworks combines live operational intelligence from the World Model with static game knowledge from the Knowledge Layer through its Operational Layer. This allows the Planner to identify operational constraints, generate explainable task queues, and continuously adapt recommendations as the game state evolves—all without relying on hardcoded automation.
-
-The Planner transforms that information into an ordered task queue based on the player's goals. Rather than following fixed scripts, Skunkworks continuously evaluates the fleet, reprioritizes work as conditions change, and performs as much of the operational workload as the player chooses to automate.
-
----
-
-# Acknowledgements
-
-Skunkworks is inspired by the engineering mindset found in the **Bobiverse** novels by **Dennis E. Taylor**.
-
-This project is an independent, open-source companion application for the **Von Neumann Probe** game. It is not affiliated with or endorsed by the game's developer or by the Bobiverse intellectual property.
-
----
-
-# License
-
-License information will be added before the first public release.
+See the repository license file for distribution terms.

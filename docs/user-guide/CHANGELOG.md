@@ -2,6 +2,12 @@
 
 ## 0.1 — 2026-08-01
 
+- Corrected operational-health classification so notice-only findings, such as
+  every Manny currently being occupied, remain visible without incorrectly
+  marking the entire system Degraded.
+- Consolidated the project documentation into seven maintained references plus
+  the Operator Manual and changelog; moved superseded component notes and the
+  development diary into a clearly labeled archive.
 - Added an automatic compatibility monitor: startup validation plus an
   unmetered `/api/version` check every six hours. A newly unreviewed version
   pauses live API commands and automation, retains the last valid snapshot,

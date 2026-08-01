@@ -48,6 +48,19 @@ class SchedulerPredictionHealthTests(unittest.TestCase):
         self.assertIn("low_fuel", codes)
         self.assertIn("inventory_saturation", codes)
 
+    def test_notice_only_finding_does_not_mark_system_degraded(self):
+        operations = build_operations()
+        for manny in operations.world.mannies["mannies"]:
+            manny["currentTask"] = "mining"
+            manny["canReceiveOrders"] = False
+
+        health = OperationalHealthService(operations).assess()
+
+        self.assertEqual(health.state, "ready")
+        self.assertEqual(health.readiness_percent, 95)
+        self.assertEqual(health.findings[0].code, "no_available_mannies")
+        self.assertEqual(health.findings[0].severity, "notice")
+
 
 if __name__ == "__main__":
     unittest.main()

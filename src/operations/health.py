@@ -62,5 +62,6 @@ class OperationalHealthService:
         penalty = {"notice": 5, "warning": 15, "critical": 40}
         readiness = max(0.0, 100 - sum(penalty[item.severity] for item in findings))
         state = "critical" if any(item.severity == "critical" for item in findings) \
-            else "degraded" if findings else "ready"
+            else "degraded" if any(item.severity == "warning" for item in findings) \
+            else "ready"
         return OperationalHealth(state, readiness, tuple(findings))

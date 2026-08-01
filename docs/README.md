@@ -1,0 +1,34 @@
+# Skunkworks Documentation
+
+This directory intentionally keeps a small canonical set. If two documents
+disagree, the source code and current official game API remain authoritative,
+followed by the documents below.
+
+## Operator documentation
+
+- `user-guide/Skunkworks_Operator_Manual.docx` — illustrated user manual.
+- `user-guide/CHANGELOG.md` — user-visible changes and manual revisions.
+
+## Product and engineering documentation
+
+- `architecture.md` — runtime layers, world model, persistence, capabilities,
+  and component ownership.
+- `api-notes.md` — reviewed game API contract and verified game observations.
+- `planner.md` — desired state, priority allocation, command preparation, and
+  automation execution.
+- `logistics-and-safety.md` — travel hazards, resources, depots, transport
+  cycles, tanker rules, and operator risk policy.
+- `engineering-guide.md` — coding, testing, review, and documentation rules.
+- `roadmap.md` — remaining work to 1.0 and the post-1.0 backlog.
+
+## Archive
+
+`archive/` contains superseded design packages, detailed component notes, and
+the chronological development diary. Archive files preserve rationale but are
+not current product contracts and should not be linked from the live UI.
+
+## Maintenance rule
+
+User-visible behavior changes update the Operator Manual and changelog.
+Architecture or API changes update the applicable canonical reference. Completed
+session narratives belong in the archive, not in new top-level documents.

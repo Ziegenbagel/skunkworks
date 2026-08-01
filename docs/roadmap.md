@@ -2,10 +2,12 @@
 
 ## Status
 
-This is the canonical Skunkworks roadmap as of 2026-07-31.
+This is the canonical Skunkworks roadmap as of 2026-08-01.
 
-Missions 1–23 are complete. Development continues with Mission 24 and targets
-the 1.0 release at Mission 26.
+Missions 1–23 are complete. Mission 24's application interface is implemented
+and undergoing acceptance testing; its cross-platform packaging gate remains
+part of Mission 26. Current feature development continues with Mission 25 and
+targets the 1.0 release at Mission 26.
 
 This roadmap reconciles:
 
@@ -221,9 +223,9 @@ Release gate: the UI stays current through local prediction and reasoned
 refreshes, while Skunkworks warns before major operational constraints become
 failures.
 
-## Remaining Roadmap to 1.0
+## Roadmap to 1.0
 
-### Mission 24 — Mission Control User Interface
+### Mission 24 — Mission Control User Interface (implemented; acceptance open)
 
 Goal: provide a polished, complete player-facing operations console.
 

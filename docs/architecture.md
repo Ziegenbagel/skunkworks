@@ -88,7 +88,8 @@ messaging, galaxy, mission, and community features. All probe-scoped methods
 require an explicit probe ID.
 
 The gateways expose every supported game control while remaining separate from
-planning and automation policy. See `docs/capabilities.md`.
+planning and automation policy. This document is the canonical capability and
+component-boundary reference.
 
 ## Probe Context
 
@@ -110,7 +111,7 @@ event workflow state, execution leases, and the separate Skunkworks Archive.
 
 Live API responses remain authoritative. Persistence supports historical
 reasoning and never replaces live validation before a control action. See
-`docs/data-engine.md`.
+the Data Engine section below.
 
 ---
 
@@ -313,7 +314,7 @@ checks, player policy, cycle limits, and idempotency before presenting a
 dry-run queue.
 
 The controlled runtime dispatches only explicitly allowlisted typed commands
-after a fresh second preflight. See `docs/execution-boundary.md`.
+after a fresh second preflight. See `docs/planner.md` for the command pipeline.
 
 ## Safety Layer
 
@@ -324,12 +325,12 @@ Manny locations, and stored sector observations refine each assessment.
 
 Safety produces warnings and route comparisons. It does not silently prohibit
 risk. Player profiles decide when acknowledgement is recommended and whether
-risky commands should remain eligible. See `docs/travel-safety.md`.
+risky commands should remain eligible. See `docs/logistics-and-safety.md`.
 
 Resource Sustainability compares live deposits with durable resource history,
 identifies finite or depleted sources, ranks known replacements, and emits
 future hub/miner/transport role requirements. It does not assign probes or move
-cargo. See `docs/resource-sustainability.md`.
+cargo. See `docs/logistics-and-safety.md`.
 
 Current planning rules:
 

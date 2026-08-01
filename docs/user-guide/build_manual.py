@@ -344,12 +344,13 @@ def build():
     ])
     add_heading(doc, "Status language", 2)
     add_bullets(doc, [
-        "Nominal / Ready — no active blocking condition was found.",
-        "Degraded — operation can continue, but a resource, Manny, data-quality, or safety condition needs attention.",
+        "Nominal / Ready — no warning or critical condition was found. Informational notices may still reduce the readiness score slightly.",
+        "Degraded — operation can continue, but at least one warning-level resource, data-quality, or safety condition needs attention.",
         "Warning — review is recommended before issuing a related command.",
         "Critical — a serious hazard or stop condition is present.",
         "Unknown — the API or local scan history does not contain enough information to make a reliable claim.",
     ])
+    add_note(doc, "Notices versus health", "A notice such as every Manny currently being occupied remains visible, but it does not by itself mark the entire system Degraded. Open Safety or the finding details to see what affected the readiness score.")
 
     doc.add_page_break()
     add_heading(doc, "2. Mission Control Dashboard")
@@ -429,6 +430,7 @@ def build():
     add_heading(doc, "7. Settings and Automation")
     add_body(doc, "Settings combines account access, audio, automation authority, desired-state targets, probe roles, safety floors, and help links. Read the section labels before changing values; quantity and priority controls answer different questions.")
     add_body(doc, "Check for Updates opens the official latest-release channel. Download the signed package for the current operating system; the running application never silently replaces itself or bypasses platform security checks.")
+    add_body(doc, "API compatibility is checked at startup and every six hours. If the server advertises an unreviewed API version, Skunkworks keeps the last valid snapshot visible, labels it stale, and pauses live commands until compatibility has been reviewed. This version check does not consume the probe request budget.")
     if has_settings_figure:
         doc.add_picture(str(SETTINGS_FIGURE), width=Inches(6.7))
         doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -498,6 +500,7 @@ def build():
         ("Music works; effects are silent", "Interface Effects, effect volume, and Test Effect", "Restart after an audio-device change; verify the Qt FFmpeg backend decodes the selected effect."),
         ("Selected probe shows another probe’s sector", "Focused Probe name and FCC coordinates after refresh", "Refresh; do not act until the authoritative probe snapshot replaces the previous context."),
         ("No automation command is queued", "Targets, inventory, active work, idle assets, allowlist, and safety state", "Read the queue explanation; lower conflicting priorities or supply the missing prerequisite."),
+        ("Status is Ready but readiness is below 100%", "Open Safety and inspect notice-level findings", "No action is required for health state; notices such as all Mannies being busy are advisory."),
         ("Qt cocoa platform plugin missing", "Active virtual environment and PySide6 installation", "Use the project `.venv`; avoid mixing Qt/PySide installations from different Python environments."),
         ("Map lacks sector detail", "Knowledge level and last scan", "Scan the sector or its neighbors; unavailable historic detail cannot be reconstructed automatically."),
     ]
