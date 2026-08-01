@@ -253,3 +253,17 @@ def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     assert "DELETE LOGBOOK PAGE?" in logbook
     assert "AUTO-LOG MAJOR SKUNKWORKS REPORTS & DISCOVERIES" in logbook
     assert "loadLogbookPage" in app
+
+
+def test_settings_exposes_operator_manual_and_change_log_links():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+    assert "HELP & DOCUMENTATION" in settings
+    assert "OPEN OPERATOR MANUAL" in settings
+    assert "OPEN CHANGE LOG" in settings
+    assert "operatorManualRequested" in workspace
+    assert "onOperatorManualRequested" in app
+    assert "def openOperatorManual" in controller
+    assert "def openChangeLog" in controller

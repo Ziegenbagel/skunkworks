@@ -16,8 +16,11 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "Skunkworks_Operator_Manual.docx"
 FIGURE = ROOT / "assets" / "mission-control-dashboard-numbered.png"
+SETTINGS_FIGURE = ROOT / "assets" / "settings-workspace-numbered.png"
 DEFAULT_SCREENSHOT = Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-01 at 1.12.30 AM.png")
 SCREENSHOT = Path(os.environ.get("SKUNKWORKS_GUIDE_SCREENSHOT", DEFAULT_SCREENSHOT))
+DEFAULT_SETTINGS_SCREENSHOT = Path("/Users/ziegenbagel/Documents/Screenshot 2026-07-31 at 11.18.11 PM.png")
+SETTINGS_SCREENSHOT = Path(os.environ.get("SKUNKWORKS_GUIDE_SETTINGS_SCREENSHOT", DEFAULT_SETTINGS_SCREENSHOT))
 
 NAVY = RGBColor(5, 23, 34)
 CYAN = RGBColor(0, 196, 220)
@@ -200,6 +203,31 @@ def make_dashboard_figure():
     return True
 
 
+def make_settings_figure():
+    if not SETTINGS_SCREENSHOT.exists():
+        return False
+    SETTINGS_FIGURE.parent.mkdir(parents=True, exist_ok=True)
+    image = Image.open(SETTINGS_SCREENSHOT).convert("RGBA")
+    draw = ImageDraw.Draw(image, "RGBA")
+    try:
+        label_font = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 30)
+    except OSError:
+        label_font = ImageFont.load_default()
+    points = [
+        (0.12, 0.31), (0.13, 0.51), (0.13, 0.55), (0.29, 0.59),
+        (0.49, 0.70), (0.18, 0.88), (0.39, 0.88), (0.67, 0.88),
+    ]
+    radius = max(20, image.width // 70)
+    for number, (xf, yf) in enumerate(points, 1):
+        x, y = int(image.width * xf), int(image.height * yf)
+        draw.ellipse((x-radius, y-radius, x+radius, y+radius), fill=(0, 196, 220, 235), outline=(255, 255, 255, 255), width=3)
+        text = str(number)
+        box = draw.textbbox((0, 0), text, font=label_font)
+        draw.text((x-(box[2]-box[0])/2, y-(box[3]-box[1])/2-2), text, font=label_font, fill=(0, 15, 24, 255))
+    image.convert("RGB").save(SETTINGS_FIGURE, quality=94)
+    return True
+
+
 def add_dashboard_legend(doc):
     rows = [
         ("1", "System status", "Overall readiness and current findings."),
@@ -226,8 +254,33 @@ def add_dashboard_legend(doc):
         set_table_geometry(table, [600, 2150, 6610])
 
 
+def add_settings_legend(doc):
+    rows = [
+        ("1", "Account & API credential", "Secure API-key storage, connection testing, removal, and first-launch walkthrough."),
+        ("2", "Automation execution", "Explains the current command mode and its safety boundaries."),
+        ("3", "Execution mode", "Observe Only, Require Approval, or Automatic."),
+        ("4", "Command allowlist", "Limits which crafting, mining, and travel command families may be sent."),
+        ("5", "Proposed command queue", "Shows actionable work or the reason nothing can currently run."),
+        ("6", "Automation target", "The object or reserve Skunkworks should maintain."),
+        ("7", "Desired quantity", "How many completed objects or how much reserve should exist."),
+        ("8", "Priority", "Importance from 1–10; 1 is highest and equal values share priority."),
+    ]
+    table = doc.add_table(rows=1, cols=3)
+    table.style = "Table Grid"
+    set_table_geometry(table, [600, 2450, 6310])
+    for i, label in enumerate(("No.", "Settings area", "Purpose")):
+        shade(table.rows[0].cells[i], "E8EEF5")
+        font(table.rows[0].cells[i].paragraphs[0].add_run(label), bold=True, color=BLUE)
+    for number, area, purpose in rows:
+        cells = table.add_row().cells
+        for cell, text in zip(cells, (number, area, purpose)):
+            font(cell.paragraphs[0].add_run(text), size=9.3)
+        set_table_geometry(table, [600, 2450, 6310])
+
+
 def build():
     has_figure = make_dashboard_figure()
+    has_settings_figure = make_settings_figure()
     doc = Document()
     section = doc.sections[0]
     section.top_margin = section.bottom_margin = Inches(0.72)
@@ -370,7 +423,18 @@ def build():
     add_note(doc, "Coverage limitation", "Detached-container contents and planet-dropped container details may be hidden by current observation endpoints. Skunkworks labels unavailable data instead of inventing quantities.")
 
     doc.add_page_break()
-    add_heading(doc, "7. Automation and Priorities")
+    add_heading(doc, "7. Settings and Automation")
+    add_body(doc, "Settings combines account access, audio, automation authority, desired-state targets, probe roles, safety floors, and help links. Read the section labels before changing values; quantity and priority controls answer different questions.")
+    if has_settings_figure:
+        doc.add_picture(str(SETTINGS_FIGURE), width=Inches(6.7))
+        doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        caption = doc.add_paragraph()
+        caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        font(caption.add_run("Figure 7-1. Settings workspace: command authority and desired-state controls."), size=9, color=MUTED)
+        add_settings_legend(doc)
+    add_note(doc, "More settings below", "Scroll to configure probe roles, live target status, resource and safety floors, audio, and the Help & Documentation links.")
+
+    add_heading(doc, "Automation and priorities", 2)
     add_body(doc, "Automation targets describe a desired state. Priority uses a 1–10 scale: 1 is highest; equal numbers receive equal priority. The planner compares targets with existing inventory, active work, available Mannys, recipes, resource needs, fuel floors, and safety policy.")
     add_heading(doc, "Recommended commissioning sequence", 2)
     add_steps(doc, [

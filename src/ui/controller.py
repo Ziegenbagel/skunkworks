@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import traceback
 import json
+import sys
 from dataclasses import asdict
+from pathlib import Path
 
 import requests
-from PySide6.QtCore import QObject, Property, QRunnable, QThreadPool, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, Property, QRunnable, QThreadPool, QTimer, QUrl, Signal, Slot
+from PySide6.QtGui import QDesktopServices
 
 from src.api.capabilities import GameCapabilities
 from src.api.client import GameClient
@@ -712,6 +715,25 @@ class MissionControlController(QObject):
     def resetOnboarding(self):
         self.settings_engine.set_preference("onboarding_complete", "false")
         self.onboardingChanged.emit()
+
+    def _open_document(self, relative_path):
+        roots = [Path(__file__).resolve().parents[2], Path(sys.executable).resolve().parent]
+        if getattr(sys, "_MEIPASS", None):
+            roots.insert(0, Path(sys._MEIPASS))
+        path = next((root / relative_path for root in roots if (root / relative_path).is_file()), roots[0] / relative_path)
+        if not path.is_file():
+            self._set_error(f"Documentation file is missing: {path}")
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
+            self._set_error(f"The operating system could not open: {path.name}")
+
+    @Slot()
+    def openOperatorManual(self):
+        self._open_document(Path("docs/user-guide/Skunkworks_Operator_Manual.docx"))
+
+    @Slot()
+    def openChangeLog(self):
+        self._open_document(Path("docs/user-guide/CHANGELOG.md"))
 
     @Slot("QVariantMap")
     def saveExecutionPolicy(self, value):

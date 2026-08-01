@@ -290,5 +290,15 @@ ApplicationWindow {
             AudioManager.play("select");
             if (window.backend) window.backend.loadLogbookPage(pageId);
         }
+
+        function onOperatorManualRequested() {
+            AudioManager.play("navigate");
+            if (window.backend) window.backend.openOperatorManual();
+        }
+
+        function onChangeLogRequested() {
+            AudioManager.play("navigate");
+            if (window.backend) window.backend.openChangeLog();
+        }
     }
 }

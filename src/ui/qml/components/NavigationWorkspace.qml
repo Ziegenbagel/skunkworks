@@ -36,6 +36,8 @@ PanelFrame {
     signal logbookDeleteRequested(int pageId)
     signal autoLogbookChanged(bool enabled)
     signal logbookPageOpenRequested(int pageId)
+    signal operatorManualRequested()
+    signal changeLogRequested()
 
     title: section
 
@@ -110,6 +112,8 @@ PanelFrame {
             onExecutionPolicySaveRequested: policy => root.executionPolicySaveRequested(policy)
             onAutomationCycleRequested: root.automationCycleRequested()
             onAutomationApprovalRequested: (fingerprint, riskAcknowledged) => root.automationApprovalRequested(fingerprint, riskAcknowledged)
+            onOperatorManualRequested: root.operatorManualRequested()
+            onChangeLogRequested: root.changeLogRequested()
         }
 
         NavigationControl {

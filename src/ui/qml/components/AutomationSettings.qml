@@ -19,6 +19,8 @@ Item {
     signal executionPolicySaveRequested(var policy)
     signal automationCycleRequested()
     signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
+    signal operatorManualRequested()
+    signal changeLogRequested()
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -363,6 +365,20 @@ Item {
             }
 
             Button { text: "SAVE AUTOMATION TARGETS"; Layout.alignment: Qt.AlignRight; onClicked: root.saveRequested(root.payload()) }
+
+            GroupBox {
+                title: "HELP & DOCUMENTATION"; Layout.fillWidth: true
+                RowLayout {
+                    anchors.fill: parent; spacing: 12
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Open the illustrated operator manual or review user-visible changes in this build."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Button { text: "OPEN OPERATOR MANUAL"; onClicked: root.operatorManualRequested() }
+                    Button { text: "OPEN CHANGE LOG"; onClicked: root.changeLogRequested() }
+                }
+            }
         }
     }
 }
