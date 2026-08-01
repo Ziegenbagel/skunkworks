@@ -389,7 +389,7 @@ def build():
         "Unknown or incomplete scans must remain visibly identified as uncertain.",
     ])
     add_heading(doc, "Galaxy map", 2)
-    add_body(doc, "The galaxy map uses FCC X/Y/Z coordinates. Drag to rotate, pan where supported, and zoom to inspect discovered sectors. Lines represent verified neighboring-sector relationships. Select a sector dot to open its detail panel.")
+    add_body(doc, "The galaxy map uses FCC X/Y/Z coordinates and initially centers its camera on the focused probe's current sector. Left-drag to rotate, right- or middle-drag to pan, and use the wheel to zoom. The pan arrow buttons provide precise movement, while Center Probe restores the focused-sector view. Lines represent verified neighboring-sector relationships. Select a sector dot to open its detail panel.")
     add_note(doc, "Local knowledge", "Detailed sector history is retained by Skunkworks after scans. A sector cannot display information the game API never exposed or Skunkworks never observed.")
 
     doc.add_page_break()
@@ -435,6 +435,7 @@ def build():
     add_note(doc, "More settings below", "Scroll to configure probe roles, live target status, resource and safety floors, audio, and the Help & Documentation links.")
 
     add_heading(doc, "Automation and priorities", 2)
+    add_body(doc, "Execution authority is probe-specific. The mode, live-order permission, command allowlist, and maximum orders per cycle shown in Settings belong to the focused probe. Switching probes loads that probe's policy and queue; a command prepared for one probe cannot be dispatched under another probe's policy. Desired-state fleet targets remain account-level planning goals.")
     add_body(doc, "Automation targets describe a desired state. Priority uses a 1–10 scale: 1 is highest; equal numbers receive equal priority. The planner compares targets with existing inventory, active work, available Mannys, recipes, resource needs, fuel floors, and safety policy.")
     add_heading(doc, "Recommended commissioning sequence", 2)
     add_steps(doc, [
@@ -449,6 +450,7 @@ def build():
     add_heading(doc, "Max orders per cycle", 2)
     add_body(doc, "This limit is the maximum number of separate live game orders Skunkworks may send during one 60-second automatic cycle. It is a rate and blast-radius control, not a target quantity.")
 
+    doc.add_page_break()
     add_heading(doc, "8. Safety Controls")
     add_bullets(doc, [
         "Travel-distance risk warns when a proposed journey may destroy a probe.",

@@ -9,7 +9,8 @@ import ".."
 Item {
     id: root
     property var galaxyData: ({})
-    property var selectedNode: nodes.length ? nodes[0] : null
+    property int focusedProbeId: -1
+    property var selectedNode: null
     readonly property var nodes: galaxyData.nodes || []
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
@@ -22,14 +23,36 @@ Item {
     function positionFor(node) {
         return Qt.vector3d(Number(node.x) * spacing3D, Number(node.y) * spacing3D, Number(node.z) * spacing3D);
     }
+    function focusedNode() {
+        for (let i = 0; i < nodes.length; ++i) {
+            if (nodes[i].isFocused) return nodes[i];
+            const probeIds = nodes[i].probeIds || [];
+            if (probeIds.indexOf(focusedProbeId) >= 0 || probeIds.indexOf(String(focusedProbeId)) >= 0)
+                return nodes[i];
+        }
+        return null;
+    }
+    function centerOnFocusedProbe() {
+        const target = focusedNode();
+        cameraOrigin.position = target ? positionFor(target) : Qt.vector3d(0, 0, 0);
+        if (target) selectedNode = target;
+    }
     function resetCamera() {
-        cameraOrigin.position = Qt.vector3d(0, 0, 0);
+        centerOnFocusedProbe();
         cameraOrigin.eulerRotation = Qt.vector3d(-25, 35, 0);
         camera.z = 950;
     }
     function setView(rotation) {
         cameraOrigin.eulerRotation = rotation;
         camera.z = 950;
+    }
+    function panBy(horizontal, vertical) {
+        const step = Math.max(30, camera.z * 0.08);
+        cameraOrigin.position = Qt.vector3d(
+            cameraOrigin.position.x + horizontal * step,
+            cameraOrigin.position.y + vertical * step,
+            cameraOrigin.position.z
+        );
     }
     function colorFor(node) {
         const state = String(node.mapState || "unknown");
@@ -113,6 +136,10 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     }
 
+    Component.onCompleted: Qt.callLater(root.resetCamera)
+    onGalaxyDataChanged: Qt.callLater(root.resetCamera)
+    onFocusedProbeIdChanged: Qt.callLater(root.resetCamera)
+
     TapHandler {
         acceptedButtons: Qt.LeftButton
         gesturePolicy: TapHandler.ReleaseWithinBounds
@@ -129,17 +156,28 @@ Item {
         Column {
             anchors.fill: parent; anchors.margins: 9; spacing: 4
             Label { text: "ROTATABLE FCC GALAXY SPACE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-            Label { text: "DRAG · ORBIT    CTRL+DRAG · PAN    WHEEL · ZOOM"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+            Label { text: "LEFT DRAG · ORBIT    RIGHT/MIDDLE DRAG · PAN    WHEEL · ZOOM"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
             Label { text: root.nodes.length + " SECTORS · " + (root.galaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
         }
     }
 
-    Row {
+    Column {
         anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12; spacing: 6
-        Button { text: "3D RESET"; onClicked: root.resetCamera() }
-        Button { text: "TOP X/Z"; onClicked: root.setView(Qt.vector3d(-90, 0, 0)) }
-        Button { text: "FRONT X/Y"; onClicked: root.setView(Qt.vector3d(0, 0, 0)) }
-        Button { text: "SIDE Z/Y"; onClicked: root.setView(Qt.vector3d(0, 90, 0)) }
+        Row {
+            spacing: 6
+            Button { text: "CENTER PROBE"; onClicked: root.resetCamera() }
+            Button { text: "TOP X/Z"; onClicked: root.setView(Qt.vector3d(-90, 0, 0)) }
+            Button { text: "FRONT X/Y"; onClicked: root.setView(Qt.vector3d(0, 0, 0)) }
+            Button { text: "SIDE Z/Y"; onClicked: root.setView(Qt.vector3d(0, 90, 0)) }
+        }
+        Row {
+            anchors.right: parent.right; spacing: 6
+            Label { text: "PAN"; anchors.verticalCenter: parent.verticalCenter; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+            Button { text: "◀"; onClicked: root.panBy(-1, 0) }
+            Button { text: "▲"; onClicked: root.panBy(0, 1) }
+            Button { text: "▼"; onClicked: root.panBy(0, -1) }
+            Button { text: "▶"; onClicked: root.panBy(1, 0) }
+        }
     }
 
     Rectangle {

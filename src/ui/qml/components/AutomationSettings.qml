@@ -37,6 +37,12 @@ Item {
     }
     function reserve(resource) { return Number((settingsData.resourceReserves || {})[resource] || 0); }
     function roleFor(probeId) { return (settingsData.probeRoles || {})[String(probeId)] || "unassigned"; }
+    function probeName(probeId) {
+        for (let i = 0; i < availableProbes.length; ++i)
+            if (Number(availableProbes[i].id) === Number(probeId))
+                return String(availableProbes[i].name || ("PROBE " + probeId));
+        return probeId === undefined || probeId === null ? "NO FOCUSED PROBE" : "PROBE " + probeId;
+    }
     function commandAllowed(commandType) {
         return (runtimeData.allowedCommandTypes || []).indexOf(commandType) >= 0;
     }
@@ -169,7 +175,7 @@ Item {
                     anchors.fill: parent; spacing: 10
                     Label {
                         Layout.fillWidth: true
-                        text: "Targets create proposed actions. Observe only previews them; Approval requires a click for each command; Automatic evaluates the queue every 60 seconds. Every command is refreshed, safety-checked, allowlisted, and stopped by the emergency stop."
+                        text: "EXECUTION POLICY FOR FOCUSED PROBE · " + root.probeName(root.runtimeData.probeId).toUpperCase() + "\nMode, command permissions, and the cycle limit apply only to this probe. Targets create proposed actions. Observe only previews them; Approval requires a click for each command; Automatic evaluates the probe queue every 60 seconds."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     GridLayout {

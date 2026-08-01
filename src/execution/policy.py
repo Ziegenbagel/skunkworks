@@ -48,6 +48,16 @@ class ExecutionPolicy:
             ),
         )
 
+    def to_dict(self):
+        return {
+            "mode": self.mode.value,
+            "liveExecutionEnabled": self.live_execution_enabled,
+            "allowedCommandTypes": sorted(
+                item.value for item in self.allowed_command_types
+            ),
+            "maxCommandsPerCycle": self.max_commands_per_cycle,
+        }
+
 
 class ExecutionPolicyStore:
     def __init__(
@@ -56,20 +66,39 @@ class ExecutionPolicyStore:
     ):
         self.path = Path(path)
 
-    def load(self):
+    def _read(self):
         if not self.path.exists():
-            return ExecutionPolicy()
+            return None
 
         with self.path.open("r", encoding="utf-8") as file:
-            return ExecutionPolicy.from_dict(json.load(file))
+            return json.load(file)
 
-    def save(self, policy):
+    def load(self, probe_id=None):
+        value = self._read()
+        if value is None:
+            return ExecutionPolicy()
+        if "probes" not in value:
+            return ExecutionPolicy.from_dict(value)
+        if probe_id is not None:
+            scoped = value.get("probes", {}).get(str(probe_id))
+            if scoped is not None:
+                return ExecutionPolicy.from_dict(scoped)
+        return ExecutionPolicy.from_dict(value.get("default", {}))
+
+    def save(self, policy, probe_id=None):
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        if probe_id is None:
+            value = policy.to_dict()
+        else:
+            current = self._read() or {}
+            if "probes" in current:
+                value = current
+            else:
+                value = {
+                    "default": current,
+                    "probes": {},
+                }
+            value.setdefault("probes", {})[str(probe_id)] = policy.to_dict()
         with self.path.open("w", encoding="utf-8") as file:
-            json.dump({
-                "mode": policy.mode.value,
-                "liveExecutionEnabled": policy.live_execution_enabled,
-                "allowedCommandTypes": sorted(item.value for item in policy.allowed_command_types),
-                "maxCommandsPerCycle": policy.max_commands_per_cycle,
-            }, file, indent=2)
+            json.dump(value, file, indent=2)
             file.write("\n")

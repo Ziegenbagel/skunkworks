@@ -115,6 +115,11 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()
 
     assert "GalaxyMap3D" in workspace
+    assert "focusedProbeId: root.focusedProbeId" in workspace
+    assert "function focusedNode()" in galaxy
+    assert "CENTER PROBE" in galaxy
+    assert "function panBy(" in galaxy
+    assert "RIGHT/MIDDLE DRAG · PAN" in galaxy
     assert "import QtQuick3D" in galaxy
     assert "View3D" in galaxy
     assert "OrbitCameraController" in galaxy

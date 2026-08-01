@@ -208,8 +208,9 @@ class MissionControlDataService:
 
     def automation_view(self, operations=None, probe_id=None):
         operations = operations or self._operations
-        probe_id = probe_id or self._selected_probe_id
-        policy = ExecutionPolicyStore().load()
+        if probe_id is None:
+            probe_id = self._selected_probe_id
+        policy = ExecutionPolicyStore().load(probe_id)
         if operations is None or probe_id is None:
             self._prepared_commands = ()
             tasks = ()
@@ -222,6 +223,7 @@ class MissionControlDataService:
                 operations, probe_id, policy,
             ).prepare(tasks)
         return {
+            "probeId": probe_id,
             "mode": policy.mode.value,
             "liveExecutionEnabled": policy.live_execution_enabled,
             "allowedCommandTypes": [item.value for item in sorted(policy.allowed_command_types, key=lambda item: item.value)],
@@ -256,15 +258,16 @@ class MissionControlDataService:
 
     def save_execution_policy(self, value):
         policy = ExecutionPolicy.from_dict(value)
-        ExecutionPolicyStore().save(policy)
-        return self.automation_view()
+        ExecutionPolicyStore().save(policy, self._selected_probe_id)
+        return self.automation_view(probe_id=self._selected_probe_id)
 
     def run_automation_cycle(self, fingerprint=None, risk_acknowledged=False):
-        policy = ExecutionPolicyStore().load()
-        self.automation_view()
+        policy = ExecutionPolicyStore().load(self._selected_probe_id)
+        self.automation_view(probe_id=self._selected_probe_id)
         candidates = [
             item for item in self._prepared_commands
-            if fingerprint is None or item.command.fingerprint == fingerprint
+            if item.command.probe_id == self._selected_probe_id
+            and (fingerprint is None or item.command.fingerprint == fingerprint)
         ]
         if not candidates:
             return {"status": "idle", "message": "No actionable automation command is queued."}

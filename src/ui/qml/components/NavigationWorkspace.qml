@@ -93,6 +93,7 @@ PanelFrame {
             anchors.fill: parent
             visible: root.section === "GALAXY MAP"
             galaxyData: root.dashboardData.galaxy || ({})
+            focusedProbeId: root.focusedProbeId
             onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
         }
 

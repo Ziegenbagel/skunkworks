@@ -220,6 +220,27 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
             self.assertEqual(store.load(), expected)
 
+    def test_execution_policy_store_isolates_probe_policies(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            store = ExecutionPolicyStore(Path(temporary) / "execution.json")
+            first = ExecutionPolicy(
+                mode=ExecutionMode.AUTOMATIC,
+                live_execution_enabled=True,
+                allowed_command_types=frozenset({CommandType.MANNY_MINE}),
+                max_commands_per_cycle=2,
+            )
+            second = ExecutionPolicy(
+                mode=ExecutionMode.APPROVE,
+                allowed_command_types=frozenset({CommandType.MOVE_PROBE}),
+            )
+
+            store.save(first, probe_id=11)
+            store.save(second, probe_id=12)
+
+            self.assertEqual(store.load(11), first)
+            self.assertEqual(store.load(12), second)
+            self.assertEqual(store.load(13), ExecutionPolicy())
+
     def test_travel_warning_is_advisory_by_default(self):
         self.operations.world.probe["inventory"][
             "containers"
