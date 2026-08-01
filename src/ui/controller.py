@@ -50,6 +50,7 @@ class MissionControlDataService:
         self.api_version = None
         self._operations = None
         self._selected_probe_id = None
+        self._last_scan_result = None
 
     def load(self, probe_id=None):
         self._initialize()
@@ -109,6 +110,8 @@ class MissionControlDataService:
         dashboard["probeOptions"] = options
         dashboard["syncFailures"] = sync_failures
         dashboard["emergencyStopActive"] = self.data_engine.emergency_stop_active()
+        if self._last_scan_result is not None:
+            dashboard.setdefault("navigation", {})["scanResult"] = self._last_scan_result
         desired_state = DesiredStateStore(self.data_engine).load()
         automation = desired_state.to_dict()
         probes = world.fleet.get("probes", ()) if getattr(world, "fleet", None) else (probe,)
@@ -183,8 +186,9 @@ class MissionControlDataService:
 
     def scan_sector(self, target):
         response = self.capabilities.galaxy.observe_sector(target["x"], target["y"], target["z"])
+        self.data_engine.record_sector_observation(self._selected_probe_id, response)
         sector = response.get("sector", response)
-        return {
+        result = {
             "target": target,
             "label": "FCC {x} / {y} / {z}".format(**target),
             "knowledgeLevel": sector.get("knowledgeLevel", "unknown"),
@@ -195,6 +199,8 @@ class MissionControlDataService:
             "dangerEstimate": sector.get("dangerEstimate", sector.get("navigationalRisk", "unknown")),
             "scan": sector.get("scan", {}),
         }
+        self._last_scan_result = result
+        return result
 
     def _initialize(self):
         if self._initialized:
@@ -426,6 +432,8 @@ class MissionControlController(QObject):
         self._dashboard["navigation"] = navigation
         self._set_error("")
         self.dashboardChanged.emit()
+        if not self._refreshing:
+            self._start_refresh(self._focused_probe_id)
 
     @Slot(int, int, int)
     def setAutonomousTravelTarget(self, x, y, z):

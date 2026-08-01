@@ -127,6 +127,18 @@ class DataEngine:
                         ),
                     )
 
+    def record_sector_observation(self, probe_id, observation, observed_at=None):
+        """Persist one explicit galaxy-map scan for later cartography."""
+
+        snapshot = observation if "sector" in observation else {"sector": observation}
+        with self._connect() as connection:
+            self._record_sector(
+                connection,
+                probe_id,
+                snapshot,
+                observed_at or self._now(),
+            )
+
     def sync_visits(self, payload, probe_id=None):
         """Upsert fleet-wide or per-probe visited-sector history."""
 

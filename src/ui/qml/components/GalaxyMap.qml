@@ -8,10 +8,28 @@ Item {
     property var galaxyData: ({})
     property real zoomLevel: 1.0
     property var selectedNode: null
+    property string projection: "ISOMETRIC"
+    signal scanRequested(int x, int y, int z)
     readonly property var nodes: galaxyData.nodes || []
 
-    function mapX(node) { return 1100 + (Number(node.x) - Number(node.z)) * 105; }
-    function mapY(node) { return 850 + (Number(node.x) + Number(node.z) - 2 * Number(node.y)) * 52; }
+    function mapX(node) {
+        if (projection === "X / Y") return 1100 + Number(node.x) * 110;
+        if (projection === "X / Z") return 1100 + Number(node.x) * 110;
+        if (projection === "Y / Z") return 1100 + Number(node.z) * 110;
+        return 1100 + (Number(node.x) - Number(node.z)) * 105;
+    }
+    function mapY(node) {
+        if (projection === "X / Y") return 850 - Number(node.y) * 95;
+        if (projection === "X / Z") return 850 - Number(node.z) * 95;
+        if (projection === "Y / Z") return 850 - Number(node.y) * 95;
+        return 850 + (Number(node.x) + Number(node.z) - 2 * Number(node.y)) * 52;
+    }
+    function depth(node) {
+        if (projection === "X / Y") return Number(node.z);
+        if (projection === "X / Z") return Number(node.y);
+        if (projection === "Y / Z") return Number(node.x);
+        return Number(node.y);
+    }
     function nodeById(identifier) {
         for (let i = 0; i < nodes.length; ++i)
             if (nodes[i].id === identifier) return nodes[i];
@@ -44,6 +62,11 @@ Item {
                 scale: root.zoomLevel
                 transformOrigin: Item.TopLeft
 
+                Rectangle { x: 760; y: 850; width: 680; height: 1; color: Qt.rgba(0.1, 0.65, 0.95, 0.35) }
+                Rectangle { x: 1100; y: 510; width: 1; height: 680; color: Qt.rgba(0.1, 0.95, 0.55, 0.28) }
+                Label { x: 1445; y: 838; text: root.projection === "Y / Z" ? "+Z" : "+X"; color: Constants.cyanColor; font.family: Constants.technicalFont }
+                Label { x: 1110; y: 500; text: root.projection === "X / Z" ? "+Z" : "+Y"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+
                 Repeater {
                     model: root.galaxyData.edges || []
                     delegate: Rectangle {
@@ -55,11 +78,11 @@ Item {
                         x: fromNode ? root.mapX(fromNode) : 0
                         y: fromNode ? root.mapY(fromNode) : 0
                         width: Math.sqrt(dx * dx + dy * dy)
-                        height: 1
+                        height: 2
                         rotation: Math.atan2(dy, dx) * 180 / Math.PI
                         transformOrigin: Item.Left
-                        color: Constants.lineColor
-                        opacity: 0.7
+                        color: Constants.cyanColor
+                        opacity: 0.9
                     }
                 }
 
@@ -78,6 +101,11 @@ Item {
                             color: nodeItem.modelData.isFocused ? Constants.selectedColor : Constants.raisedColor
                             border.width: nodeItem.modelData.isFocused ? 3 : 1
                             border.color: nodeItem.modelData.isFocused ? Constants.nominalColor : Constants.cyanColor
+                        }
+                        Label {
+                            x: 7; y: -15
+                            text: "D" + root.depth(nodeItem.modelData)
+                            color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 7
                         }
                         Label {
                             x: 38; y: 1; width: 148
@@ -111,21 +139,32 @@ Item {
 
     Row {
         anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12; spacing: 6
+        ComboBox { width: 145; model: ["ISOMETRIC", "X / Y", "X / Z", "Y / Z"]; onActivated: root.projection = String(currentText) }
         Button { text: "−"; onClicked: root.zoomLevel = Math.max(0.45, root.zoomLevel - 0.15) }
         Label { width: 55; anchors.verticalCenter: parent.verticalCenter; horizontalAlignment: Text.AlignHCenter; text: Math.round(root.zoomLevel * 100) + "%"; color: Constants.textColor; font.family: Constants.technicalFont }
         Button { text: "+"; onClicked: root.zoomLevel = Math.min(2.5, root.zoomLevel + 0.15) }
         Button { text: "CENTER"; onClicked: root.fitMap() }
     }
 
+    Label {
+        anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 12
+        text: root.nodes.length + " DISCOVERED SECTORS · " + (root.galaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS · FCC X/Y/Z"
+        color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 9
+    }
+
     Rectangle {
         visible: root.selectedNode !== null
         anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12
-        width: 330; height: 92; color: Constants.panelColor; border.color: Constants.cyanColor
+        width: 390; height: 128; color: Constants.panelColor; border.color: Constants.cyanColor
         Column {
             anchors.fill: parent; anchors.margins: 12; spacing: 5
             Label { text: root.selectedNode ? root.selectedNode.label : ""; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
             Label { width: parent.width; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9; wrapMode: Text.Wrap }
             Label { text: root.selectedNode ? "KNOWLEDGE " + String(root.selectedNode.knowledgeLevel).toUpperCase() + " · CONFIDENCE " + Math.round(root.selectedNode.confidence * 100) + "%" : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+            Button {
+                text: "SCAN / REFRESH THIS SECTOR"
+                onClicked: if (root.selectedNode) root.scanRequested(root.selectedNode.x, root.selectedNode.y, root.selectedNode.z)
+            }
         }
     }
 

@@ -127,6 +127,21 @@ class DataEngineTests(unittest.TestCase):
             "read",
         )
 
+    def test_explicit_map_scan_is_persisted_as_sector_detail(self):
+        self.engine.record_sector_observation(762, {
+            "sector": {
+                "relativeCoordinates": {"x": 1, "y": 1, "z": 0},
+                "knowledgeLevel": "neighbor_scan",
+                "confidence": 0.82,
+                "objects": [{"id": "star-1", "type": "star"}],
+            }
+        })
+
+        record = self.engine.galaxy_map().sectors()[0]
+
+        self.assertEqual(record.coordinates.x, 1)
+        self.assertEqual(record.observed["sector"]["objects"][0]["type"], "star")
+
     def test_action_journal_supports_idempotency_checks(self):
         command = {
             "type": "move_probe",
