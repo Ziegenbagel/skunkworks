@@ -60,6 +60,16 @@ def plan(operations, desired_state) -> list[Task]:
         if operations.world.probe["status"] != "idle":
             constraints.append("probe_unavailable")
 
+        free_capacity = operations.inventory.free_capacity()
+        if resource_type != "deuterium" and free_capacity <= 0:
+            constraints.append("insufficient_probe_storage")
+
+        order_amount = amount
+        if target is not None:
+            order_amount = min(order_amount, target.get("available_amount", order_amount))
+        if resource_type != "deuterium":
+            order_amount = min(order_amount, free_capacity)
+
         tasks.append(
             Task(
                 action=(
@@ -77,7 +87,7 @@ def plan(operations, desired_state) -> list[Task]:
                     if target is not None
                     else resource_type
                 ),
-                quantity=round(amount, 3),
+                quantity=round(order_amount, 3),
                 constraints=tuple(constraints),
                 resource_type=resource_type,
                 priority=priorities.get(

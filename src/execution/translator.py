@@ -61,6 +61,10 @@ class TaskCommandTranslator:
         if manny is None or resource_type is None:
             return None
 
+        cargo = manny.get("cargo") or {}
+        trip_capacity = float(cargo.get("capacity", 0.05) or 0.05)
+        target_amount = round(min(float(task.quantity), trip_capacity), 3)
+
         return Command(
             type=CommandType.MANNY_MINE,
             probe_id=self.probe_id,
@@ -68,11 +72,12 @@ class TaskCommandTranslator:
             payload={
                 "objectId": task.target,
                 "resources": [resource_type],
-                "targetAmount": task.quantity,
+                "targetAmount": target_amount,
             },
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
+            metadata={"remainingAmount": max(0, round(float(task.quantity) - target_amount, 3))},
         )
 
     def _move(self, task):

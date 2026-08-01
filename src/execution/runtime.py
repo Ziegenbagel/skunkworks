@@ -133,10 +133,25 @@ class AutomationRuntime:
                     continue
                 self._record(command, "failed", (type(error).__name__,))
                 return ExecutionResult(
-                    "failed", command, response={"error": str(error)}
+                    "failed", command, response=self._error_response(error)
                 )
             self._record(command, "succeeded")
             return ExecutionResult("succeeded", command, response=response)
+
+    @staticmethod
+    def _error_response(error):
+        response = getattr(error, "response", None)
+        detail = None
+        if response is not None:
+            try:
+                detail = response.json()
+            except (TypeError, ValueError):
+                detail = getattr(response, "text", None)
+        return {
+            "error": str(error) or type(error).__name__,
+            "detail": detail,
+            "statusCode": getattr(response, "status_code", None),
+        }
 
     @staticmethod
     def _retryable(error):

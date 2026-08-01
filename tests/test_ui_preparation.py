@@ -173,6 +173,24 @@ class UiPreparationTests(unittest.TestCase):
         )
         self.assertEqual(resources[0]["value"], 0.82)
 
+    def test_resource_ledger_covers_probe_deposits_and_visible_containers(self):
+        world = build_operations().world
+        world.probe["inventory"]["resourceStocks"][0]["containers"] = [{
+            "container": {"id": "probe-core", "kind": "probe", "label": "Probe core"},
+            "amount": 2,
+        }]
+        world.sector["snapshot"] = {"sector": {"objects": [{
+            "id": "floating-1", "type": "detached_container", "name": "Cache",
+            "mode": "drifting", "capacity": 1,
+        }]}}
+
+        ledger = MissionControlViewModelBuilder._resource_ledger(world)
+
+        self.assertTrue(any(row["scope"] == "probe_storage" for row in ledger["rows"]))
+        self.assertTrue(any(row["scope"] == "natural_deposit" for row in ledger["rows"]))
+        detached = next(row for row in ledger["rows"] if row["scope"] == "detached_container")
+        self.assertIn("Contents not exposed by API", detached["detail"])
+
     def test_galaxy_view_exposes_discovered_nodes_and_neighbor_links(self):
         from src.models.galaxy import GalaxyMap
 

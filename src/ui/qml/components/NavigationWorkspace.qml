@@ -35,10 +35,13 @@ PanelFrame {
                         "probeId": probe.id
                     }));
         if (section === "RESOURCES")
-            return (dashboardData.resources || []).map(item => ({
-                        "title": item.label,
-                        "detail": item.reading
-                    }));
+            return ((dashboardData.resourceLedger || {}).rows || []).map(item => ({
+                        "title": item.title,
+                        "detail": item.detail
+                    })).concat(((dashboardData.resourceLedger || {}).notes || []).map(note => ({
+                        "title": "API COVERAGE NOTE",
+                        "detail": note
+                    })));
         if (section === "MISSIONS")
             return (dashboardData.missions || []).map(item => ({
                         "title": item.displayText,

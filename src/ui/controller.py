@@ -217,10 +217,25 @@ class MissionControlDataService:
         )
         return {
             "status": result.status,
-            "message": result.status.replace("_", " ").title(),
+            "message": self._execution_message(result),
             "blockers": list(result.blockers),
             "fingerprint": prepared.command.fingerprint,
+            "response": result.response,
         }
+
+    @staticmethod
+    def _execution_message(result):
+        if result.status != "failed" or not isinstance(result.response, dict):
+            return result.status.replace("_", " ").title()
+        detail = result.response.get("detail")
+        if isinstance(detail, dict):
+            error = detail.get("error", detail)
+            if isinstance(error, dict):
+                code = error.get("code")
+                message = error.get("message")
+                if code or message:
+                    return " · ".join(str(item) for item in (code, message) if item)
+        return str(result.response.get("error") or "Automation command failed")
 
     def _refresh_operations(self, probe_id):
         self.load(probe_id)

@@ -1,6 +1,10 @@
 {
-  "mode": "observe",
-  "liveExecutionEnabled": false,
-  "allowedCommandTypes": [],
-  "maxCommandsPerCycle": 1
+  "mode": "automatic",
+  "liveExecutionEnabled": true,
+  "allowedCommandTypes": [
+    "atomic_printer_craft",
+    "manny_craft",
+    "manny_mine"
+  ],
+  "maxCommandsPerCycle": 10
 }

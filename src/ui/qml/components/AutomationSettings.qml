@@ -159,6 +159,7 @@ Item {
                             Layout.fillWidth: true
                             text: root.runtimeData.lastResult ? String(root.runtimeData.lastResult.message || root.runtimeData.lastResult.status).toUpperCase() : "NO EXECUTION ATTEMPT THIS SESSION"
                             color: Constants.mutedTextColor; font.family: Constants.technicalFont; horizontalAlignment: Text.AlignRight
+                            wrapMode: Text.Wrap
                         }
                     }
                     Label { text: "PROPOSED COMMAND QUEUE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }

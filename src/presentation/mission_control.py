@@ -54,6 +54,7 @@ class MissionControlViewModelBuilder:
             "health": health_view,
             "alerts": self._alert_views(findings + self._event_alerts()),
             "resources": self._resources(probe),
+            "resourceLedger": self._resource_ledger(world),
             "sector": self._sector_view(world, coordinates),
             "galaxy": self._galaxy_view(world, coordinates),
             "missions": self._missions(),
@@ -66,6 +67,97 @@ class MissionControlViewModelBuilder:
         }
         result["navigation"] = self.navigation_view()
         return result
+
+    @classmethod
+    def _resource_ledger(cls, world):
+        rows = []
+        inventory = world.probe.get("inventory", {})
+        probe_name = world.probe.get("name", f"Probe {world.probe.get('id', '?')}")
+
+        for stock in inventory.get("resourceStocks", ()):
+            placements = stock.get("containers", ()) or ()
+            if not placements:
+                rows.append(cls._resource_row(
+                    "probe_storage", probe_name, stock.get("type"), stock.get("amount", 0),
+                    "Probe inventory · container placement unavailable",
+                ))
+            for placement in placements:
+                container = placement.get("container", {})
+                rows.append(cls._resource_row(
+                    "probe_storage",
+                    container.get("label") or container.get("id") or probe_name,
+                    stock.get("type"), placement.get("amount", 0),
+                    "Probe storage container" if container.get("kind") == "container" else "Probe core storage",
+                ))
+
+        fuel = world.probe.get("fuel", {})
+        if fuel.get("deuterium") is not None:
+            rows.append(cls._resource_row(
+                "probe_storage", probe_name, "deuterium", fuel.get("deuterium", 0),
+                "Probe fuel reserve", unit="%",
+            ))
+
+        for target in world.sector.get("resources", ()):
+            for resource_type, amount in (target.get("resources") or {}).items():
+                rows.append(cls._resource_row(
+                    "natural_deposit", target.get("name") or target.get("id", "Mineable object"),
+                    resource_type, amount,
+                    f"Remaining on {str(target.get('type', 'mineable object')).replace('_', ' ')} · {target.get('classification', 'observed')}",
+                ))
+
+        snapshot = world.sector.get("snapshot") or {}
+        objects = (snapshot.get("sector") or {}).get("objects", ()) or ()
+        for object_ in objects:
+            cls._append_container_rows(rows, object_)
+            for container in object_.get("storageContainers", ()) or ():
+                nested = dict(container)
+                nested.setdefault("targetObjectId", object_.get("id"))
+                nested.setdefault("targetObjectName", object_.get("name"))
+                cls._append_container_rows(rows, nested, force=True)
+
+        return {
+            "rows": tuple(rows),
+            "notes": (
+                "Planet-dropped containers are retained by the game but are not exposed by current sector observation endpoints.",
+                "Detached-container contents are hidden by the API; visible entries show location and capacity until recovered.",
+            ),
+        }
+
+    @classmethod
+    def _append_container_rows(cls, rows, object_, force=False):
+        type_ = str(object_.get("type") or object_.get("kind") or "").lower()
+        if not force and "container" not in type_:
+            return
+        mode = object_.get("mode") or ("attached_to_object" if object_.get("targetObjectId") else "drifting")
+        target = object_.get("targetObjectName") or object_.get("targetObjectId")
+        location = "Floating in sector" if mode == "drifting" else f"Placed on {target or 'sector object'}"
+        stocks = object_.get("resourceStocks") or (object_.get("inventory") or {}).get("resourceStocks") or ()
+        if stocks:
+            for stock in stocks:
+                rows.append(cls._resource_row(
+                    "detached_container", object_.get("name") or object_.get("id", "Detached container"),
+                    stock.get("type"), stock.get("amount", 0), location,
+                ))
+        else:
+            rows.append({
+                "scope": "detached_container",
+                "title": object_.get("name") or object_.get("id", "Detached container"),
+                "detail": f"{location} · Capacity {float(object_.get('capacity', 0) or 0):g} ECE · Contents not exposed by API",
+                "resourceType": "unknown",
+                "amount": None,
+            })
+
+    @staticmethod
+    def _resource_row(scope, location, resource_type, amount, detail, unit="ECE"):
+        label = str(resource_type or "unknown").replace("_", " ").upper()
+        value = float(amount or 0)
+        return {
+            "scope": scope,
+            "title": f"{location} · {label}",
+            "detail": f"{value:g} {unit} · {detail}",
+            "resourceType": resource_type,
+            "amount": value,
+        }
 
     def _galaxy_view(self, world, focus_coordinates):
         galaxy = getattr(world, "galaxy", None)

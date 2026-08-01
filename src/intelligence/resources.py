@@ -20,6 +20,8 @@ class ResourceAnalyzer:
             resources.append(
                 {
                     "id": obj["id"],
+                    "name": obj.get("name") or obj.get("summary") or obj["id"],
+                    "type": obj.get("type", "mineable_object"),
 
                     "classification": (
                         "dynamic"

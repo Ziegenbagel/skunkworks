@@ -86,9 +86,10 @@ class ExecutionBoundaryTests(unittest.TestCase):
             {
                 "objectId": "asteroid-1",
                 "resources": ["metals"],
-                "targetAmount": 1,
+                "targetAmount": 0.05,
             },
         )
+        self.assertEqual(command.metadata["remainingAmount"], 0.95)
 
     def test_travel_command_uses_safe_direct_distance(self):
         prepared = self.prepare(
