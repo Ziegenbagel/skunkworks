@@ -25,6 +25,7 @@ PanelFrame {
     signal executionPolicySaveRequested(var policy)
     signal automationCycleRequested()
     signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
+    signal transportCycleSaveRequested(var plan)
 
     title: section
 
@@ -107,10 +108,12 @@ PanelFrame {
             navigationData: root.dashboardData.navigation || ({})
             travelPreview: root.dashboardData.travelPreview || ({})
             automationData: root.dashboardData.automation || ({})
+            focusedProbe: root.dashboardData.focus || ({})
             onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
             onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
             onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
             onAutonomousTargetRequested: (x, y, z) => root.autonomousTravelTargetRequested(x, y, z)
+            onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
         }
 
         ResourceWorkspace {
@@ -146,7 +149,7 @@ PanelFrame {
                 GridLayout {
                     id: sectionGrid
                     width: root.width
-                    columns: root.width >= 1500 ? 3 : root.width >= 900 ? 2 : 1
+                    columns: root.width >= 1050 ? 2 : 1
                     columnSpacing: 18
                     rowSpacing: 18
 

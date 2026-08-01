@@ -147,3 +147,18 @@ def test_resource_workspace_groups_locations_and_uses_responsive_cards():
     assert "GridLayout" in workspace
     assert "font.pixelSize: 15" in workspace
     assert "ResourceWorkspace" in navigation
+
+
+def test_navigation_separates_manual_transport_and_scanning_workflows():
+    navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text()
+
+    assert 'TabButton { text: "MANUAL TRAVEL" }' in navigation
+    assert 'TabButton { text: "TRANSPORT AUTOMATION" }' in navigation
+    assert 'TabButton { text: "SECTOR SCANNING" }' in navigation
+    assert "LOADING SECTOR" in navigation
+    assert "UNLOADING SECTOR" in navigation
+    assert "RETURN POINT" in navigation
+    assert "loadUntilPercent" in navigation
+    assert "unloadUntilPercent" in navigation
+    assert "protectedDeuterium" in navigation
+    assert 'focusedRole === "transport"' in navigation

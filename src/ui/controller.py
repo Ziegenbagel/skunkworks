@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import traceback
+import json
 from dataclasses import asdict
 
 import requests
@@ -17,6 +18,7 @@ from src.data import DataEngine
 from src.intelligence.world_builder import WorldBuilder
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
+from src.operations import OperationFactory, OperationStore, RoundTripTransportPlan
 from src.presentation import MissionControlViewModelBuilder
 from src.recipes.manager import RecipeManager
 from src.safety.policy import TravelSafetyPolicyStore
@@ -141,6 +143,11 @@ class MissionControlDataService:
             str(row["asset_id"]): row["role"]
             for row in FleetRoleService(self.data_engine).all("probe")
         }
+        automation["transportCycles"] = [
+            json.loads(row["payload_json"])
+            for row in self.data_engine.operation_records()
+            if json.loads(row["payload_json"]).get("metadata", {}).get("template") == "round_trip_transport"
+        ]
         dashboard["automation"] = automation
         dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
         return dashboard
@@ -312,6 +319,33 @@ class MissionControlDataService:
         if preview.get("acknowledgementRequired") and not risk_acknowledged:
             raise RuntimeError("Risk acknowledgement is required.")
         return self.capabilities.probes.move(preview["probeId"], preview["executionTarget"])
+
+    def save_transport_cycle(self, value):
+        coordinates = lambda key: SectorCoordinates.from_api(value[key])
+        refuel_sectors = ()
+        if value.get("refuelEnabled"):
+            refuel_sectors = (coordinates("refuelSector"),)
+        plan = RoundTripTransportPlan(
+            probe_id=int(value["probeId"]),
+            resource_type=str(value["resourceType"]),
+            source=coordinates("source"),
+            destination=coordinates("destination"),
+            return_point=coordinates("returnPoint"),
+            load_until_percent=float(value.get("loadUntilPercent", 100)),
+            unload_until_percent=float(value.get("unloadUntilPercent", 0)),
+            protected_deuterium=float(value.get("protectedDeuterium", 20)),
+            reserve_hops=int(value.get("reserveHops", 1)),
+            refuel_sectors=refuel_sectors,
+            minimum_refuel_source_amount=float(value.get("minimumRefuelSourceAmount", 0)),
+            repeat=bool(value.get("repeat", True)),
+        )
+        operation = OperationFactory.create(
+            "round_trip_transport",
+            probe_id=plan.probe_id,
+            metadata={"cycle": plan.to_dict()},
+        )
+        OperationStore(self.data_engine).save(operation)
+        return operation.to_dict()
 
     def scan_sector(self, target):
         response = self.capabilities.galaxy.observe_sector(target["x"], target["y"], target["z"])
@@ -750,6 +784,24 @@ class MissionControlController(QObject):
             return
         automation = dict(self._dashboard.get("automation", {}))
         automation["travelTarget"] = {"x": x, "y": y, "z": z}
+        self._dashboard["automation"] = automation
+        self._set_error("")
+        self.dashboardChanged.emit()
+
+    @Slot("QVariantMap")
+    def saveTransportCycle(self, value):
+        if self.service is None:
+            self._set_error("Refresh live account data before creating a transport cycle.")
+            return
+        try:
+            operation = self.service.save_transport_cycle(self._qt_safe(value))
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        automation = dict(self._dashboard.get("automation", {}))
+        cycles = list(automation.get("transportCycles", ()))
+        cycles.append(self._qt_safe(operation))
+        automation["transportCycles"] = cycles
         self._dashboard["automation"] = automation
         self._set_error("")
         self.dashboardChanged.emit()

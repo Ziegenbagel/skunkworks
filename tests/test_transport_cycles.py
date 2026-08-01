@@ -1,4 +1,6 @@
 import unittest
+import tempfile
+from pathlib import Path
 
 from src.models.galaxy import SectorCoordinates
 from src.operations import (
@@ -116,6 +118,32 @@ class TransportCycleTests(unittest.TestCase):
             refill_manny_available=False,
         )
         self.assertIn("refill_manny_unavailable", assessment.blockers)
+
+    def test_ui_service_persists_complete_round_trip_operation(self):
+        from src.data import DataEngine
+        from src.ui.controller import MissionControlDataService
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "transport.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            operation = service.save_transport_cycle({
+                "probeId": 7,
+                "resourceType": "metals",
+                "source": {"x": 0, "y": 0, "z": 0},
+                "destination": {"x": 2, "y": 0, "z": 0},
+                "returnPoint": {"x": 0, "y": 2, "z": 0},
+                "loadUntilPercent": 90,
+                "unloadUntilPercent": 10,
+                "protectedDeuterium": 25,
+                "reserveHops": 2,
+                "repeat": True,
+            })
+
+            cycle = operation["metadata"]["cycle"]
+            self.assertEqual(cycle["source"], {"x": 0, "y": 0, "z": 0})
+            self.assertEqual(cycle["destination"], {"x": 2, "y": 0, "z": 0})
+            self.assertEqual(cycle["returnPoint"], {"x": 0, "y": 2, "z": 0})
+            self.assertEqual(engine.operation_records()[0]["state"], "planned")
 
 
 if __name__ == "__main__":

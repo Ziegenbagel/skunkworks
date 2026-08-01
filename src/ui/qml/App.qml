@@ -144,5 +144,9 @@ ApplicationWindow {
         function onAutomationApprovalRequested(fingerprint, riskAcknowledged) {
             if (window.backend) window.backend.approveAutomationCommand(fingerprint, riskAcknowledged);
         }
+
+        function onTransportCycleSaveRequested(plan) {
+            if (window.backend) window.backend.saveTransportCycle(plan);
+        }
     }
 }

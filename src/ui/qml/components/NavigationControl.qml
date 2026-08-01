@@ -9,122 +9,186 @@ Item {
     property var navigationData: ({})
     property var travelPreview: ({})
     property var automationData: ({})
+    property var focusedProbe: ({})
     signal previewRequested(int x, int y, int z, string routeMode)
     signal executeRequested(bool riskAcknowledged)
     signal scanRequested(int x, int y, int z)
     signal autonomousTargetRequested(int x, int y, int z)
+    signal transportCycleRequested(var plan)
 
+    readonly property string focusedRole: String((automationData.probeRoles || {})[String(focusedProbe.probeId)] || "unassigned")
+    readonly property bool transportEligible: focusedRole === "transport" || focusedRole === "deuterium_tanker"
+    readonly property bool tankerEligible: focusedRole === "deuterium_tanker" || String(focusedProbe.model) === "deuterium_tanker"
+    readonly property bool validManualCoordinates: validCoordinates(manualX.value, manualY.value, manualZ.value)
+    readonly property bool validTransportCoordinates: sourceCoordinates.valid && deliveryCoordinates.valid && returnCoordinates.valid && (!refuelEnabled.checked || refuelCoordinates.valid)
+    function validCoordinates(x, y, z) { return (Number(x) + Number(y) + Number(z)) % 2 === 0; }
+    function coordinates(x, y, z) { return {"x": Number(x), "y": Number(y), "z": Number(z)}; }
     function chooseSector(sector) {
-        targetX.value = Number(sector.x); targetY.value = Number(sector.y); targetZ.value = Number(sector.z);
+        manualX.value = Number(sector.x); manualY.value = Number(sector.y); manualZ.value = Number(sector.z);
+        navigationTabs.currentIndex = 0;
     }
-    readonly property bool validCoordinates: (targetX.value + targetY.value + targetZ.value) % 2 === 0
+    function transportPayload() {
+        return {
+            "probeId": Number(focusedProbe.probeId),
+            "resourceType": String(resourceType.currentValue),
+            "source": coordinates(sourceCoordinates.xControl.value, sourceCoordinates.yControl.value, sourceCoordinates.zControl.value),
+            "destination": coordinates(deliveryCoordinates.xControl.value, deliveryCoordinates.yControl.value, deliveryCoordinates.zControl.value),
+            "returnPoint": coordinates(returnCoordinates.xControl.value, returnCoordinates.yControl.value, returnCoordinates.zControl.value),
+            "loadUntilPercent": loadThreshold.value,
+            "unloadUntilPercent": unloadThreshold.value,
+            "protectedDeuterium": protectedFuel.value,
+            "reserveHops": reserveHops.value,
+            "repeat": repeatCycle.checked,
+            "refuelEnabled": refuelEnabled.checked,
+            "refuelSector": coordinates(refuelCoordinates.xControl.value, refuelCoordinates.yControl.value, refuelCoordinates.zControl.value),
+            "minimumRefuelSourceAmount": minimumRefuelAmount.value
+        };
+    }
 
     ColumnLayout {
-        anchors.fill: parent; spacing: 10
+        anchors.fill: parent; spacing: 12
         RowLayout {
             Layout.fillWidth: true
-            Label { text: "FOCUSED PROBE NAVIGATION"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; font.pixelSize: 13 }
+            Label { text: "FOCUSED PROBE NAVIGATION"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; font.pixelSize: 15 }
             Item { Layout.fillWidth: true }
-            Label { text: root.navigationData.current ? root.navigationData.current.label : "SECTOR UNKNOWN"; color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true }
-            Label { text: String(root.navigationData.probeStatus || "unknown").toUpperCase(); color: root.navigationData.travelReady ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont }
-            Label { text: Math.round(root.navigationData.fuelPercent || 0) + "% FUEL"; color: Constants.cyanColor; font.family: Constants.technicalFont }
+            Label { text: root.navigationData.current ? root.navigationData.current.label : "SECTOR UNKNOWN"; color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true; font.pixelSize: 14 }
+            Label { text: root.focusedRole.replace("_", " ").toUpperCase(); color: root.transportEligible ? Constants.nominalColor : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 13 }
+            Label { text: Math.round(root.navigationData.fuelPercent || 0) + "% FUEL"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 13 }
         }
 
-        RowLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true; spacing: 12
-            GroupBox {
-                title: "MANUAL & AUTONOMOUS TRAVEL"; Layout.preferredWidth: 535; Layout.fillHeight: true
+        TabBar {
+            id: navigationTabs
+            Layout.fillWidth: true
+            TabButton { text: "MANUAL TRAVEL" }
+            TabButton { text: "TRANSPORT AUTOMATION" }
+            TabButton { text: "SECTOR SCANNING" }
+        }
+
+        StackLayout {
+            Layout.fillWidth: true; Layout.fillHeight: true
+            currentIndex: navigationTabs.currentIndex
+
+            ScrollView {
+                clip: true
                 ColumnLayout {
-                    anchors.fill: parent; spacing: 9
-                    Label { text: "DESTINATION FCC COORDINATES"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
-                    RowLayout {
-                        Label { text: "X"; color: Constants.textColor }
-                        SpinBox { id: targetX; from: -9999; to: 9999; editable: true }
-                        Label { text: "Y"; color: Constants.textColor }
-                        SpinBox { id: targetY; from: -9999; to: 9999; editable: true }
-                        Label { text: "Z"; color: Constants.textColor }
-                        SpinBox { id: targetZ; from: -9999; to: 9999; editable: true }
-                    }
-                    Label { text: root.validCoordinates ? "VALID FCC COORDINATES" : "INVALID · X + Y + Z MUST BE EVEN"; color: root.validCoordinates ? Constants.nominalColor : Constants.criticalColor; font.family: Constants.technicalFont }
-                    RowLayout {
-                        Label { text: "ROUTE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
-                        ComboBox { id: routeMode; model: ["segmented", "direct"]; Layout.preferredWidth: 170 }
-                        Button { text: "PREVIEW MANUAL TRAVEL"; enabled: root.validCoordinates; onClicked: root.previewRequested(targetX.value, targetY.value, targetZ.value, String(routeMode.currentText)) }
-                    }
-                    Button {
-                        text: "SET AS AUTONOMOUS DESTINATION"
-                        enabled: root.validCoordinates
-                        onClicked: root.autonomousTargetRequested(targetX.value, targetY.value, targetZ.value)
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: root.automationData.travelTarget ? "CURRENT AUTOMATION TARGET · FCC " + root.automationData.travelTarget.x + " / " + root.automationData.travelTarget.y + " / " + root.automationData.travelTarget.z : "NO AUTONOMOUS TRAVEL TARGET"
-                        color: root.automationData.travelTarget ? Constants.cyanColor : Constants.mutedTextColor
-                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
-                    }
-                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Constants.lineColor }
-                    Label { text: root.travelPreview.targetLabel ? "ROUTE PREVIEW · " + root.travelPreview.targetLabel : "NO ROUTE PREVIEW"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    Label {
-                        Layout.fillWidth: true
-                        text: root.travelPreview.targetLabel ? "SELECTED " + String(root.travelPreview.selectedRoute).toUpperCase() + " · NEXT COMMAND " + root.travelPreview.executionLabel + " · RECOMMENDED " + String(root.travelPreview.recommendedRoute).toUpperCase() : "Choose a destination or nearby sector, then preview before sending a movement command."
-                        color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
-                    }
-                    Repeater {
-                        model: root.travelPreview.hazards || []
-                        delegate: Label {
-                            required property var modelData
-                            Layout.fillWidth: true; text: "⚠ " + modelData.message
-                            color: modelData.severity === "critical" ? Constants.criticalColor : Constants.warningColor
-                            font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    width: parent.width - 20; spacing: 16
+                    GroupBox {
+                        title: "ONE-TIME MANUAL TRAVEL ORDER"; Layout.fillWidth: true
+                        ColumnLayout {
+                            anchors.fill: parent; spacing: 14
+                            Label { Layout.fillWidth: true; text: "Preview and confirm a single movement command for the focused probe. This does not create a repeating route."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 15; wrapMode: Text.Wrap }
+                            RowLayout {
+                                spacing: 12
+                                Label { text: "DESTINATION FCC"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                                Label { text: "X" } SpinBox { id: manualX; from: -9999; to: 9999; editable: true }
+                                Label { text: "Y" } SpinBox { id: manualY; from: -9999; to: 9999; editable: true }
+                                Label { text: "Z" } SpinBox { id: manualZ; from: -9999; to: 9999; editable: true }
+                                Label { text: root.validManualCoordinates ? "VALID" : "INVALID FCC"; color: root.validManualCoordinates ? Constants.nominalColor : Constants.criticalColor; font.family: Constants.technicalFont; font.bold: true }
+                            }
+                            RowLayout {
+                                Label { text: "ROUTE STRATEGY"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                                ComboBox { id: routeMode; model: ["segmented", "direct"]; Layout.preferredWidth: 190 }
+                                Button { text: "PREVIEW ROUTE"; enabled: root.validManualCoordinates; onClicked: root.previewRequested(manualX.value, manualY.value, manualZ.value, String(routeMode.currentText)) }
+                            }
                         }
                     }
-                    CheckBox { id: acknowledgeRisk; visible: Boolean(root.travelPreview.acknowledgementRequired); text: "I acknowledge the displayed travel risks" }
-                    Button {
-                        text: "CONFIRM NEXT TRAVEL COMMAND"
-                        enabled: Boolean(root.travelPreview.canExecute) && (!root.travelPreview.acknowledgementRequired || acknowledgeRisk.checked)
-                        onClicked: root.executeRequested(acknowledgeRisk.checked)
+                    GroupBox {
+                        title: "MANUAL ROUTE REVIEW"; Layout.fillWidth: true
+                        ColumnLayout {
+                            anchors.fill: parent; spacing: 10
+                            Label { text: root.travelPreview.targetLabel ? "ROUTE TO " + root.travelPreview.targetLabel : "NO ROUTE PREVIEW"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
+                            Label { Layout.fillWidth: true; text: root.travelPreview.targetLabel ? "Selected " + String(root.travelPreview.selectedRoute).toUpperCase() + " · next command " + root.travelPreview.executionLabel + " · recommended " + String(root.travelPreview.recommendedRoute).toUpperCase() : "Enter a destination above or select a sector from Sector Scanning."; color: Constants.textColor; font.family: Constants.bodyFont; font.pixelSize: 15; wrapMode: Text.Wrap }
+                            Repeater { model: root.travelPreview.hazards || []; delegate: Label { required property var modelData; Layout.fillWidth: true; text: "⚠ " + modelData.message; color: modelData.severity === "critical" ? Constants.criticalColor : Constants.warningColor; font.pixelSize: 14; wrapMode: Text.Wrap } }
+                            CheckBox { id: acknowledgeRisk; visible: Boolean(root.travelPreview.acknowledgementRequired); text: "I acknowledge the displayed travel risks" }
+                            Button { text: "CONFIRM ONE-TIME TRAVEL COMMAND"; enabled: Boolean(root.travelPreview.canExecute) && (!root.travelPreview.acknowledgementRequired || acknowledgeRisk.checked); onClicked: root.executeRequested(acknowledgeRisk.checked) }
+                        }
                     }
                 }
             }
 
-            GroupBox {
-                title: "NEARBY SECTOR SCAN & SCUT COVERAGE"; Layout.fillWidth: true; Layout.fillHeight: true
+            ScrollView {
+                clip: true
                 ColumnLayout {
-                    anchors.fill: parent; spacing: 8
-                    Label { Layout.fillWidth: true; text: "Scanning is passive API observation. SCUT coverage is calculated from live relay positions and coverage radii."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                    ListView {
-                        id: neighborList
-                        Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 5
-                        model: root.navigationData.neighbors || []
+                    width: parent.width - 20; spacing: 16
+                    Rectangle {
+                        visible: !root.transportEligible; Layout.fillWidth: true; implicitHeight: roleWarning.implicitHeight + 32
+                        color: Constants.raisedColor; border.color: Constants.warningColor; radius: 4
+                        Label { id: roleWarning; anchors.fill: parent; anchors.margins: 16; text: "TRANSPORT AUTOMATION IS ROLE-GATED\nAssign the focused probe the TRANSPORT or DEUTERIUM TANKER role in Settings before creating a recurring logistics route."; color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true; wrapMode: Text.Wrap }
+                    }
+                    GroupBox {
+                        visible: root.transportEligible; title: "RECURRING ROUND-TRIP LOGISTICS"; Layout.fillWidth: true
+                        GridLayout {
+                            anchors.fill: parent; columns: 4; columnSpacing: 18; rowSpacing: 12
+                            Label { text: "RESOURCE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox { id: resourceType; textRole: "text"; valueRole: "value"; model: root.tankerEligible ? [{"text":"DEUTERIUM", "value":"deuterium"}, {"text":"METALS", "value":"metals"}, {"text":"ICE", "value":"ice"}, {"text":"CARBON COMPOUNDS", "value":"carbon_compounds"}] : [{"text":"METALS", "value":"metals"}, {"text":"ICE", "value":"ice"}, {"text":"CARBON COMPOUNDS", "value":"carbon_compounds"}] }
+                            CheckBox { id: repeatCycle; text: "REPEAT UNTIL PAUSED"; checked: true }
+                            Label { text: "Each departure protects the full loop fuel reserve."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 14 }
+
+                            Label { text: "LOADING SECTOR"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
+                            CoordinateEditor { id: sourceCoordinates; Layout.columnSpan: 3 }
+                            Label { text: "UNLOADING SECTOR"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            CoordinateEditor { id: deliveryCoordinates; Layout.columnSpan: 3 }
+                            Label { text: "RETURN POINT"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                            CoordinateEditor { id: returnCoordinates; Layout.columnSpan: 3 }
+
+                            Label { text: "LOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
+                            RowLayout { SpinBox { id: loadThreshold; from: 1; to: 100; value: 90 } Label { text: "% FULL" } }
+                            Label { text: "UNLOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
+                            RowLayout { SpinBox { id: unloadThreshold; from: 0; to: 99; value: 10 } Label { text: "% REMAINS" } }
+                            Label { text: "PROTECTED DEUTERIUM"; color: Constants.warningColor; font.family: Constants.technicalFont }
+                            RowLayout { SpinBox { id: protectedFuel; from: 0; to: 100; value: 20 } Label { text: "% FLOOR" } }
+                            Label { text: "CONTINGENCY"; color: Constants.textColor; font.family: Constants.technicalFont }
+                            RowLayout { SpinBox { id: reserveHops; from: 0; to: 20; value: 1 } Label { text: "RESERVE HOPS" } }
+                        }
+                    }
+                    GroupBox {
+                        visible: root.transportEligible; title: "OPTIONAL VERIFIED REFUEL STOP"; Layout.fillWidth: true
+                        RowLayout {
+                            anchors.fill: parent; spacing: 14
+                            CheckBox { id: refuelEnabled; text: "ROUTE DEPENDS ON REFUELING" }
+                            CoordinateEditor { id: refuelCoordinates; enabled: refuelEnabled.checked }
+                            Label { text: "MINIMUM SOURCE"; color: Constants.mutedTextColor }
+                            SpinBox { id: minimumRefuelAmount; from: 0; to: 100000; enabled: refuelEnabled.checked }
+                            Label { text: "ECE"; color: Constants.mutedTextColor }
+                        }
+                    }
+                    Button { visible: root.transportEligible; text: "SAVE PLANNED ROUND-TRIP OPERATION"; enabled: root.validTransportCoordinates && unloadThreshold.value <= loadThreshold.value; Layout.alignment: Qt.AlignRight; onClicked: root.transportCycleRequested(root.transportPayload()) }
+                    Label { visible: root.transportEligible; Layout.fillWidth: true; text: "Saved cycles are durable planned Operations. Automatic execution remains subject to the execution policy, command allowlist, fresh SCUT/source observations, load and unload thresholds, and return-fuel safety checks."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap }
+                    Repeater {
+                        model: root.automationData.transportCycles || []
                         delegate: Rectangle {
-                            id: neighborRow
-                            required property var modelData
-                            required property int index
-                            width: neighborList.width; height: 48
-                            color: neighborMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
+                            id: cycleRow; required property var modelData
+                            Layout.fillWidth: true; implicitHeight: cycleLabel.implicitHeight + 28
+                            color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
+                            Label { id: cycleLabel; anchors.fill: parent; anchors.margins: 14; text: String(cycleRow.modelData.name || "Round Trip Transport").toUpperCase() + " · " + String(cycleRow.modelData.state || "planned").toUpperCase(); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
+                        }
+                    }
+                }
+            }
+
+            Item {
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 10
+                    Label { Layout.fillWidth: true; text: "Select an adjacent sector to populate Manual Travel, or scan it without issuing a movement command. SCUT coverage is calculated from live relay positions."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 15; wrapMode: Text.Wrap }
+                    ListView {
+                        id: neighborList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 7; model: root.navigationData.neighbors || []
+                        delegate: Rectangle {
+                            id: neighborRow; required property var modelData; required property int index
+                            width: neighborList.width; height: 58; color: neighborMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
                             border.color: modelData.scutCoverage && modelData.scutCoverage.covered ? Constants.nominalColor : Constants.lineColor
-                            RowLayout {
-                                anchors.fill: parent; anchors.margins: 7
-                                Label { Layout.preferredWidth: 150; text: neighborRow.modelData.label; color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true }
-                                Label { Layout.preferredWidth: 115; text: String(neighborRow.modelData.knowledgeLevel).split("_").join(" ").toUpperCase(); color: neighborRow.modelData.visited ? Constants.cyanColor : Constants.mutedTextColor; font.family: Constants.technicalFont }
-                                Label { Layout.preferredWidth: 130; text: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? "SCUT · " + neighborRow.modelData.scutCoverage.networkName : "OUTSIDE KNOWN SCUT"; color: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont }
-                                Button { text: "SELECT"; onClicked: root.chooseSector(neighborRow.modelData) }
+                            RowLayout { anchors.fill: parent; anchors.margins: 10
+                                Label { Layout.preferredWidth: 210; text: neighborRow.modelData.label; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true }
+                                Label { Layout.preferredWidth: 180; text: String(neighborRow.modelData.knowledgeLevel).split("_").join(" ").toUpperCase(); color: neighborRow.modelData.visited ? Constants.cyanColor : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 13 }
+                                Label { Layout.fillWidth: true; text: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? "SCUT · " + neighborRow.modelData.scutCoverage.networkName : "OUTSIDE KNOWN SCUT"; color: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 13 }
+                                Button { text: "USE FOR MANUAL TRAVEL"; onClicked: root.chooseSector(neighborRow.modelData) }
                                 Button { text: "SCAN"; onClicked: root.scanRequested(neighborRow.modelData.x, neighborRow.modelData.y, neighborRow.modelData.z) }
                             }
                             MouseArea { id: neighborMouse; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                         }
                     }
-                    Rectangle {
-                        Layout.fillWidth: true; Layout.preferredHeight: 78
-                        color: Constants.panelColor; border.color: Constants.lineColor
-                        Column {
-                            anchors.fill: parent; anchors.margins: 9; spacing: 4
-                            Label { text: root.navigationData.scanResult ? "LATEST SCAN · " + root.navigationData.scanResult.label : "NO NEARBY SCAN REQUESTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                            Label { width: parent.width; text: root.navigationData.scanResult ? String(root.navigationData.scanResult.knowledgeLevel).toUpperCase() + " · " + Math.round(root.navigationData.scanResult.confidence * 100) + "% CONFIDENCE · " + root.navigationData.scanResult.objectCount + " KNOWN OBJECTS · RISK " + String(root.navigationData.scanResult.dangerEstimate).toUpperCase() : "Use SCAN on any adjacent sector to request the best observation currently available."; color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                        }
-                    }
                 }
             }
         }
     }
+
 }
