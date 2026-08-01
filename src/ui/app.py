@@ -26,7 +26,7 @@ def run(controller=None):
         return 1
     controller = controller or MissionControlController()
     engine.rootObjects()[0].setProperty("backend", controller)
-    QTimer.singleShot(0, controller.refresh)
+    QTimer.singleShot(0, controller.start)
     return application.exec()
 
 

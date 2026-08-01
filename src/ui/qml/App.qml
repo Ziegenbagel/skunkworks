@@ -24,6 +24,18 @@ ApplicationWindow {
         emergencyStopActive: window.backend ? window.backend.emergencyStopActive : false
     }
 
+    FirstLaunchWizard {
+        id: firstLaunchWizard
+        anchors.fill: parent
+        z: 1000
+        visible: window.backend ? window.backend.onboardingRequired : false
+        credentialConfigured: window.backend ? window.backend.credentialConfigured : false
+        credentialMessage: window.backend ? window.backend.credentialMessage : ""
+        onApiKeySaveRequested: apiKey => { if (window.backend) window.backend.saveApiKey(apiKey); }
+        onApiKeyTestRequested: { if (window.backend) window.backend.testApiKey(); }
+        onFinishRequested: { if (window.backend) window.backend.completeOnboarding(); }
+    }
+
     Connections {
         target: missionControl.probeSelectorControl
 
@@ -103,6 +115,22 @@ ApplicationWindow {
         function onAutonomousTravelTargetRequested(x, y, z) {
             if (window.backend)
                 window.backend.setAutonomousTravelTarget(x, y, z);
+        }
+
+        function onApiKeySaveRequested(apiKey) {
+            if (window.backend) window.backend.saveApiKey(apiKey);
+        }
+
+        function onApiKeyTestRequested() {
+            if (window.backend) window.backend.testApiKey();
+        }
+
+        function onApiKeyRemoveRequested() {
+            if (window.backend) window.backend.removeApiKey();
+        }
+
+        function onOnboardingResetRequested() {
+            if (window.backend) window.backend.resetOnboarding();
         }
     }
 }

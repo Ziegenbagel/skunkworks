@@ -8,8 +8,13 @@ Item {
     id: root
     property var settingsData: ({})
     property var availableProbes: []
+    property var credentialData: ({})
     signal saveRequested(var settings)
     signal roleAssignmentRequested(int probeId, string role)
+    signal apiKeySaveRequested(string apiKey)
+    signal apiKeyTestRequested()
+    signal apiKeyRemoveRequested()
+    signal onboardingResetRequested()
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -60,6 +65,24 @@ Item {
             width: root.width - 24; spacing: 14
             Label { text: "AUTOMATION DESIRED STATE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true }
             Label { Layout.fillWidth: true; text: "Targets are persistent planner goals. Priority 1 is highest. Goals never bypass safety review or the emergency stop."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+
+            GroupBox {
+                title: "ACCOUNT & API CREDENTIAL"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    Label { Layout.fillWidth: true; text: "The key is stored in the operating-system credential vault and is never written into Skunkworks settings or logs."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        TextField { id: settingsApiKey; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: root.credentialData.configured ? "API key configured · enter a replacement to change it" : "Paste Von Neumann API key" }
+                        Button { text: "SAVE SECURELY"; enabled: settingsApiKey.text.length > 0; onClicked: { root.apiKeySaveRequested(settingsApiKey.text); settingsApiKey.clear(); } }
+                        Button { text: "TEST CONNECTION"; enabled: Boolean(root.credentialData.configured); onClicked: root.apiKeyTestRequested() }
+                        Button { text: "REMOVE"; enabled: Boolean(root.credentialData.configured); onClicked: root.apiKeyRemoveRequested() }
+                    }
+                    Label { text: root.credentialData.configured ? "CONFIGURED · " + String(root.credentialData.source || "vault").split("_").join(" ").toUpperCase() : "NOT CONFIGURED"; color: root.credentialData.configured ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { visible: Boolean(root.credentialData.message); Layout.fillWidth: true; text: root.credentialData.message || ""; color: Constants.cyanColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                    Button { text: "RUN FIRST-LAUNCH WALKTHROUGH AGAIN"; onClicked: root.onboardingResetRequested() }
+                }
+            }
 
             GroupBox {
                 title: "FLEET ASSEMBLY TARGETS"; Layout.fillWidth: true

@@ -17,6 +17,10 @@ PanelFrame {
     signal travelExecuteRequested(bool riskAcknowledged)
     signal sectorScanRequested(int x, int y, int z)
     signal autonomousTravelTargetRequested(int x, int y, int z)
+    signal apiKeySaveRequested(string apiKey)
+    signal apiKeyTestRequested()
+    signal apiKeyRemoveRequested()
+    signal onboardingResetRequested()
 
     title: section
 
@@ -76,9 +80,14 @@ PanelFrame {
             anchors.fill: parent
             visible: root.section === "SETTINGS"
             settingsData: root.dashboardData.automation || ({})
+            credentialData: root.dashboardData.credentials || ({})
             availableProbes: root.availableProbes
             onSaveRequested: settings => root.automationSettingsSaved(settings)
             onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
+            onApiKeySaveRequested: apiKey => root.apiKeySaveRequested(apiKey)
+            onApiKeyTestRequested: root.apiKeyTestRequested()
+            onApiKeyRemoveRequested: root.apiKeyRemoveRequested()
+            onOnboardingResetRequested: root.onboardingResetRequested()
         }
 
         NavigationControl {

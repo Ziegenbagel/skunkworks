@@ -16,4 +16,5 @@ NavigationWorkspace 1.0 components/NavigationWorkspace.qml
 NavigationControl 1.0 components/NavigationControl.qml
 GalaxyMap 1.0 components/GalaxyMap.qml
 GalaxyMap3D 1.0 components/GalaxyMap3D.qml
+FirstLaunchWizard 1.0 components/FirstLaunchWizard.qml
 AutomationSettings 1.0 components/AutomationSettings.qml

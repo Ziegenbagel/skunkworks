@@ -2,6 +2,7 @@ import os
 
 import requests
 from dotenv import load_dotenv
+from src.security import CredentialStore
 
 from src.api.contract import (
     ApiCompatibilityError,
@@ -14,13 +15,13 @@ from src.api.contract import (
 class GameClient:
     """HTTP boundary for the Von Neumann Game API."""
 
-    def __init__(self, session=None):
+    def __init__(self, session=None, api_key=None, credential_store=None):
         load_dotenv()
 
-        self.api_key = os.getenv("VON_NEUMANN_API_KEY")
+        self.api_key = api_key or (credential_store or CredentialStore()).get()
 
         if not self.api_key:
-            raise ValueError("VON_NEUMANN_API_KEY not found in .env")
+            raise ValueError("Von Neumann API key is not configured. Open Settings or complete first-launch setup.")
 
         self.base_url = os.getenv(
             "VON_NEUMANN_BASE_URL",

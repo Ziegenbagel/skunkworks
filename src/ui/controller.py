@@ -26,6 +26,7 @@ from src.planner.desired_state import TravelGoal
 from src.planner.desired_state_store import DesiredStateStore
 from src.models.galaxy import SectorCoordinates
 from src.snapshot.manager import SnapshotManager
+from src.security import CredentialStore
 
 
 class MissionControlDataService:
@@ -293,8 +294,11 @@ class MissionControlController(QObject):
     refreshingChanged = Signal()
     errorChanged = Signal()
     emergencyStopChanged = Signal()
+    credentialsChanged = Signal()
+    onboardingChanged = Signal()
+    credentialMessageChanged = Signal()
 
-    def __init__(self, service=None, thread_pool=None):
+    def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
         super().__init__()
         self.service = service
         self.thread_pool = thread_pool or QThreadPool.globalInstance()
@@ -306,6 +310,9 @@ class MissionControlController(QObject):
         self._emergency_stop = False
         self._worker = None
         self._pending_probe_id = None
+        self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
+        self.credential_store = credential_store or CredentialStore()
+        self._credential_message = ""
 
     @Property("QVariantMap", notify=dashboardChanged)
     def dashboard(self):
@@ -330,6 +337,103 @@ class MissionControlController(QObject):
     @Property(bool, notify=emergencyStopChanged)
     def emergencyStopActive(self):
         return self._emergency_stop
+
+    @Property(bool, notify=credentialsChanged)
+    def credentialConfigured(self):
+        return bool(self.credential_store.get())
+
+    @Property(str, notify=credentialsChanged)
+    def credentialSource(self):
+        return self.credential_store.source()
+
+    @Property(bool, notify=onboardingChanged)
+    def onboardingRequired(self):
+        return self.settings_engine.get_preference("onboarding_complete") != "true"
+
+    @Property(str, notify=credentialMessageChanged)
+    def credentialMessage(self):
+        return self._credential_message
+
+    @Slot()
+    def start(self):
+        if self.onboardingRequired:
+            return
+        if not self.credentialConfigured:
+            self._set_credential_message("Configure an API key in Settings.")
+            return
+        self.refresh()
+
+    @Slot(str)
+    def saveApiKey(self, api_key):
+        try:
+            self.credential_store.save(api_key)
+        except Exception as error:
+            self._set_credential_message(str(error) or type(error).__name__)
+            return
+        self.service = None
+        self.credentialsChanged.emit()
+        self._set_credential_message("API key saved securely in the operating-system credential vault.")
+        self._update_credential_dashboard()
+
+    @Slot()
+    def testApiKey(self):
+        api_key = self.credential_store.get()
+        if not api_key:
+            self._set_credential_message("Save an API key before testing the connection.")
+            return
+        try:
+            client = GameClient(api_key=api_key)
+            version = client.ensure_compatible_api()
+            player = client.get_player().get("player", {})
+        except Exception as error:
+            self._set_credential_message("Connection failed: " + (str(error) or type(error).__name__))
+            return
+        self._set_credential_message(
+            f"Connection verified · API v{version} · {player.get('displayName') or player.get('name') or 'account authenticated'}"
+        )
+        self._update_credential_dashboard()
+
+    @Slot()
+    def removeApiKey(self):
+        try:
+            self.credential_store.delete()
+        except Exception as error:
+            self._set_credential_message(str(error) or type(error).__name__)
+            return
+        self.service = None
+        self.credentialsChanged.emit()
+        self._set_credential_message("Stored API key removed.")
+        self._update_credential_dashboard()
+
+    @Slot()
+    def completeOnboarding(self):
+        if not self.credentialConfigured:
+            self._set_credential_message("An API key is required before setup can finish.")
+            return
+        self.settings_engine.set_preference("onboarding_complete", "true")
+        self.onboardingChanged.emit()
+        self.refresh()
+
+    @Slot()
+    def resetOnboarding(self):
+        self.settings_engine.set_preference("onboarding_complete", "false")
+        self.onboardingChanged.emit()
+
+    def _set_credential_message(self, message):
+        if message == self._credential_message:
+            return
+        self._credential_message = message
+        self.credentialMessageChanged.emit()
+
+    def _update_credential_dashboard(self):
+        if not self._dashboard:
+            return
+        self._dashboard["credentials"] = {
+            "configured": self.credentialConfigured,
+            "source": self.credentialSource,
+            "message": self.credentialMessage,
+        }
+        self.dashboardChanged.emit()
 
     @Slot()
     def refresh(self):
@@ -481,6 +585,11 @@ class MissionControlController(QObject):
 
     @Slot(object)
     def _accept_dashboard(self, payload):
+        payload["credentials"] = {
+            "configured": self.credentialConfigured,
+            "source": self.credentialSource,
+            "message": self.credentialMessage,
+        }
         payload = self._qt_safe(payload)
         self._dashboard = payload
         self.dashboardChanged.emit()
