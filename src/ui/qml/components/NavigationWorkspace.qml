@@ -65,7 +65,7 @@ PanelFrame {
     contentItem: Item {
         anchors.fill: parent
 
-        GalaxyMap {
+        GalaxyMap3D {
             anchors.fill: parent
             visible: root.section === "GALAXY MAP"
             galaxyData: root.dashboardData.galaxy || ({})

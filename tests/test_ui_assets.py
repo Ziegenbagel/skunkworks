@@ -108,3 +108,14 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
     assert "NavigationWorkspace" in screen
     assert "signal sectionSelected(string section)" in navigation
     assert "onClicked: root.sectionSelected" in navigation
+
+
+def test_galaxy_map_uses_rotatable_three_dimensional_scene():
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()
+
+    assert "GalaxyMap3D" in workspace
+    assert "import QtQuick3D" in galaxy
+    assert "View3D" in galaxy
+    assert "OrbitCameraController" in galaxy
+    assert "Repeater3D" in galaxy
