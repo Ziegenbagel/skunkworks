@@ -139,8 +139,11 @@ Item {
                                 {"text": "AUTOMATIC", "value": "automatic"}
                             ]
                         }
-                        CheckBox { id: liveExecution; text: "ENABLE LIVE API COMMANDS"; checked: Boolean(root.runtimeData.liveExecutionEnabled) }
-                        SpinBox { id: commandsPerCycle; from: 1; to: 10; value: Number(root.runtimeData.maxCommandsPerCycle || 1) }
+                        CheckBox { id: liveExecution; text: "ALLOW SKUNKWORKS TO SEND GAME ORDERS"; checked: Boolean(root.runtimeData.liveExecutionEnabled); ToolTip.visible: hovered; ToolTip.text: "Required for Approval and Automatic modes. When off, Skunkworks only plans and displays commands; it sends no POST requests to the game." }
+                        RowLayout {
+                            Label { text: "MAX ORDERS PER 60-SECOND CYCLE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                            SpinBox { id: commandsPerCycle; from: 1; to: 10; value: Number(root.runtimeData.maxCommandsPerCycle || 1); ToolTip.visible: hovered; ToolTip.text: "Safety and rate limit: the most separate Manny, crafting, or travel orders Skunkworks may send in one automatic cycle." }
+                        }
                         Label { text: "COMMAND ALLOWLIST"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                         CheckBox { id: craftCommands; text: "CRAFTING"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") }
                         CheckBox { id: miningCommands; text: "MINING"; checked: root.commandAllowed("manny_mine") }

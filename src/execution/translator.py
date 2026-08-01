@@ -7,6 +7,7 @@ class TaskCommandTranslator:
     def __init__(self, operations, probe_id):
         self.operations = operations
         self.probe_id = probe_id
+        self._claimed_manny_ids = set()
 
     def translate(self, task):
         if task.constraints:
@@ -32,7 +33,7 @@ class TaskCommandTranslator:
         craftable_by = recipe.get("craftableBy", [])
 
         if "manny" in craftable_by:
-            manny = self._idle_manny()
+            manny = self._claim_idle_manny()
             if manny is None:
                 return None
             command_type = CommandType.MANNY_CRAFT
@@ -55,7 +56,7 @@ class TaskCommandTranslator:
         )
 
     def _mine(self, task):
-        manny = self._idle_manny()
+        manny = self._claim_idle_manny()
         resource_type = task.resource_type
 
         if manny is None or resource_type is None:
@@ -123,6 +124,12 @@ class TaskCommandTranslator:
             },
         )
 
-    def _idle_manny(self):
+    def _claim_idle_manny(self):
         mannies = self.operations.mining.idle_mannies()
-        return mannies[0] if mannies else None
+        manny = next(
+            (item for item in mannies if item["id"] not in self._claimed_manny_ids),
+            None,
+        )
+        if manny is not None:
+            self._claimed_manny_ids.add(manny["id"])
+        return manny

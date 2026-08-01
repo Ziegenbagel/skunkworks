@@ -198,11 +198,19 @@ class MissionControlDataService:
         ]
         if not candidates:
             return {"status": "idle", "message": "No actionable automation command is queued."}
-        prepared = candidates[0]
         if policy.mode == ExecutionMode.OBSERVE:
             return {"status": "observe_only", "message": "Observe mode never sends commands."}
         if policy.mode == ExecutionMode.APPROVE and fingerprint is None:
             return {"status": "awaiting_approval", "message": "Select and approve a queued command."}
+        if policy.mode == ExecutionMode.AUTOMATIC:
+            candidates = [item for item in candidates if item.disposition == "ready"]
+            if not candidates:
+                return {
+                    "status": "idle",
+                    "message": "No allowlisted, unblocked command is ready for automatic execution.",
+                }
+        else:
+            candidates = candidates[:1]
         runtime = AutomationRuntime(
             capabilities=self.capabilities,
             data_engine=self.data_engine,
@@ -210,11 +218,27 @@ class MissionControlDataService:
             dispatcher=CapabilityDispatcher(self.capabilities),
             refresh=self._refresh_operations,
         )
-        result = runtime.execute(
-            prepared,
-            approved=policy.mode == ExecutionMode.APPROVE,
-            risk_acknowledged=risk_acknowledged,
-        )
+        results = []
+        for prepared in candidates:
+            result = runtime.execute(
+                prepared,
+                approved=policy.mode == ExecutionMode.APPROVE,
+                risk_acknowledged=risk_acknowledged,
+            )
+            results.append((prepared, result))
+        succeeded = sum(result.status == "succeeded" for _, result in results)
+        if len(results) > 1:
+            status = "succeeded" if succeeded else results[-1][1].status
+            message = f"{succeeded} of {len(results)} automation commands succeeded this cycle."
+            return {
+                "status": status,
+                "message": message,
+                "results": [self._execution_result(prepared, result) for prepared, result in results],
+            }
+        prepared, result = results[0]
+        return self._execution_result(prepared, result)
+
+    def _execution_result(self, prepared, result):
         return {
             "status": result.status,
             "message": self._execution_message(result),

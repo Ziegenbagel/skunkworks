@@ -11,6 +11,7 @@ from src.execution import (
 )
 from src.execution.journal import ActionJournal
 from src.execution.policy import ExecutionPolicyStore
+from src.execution.translator import TaskCommandTranslator
 from src.models.galaxy import SectorCoordinates
 from src.planner.desired_state import (
     DesiredState,
@@ -90,6 +91,27 @@ class ExecutionBoundaryTests(unittest.TestCase):
             },
         )
         self.assertEqual(command.metadata["remainingAmount"], 0.95)
+
+    def test_prepared_mining_orders_claim_distinct_idle_mannies(self):
+        self.operations.world.mannies["mannies"].append({
+            "id": 202,
+            "currentTask": None,
+            "canReceiveOrders": True,
+            "location": {"type": "probe"},
+            "cargo": {"capacity": 0.05},
+        })
+        translator = TaskCommandTranslator(self.operations, 1)
+        from src.planner.task import Task
+        first = translator.translate(Task(
+            action="Mine Resource", reason="Metals reserve", target="asteroid-1",
+            quantity=2, resource_type="metals", priority=3,
+        ))
+        second = translator.translate(Task(
+            action="Mine Resource", reason="Ice reserve", target="asteroid-1",
+            quantity=2, resource_type="ice", priority=3,
+        ))
+
+        self.assertEqual({first.target_id, second.target_id}, {101, 202})
 
     def test_travel_command_uses_safe_direct_distance(self):
         prepared = self.prepare(
