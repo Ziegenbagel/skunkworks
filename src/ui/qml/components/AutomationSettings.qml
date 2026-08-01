@@ -68,10 +68,12 @@ Item {
         const production = [];
         const existing = settingsData.production || [];
         for (let i = 0; i < existing.length; ++i)
-            if (existing[i].recipeId !== "manny" && existing[i].recipeId !== "additional_container")
+            if (existing[i].recipeId !== "manny" && existing[i].recipeId !== "additional_container" && existing[i].recipeId !== "scut_relay" && existing[i].recipeId !== "scut_transit_beacon")
                 production.push(existing[i]);
         production.push({"recipeId": "manny", "quantity": mannyTarget.value, "priority": mannyPriority.value});
         production.push({"recipeId": "additional_container", "quantity": containerTarget.value, "priority": containerPriority.value});
+        production.push({"recipeId": "scut_relay", "quantity": relayTarget.value, "priority": relayPriority.value});
+        production.push({"recipeId": "scut_transit_beacon", "quantity": beaconTarget.value, "priority": beaconPriority.value});
         return {
             "priorityScaleMax": 10,
             "fleetTargets": {"generic": genericTarget.value, "deuterium_tanker": tankerTarget.value},
@@ -235,6 +237,12 @@ Item {
                     Label { text: "ADDITIONAL CONTAINERS"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: containerTarget; from: 0; to: 999; value: root.productionQuantity("additional_container") }
                     SpinBox { id: containerPriority; from: 1; to: 10; value: root.productionPriority("additional_container") }
+                    Label { text: "SCUT RELAYS"; color: Constants.cyanColor; font.family: Constants.technicalFont; ToolTip.visible: relayHover.hovered; ToolTip.text: "Maintain completed SCUT relays in inventory. Relay crafting can require multiple days."; HoverHandler { id: relayHover } }
+                    SpinBox { id: relayTarget; from: 0; to: 99; value: root.productionQuantity("scut_relay") }
+                    SpinBox { id: relayPriority; from: 1; to: 10; value: root.productionPriority("scut_relay") }
+                    Label { text: "SCUT TRANSIT BEACONS"; color: Constants.cyanColor; font.family: Constants.technicalFont; ToolTip.visible: beaconHover.hovered; ToolTip.text: "Maintain transit beacons ready for installation on active SCUT relays."; HoverHandler { id: beaconHover } }
+                    SpinBox { id: beaconTarget; from: 0; to: 99; value: root.productionQuantity("scut_transit_beacon") }
+                    SpinBox { id: beaconPriority; from: 1; to: 10; value: root.productionPriority("scut_transit_beacon") }
                 }
             }
 

@@ -227,6 +227,8 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(view["sectorCount"], 2)
         self.assertEqual(len(view["edges"]), 1)
+        self.assertEqual(view["nodes"][0]["mapState"], "current")
+        self.assertEqual(view["nodes"][1]["mapState"], "visited")
 
     def test_empty_detailed_sector_is_explicit_in_view_model(self):
         base = build_operations()

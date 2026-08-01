@@ -31,10 +31,19 @@ Item {
         cameraOrigin.eulerRotation = rotation;
         camera.z = 950;
     }
+    function colorFor(node) {
+        const state = String(node.mapState || "unknown");
+        if (state === "current") return Constants.nominalColor;
+        if (state === "scanned") return Constants.cyanColor;
+        if (state === "visited") return "#0e6cff";
+        if (state === "observed") return Constants.warningColor;
+        return "#657384";
+    }
 
     Rectangle { anchors.fill: parent; color: Constants.voidColor }
 
     View3D {
+        id: galaxyView
         anchors.fill: parent
         environment: SceneEnvironment {
             backgroundMode: SceneEnvironment.Color
@@ -84,12 +93,14 @@ Item {
             delegate: Model {
                 id: sectorModel
                 required property var modelData
+                objectName: String(modelData.id)
                 source: "#Sphere"
+                pickable: true
                 position: root.positionFor(modelData)
                 scale: modelData.isFocused ? Qt.vector3d(0.34, 0.34, 0.34) : Qt.vector3d(0.24, 0.24, 0.24)
                 materials: PrincipledMaterial {
-                    baseColor: sectorModel.modelData.isFocused ? Constants.nominalColor : Constants.cyanColor
-                    emissiveFactor: sectorModel.modelData.isFocused ? Qt.vector3d(0.1, 0.8, 0.35) : Qt.vector3d(0.05, 0.45, 0.75)
+                    baseColor: root.colorFor(sectorModel.modelData)
+                    emissiveFactor: sectorModel.modelData.isFocused ? Qt.vector3d(0.1, 0.8, 0.35) : Qt.vector3d(0.04, 0.30, 0.46)
                     roughness: 0.28; metalness: 0.35
                 }
             }
@@ -100,6 +111,16 @@ Item {
         anchors.fill: parent
         origin: cameraOrigin; camera: camera; panEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+    }
+
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+        onTapped: (eventPoint, button) => {
+            const hit = galaxyView.pick(eventPoint.position.x, eventPoint.position.y);
+            if (hit.objectHit)
+                root.selectedNode = root.nodeById(String(hit.objectHit.objectName));
+        }
     }
 
     Rectangle {
@@ -122,16 +143,30 @@ Item {
     }
 
     Rectangle {
-        anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12
-        width: 470; height: 150; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.cyanColor
+        anchors.left: parent.left; anchors.top: parent.top; anchors.leftMargin: 12; anchors.topMargin: 94
+        width: 470; height: 190; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 10; spacing: 5
             ComboBox { Layout.fillWidth: true; model: root.nodes; textRole: "label"; onActivated: root.selectedNode = root.nodes[currentIndex] }
             Label { text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+            Label { Layout.fillWidth: true; text: root.selectedNode ? "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 9; font.bold: true }
             Label { Layout.fillWidth: true; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: root.selectedNode ? "OBSERVED BY PROBES · " + ((root.selectedNode.probeIds || []).join(", ") || "NONE") + (root.selectedNode.lastVisitedAt ? "    LAST VISIT · " + root.selectedNode.lastVisitedAt : "") : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8; wrapMode: Text.Wrap }
             RowLayout {
                 Label { Layout.fillWidth: true; text: root.selectedNode ? "KNOWLEDGE " + String(root.selectedNode.knowledgeLevel).toUpperCase() + " · " + Math.round(root.selectedNode.confidence * 100) + "% CONFIDENCE" : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
                 Button { text: "SCAN / REFRESH"; enabled: root.selectedNode !== null; onClicked: if (root.selectedNode) root.scanRequested(root.selectedNode.x, root.selectedNode.y, root.selectedNode.z) }
+            }
+        }
+    }
+
+    Row {
+        anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12; spacing: 14
+        Repeater {
+            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"OBSERVED", "color":Constants.warningColor}, {"label":"UNKNOWN", "color":"#657384"}]
+            delegate: Row {
+                required property var modelData; spacing: 5
+                Rectangle { width: 10; height: 10; radius: 5; color: parent.modelData.color }
+                Label { text: parent.modelData.label; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
             }
         }
     }

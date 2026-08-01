@@ -240,6 +240,18 @@ class MissionControlViewModelBuilder:
             sector = observation.get("sector", observation)
             objects = sector.get("objects", ()) or ()
             object_types = [str(item.get("type", "unknown")) for item in objects]
+            knowledge = str(sector.get("knowledgeLevel", "unknown"))
+            is_focused = coordinate.x == focus_coordinates.get("x") and coordinate.y == focus_coordinates.get("y") and coordinate.z == focus_coordinates.get("z")
+            if is_focused:
+                map_state = "current"
+            elif knowledge in {"detailed", "scanned", "full"}:
+                map_state = "scanned"
+            elif record.visit_count:
+                map_state = "visited"
+            elif record.observed:
+                map_state = "observed"
+            else:
+                map_state = "unknown"
             nodes.append({
                 "id": f"{coordinate.x}:{coordinate.y}:{coordinate.z}",
                 "x": coordinate.x,
@@ -251,9 +263,10 @@ class MissionControlViewModelBuilder:
                 "probeIds": sorted(record.observed_by_probe_ids),
                 "objectCount": len(objects),
                 "objectTypes": object_types,
-                "knowledgeLevel": sector.get("knowledgeLevel", "visited"),
+                "knowledgeLevel": knowledge,
                 "confidence": float(sector.get("confidence", 0) or 0),
-                "isFocused": coordinate.x == focus_coordinates.get("x") and coordinate.y == focus_coordinates.get("y") and coordinate.z == focus_coordinates.get("z"),
+                "isFocused": is_focused,
+                "mapState": map_state,
             })
         edges = []
         for index, source in enumerate(nodes):
