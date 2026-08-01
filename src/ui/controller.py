@@ -580,6 +580,7 @@ class MissionControlController(QObject):
     credentialsChanged = Signal()
     onboardingChanged = Signal()
     credentialMessageChanged = Signal()
+    startupLoadingChanged = Signal()
 
     def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
         super().__init__()
@@ -596,6 +597,7 @@ class MissionControlController(QObject):
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
+        self._startup_loading = True
         self._automation_timer = QTimer(self)
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
@@ -615,6 +617,10 @@ class MissionControlController(QObject):
     @Property(bool, notify=refreshingChanged)
     def refreshing(self):
         return self._refreshing
+
+    @Property(bool, notify=startupLoadingChanged)
+    def startupLoading(self):
+        return self._startup_loading
 
     @Property(str, notify=errorChanged)
     def error(self):
@@ -643,9 +649,11 @@ class MissionControlController(QObject):
     @Slot()
     def start(self):
         if self.onboardingRequired:
+            self._set_startup_loading(False)
             return
         if not self.credentialConfigured:
             self._set_credential_message("Configure an API key in Settings.")
+            self._set_startup_loading(False)
             return
         self.refresh()
 
@@ -1124,6 +1132,7 @@ class MissionControlController(QObject):
         self._finish_refresh()
 
     def _finish_refresh(self):
+        self._set_startup_loading(False)
         self._worker = None
         self._set_refreshing(False)
         pending = self._pending_probe_id
@@ -1136,6 +1145,13 @@ class MissionControlController(QObject):
             return
         self._refreshing = value
         self.refreshingChanged.emit()
+
+    def _set_startup_loading(self, value):
+        value = bool(value)
+        if value == self._startup_loading:
+            return
+        self._startup_loading = value
+        self.startupLoadingChanged.emit()
 
     def _set_error(self, value):
         if value == self._error:

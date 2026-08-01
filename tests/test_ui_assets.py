@@ -145,6 +145,24 @@ def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
     assert "maximumMannyAreas: 12" in sector
     assert "buildMannyClusters" in sector
     assert "freeObjectIndex(modelData.targetObjectId)" in sector
+    assert "safeColumns" in sector
+    assert "safeRows" in sector
+
+
+def test_app_uses_a_dedicated_live_data_loading_screen():
+    app = Path("src/ui/qml/App.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+    assert "startupOverlay" in app
+    assert "LOADING LIVE FLEET DATA" in app
+    assert "window.backend.startupLoading" in app
+    assert "def startupLoading" in controller
+
+
+def test_probe_selector_waits_for_backend_confirmation():
+    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text()
+    assert "Number(currentValue)" in selector
+    assert "root.probeSelected(requestedProbeId)" in selector
+    assert "currentIndex = root.indexForProbe(root.currentProbeId)" in selector
 
 
 def test_settings_exposes_policy_gated_automation_queue_and_approval():

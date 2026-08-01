@@ -22,6 +22,61 @@ ApplicationWindow {
         refreshing: window.backend ? window.backend.refreshing : false
         connectionError: window.backend ? window.backend.error : ""
         emergencyStopActive: window.backend ? window.backend.emergencyStopActive : false
+        visible: !startupOverlay.visible
+    }
+
+    Rectangle {
+        id: startupOverlay
+        anchors.fill: parent
+        z: 900
+        visible: window.backend !== null && window.backend.startupLoading
+        color: Constants.voidColor
+
+        Column {
+            anchors.centerIn: parent
+            spacing: 22
+
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "S K U N K W O R K S"
+                color: Constants.textColor
+                font.family: Constants.displayFont
+                font.pixelSize: 38
+                font.bold: true
+            }
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "AUTONOMOUS EXPLORATION & FLEET OPERATIONS"
+                color: Constants.cyanColor
+                font.family: Constants.technicalFont
+                font.pixelSize: 14
+                font.letterSpacing: 2
+            }
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 360
+                height: 2
+                color: Constants.lineColor
+                Rectangle {
+                    id: loadingSweep
+                    width: 90
+                    height: parent.height
+                    color: Constants.cyanColor
+                    SequentialAnimation on x {
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 0; to: 270; duration: 900; easing.type: Easing.InOutQuad }
+                        NumberAnimation { from: 270; to: 0; duration: 900; easing.type: Easing.InOutQuad }
+                    }
+                }
+            }
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "ESTABLISHING SECURE LINK · LOADING LIVE FLEET DATA"
+                color: Constants.mutedTextColor
+                font.family: Constants.technicalFont
+                font.pixelSize: 12
+            }
+        }
     }
 
     FirstLaunchWizard {

@@ -93,10 +93,14 @@ Item {
                     highlighted: selector.highlightedIndex === index
                 }
 
-                onActivated: index => {
-                    const probe = root.probeModel[index];
-                    if (probe && Number(probe.id) !== root.currentProbeId)
-                        root.probeSelected(Number(probe.id));
+                onActivated: {
+                    const requestedProbeId = Number(currentValue);
+                    if (Number.isFinite(requestedProbeId) && requestedProbeId !== root.currentProbeId) {
+                        root.probeSelected(requestedProbeId);
+                        // Keep the control aligned with the accepted dashboard
+                        // while the requested probe snapshot is loading.
+                        currentIndex = root.indexForProbe(root.currentProbeId);
+                    }
                 }
             }
 

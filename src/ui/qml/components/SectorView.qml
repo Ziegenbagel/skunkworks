@@ -39,9 +39,14 @@ Rectangle {
             if (String(freeObjects[i].id) === String(identifier)) return i;
         return -1;
     }
-    function freeAngle(index) { return -0.55 + index * 0.72; }
-    function freeObjectX(index) { return centerX + Math.cos(freeAngle(index)) * width * 0.43; }
-    function freeObjectY(index) { return centerY + Math.sin(freeAngle(index)) * height * 0.42; }
+    function freeObjectX(index) {
+        const safeColumns = [0.18, 0.76, 0.84, 0.74, 0.34, 0.14];
+        return width * safeColumns[index % safeColumns.length];
+    }
+    function freeObjectY(index) {
+        const safeRows = [0.25, 0.28, 0.52, 0.73, 0.74, 0.48];
+        return height * safeRows[index % safeRows.length];
+    }
     function placeLabelOnLeft(markerCenterX) { return markerCenterX > width * 0.72; }
     function buildMannyClusters(mannies) {
         const groups = {};
@@ -97,12 +102,10 @@ Rectangle {
         }
     }
 
-    Rectangle {
-        x: root.centerX - 58; y: root.centerY - 58; width: 116; height: 116; radius: 58
-        color: Qt.rgba(0.05, 0.20, 0.27, 0.55)
-        border.color: Constants.cyanColor
+    Item {
+        x: root.centerX - 58; y: root.centerY - 58; width: 116; height: 116
         Image {
-            anchors.fill: parent; anchors.margins: 8
+            anchors.fill: parent; anchors.margins: 5
             source: AssetCatalog.icon("star")
             fillMode: Image.PreserveAspectFit
         }
