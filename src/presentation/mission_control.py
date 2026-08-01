@@ -98,12 +98,23 @@ class MissionControlViewModelBuilder:
             ))
 
         for target in world.sector.get("resources", ()):
-            for resource_type, amount in (target.get("resources") or {}).items():
-                rows.append(cls._resource_row(
-                    "natural_deposit", target.get("name") or target.get("id", "Mineable object"),
-                    resource_type, amount,
-                    f"Remaining on {str(target.get('type', 'mineable object')).replace('_', ' ')} · {target.get('classification', 'observed')}",
-                ))
+            amounts = {
+                resource_type: float(amount or 0)
+                for resource_type, amount in (target.get("resources") or {}).items()
+                if float(amount or 0) > 0
+            }
+            reserve_lines = [
+                f"{resource_type.replace('_', ' ').title()}: {amount:g} ECE"
+                for resource_type, amount in amounts.items()
+            ]
+            rows.append({
+                "scope": "natural_deposit",
+                "title": target.get("name") or target.get("id", "Mineable object"),
+                "detail": "\n".join(reserve_lines) if reserve_lines else "No remaining mineable resources",
+                "sourceType": target.get("type", "mineable_object"),
+                "classification": target.get("classification", "observed"),
+                "resources": amounts,
+            })
 
         snapshot = world.sector.get("snapshot") or {}
         objects = (snapshot.get("sector") or {}).get("objects", ()) or ()
@@ -157,8 +168,7 @@ class MissionControlViewModelBuilder:
             "detail": f"{value:g} {unit} · {detail}",
             "resourceType": resource_type,
             "amount": value,
-            "sourceType": detail.split(" · ", 1)[0].removeprefix("Remaining on ").replace(" ", "_")
-                if scope == "natural_deposit" else scope,
+            "sourceType": scope,
         }
 
     def _galaxy_view(self, world, focus_coordinates):

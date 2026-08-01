@@ -188,6 +188,10 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertTrue(any(row["scope"] == "probe_storage" for row in ledger["rows"]))
         self.assertTrue(any(row["scope"] == "natural_deposit" for row in ledger["rows"]))
+        natural = [row for row in ledger["rows"] if row["scope"] == "natural_deposit"]
+        self.assertEqual(len(natural), len(world.sector["resources"]))
+        self.assertIn("Metals:", natural[0]["detail"])
+        self.assertTrue(all(amount > 0 for amount in natural[0]["resources"].values()))
         detached = next(row for row in ledger["rows"] if row["scope"] == "detached_container")
         self.assertIn("Contents not exposed by API", detached["detail"])
 

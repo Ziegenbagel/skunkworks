@@ -145,10 +145,10 @@ PanelFrame {
 
                 GridLayout {
                     id: sectionGrid
-                    width: parent.width
-                    columns: width >= 1500 ? 3 : width >= 900 ? 2 : 1
-                    columnSpacing: 12
-                    rowSpacing: 12
+                    width: root.width
+                    columns: root.width >= 1500 ? 3 : root.width >= 900 ? 2 : 1
+                    columnSpacing: 18
+                    rowSpacing: 18
 
                     Repeater {
                         model: root.sectionRows()
@@ -156,27 +156,27 @@ PanelFrame {
                             id: sectionRow
                             required property var modelData
                             required property int index
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 300
-                            implicitHeight: detailsColumn.implicitHeight + 30
+                            Layout.preferredWidth: (root.width - (sectionGrid.columns - 1) * sectionGrid.columnSpacing) / sectionGrid.columns
+                            Layout.minimumWidth: 420
+                            implicitHeight: detailsColumn.implicitHeight + 40
                             color: rowMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
                             border.color: modelData.probeId === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor
-                            radius: 2
+                            radius: 4
 
                             Column {
                             id: detailsColumn
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            anchors.margins: 12
-                            spacing: 6
+                            anchors.margins: 18
+                            spacing: 10
 
                             Label {
                                 width: parent.width
                                 text: sectionRow.modelData.title || "No data"
                                 color: Constants.textColor
                                 font.family: Constants.technicalFont
-                                font.pixelSize: 15
+                                font.pixelSize: 17
                                 font.bold: true
                                 wrapMode: Text.Wrap
                             }
@@ -185,8 +185,8 @@ PanelFrame {
                                 text: sectionRow.modelData.detail || ""
                                 color: Constants.mutedTextColor
                                 font.family: Constants.technicalFont
-                                font.pixelSize: 13
-                                lineHeight: 1.2
+                                font.pixelSize: 15
+                                lineHeight: 1.3
                                 wrapMode: Text.Wrap
                             }
                             }
