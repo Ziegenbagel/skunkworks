@@ -12,6 +12,8 @@ Rectangle {
     readonly property var orbitalBodies: objectModel.filter(item => item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet")))
     readonly property var stars: objectModel.filter(item => item.layoutRole === "orbital_body" && item.type === "star")
     readonly property var freeObjects: objectModel.filter(item => item.type !== "star" && !(item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet"))))
+    readonly property var mannyClusters: buildMannyClusters(sectorData.activeMannies || [])
+    readonly property int maximumMannyAreas: 12
     readonly property real centerX: width * 0.50
     readonly property real centerY: height * 0.50
     readonly property real orbitAspect: 0.52
@@ -19,7 +21,7 @@ Rectangle {
 
     function orbitRadius(index) {
         const minimumRadius = 96;
-        const maximumRadius = Math.max(150, Math.min(width * 0.41, height * 0.72 / orbitAspect));
+        const maximumRadius = Math.max(150, Math.min(width * 0.34, height * 0.38 / orbitAspect));
         if (orbitalBodies.length <= 1)
             return Math.min(maximumRadius, minimumRadius * 1.45);
         return minimumRadius + index * (maximumRadius - minimumRadius) / (orbitalBodies.length - 1);
@@ -31,6 +33,32 @@ Rectangle {
         for (let i = 0; i < orbitalBodies.length; ++i)
             if (String(orbitalBodies[i].id) === String(identifier)) return i;
         return -1;
+    }
+    function freeObjectIndex(identifier) {
+        for (let i = 0; i < freeObjects.length; ++i)
+            if (String(freeObjects[i].id) === String(identifier)) return i;
+        return -1;
+    }
+    function freeAngle(index) { return -0.55 + index * 0.72; }
+    function freeObjectX(index) { return centerX + Math.cos(freeAngle(index)) * width * 0.43; }
+    function freeObjectY(index) { return centerY + Math.sin(freeAngle(index)) * height * 0.42; }
+    function buildMannyClusters(mannies) {
+        const groups = {};
+        const order = [];
+        for (let i = 0; i < mannies.length; ++i) {
+            const manny = mannies[i];
+            const targetId = manny.targetObjectId ? String(manny.targetObjectId) : "focused-probe";
+            const task = String(manny.task || "active").split("_").join(" ").toUpperCase();
+            const key = targetId;
+            if (!groups[key]) {
+                groups[key] = { "targetObjectId": targetId, "task": task, "count": 0 };
+                order.push(key);
+            } else if (groups[key].task !== task) {
+                groups[key].task = "MULTIPLE TASKS";
+            }
+            groups[key].count += 1;
+        }
+        return order.map(key => groups[key]);
     }
 
     color: "#09141c"
@@ -111,10 +139,9 @@ Rectangle {
             id: freeMarker
             required property var modelData
             required property int index
-            readonly property real angle: -0.55 + index * 0.72
             width: 72; height: 72
-            x: root.centerX + Math.cos(angle) * root.width * 0.43 - width / 2
-            y: root.centerY + Math.sin(angle) * root.height * 0.42 - height / 2
+            x: root.freeObjectX(index) - width / 2
+            y: root.freeObjectY(index) - height / 2
             iconSource: modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(modelData.type, modelData)
             badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
             Label {
@@ -138,22 +165,43 @@ Rectangle {
     }
 
     Repeater {
-        model: root.sectorData.activeMannies || []
+        model: root.mannyClusters.slice(0, root.maximumMannyAreas)
         delegate: MapObjectMarker {
             id: mannyMarker
             required property var modelData
             required property int index
             readonly property int targetIndex: root.objectIndex(modelData.targetObjectId)
-            width: 54; height: 54
-            x: targetIndex >= 0 ? root.bodyX(targetIndex) + 40 : root.width * 0.11 + index * 62
-            y: targetIndex >= 0 ? root.bodyY(targetIndex) - 52 : root.height * 0.84
+            readonly property int freeTargetIndex: root.freeObjectIndex(modelData.targetObjectId)
+            readonly property bool targetsFocusedProbe: modelData.targetObjectId === "focused-probe"
+            width: 46; height: 46
+            x: targetIndex >= 0 ? root.bodyX(targetIndex) + 30
+               : freeTargetIndex >= 0 ? root.freeObjectX(freeTargetIndex) + 28
+               : targetsFocusedProbe ? root.width * 0.10 + 52
+               : root.width * 0.10 + (index % 4) * 170
+            y: targetIndex >= 0 ? root.bodyY(targetIndex) + 22
+               : freeTargetIndex >= 0 ? root.freeObjectY(freeTargetIndex) + 18
+               : targetsFocusedProbe ? root.height * 0.70 + 52
+               : root.height * 0.82 + Math.floor(index / 4) * 46
             iconSource: AssetCatalog.icon("manny")
             Label {
-                anchors.left: parent.right; anchors.leftMargin: 6; width: 175
-                text: mannyMarker.modelData.name + " · " + String(mannyMarker.modelData.task).split("_").join(" ").toUpperCase()
+                anchors.left: parent.right; anchors.leftMargin: 5; width: 145
+                text: "×" + mannyMarker.modelData.count + " · " + mannyMarker.modelData.task
                 color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true; elide: Text.ElideRight
             }
         }
+    }
+
+    Label {
+        visible: root.mannyClusters.length > root.maximumMannyAreas
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: 14
+        anchors.bottomMargin: 34
+        text: "+" + (root.mannyClusters.length - root.maximumMannyAreas) + " MORE MANNY WORK AREAS"
+        color: Constants.warningColor
+        font.family: Constants.technicalFont
+        font.pixelSize: 11
+        font.bold: true
     }
 
     Row {

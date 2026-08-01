@@ -142,6 +142,9 @@ def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
     assert "root.centerY - verticalRadius" in sector
     assert "horizontalRadius * 2" in sector
     assert "verticalRadius * 2" in sector
+    assert "maximumMannyAreas: 12" in sector
+    assert "buildMannyClusters" in sector
+    assert "freeObjectIndex(modelData.targetObjectId)" in sector
 
 
 def test_settings_exposes_policy_gated_automation_queue_and_approval():
