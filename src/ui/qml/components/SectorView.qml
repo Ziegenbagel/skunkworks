@@ -12,17 +12,21 @@ Rectangle {
     readonly property var orbitalBodies: objectModel.filter(item => item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet")))
     readonly property var stars: objectModel.filter(item => item.layoutRole === "orbital_body" && item.type === "star")
     readonly property var freeObjects: objectModel.filter(item => item.type !== "star" && !(item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet"))))
-    readonly property real centerX: width * 0.47
+    readonly property real centerX: width * 0.50
     readonly property real centerY: height * 0.50
+    readonly property real orbitAspect: 0.52
     property string sectorLabel: "FCC 0 / 0 / 0"
 
     function orbitRadius(index) {
-        const available = Math.min(width * 0.68, height * 0.78);
-        return 78 + (index + 1) * Math.max(42, available / Math.max(3, orbitalBodies.length + 1));
+        const minimumRadius = 96;
+        const maximumRadius = Math.max(150, Math.min(width * 0.41, height * 0.72 / orbitAspect));
+        if (orbitalBodies.length <= 1)
+            return Math.min(maximumRadius, minimumRadius * 1.45);
+        return minimumRadius + index * (maximumRadius - minimumRadius) / (orbitalBodies.length - 1);
     }
     function orbitAngle(index) { return -Math.PI / 2 + index * 0.78; }
     function bodyX(index) { return centerX + Math.cos(orbitAngle(index)) * orbitRadius(index); }
-    function bodyY(index) { return centerY + Math.sin(orbitAngle(index)) * orbitRadius(index) * 0.42; }
+    function bodyY(index) { return centerY + Math.sin(orbitAngle(index)) * orbitRadius(index) * orbitAspect; }
     function objectIndex(identifier) {
         for (let i = 0; i < orbitalBodies.length; ++i)
             if (String(orbitalBodies[i].id) === String(identifier)) return i;
@@ -35,20 +39,33 @@ Rectangle {
 
     Repeater {
         model: root.orbitalBodies
-        delegate: Rectangle {
+        delegate: Canvas {
+            id: orbitCanvas
             required property int index
-            width: root.orbitRadius(index) * 2
-            height: width * 0.42
-            x: root.centerX - width / 2
-            y: root.centerY - height / 2
-            radius: height / 2
-            color: "transparent"
-            border.color: Qt.rgba(Constants.cyanColor.r, Constants.cyanColor.g, Constants.cyanColor.b, 0.20)
+            anchors.fill: parent
+            opacity: 0.28
+            onPaint: {
+                const context = getContext("2d");
+                context.reset();
+                context.strokeStyle = Constants.cyanColor;
+                context.lineWidth = 1.25;
+                context.beginPath();
+                context.ellipse(root.centerX, root.centerY,
+                                root.orbitRadius(index),
+                                root.orbitRadius(index) * root.orbitAspect,
+                                0, 0, Math.PI * 2);
+                context.stroke();
+            }
+            Connections {
+                target: root
+                function onWidthChanged() { orbitCanvas.requestPaint(); }
+                function onHeightChanged() { orbitCanvas.requestPaint(); }
+            }
         }
     }
 
     Rectangle {
-        x: root.centerX - 52; y: root.centerY - 52; width: 104; height: 104; radius: 52
+        x: root.centerX - 58; y: root.centerY - 58; width: 116; height: 116; radius: 58
         color: Qt.rgba(0.05, 0.20, 0.27, 0.55)
         border.color: Constants.cyanColor
         Image {
@@ -59,7 +76,7 @@ Rectangle {
         Label {
             anchors.top: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
             text: root.stars.length && root.stars[0].name ? root.stars[0].name : "PRIMARY STAR"
-            color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true
+            color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true
         }
     }
 
@@ -69,7 +86,7 @@ Rectangle {
             id: orbitalMarker
             required property var modelData
             required property int index
-            width: 68; height: 68
+            width: 80; height: 80
             x: root.bodyX(index) - width / 2
             y: root.bodyY(index) - height / 2
             iconSource: modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(modelData.type, modelData)
@@ -77,9 +94,9 @@ Rectangle {
             badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
             Label {
                 anchors.left: parent.right; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter
-                width: 180; elide: Text.ElideRight
+                width: 205; elide: Text.ElideRight
                 text: (orbitalMarker.index + 1) + " · " + (orbitalMarker.modelData.name || String(orbitalMarker.modelData.type).toUpperCase())
-                color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true
+                color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true
             }
         }
     }
@@ -91,28 +108,28 @@ Rectangle {
             required property var modelData
             required property int index
             readonly property real angle: -0.55 + index * 0.72
-            width: 62; height: 62
-            x: root.centerX + Math.cos(angle) * root.width * 0.38 - width / 2
-            y: root.centerY + Math.sin(angle) * root.height * 0.38 - height / 2
+            width: 72; height: 72
+            x: root.centerX + Math.cos(angle) * root.width * 0.43 - width / 2
+            y: root.centerY + Math.sin(angle) * root.height * 0.42 - height / 2
             iconSource: modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(modelData.type, modelData)
             badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
             Label {
-                anchors.left: parent.right; anchors.leftMargin: 7; anchors.verticalCenter: parent.verticalCenter; width: 175
+                anchors.left: parent.right; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter; width: 195
                 text: freeMarker.modelData.name || String(freeMarker.modelData.type).toUpperCase()
-                color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 11; font.bold: true; elide: Text.ElideRight
+                color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight
             }
         }
     }
 
     MapObjectMarker {
-        width: 76; height: 76
-        x: root.width * 0.17; y: root.height * 0.72
+        width: 88; height: 88
+        x: root.width * 0.10; y: root.height * 0.70
         iconSource: AssetCatalog.probeIcon(root.focusProbe.model || "generic")
         selected: true
         Label {
             anchors.left: parent.right; anchors.leftMargin: 6; anchors.verticalCenter: parent.verticalCenter
             text: root.focusProbe.name || "FOCUSED PROBE"
-            color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true
+            color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true
         }
     }
 
@@ -123,14 +140,14 @@ Rectangle {
             required property var modelData
             required property int index
             readonly property int targetIndex: root.objectIndex(modelData.targetObjectId)
-            width: 48; height: 48
-            x: targetIndex >= 0 ? root.bodyX(targetIndex) + 34 : root.width * 0.17 + index * 54
+            width: 54; height: 54
+            x: targetIndex >= 0 ? root.bodyX(targetIndex) + 40 : root.width * 0.11 + index * 62
             y: targetIndex >= 0 ? root.bodyY(targetIndex) - 52 : root.height * 0.84
             iconSource: AssetCatalog.icon("manny")
             Label {
                 anchors.left: parent.right; anchors.leftMargin: 6; width: 175
                 text: mannyMarker.modelData.name + " · " + String(mannyMarker.modelData.task).split("_").join(" ").toUpperCase()
-                color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 10; font.bold: true; elide: Text.ElideRight
+                color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true; elide: Text.ElideRight
             }
         }
     }

@@ -137,7 +137,7 @@ def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
     sector = Path("src/ui/qml/components/SectorView.qml").read_text()
     assert 'String(item.type).toLowerCase() === "planet"' in sector
     assert "ONE ORBIT PER PLANET" in sector
-    assert "width: 68; height: 68" in sector
+    assert "width: 80; height: 80" in sector
 
 
 def test_settings_exposes_policy_gated_automation_queue_and_approval():
