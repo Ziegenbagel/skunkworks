@@ -165,6 +165,23 @@ def test_probe_selector_waits_for_backend_confirmation():
     assert "currentIndex = root.indexForProbe(root.currentProbeId)" in selector
 
 
+def test_audio_manager_bundles_selected_v1_assets_and_controls():
+    audio = Path("src/ui/qml/components/AudioManager.qml").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    assert Path("src/ui/assets/audio/music/space-ambient-cinematic-music.mp3").stat().st_size > 1_000_000
+    assert Path("src/ui/assets/audio/sfx/button/soft-ui-button-click.ogg").is_file()
+    assert Path("src/ui/assets/audio/sfx/chimey/Chime_Confirm.mp3").is_file()
+    assert Path("src/ui/assets/audio/sfx/alerts/Wrong Error.wav").is_file()
+    assert "loops: MediaPlayer.Infinite" in audio
+    assert '"press": buttonEffect' in audio
+    assert '"confirm": confirmEffect' in audio
+    assert 'category: "audio"' in audio
+    assert 'title: "AUDIO"' in settings
+    assert "MUSIC VOLUME" in settings
+    assert "EFFECTS VOLUME" in settings
+    assert Path("src/ui/assets/audio/AUDIO_LICENSES.md").is_file()
+
+
 def test_settings_exposes_policy_gated_automation_queue_and_approval():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()

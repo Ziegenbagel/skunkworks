@@ -103,6 +103,47 @@ Item {
             Label { Layout.fillWidth: true; text: "Targets are persistent planner goals. Priority 1 is highest. Goals never bypass safety review or the emergency stop."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
 
             GroupBox {
+                title: "AUDIO"; Layout.fillWidth: true
+                GridLayout {
+                    anchors.fill: parent; columns: 4; columnSpacing: 18; rowSpacing: 10
+                    CheckBox {
+                        text: "BACKGROUND MUSIC"
+                        checked: AudioManager.musicEnabled
+                        onToggled: AudioManager.musicEnabled = checked
+                    }
+                    Label { text: "MUSIC VOLUME"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    Slider {
+                        Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.01
+                        value: AudioManager.musicVolume
+                        onMoved: AudioManager.musicVolume = value
+                    }
+                    Button { text: AudioManager.musicPlaying ? "PAUSE MUSIC" : "PLAY MUSIC"; onClicked: AudioManager.previewMusic() }
+
+                    CheckBox {
+                        text: "INTERFACE EFFECTS"
+                        checked: AudioManager.effectsEnabled
+                        onToggled: AudioManager.effectsEnabled = checked
+                    }
+                    Label { text: "EFFECTS VOLUME"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    Slider {
+                        Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.01
+                        value: AudioManager.effectsVolume
+                        onMoved: AudioManager.effectsVolume = value
+                    }
+                    Button { text: "TEST EFFECT"; enabled: AudioManager.effectsEnabled; onClicked: AudioManager.play("confirm") }
+
+                    CheckBox {
+                        text: "HOVER SOUNDS"
+                        checked: AudioManager.hoverEnabled
+                        onToggled: AudioManager.hoverEnabled = checked
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Reserved for optional map and control hover feedback. Disabled by default."
+                    }
+                    Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "SPACE AMBIENT CINEMATIC MUSIC · VIACHESLAV STAROSTIN  |  UI AUDIO · JUMMIT, MOUSEBYTE, HAELDB"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                }
+            }
+
+            GroupBox {
                 title: "ACCOUNT & API CREDENTIAL"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 8

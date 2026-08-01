@@ -12,6 +12,8 @@ ApplicationWindow {
     title: "Skunkworks Mission Control"
     color: Constants.voidColor
 
+    Component.onCompleted: AudioManager.startMusic()
+
     MissionControlScreen {
         id: missionControl
         anchors.fill: parent
@@ -92,9 +94,24 @@ ApplicationWindow {
     }
 
     Connections {
+        target: window.backend
+        ignoreUnknownSignals: true
+
+        function onStartupLoadingChanged() {
+            if (window.backend && !window.backend.startupLoading)
+                AudioManager.play("load");
+        }
+        function onErrorChanged() {
+            if (window.backend && window.backend.error)
+                AudioManager.play("error");
+        }
+    }
+
+    Connections {
         target: missionControl.probeSelectorControl
 
         function onProbeSelected(probeId) {
+            AudioManager.play("select");
             if (window.backend)
                 window.backend.selectProbe(probeId);
             else
@@ -102,6 +119,7 @@ ApplicationWindow {
         }
 
         function onRefreshRequested() {
+            AudioManager.play("press");
             if (window.backend)
                 window.backend.refresh();
         }
@@ -111,6 +129,7 @@ ApplicationWindow {
         target: missionControl.emergencyStopControl
 
         function onClicked() {
+            AudioManager.play(window.backend && window.backend.emergencyStopActive ? "confirm" : "warning");
             if (window.backend)
                 window.backend.setEmergencyStop(!window.backend.emergencyStopActive);
         }
@@ -120,6 +139,7 @@ ApplicationWindow {
         target: missionControl.alertsButtonControl
 
         function onClicked() {
+            AudioManager.play("navigate");
             missionControl.currentNavigation = "SAFETY";
         }
     }
@@ -128,6 +148,7 @@ ApplicationWindow {
         target: missionControl.navigationBarControl
 
         function onSectionSelected(section) {
+            AudioManager.play("navigate");
             missionControl.currentNavigation = section;
         }
     }
@@ -136,6 +157,7 @@ ApplicationWindow {
         target: missionControl.navigationWorkspaceControl
 
         function onProbeSelected(probeId) {
+            AudioManager.play("select");
             if (window.backend)
                 window.backend.selectProbe(probeId);
             else
@@ -143,105 +165,129 @@ ApplicationWindow {
         }
 
         function onAutomationSettingsSaved(settings) {
+            AudioManager.play("save");
             if (window.backend)
                 window.backend.saveAutomationSettings(settings);
         }
 
         function onProbeRoleAssigned(probeId, role) {
+            AudioManager.play("confirm");
             if (window.backend)
                 window.backend.assignProbeRole(probeId, role);
         }
 
         function onTravelPreviewRequested(x, y, z, routeMode) {
+            AudioManager.play("press");
             if (window.backend)
                 window.backend.previewTravel(x, y, z, routeMode);
         }
 
         function onTravelExecuteRequested(riskAcknowledged) {
+            AudioManager.play("confirm");
             if (window.backend)
                 window.backend.executeTravel(riskAcknowledged);
         }
 
         function onSectorScanRequested(x, y, z) {
+            AudioManager.play("press");
             if (window.backend)
                 window.backend.scanSector(x, y, z);
         }
 
         function onNeighboringSectorsScanRequested() {
+            AudioManager.play("press");
             if (window.backend)
                 window.backend.scanNeighboringSectors();
         }
 
         function onAutonomousTravelTargetRequested(x, y, z) {
+            AudioManager.play("save");
             if (window.backend)
                 window.backend.setAutonomousTravelTarget(x, y, z);
         }
 
         function onApiKeySaveRequested(apiKey) {
+            AudioManager.play("save");
             if (window.backend) window.backend.saveApiKey(apiKey);
         }
 
         function onApiKeyTestRequested() {
+            AudioManager.play("press");
             if (window.backend) window.backend.testApiKey();
         }
 
         function onApiKeyRemoveRequested() {
+            AudioManager.play("warning");
             if (window.backend) window.backend.removeApiKey();
         }
 
         function onOnboardingResetRequested() {
+            AudioManager.play("press");
             if (window.backend) window.backend.resetOnboarding();
         }
 
         function onExecutionPolicySaveRequested(policy) {
+            AudioManager.play("save");
             if (window.backend) window.backend.saveExecutionPolicy(policy);
         }
 
         function onAutomationCycleRequested() {
+            AudioManager.play("confirm");
             if (window.backend) window.backend.runAutomationCycle();
         }
 
         function onAutomationApprovalRequested(fingerprint, riskAcknowledged) {
+            AudioManager.play("confirm");
             if (window.backend) window.backend.approveAutomationCommand(fingerprint, riskAcknowledged);
         }
 
         function onTransportCycleSaveRequested(plan) {
+            AudioManager.play("save");
             if (window.backend) window.backend.saveTransportCycle(plan);
         }
 
         function onProbeRenameRequested(name) {
+            AudioManager.play("save");
             if (window.backend) window.backend.renameFocusedProbe(name);
         }
 
         function onContainerRenameRequested(containerId, label) {
+            AudioManager.play("save");
             if (window.backend) window.backend.renameStorageContainer(containerId, label);
         }
 
         function onStorageRulesSaveRequested(containerId, rules) {
+            AudioManager.play("save");
             if (window.backend) window.backend.saveStorageRules(containerId, rules);
         }
 
         function onStorageMoveRequested(payload) {
+            AudioManager.play("confirm");
             if (window.backend) window.backend.moveStorage(payload);
         }
 
         function onLogbookCreateRequested(title, content) {
+            AudioManager.play("save");
             if (window.backend) window.backend.createLogbookPage(title, content);
         }
 
         function onLogbookUpdateRequested(pageId, title, content) {
+            AudioManager.play("save");
             if (window.backend) window.backend.updateLogbookPage(pageId, title, content);
         }
 
         function onLogbookDeleteRequested(pageId) {
+            AudioManager.play("warning");
             if (window.backend) window.backend.deleteLogbookPage(pageId);
         }
 
         function onAutoLogbookChanged(enabled) {
+            AudioManager.play("press");
             if (window.backend) window.backend.setAutoLogbookEnabled(enabled);
         }
 
         function onLogbookPageOpenRequested(pageId) {
+            AudioManager.play("select");
             if (window.backend) window.backend.loadLogbookPage(pageId);
         }
     }

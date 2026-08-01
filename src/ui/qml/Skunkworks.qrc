@@ -77,6 +77,7 @@
         <file>App.qml</file>
         <file>AssetCatalog.qml</file>
         <file>components/AutomationSettings.qml</file>
+        <file>components/AudioManager.qml</file>
         <file>components/CoordinateEditor.qml</file>
         <file>components/FirstLaunchWizard.qml</file>
         <file>components/FleetWorkspace.qml</file>
@@ -99,6 +100,26 @@
         <file>components/TopNavigationBar.qml</file>
         <file>Constants.qml</file>
         <file>MissionControlScreen.ui.qml</file>
+        <file>../assets/audio/music/space-ambient-cinematic-music.mp3</file>
+        <file>../assets/audio/sfx/button/soft-ui-button-click.ogg</file>
+        <file>../assets/audio/sfx/chimey/Chime_Cancel.mp3</file>
+        <file>../assets/audio/sfx/chimey/Chime_Confirm.mp3</file>
+        <file>../assets/audio/sfx/chimey/Chime_Exit.mp3</file>
+        <file>../assets/audio/sfx/chimey/Chime_LevelUp.mp3</file>
+        <file>../assets/audio/sfx/chimey/Chime_Load.mp3</file>
+        <file>../assets/audio/sfx/chimey/Chime_Save.mp3</file>
+        <file>../assets/audio/sfx/chimey/Chime_Sleep.mp3</file>
+        <file>../assets/audio/sfx/alerts/#0.wav</file>
+        <file>../assets/audio/sfx/alerts/#1.wav</file>
+        <file>../assets/audio/sfx/alerts/#2.wav</file>
+        <file>../assets/audio/sfx/alerts/#3.wav</file>
+        <file>../assets/audio/sfx/alerts/#4.wav</file>
+        <file>../assets/audio/sfx/alerts/#5.wav</file>
+        <file>../assets/audio/sfx/alerts/#6.wav</file>
+        <file>../assets/audio/sfx/alerts/#7.wav</file>
+        <file>../assets/audio/sfx/alerts/#8.wav</file>
+        <file>../assets/audio/sfx/alerts/#9.wav</file>
+        <file>../assets/audio/sfx/alerts/Wrong Error.wav</file>
         <file>Skunkworks.qmlproject</file>
     </qresource>
 </RCC>
