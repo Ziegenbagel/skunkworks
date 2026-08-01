@@ -137,6 +137,28 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual(command.payload["targetContainerId"], "metals-depot")
 
+    def test_active_tanker_component_does_not_request_zero_quantity_recipe_plan(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        component, required = TANKER_COMPONENTS[0]
+        self.operations.world.probe["inventory"]["items"] = [
+            item for item in self.operations.world.probe["inventory"].get("items", ())
+            if item.get("type") != component
+        ]
+        self.operations.world.mannies["mannies"][0]["currentTask"] = {
+            "type": "crafting", "recipe": component,
+        }
+        desired = DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),))
+
+        tasks = Planner(self.operations, desired).tasks()
+
+        self.assertTrue(any(task.action == "Await Active Production" for task in tasks))
+        self.assertFalse(any(
+            task.action in {"Mine Resource", "Mine Deuterium"}
+            and component in task.reason
+            for task in tasks
+        ))
+
     def test_lower_priority_craft_cannot_reuse_reserved_resources(self):
         from src.planner.task import Task
 

@@ -59,6 +59,11 @@ def plan(operations, desired_state) -> list[Task]:
         if missing is None:
             continue
         component, amount, _, _ = missing
+        # Active production may satisfy the whole component shortage. In that
+        # case there is no recipe quantity to expand and no resource demand to
+        # reserve; the fleet rule emits the explanatory waiting task.
+        if amount <= 0:
+            continue
         production = operations.manufacturing.production_plan(
             component, quantity=amount, include_operational_constraints=False,
         )
