@@ -174,6 +174,18 @@ class ManufacturingServiceTests(unittest.TestCase):
             plan["blockers"],
         )
 
+    def test_inventory_count_credits_active_crafting_output(self):
+        self.world.mannies["mannies"][0].update({
+            "currentTask": "crafting",
+            "task": {
+                "recipe": "steel_bar",
+                "recipeName": "Steel bar",
+            },
+        })
+
+        self.assertEqual(self.service.inventory_count("steel_bar"), 2)
+        self.assertEqual(self.service.inventory_count("steel_bar", include_active=False), 1)
+
     def test_builds_dependency_tree(self):
         tree = self.service.dependency_tree(
             "electric_motor"

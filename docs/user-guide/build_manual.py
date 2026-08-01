@@ -437,6 +437,7 @@ def build():
     add_heading(doc, "Automation and priorities", 2)
     add_body(doc, "Execution authority is probe-specific. The mode, live-order permission, command allowlist, and maximum orders per cycle shown in Settings belong to the focused probe. Switching probes loads that probe's policy and queue; a command prepared for one probe cannot be dispatched under another probe's policy. Desired-state fleet targets remain account-level planning goals.")
     add_body(doc, "Automation targets describe a desired state. Priority uses a 1–10 scale: 1 is highest; equal numbers receive equal priority. The planner compares targets with existing inventory, active work, available Mannys, recipes, resource needs, fuel floors, and safety policy.")
+    add_note(doc, "Allocation ledger", "Active crafting outputs count toward the goal that requested them, preventing duplicate work. During each planning cycle, higher-priority operations claim their required stored resources and component items first. Lower-priority commands cannot spend those claims; equal-priority goals are evaluated in stable target order and refreshed against live inventory before execution.")
     add_heading(doc, "Recommended commissioning sequence", 2)
     add_steps(doc, [
         "Set target quantities for probes, tankers, Mannys, containers, SCUT relays, and transit beacons.",

@@ -38,14 +38,20 @@ class CommandPreparer:
 
     def prepare(self, tasks):
         prepared = []
+        resource_claims = {}
+        item_claims = {}
 
         for task in tasks:
+            reservation_blockers = self._reserve_manufacturing_inputs(
+                task, resource_claims, item_claims,
+            )
             command = self.translator.translate(task)
 
             if command is None:
                 continue
 
             blockers = list(self.validator.blockers(command))
+            blockers.extend(reservation_blockers)
             warnings = self.validator.warnings(command)
 
             if (
@@ -88,6 +94,34 @@ class CommandPreparer:
         return tuple(
             prepared[: self.policy.max_commands_per_cycle]
         )
+
+    def _reserve_manufacturing_inputs(self, task, resource_claims, item_claims):
+        if task.action not in {"Craft Item", "Prepare Manufacturing"} or not task.target:
+            return []
+        plan = self.translator.operations.manufacturing.production_plan(
+            task.target,
+            quantity=1,
+            include_operational_constraints=False,
+        )
+        if plan is None:
+            return []
+        resources, items = self.translator.operations.manufacturing.available_inputs()
+        conflicts = []
+        for resource, required in plan["required_resources"].items():
+            available = float(resources.get(resource, 0))
+            already_claimed = float(resource_claims.get(resource, 0))
+            claim = min(float(required), max(0, available - already_claimed))
+            resource_claims[resource] = already_claimed + claim
+            if task.action == "Craft Item" and claim + 0.00001 < float(required):
+                conflicts.append("resource_reserved_by_higher_priority_goal")
+        for item_type, required in plan["consumed_inventory_items"].items():
+            available = int(items.get(item_type, 0))
+            already_claimed = int(item_claims.get(item_type, 0))
+            claim = min(int(required), max(0, available - already_claimed))
+            item_claims[item_type] = already_claimed + claim
+            if task.action == "Craft Item" and claim < int(required):
+                conflicts.append("item_reserved_by_higher_priority_goal")
+        return list(dict.fromkeys(conflicts))
 
     def _disposition(self, command, blockers, warnings):
         if blockers:

@@ -38,21 +38,69 @@ class ManufacturingService:
         plan = self.production_plan(recipe_id)
         return plan is not None and plan["achievable"]
 
-    def inventory_count(self, item_type):
-        """Return current inventory count for an output type."""
+    def inventory_count(self, item_type, include_active=True):
+        """Return completed inventory plus optionally active production."""
 
         if item_type == "manny":
-            return len(
+            completed = len(
                 self.world.mannies.get("mannies", [])
             )
+            return completed
 
-        return sum(
+        completed = sum(
             1
             for item in self.world.probe[
                 "inventory"
             ].get("items", [])
             if item["type"] == item_type
         )
+        return completed + (
+            self.active_production_count(item_type)
+            if include_active else 0
+        )
+
+    def active_production_count(self, item_type):
+        """Count observable craft outputs that have started but not completed."""
+
+        count = 0
+        for manny in self.world.mannies.get("mannies", []):
+            if self._active_recipe(manny) == item_type:
+                count += 1
+        for item in self.world.probe.get("inventory", {}).get("items", []):
+            if item.get("type") != "atomic_3d_printer":
+                continue
+            if self._active_recipe(item) == item_type:
+                count += 1
+        return count
+
+    def _active_recipe(self, asset):
+        current = asset.get("currentTask")
+        details = asset.get("task") or (current if isinstance(current, dict) else {})
+        task_type = (
+            details.get("type")
+            or (current.get("type") if isinstance(current, dict) else current)
+        )
+        if task_type not in {"crafting", "assisting_atomic_printer"}:
+            return None
+        reference = (
+            details.get("recipe")
+            or details.get("recipeId")
+            or details.get("recipeName")
+            or details.get("output")
+        )
+        if isinstance(reference, dict):
+            reference = reference.get("id") or reference.get("type") or reference.get("name")
+        if reference in self.recipes:
+            return reference
+        normalized = str(reference or "").strip().lower().replace(" ", "_")
+        for recipe in self.recipes.all():
+            if normalized in {
+                str(recipe.get("id", "")).lower(),
+                str(recipe.get("name", "")).strip().lower().replace(" ", "_"),
+                str((recipe.get("output") or {}).get("type", "")).lower(),
+            }:
+                return recipe.get("id")
+        return normalized or None
 
     def raw_resources(self, recipe_id):
         """Return recursive costs after reusing current item inventory."""
@@ -84,6 +132,15 @@ class ManufacturingService:
         return {
             "resources": plan["missing_resources"],
             "items": plan["uncraftable_items"],
+        }
+
+    def available_inputs(self):
+        """Return copy-safe resource amounts and item counts for allocation."""
+
+        resources, items = self._inventory()
+        return resources, {
+            item_type: len(entries)
+            for item_type, entries in items.items()
         }
 
     def dependencies(self, recipe_id):

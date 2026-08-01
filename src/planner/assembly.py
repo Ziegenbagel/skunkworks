@@ -16,14 +16,16 @@ TANKER_COMPONENTS = (
 
 
 def tanker_shortage(operations):
-    """Return the first missing component, preserving build order."""
+    """Return the first unfinished component, crediting active production."""
 
     inventory = operations.world.probe.get("inventory", {})
     counts = Counter(item.get("type") for item in inventory.get("items", ()))
     for component, required in TANKER_COMPONENTS:
-        missing = max(0, required - counts.get(component, 0))
+        completed = counts.get(component, 0)
+        missing = max(0, required - completed)
         if missing:
-            return component, missing, required, counts.get(component, 0)
+            active = operations.manufacturing.active_production_count(component)
+            return component, max(0, missing - active), required, completed
     return None
 
 

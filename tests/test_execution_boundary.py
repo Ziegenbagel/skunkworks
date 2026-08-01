@@ -115,6 +115,37 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual({first.target_id, second.target_id}, {101, 202})
 
+    def test_lower_priority_craft_cannot_reuse_reserved_resources(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 1
+        self.operations.manufacturing.recipes._recipes["priority_component"] = {
+            "id": "priority_component",
+            "name": "Priority component",
+            "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [{"type": "metals", "quantity": 1, "kind": "resource"}],
+            "output": {"type": "priority_component", "containerSpace": 0.1},
+        }
+        self.operations.world.mannies["mannies"].append({
+            "id": 202, "currentTask": None, "canReceiveOrders": True,
+            "location": {"type": "probe"},
+        })
+        policy = ExecutionPolicy(
+            mode=ExecutionMode.AUTOMATIC,
+            live_execution_enabled=True,
+            allowed_command_types=frozenset({CommandType.MANNY_CRAFT}),
+            max_commands_per_cycle=10,
+        )
+        prepared = CommandPreparer(self.operations, 1, policy).prepare([
+            Task(action="Craft Item", reason="Tanker component", target="priority_component", priority=1),
+            Task(action="Craft Item", reason="Lower goal", target="storage_container", priority=5),
+        ])
+
+        self.assertEqual(prepared[0].disposition, "ready")
+        self.assertEqual(prepared[1].disposition, "blocked")
+        self.assertIn("resource_reserved_by_higher_priority_goal", prepared[1].blockers)
+
     def test_ready_tanker_goal_becomes_special_assembly_command(self):
         from src.planner.assembly import TANKER_COMPONENTS
 
@@ -138,6 +169,24 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(command.type, CommandType.MANNY_ASSEMBLE_PROBE)
         self.assertEqual(command.priority, 1)
         self.assertEqual(command.payload, {"containerIds": ["container-a", "container-b"]})
+
+    def test_active_tanker_component_is_not_ordered_twice(self):
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["items"] = [
+            {"id": "engine-1", "type": "deuterium_engine"},
+        ]
+        self.operations.world.mannies["mannies"][0].update({
+            "currentTask": "crafting",
+            "task": {"recipe": "scut_relay", "recipeName": "SCUT relay"},
+        })
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+        ).tasks()
+
+        self.assertEqual(tasks[0].action, "Await Active Production")
+        self.assertIn("no duplicate order", tasks[0].reason)
+        self.assertEqual(CommandPreparer(self.operations, 1, self.policy).prepare(tasks), ())
 
     def test_travel_command_uses_safe_direct_distance(self):
         prepared = self.prepare(

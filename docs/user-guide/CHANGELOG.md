@@ -8,3 +8,5 @@
 - Added a numbered Settings workspace diagram and fast-access documentation links.
 - Scoped execution mode, command permission, allowlist, cycle limit, and dispatch validation to the focused probe.
 - Centered the galaxy map on the focused probe's sector by default and added documented drag and button panning controls.
+- Added active-production accounting so in-progress components are not crafted twice.
+- Added priority-ordered resource and component claims so lower-priority commands cannot spend inputs allocated to planned higher-priority work.

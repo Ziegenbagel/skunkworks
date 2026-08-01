@@ -33,6 +33,21 @@ def plan(operations, desired_state) -> list[Task]:
         missing = tanker_shortage(operations)
         if missing is not None:
             component, amount, required, current = missing
+            active = operations.manufacturing.active_production_count(component)
+            if amount == 0:
+                tasks.append(Task(
+                    action="Await Active Production",
+                    reason=(
+                        f"Priority {goal.priority} tanker goal reserves {active} active "
+                        f"{component.replace('_', ' ')} craft; no duplicate order is needed."
+                    ),
+                    category="fleet_assembly",
+                    target=component,
+                    quantity=active,
+                    constraints=("active_production_pending",),
+                    priority=goal.priority,
+                ))
+                continue
             production = operations.manufacturing.production_plan(
                 component, quantity=amount,
             )
