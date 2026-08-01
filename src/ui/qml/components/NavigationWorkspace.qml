@@ -16,6 +16,7 @@ PanelFrame {
     signal probeRoleAssigned(int probeId, string role)
     signal travelPreviewRequested(int x, int y, int z, string routeMode)
     signal travelExecuteRequested(bool riskAcknowledged)
+    signal travelCancelRequested()
     signal sectorScanRequested(int x, int y, int z)
     signal neighboringSectorsScanRequested()
     signal autonomousTravelTargetRequested(int x, int y, int z)
@@ -83,7 +84,7 @@ PanelFrame {
             return [
                 {
                     "title": "RESEARCH INTELLIGENCE",
-                    "detail": "No account research endpoint is exposed by API v104. Discovered improvements remain available through probe inspection and safety context."
+                    "detail": "No account research endpoint is exposed by API v106. Discovered improvements remain available through probe inspection and safety context."
                 }
             ];
         return [];
@@ -130,6 +131,7 @@ PanelFrame {
             focusedProbe: root.dashboardData.focus || ({})
             onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
             onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
+            onCancelMovementRequested: root.travelCancelRequested()
             onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
             onNeighborScanRequested: root.neighboringSectorsScanRequested()
             onAutonomousTargetRequested: (x, y, z) => root.autonomousTravelTargetRequested(x, y, z)

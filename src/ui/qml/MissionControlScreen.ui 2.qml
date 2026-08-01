@@ -506,7 +506,7 @@ Rectangle {
                     Layout.fillWidth: true
                 }
                 Label {
-                    text: "AEROSPACE OPERATIONS CONSOLE  ·  API v104  ·  OBSERVE-ONLY"
+                    text: "AEROSPACE OPERATIONS CONSOLE  ·  API v" + (root.dashboardData.apiVersion || "103–106") + "  ·  POLICY-CONTROLLED"
                     color: Constants.mutedTextColor
                     font.family: Constants.technicalFont
                     font.pixelSize: 9

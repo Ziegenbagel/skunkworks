@@ -2,6 +2,10 @@
 
 ## 0.1 — 2026-08-01
 
+- Reviewed and enabled Von Neumann Game API v105–v106 compatibility. Added
+  preparation-phase movement cancellation with deuterium refund, unread
+  message/alert filters at the API boundary, and terminal/atomic Manny-mining
+  status language for v106.
 - Replaced live-load concept-data fallbacks with explicit service/API error
   screens. Failed later refreshes now retain the last successful snapshot,
   mark it stale, show the underlying error, and provide a retry control.

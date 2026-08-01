@@ -12,6 +12,7 @@ Item {
     property var focusedProbe: ({})
     signal previewRequested(int x, int y, int z, string routeMode)
     signal executeRequested(bool riskAcknowledged)
+    signal cancelMovementRequested()
     signal scanRequested(int x, int y, int z)
     signal neighborScanRequested()
     signal autonomousTargetRequested(int x, int y, int z)
@@ -73,6 +74,22 @@ Item {
                 clip: true
                 ColumnLayout {
                     width: parent.width - 20; spacing: 16
+                    GroupBox {
+                        visible: Boolean(root.focusedProbe.canCancelMovement)
+                        title: "ACTIVE MOVEMENT · PREPARATION CANCELLATION"; Layout.fillWidth: true
+                        RowLayout {
+                            anchors.fill: parent; spacing: 16
+                            Label {
+                                Layout.fillWidth: true
+                                text: "This probe is still preparing its jump. Cancellation is available only during this phase and refunds the reserved deuterium."
+                                color: Constants.warningColor; font.pixelSize: 14; wrapMode: Text.Wrap
+                            }
+                            Button {
+                                text: "CANCEL PREPARING MOVEMENT"
+                                onClicked: root.cancelMovementRequested()
+                            }
+                        }
+                    }
                     GroupBox {
                         title: "ONE-TIME MANUAL TRAVEL ORDER"; Layout.fillWidth: true
                         ColumnLayout {

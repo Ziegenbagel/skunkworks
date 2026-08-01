@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v104 at revision
-`e5a5f17342ec5436f1879cd16df2e9906a33e66f`.
+Skunkworks supports deployed API v103 through upstream API v106 at revision
+`17d9600`.
 
 The application checks `/api/version` before loading operational state.
 Authenticated routes are rate limited to 60 requests per sliding 60-second
@@ -21,6 +21,22 @@ window, with `Retry-After` supplied on `429`.
 
 General probe telemetry contains lightweight Manny inventory entries. The
 Manny endpoints provide authoritative task state.
+
+API v105 adds `DELETE /api/probe/{probeId}/move`. It succeeds only during
+movement preparation, cancels the scheduled movement and container-damage
+events, restores the probe to idle, removes synthetic forgotten-Manny objects,
+and refunds the full reserved movement deuterium.
+
+API v106 represents Manny mining as one terminal scheduled task. While mining
+is active, `extractedAmount` and `depositedAmount` remain zero even though
+`taskProgressPercent` and `taskEstimatedEndTime` advance. At the final deadline,
+capacity is checked and extraction plus delivery commit atomically. Clients
+should use the task progress/deadline—not intermediate deposit counters—for
+active-state progress.
+
+Crafting now reserves its output container and volume when work starts. Those
+reservations are included in storage-capacity calculations until the scheduler
+replaces them with the completed output.
 
 ## Observation 001
 

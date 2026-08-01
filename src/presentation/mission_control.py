@@ -36,6 +36,11 @@ class MissionControlViewModelBuilder:
                 "isReachable": probe.get("telemetry_available", True),
                 "sector": coordinates,
                 "sectorLabel": self._sector_label(coordinates),
+                "movement": dict(probe.get("movement") or {}),
+                "canCancelMovement": (
+                    (probe.get("movement") or {}).get("phase") == "preparing"
+                    or (probe.get("movement") or {}).get("status") == "preparing"
+                ),
             },
             "fleet": {
                 "total": fleet.get("total", len(fleet.get("probes", ()))),
@@ -665,6 +670,8 @@ class MissionControlViewModelBuilder:
                 lines.append(f"Target amount: {task['targetAmount']} ECE")
             if task.get("depositedAmount") is not None:
                 lines.append(f"Deposited: {task['depositedAmount']} ECE")
+            if progress < 100 and float(task.get("depositedAmount", 0) or 0) == 0:
+                lines.append("Delivery: commits atomically at the final task deadline")
         return "\n".join(lines)
 
     @staticmethod

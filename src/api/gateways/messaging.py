@@ -5,10 +5,12 @@ class MessagingGateway:
     def __init__(self, client):
         self.client = client
 
-    def received(self, probe_id):
+    def received(self, probe_id, status=None):
+        params = {"status": status} if status is not None else None
         return self.client.request(
             "GET",
             f"/api/probe/{probe_id}/messages",
+            **({"params": params} if params else {}),
         )
 
     def sent(self):

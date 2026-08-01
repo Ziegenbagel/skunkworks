@@ -363,7 +363,7 @@ Current Work
 - Deuterium-tanker normalization and model-specific travel safety
 - Tanker fuel-transfer API access
 - Durable galaxy access
-- API v104 compatibility and rate-limit awareness
+- API v106 compatibility and rate-limit awareness
 - Authoritative Manny task-state loading
 - Interactive and CLI probe selector
 - Explicit per-probe operational context

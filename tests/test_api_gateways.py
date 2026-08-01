@@ -41,6 +41,19 @@ class ApiGatewayTests(unittest.TestCase):
             ),
         )
 
+    def test_v105_movement_cancel_and_unread_filters_are_probe_scoped(self):
+        self.api.probes.cancel_move(42)
+        self.api.probes.alerts(42, status="unread")
+        self.api.messaging.received(42, status="unread")
+
+        self.assertEqual(self.client.calls[0], ("DELETE", "/api/probe/42/move", {}))
+        self.assertEqual(self.client.calls[1], (
+            "GET", "/api/probe/42/alerts", {"params": {"status": "unread"}},
+        ))
+        self.assertEqual(self.client.calls[2], (
+            "GET", "/api/probe/42/messages", {"params": {"status": "unread"}},
+        ))
+
     def test_manny_task_uses_target_probe(self):
         self.api.mannies.start_task(
             42,

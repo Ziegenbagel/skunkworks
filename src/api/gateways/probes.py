@@ -37,6 +37,14 @@ class ProbeGateway:
             json={"target": target},
         )
 
+    def cancel_move(self, probe_id):
+        """Cancel an active movement while it is still preparing (API v105+)."""
+
+        return self.client.request(
+            "DELETE",
+            f"/api/probe/{probe_id}/move",
+        )
+
     def visited_sectors(self, probe_id):
         return self.client.request(
             "GET",
@@ -55,10 +63,12 @@ class ProbeGateway:
             f"/api/probe/{probe_id}/scut-network/{network_id}",
         )
 
-    def alerts(self, probe_id):
+    def alerts(self, probe_id, status=None):
+        params = {"status": status} if status is not None else None
         return self.client.request(
             "GET",
             f"/api/probe/{probe_id}/alerts",
+            **({"params": params} if params else {}),
         )
 
     def update_alert(self, probe_id, alert_id, **changes):

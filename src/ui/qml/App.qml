@@ -303,6 +303,12 @@ ApplicationWindow {
                 window.backend.executeTravel(riskAcknowledged);
         }
 
+        function onTravelCancelRequested() {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.cancelTravel();
+        }
+
         function onSectorScanRequested(x, y, z) {
             AudioManager.play("press");
             if (window.backend)

@@ -925,6 +925,19 @@ class MissionControlController(QObject):
         self.dashboardChanged.emit()
         self._start_refresh(self._focused_probe_id)
 
+    @Slot()
+    def cancelTravel(self):
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Select and refresh a probe before cancelling movement.")
+            return
+        try:
+            self.service.capabilities.probes.cancel_move(self._focused_probe_id)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._set_error("")
+        self._start_refresh(self._focused_probe_id)
+
     @Slot(int, int, int)
     def scanSector(self, x, y, z):
         if self.service is None:
