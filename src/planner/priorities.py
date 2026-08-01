@@ -1,8 +1,8 @@
 """Planner task priorities."""
 
-EMERGENCY = 10
-CRITICAL = 20
-HIGH = 30
-NORMAL = 50
-LOW = 75
-INFO = 100
+EMERGENCY = 0
+CRITICAL = 1
+HIGH = 3
+NORMAL = 5
+LOW = 8
+INFO = 10

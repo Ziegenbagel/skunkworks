@@ -5,11 +5,22 @@ from dataclasses import dataclass, field
 from src.models.galaxy import SectorCoordinates
 
 
+def normalize_priority(value, default=5, legacy=False):
+    """Read the 1–10 scale and migrate legacy 1–999 values."""
+
+    if value is None:
+        return default
+    priority = int(value)
+    if legacy:
+        priority = max(1, min(10, (priority + 9) // 10))
+    return priority
+
+
 @dataclass(frozen=True)
 class ProductionGoal:
     recipe_id: str
     quantity: int
-    priority: int = 50
+    priority: int = 5
 
     def __post_init__(self):
         if not self.recipe_id:
@@ -19,51 +30,51 @@ class ProductionGoal:
             raise ValueError(
                 "Production goal quantity cannot be negative."
             )
-        if not 1 <= self.priority <= 999:
-            raise ValueError("Goal priority must be between 1 and 999.")
+        if not 1 <= self.priority <= 10:
+            raise ValueError("Goal priority must be between 1 and 10.")
 
 
 @dataclass(frozen=True)
 class ResourceGoal:
     resource_type: str
     minimum_amount: float
-    priority: int = 50
+    priority: int = 5
 
     def __post_init__(self):
         if self.minimum_amount < 0:
             raise ValueError(
                 "Resource reserve cannot be negative."
             )
-        if not 1 <= self.priority <= 999:
-            raise ValueError("Goal priority must be between 1 and 999.")
+        if not 1 <= self.priority <= 10:
+            raise ValueError("Goal priority must be between 1 and 10.")
 
 
 @dataclass(frozen=True)
 class FuelGoal:
     minimum_percent: float = 20
-    priority: int = 30
+    priority: int = 3
 
     def __post_init__(self):
         if not 0 <= self.minimum_percent <= 100:
             raise ValueError(
                 "Minimum fuel percent must be between 0 and 100."
             )
-        if not 1 <= self.priority <= 999:
-            raise ValueError("Goal priority must be between 1 and 999.")
+        if not 1 <= self.priority <= 10:
+            raise ValueError("Goal priority must be between 1 and 10.")
 
 
 @dataclass(frozen=True)
 class InventoryGoal:
     minimum_free_capacity: float = 1
-    priority: int = 30
+    priority: int = 3
 
     def __post_init__(self):
         if self.minimum_free_capacity < 0:
             raise ValueError(
                 "Minimum free capacity cannot be negative."
             )
-        if not 1 <= self.priority <= 999:
-            raise ValueError("Goal priority must be between 1 and 999.")
+        if not 1 <= self.priority <= 10:
+            raise ValueError("Goal priority must be between 1 and 10.")
 
 
 @dataclass(frozen=True)
@@ -77,15 +88,15 @@ class FleetGoal:
 
     model: str
     quantity: int
-    priority: int = 50
+    priority: int = 5
 
     def __post_init__(self):
         if self.model not in {"generic", "deuterium_tanker"}:
             raise ValueError(f"Unsupported probe model: {self.model}")
         if self.quantity < 0:
             raise ValueError("Fleet goal quantity cannot be negative.")
-        if not 1 <= self.priority <= 999:
-            raise ValueError("Goal priority must be between 1 and 999.")
+        if not 1 <= self.priority <= 10:
+            raise ValueError("Goal priority must be between 1 and 10.")
 
 
 @dataclass(frozen=True)
@@ -112,12 +123,13 @@ class DesiredState:
     @classmethod
     def from_dict(cls, value):
         travel_target = value.get("travelTarget")
+        legacy_priorities = value.get("priorityScaleMax") != 10
         return cls(
             production=tuple(
                 ProductionGoal(
                     recipe_id=recipe_id,
                     quantity=int(quantity),
-                    priority=int(value.get("productionPriorities", {}).get(recipe_id, 50)),
+                    priority=normalize_priority(value.get("productionPriorities", {}).get(recipe_id), 5, legacy_priorities),
                 )
                 for recipe_id, quantity in value.get(
                     "production",
@@ -129,7 +141,7 @@ class DesiredState:
                 ProductionGoal(
                     recipe_id=goal["recipeId"],
                     quantity=int(goal["quantity"]),
-                    priority=int(goal.get("priority", 50)),
+                    priority=normalize_priority(goal.get("priority"), 5, legacy_priorities),
                 )
                 for goal in value.get("production", [])
             ),
@@ -137,7 +149,7 @@ class DesiredState:
                 ResourceGoal(
                     resource_type=resource_type,
                     minimum_amount=float(amount),
-                    priority=int(value.get("resourcePriorities", {}).get(resource_type, 50)),
+                    priority=normalize_priority(value.get("resourcePriorities", {}).get(resource_type), 5, legacy_priorities),
                 )
                 for resource_type, amount in value.get(
                     "resourceReserves",
@@ -148,13 +160,13 @@ class DesiredState:
                 minimum_percent=float(
                     value.get("minimumFuelPercent", 20)
                 ),
-                priority=int(value.get("fuelPriority", 30)),
+                priority=normalize_priority(value.get("fuelPriority"), 3, legacy_priorities),
             ),
             inventory=InventoryGoal(
                 minimum_free_capacity=float(
                     value.get("minimumFreeCapacity", 1)
                 ),
-                priority=int(value.get("inventoryPriority", 30)),
+                priority=normalize_priority(value.get("inventoryPriority"), 3, legacy_priorities),
             ),
             travel=(
                 TravelGoal(
@@ -169,7 +181,7 @@ class DesiredState:
                 FleetGoal(
                     model=model,
                     quantity=int(quantity),
-                    priority=int(value.get("fleetPriorities", {}).get(model, 50)),
+                    priority=normalize_priority(value.get("fleetPriorities", {}).get(model), 5, legacy_priorities),
                 )
                 for model, quantity in value.get("fleetTargets", {}).items()
             ),
@@ -177,6 +189,7 @@ class DesiredState:
 
     def to_dict(self):
         return {
+            "priorityScaleMax": 10,
             "production": [
                 {
                     "recipeId": goal.recipe_id,

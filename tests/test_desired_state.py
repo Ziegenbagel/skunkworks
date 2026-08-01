@@ -52,6 +52,20 @@ class DesiredStateTests(unittest.TestCase):
     def test_priority_must_be_positive(self):
         with self.assertRaises(ValueError):
             FleetGoal("deuterium_tanker", 1, priority=0)
+        with self.assertRaises(ValueError):
+            ProductionGoal("manny", 1, priority=11)
+
+    def test_legacy_priority_values_migrate_to_ten_point_scale(self):
+        state = DesiredState.from_dict({
+            "production": [{"recipeId": "manny", "quantity": 1, "priority": 50}],
+            "fuelPriority": 30,
+            "fleetTargets": {"deuterium_tanker": 1},
+            "fleetPriorities": {"deuterium_tanker": 10},
+        })
+
+        self.assertEqual(state.production[0].priority, 5)
+        self.assertEqual(state.fuel.priority, 3)
+        self.assertEqual(state.fleet[0].priority, 1)
 
     def test_tanker_target_enters_planner_at_selected_priority(self):
         operations = build_operations()
@@ -68,10 +82,10 @@ class DesiredStateTests(unittest.TestCase):
 
     def test_round_trips_all_goal_types(self):
         state = DesiredState(
-            production=(ProductionGoal("manny", 6, priority=12),),
-            resources=(ResourceGoal("metals", 4.5, priority=18),),
+            production=(ProductionGoal("manny", 6, priority=2),),
+            resources=(ResourceGoal("metals", 4.5, priority=4),),
             fuel=FuelGoal(35, priority=8),
-            inventory=InventoryGoal(2, priority=25),
+            inventory=InventoryGoal(2, priority=6),
             travel=TravelGoal(SectorCoordinates(2, 0, 0)),
             fleet=(FleetGoal("deuterium_tanker", 2, priority=1),),
         )

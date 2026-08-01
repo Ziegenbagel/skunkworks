@@ -63,7 +63,7 @@ Rectangle {
                 }
                 ColumnLayout {
                     Label { text: "SAFETY AND AUTOMATION"; color: Constants.textColor; font.pixelSize: 22; font.bold: true }
-                    Label { Layout.fillWidth: true; text: "Priorities use 1 as highest. Desired quantities tell the planner what to maintain. Travel distance, integrity, fuel floors, forgotten Mannys, container detachment, resource depletion, and SCUT coverage remain subject to warnings and player acknowledgement. STOP immediately blocks automation."; color: Constants.textColor; wrapMode: Text.Wrap }
+                    Label { Layout.fillWidth: true; text: "Priorities use a simple 1–10 scale, with 1 highest; equal numbers receive equal priority. Desired quantities tell the planner what to maintain. Travel distance, integrity, fuel floors, forgotten Mannys, container detachment, resource depletion, and SCUT coverage remain subject to warnings and player acknowledgement. STOP immediately blocks automation."; color: Constants.textColor; wrapMode: Text.Wrap }
                     Item { Layout.fillHeight: true }
                 }
                 ColumnLayout {
