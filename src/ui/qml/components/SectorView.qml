@@ -42,6 +42,7 @@ Rectangle {
     function freeAngle(index) { return -0.55 + index * 0.72; }
     function freeObjectX(index) { return centerX + Math.cos(freeAngle(index)) * width * 0.43; }
     function freeObjectY(index) { return centerY + Math.sin(freeAngle(index)) * height * 0.42; }
+    function placeLabelOnLeft(markerCenterX) { return markerCenterX > width * 0.72; }
     function buildMannyClusters(mannies) {
         const groups = {};
         const order = [];
@@ -125,8 +126,17 @@ Rectangle {
             dimmed: modelData.estimated || root.sectorData.confidence < 0.5
             badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
             Label {
-                anchors.left: parent.right; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter
-                width: 205; elide: Text.ElideRight
+                readonly property bool verticalLabel: orbitalMarker.index === 0 || orbitalMarker.index === root.orbitalBodies.length - 1
+                anchors.left: verticalLabel ? undefined : parent.right
+                anchors.leftMargin: verticalLabel ? 0 : 9
+                anchors.top: orbitalMarker.index === 0 ? parent.bottom : undefined
+                anchors.topMargin: orbitalMarker.index === 0 ? 5 : 0
+                anchors.bottom: orbitalMarker.index === root.orbitalBodies.length - 1 ? parent.top : undefined
+                anchors.bottomMargin: orbitalMarker.index === root.orbitalBodies.length - 1 ? 5 : 0
+                anchors.horizontalCenter: verticalLabel ? parent.horizontalCenter : undefined
+                anchors.verticalCenter: verticalLabel ? undefined : parent.verticalCenter
+                width: 190; elide: Text.ElideRight
+                horizontalAlignment: verticalLabel ? Text.AlignHCenter : Text.AlignLeft
                 text: (orbitalMarker.index + 1) + " · " + (orbitalMarker.modelData.name || String(orbitalMarker.modelData.type).toUpperCase())
                 color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true
             }
@@ -145,7 +155,14 @@ Rectangle {
             iconSource: modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(modelData.type, modelData)
             badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
             Label {
-                anchors.left: parent.right; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter; width: 195
+                readonly property bool onLeft: root.placeLabelOnLeft(root.freeObjectX(freeMarker.index))
+                anchors.left: onLeft ? undefined : parent.right
+                anchors.leftMargin: onLeft ? 0 : 9
+                anchors.right: onLeft ? parent.left : undefined
+                anchors.rightMargin: onLeft ? 9 : 0
+                anchors.verticalCenter: parent.verticalCenter
+                width: 185
+                horizontalAlignment: onLeft ? Text.AlignRight : Text.AlignLeft
                 text: freeMarker.modelData.name || String(freeMarker.modelData.type).toUpperCase()
                 color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight
             }
@@ -173,20 +190,38 @@ Rectangle {
             readonly property int targetIndex: root.objectIndex(modelData.targetObjectId)
             readonly property int freeTargetIndex: root.freeObjectIndex(modelData.targetObjectId)
             readonly property bool targetsFocusedProbe: modelData.targetObjectId === "focused-probe"
+            readonly property real targetX: targetIndex >= 0 ? root.bodyX(targetIndex)
+                                                 : freeTargetIndex >= 0 ? root.freeObjectX(freeTargetIndex)
+                                                 : root.width * 0.10
+            readonly property real targetY: targetIndex >= 0 ? root.bodyY(targetIndex)
+                                                 : freeTargetIndex >= 0 ? root.freeObjectY(freeTargetIndex)
+                                                 : root.height * 0.70
+            readonly property bool placeInward: root.placeLabelOnLeft(targetX)
             width: 46; height: 46
-            x: targetIndex >= 0 ? root.bodyX(targetIndex) + 30
-               : freeTargetIndex >= 0 ? root.freeObjectX(freeTargetIndex) + 28
-               : targetsFocusedProbe ? root.width * 0.10 + 52
+            x: targetIndex >= 0 || freeTargetIndex >= 0 ? (placeInward ? targetX - 78 : targetX + 32)
+               : targetsFocusedProbe ? root.width * 0.10 + 102
                : root.width * 0.10 + (index % 4) * 170
-            y: targetIndex >= 0 ? root.bodyY(targetIndex) + 22
-               : freeTargetIndex >= 0 ? root.freeObjectY(freeTargetIndex) + 18
-               : targetsFocusedProbe ? root.height * 0.70 + 52
+            y: targetIndex >= 0 || freeTargetIndex >= 0 ? Math.min(root.height - 88, targetY + 34)
+               : targetsFocusedProbe ? root.height * 0.70 + 54
                : root.height * 0.82 + Math.floor(index / 4) * 46
             iconSource: AssetCatalog.icon("manny")
-            Label {
-                anchors.left: parent.right; anchors.leftMargin: 5; width: 145
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.bottom
+                anchors.topMargin: 1
+                width: Math.min(150, mannyLabel.implicitWidth + 12)
+                height: 22
+                radius: 3
+                color: Qt.rgba(0.04, 0.12, 0.16, 0.92)
+                border.color: Qt.rgba(Constants.nominalColor.r, Constants.nominalColor.g, Constants.nominalColor.b, 0.45)
+                Label {
+                    id: mannyLabel
+                    anchors.centerIn: parent
+                    width: Math.min(138, implicitWidth)
+                    horizontalAlignment: Text.AlignHCenter
                 text: "×" + mannyMarker.modelData.count + " · " + mannyMarker.modelData.task
-                color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true; elide: Text.ElideRight
+                    color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 11; font.bold: true; elide: Text.ElideRight
+                }
             }
         }
     }
