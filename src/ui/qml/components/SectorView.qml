@@ -50,10 +50,14 @@ Rectangle {
                 context.strokeStyle = Constants.cyanColor;
                 context.lineWidth = 1.25;
                 context.beginPath();
-                context.ellipse(root.centerX, root.centerY,
-                                root.orbitRadius(index),
-                                root.orbitRadius(index) * root.orbitAspect,
-                                0, 0, Math.PI * 2);
+                const horizontalRadius = root.orbitRadius(index);
+                const verticalRadius = horizontalRadius * root.orbitAspect;
+                // Qt Quick Canvas uses ellipse(x, y, width, height), where x/y
+                // are the bounding rectangle's upper-left corner.
+                context.ellipse(root.centerX - horizontalRadius,
+                                root.centerY - verticalRadius,
+                                horizontalRadius * 2,
+                                verticalRadius * 2);
                 context.stroke();
             }
             Connections {
