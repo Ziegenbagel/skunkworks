@@ -21,6 +21,7 @@ Item {
     signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
     signal operatorManualRequested()
     signal changeLogRequested()
+    signal updateCheckRequested()
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -378,11 +379,12 @@ Item {
                     anchors.fill: parent; spacing: 12
                     Label {
                         Layout.fillWidth: true
-                        text: "Open the illustrated operator manual or review user-visible changes in this build."
+                        text: "Open documentation or check the official release channel for a newer signed Skunkworks build."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     Button { text: "OPEN OPERATOR MANUAL"; onClicked: root.operatorManualRequested() }
                     Button { text: "OPEN CHANGE LOG"; onClicked: root.changeLogRequested() }
+                    Button { text: "CHECK FOR UPDATES"; onClicked: root.updateCheckRequested() }
                 }
             }
         }

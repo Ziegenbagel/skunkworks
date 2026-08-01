@@ -110,6 +110,34 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
     assert "onClicked: root.sectionSelected" in navigation
 
 
+def test_inventory_workspace_exposes_complete_manual_game_controls():
+    workspace = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
+    for control in (
+        "MANUAL JETTISON & ITEM HANDOFF",
+        "CONTAINER DEPLOYMENT, RECOVERY & PROBE HANDOFF",
+        "SAME-SECTOR PROBE TRANSFERS",
+        "detach-storage-container",
+        "drop-storage-container",
+        "recover-storage-container",
+        "transfer-deuterium-to-probe",
+        "transfer-to-probe",
+        '"salvage"',
+        '"mine"',
+        '"attach_to_probe"',
+        "MANUAL MINING DESTINATION",
+    ):
+        assert control in workspace
+    assert "CONFIRM LIVE INVENTORY ORDER" in workspace
+
+
+def test_settings_exposes_official_update_channel():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+    assert "CHECK FOR UPDATES" in settings
+    assert "updateCheckRequested" in settings
+    assert "https://github.com/Ziegenbagel/skunkworks/releases/latest" in controller
+
+
 def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
     galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()

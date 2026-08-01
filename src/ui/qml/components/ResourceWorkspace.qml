@@ -12,6 +12,8 @@ Item {
     signal containerRenameRequested(string containerId, string label)
     signal storageRulesSaveRequested(string containerId, var rules)
     signal storageMoveRequested(var payload)
+    signal jettisonRequested(string itemId, real amount, string containerId)
+    signal inventoryMannyActionRequested(string action, string mannyId, var payload)
     readonly property var categories: [
         {"key": "probe", "title": "PROBE STORAGE", "description": "Resources aboard the selected probe, separated by storage container."},
         {"key": "drifting", "title": "DRIFTING CONTAINERS", "description": "Visible detached containers floating in the current sector."},
@@ -167,6 +169,8 @@ Item {
                 onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
                 onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
                 onStorageMoveRequested: payload => root.storageMoveRequested(payload)
+                onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
+                onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
             }
         }
     }

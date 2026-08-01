@@ -88,23 +88,100 @@ class MissionControlViewModelBuilder:
                 "containerLabel": MissionControlViewModelBuilder._container_label(container, probe_name),
                 "containerSpace": float(item.get("containerSpace", 0) or 0),
                 "currentTask": item.get("currentTask"),
+                "canJettison": bool(item.get("canJettison", item.get("type") not in {"additional_container", "deuterium_tank"})),
             })
         resource_lines = []
         for stock in inventory.get("resourceStocks", ()) or ():
             for placement in stock.get("containers", ()) or ():
                 container = placement.get("container") or {}
                 resource_lines.append({
+                    "id": str(stock.get("id") or f"probe-{world.probe.get('id')}-stock-{str(stock.get('type')).replace('_', '-')}"),
                     "resourceType": stock.get("type"),
                     "name": stock.get("name") or str(stock.get("type", "resource")).replace("_", " ").title(),
                     "containerId": container.get("id"),
                     "containerLabel": MissionControlViewModelBuilder._container_label(container, probe_name),
                     "amount": float(placement.get("amount", 0) or 0),
+                    "displayText": f"{stock.get('name') or str(stock.get('type', 'resource')).replace('_', ' ').title()} · {MissionControlViewModelBuilder._container_label(container, probe_name)} · {float(placement.get('amount', 0) or 0):g} ECE",
                 })
         idle_mannies = tuple({
             "id": str(manny.get("id")),
             "name": manny.get("name", "Manny"),
         } for manny in (world.mannies or {}).get("mannies", ())
             if manny.get("currentTask") is None and manny.get("canReceiveOrders", False))
+        all_mannies = tuple({
+            "id": str(manny.get("id")),
+            "name": manny.get("name", "Manny"),
+            "currentTask": manny.get("currentTask"),
+        } for manny in (world.mannies or {}).get("mannies", ()))
+
+        current_sector = world.probe.get("sector") or {}
+        current_coordinates = current_sector.get("relative") or current_sector.get("relativeCoordinates") or {}
+        same_sector_probes = []
+        for candidate in (getattr(world, "fleet", None) or {}).get("probes", ()):
+            if candidate.get("id") == world.probe.get("id"):
+                continue
+            candidate_sector = candidate.get("sector") or {}
+            coordinates = candidate_sector.get("relative") or candidate_sector.get("relativeCoordinates") or {}
+            if current_coordinates and coordinates == current_coordinates:
+                same_sector_probes.append({
+                    "id": int(candidate["id"]),
+                    "name": candidate.get("name", f"Probe {candidate['id']}"),
+                    "model": candidate.get("model", "generic"),
+                    "fuel": float((candidate.get("fuel") or {}).get("deuterium", 0) or 0),
+                    "maxFuel": float((candidate.get("fuel") or {}).get("maxDeuterium", 100) or 100),
+                })
+
+        sector_targets = []
+        mining_targets = []
+        recoverable_objects = []
+        seen_targets = set()
+        seen_recoverable = set()
+        snapshot = (world.sector.get("snapshot") or {}).get("sector", {})
+        def collect_targets(values):
+            for value in values or ():
+                target_type = str(value.get("type", "")).lower()
+                target_kind = "planet" if "planet" in target_type else "asteroid" if "asteroid" in target_type else ""
+                target_id = str(value.get("id", ""))
+                if target_kind and target_id and target_id not in seen_targets:
+                    seen_targets.add(target_id)
+                    sector_targets.append({
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or value.get("id", "Target"),
+                        "type": target_kind,
+                    })
+                    resource_types = value.get("resourceTypes") or tuple(
+                        key for key, amount in (value.get("resourceAmounts") or {}).items()
+                        if float(amount or 0) > 0
+                    )
+                    if value.get("mannyMineable", target_kind == "asteroid") and resource_types:
+                        mining_targets.append({
+                            "id": target_id,
+                            "name": value.get("name") or value.get("summary") or target_id,
+                            "type": target_kind,
+                            "resourceTypes": tuple(resource_types),
+                        })
+                is_container = "container" in target_type
+                is_recoverable = value.get("recoverable") or value.get("salvageable") or (
+                    is_container and value.get("mode") in {"drifting", "hidden_on_asteroid"}
+                )
+                if is_recoverable and target_id and target_id not in seen_recoverable:
+                    seen_recoverable.add(target_id)
+                    recoverable_objects.append({
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or target_id,
+                        "type": target_type or "object",
+                        "mode": value.get("mode", "drifting"),
+                        "targetObjectId": value.get("targetObjectId"),
+                        "capacity": float(value.get("capacity", 0) or 0),
+                        "freeCapacity": float(value.get("freeCapacity", value.get("capacity", 0)) or 0),
+                        "rules": value.get("rules") or {},
+                    })
+                collect_targets(value.get("objects"))
+                collect_targets(value.get("minableTargets"))
+                collect_targets(value.get("bookmarkTargets"))
+        collect_targets(snapshot.get("objects"))
+        collect_targets(snapshot.get("minableTargets"))
+        detached = tuple(item for item in recoverable_objects if "container" in item["type"])
         return {
             "probeId": world.probe.get("id"),
             "probeName": world.probe.get("name", "Probe"),
@@ -112,6 +189,14 @@ class MissionControlViewModelBuilder:
             "items": tuple(items),
             "resourcePlacements": tuple(resource_lines),
             "idleMannies": idle_mannies,
+            "mannies": all_mannies,
+            "sameSectorProbes": tuple(same_sector_probes),
+            "sectorTargets": tuple(sector_targets),
+            "miningTargets": tuple(mining_targets),
+            "detachedContainers": tuple(detached),
+            "recoverableObjects": tuple(recoverable_objects),
+            "deuterium": float((world.probe.get("fuel") or {}).get("deuterium", world.probe.get("deuterium", 0)) or 0),
+            "maxDeuterium": float((world.probe.get("fuel") or {}).get("maxDeuterium", 100) or 100),
         }
 
     @staticmethod

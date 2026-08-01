@@ -67,16 +67,21 @@ class TaskCommandTranslator:
         trip_capacity = float(cargo.get("capacity", 0.05) or 0.05)
         target_amount = round(min(float(task.quantity), 0.55), 3)
         trips = max(1, int((target_amount / trip_capacity) + 0.999999))
+        target_container = self._preferred_mining_container(task.target, resource_type)
+
+        payload = {
+            "objectId": task.target,
+            "resources": [resource_type],
+            "targetAmount": target_amount,
+        }
+        if target_container is not None:
+            payload["targetContainerId"] = str(target_container["id"])
 
         return Command(
             type=CommandType.MANNY_MINE,
             probe_id=self.probe_id,
             target_id=manny["id"],
-            payload={
-                "objectId": task.target,
-                "resources": [resource_type],
-                "targetAmount": target_amount,
-            },
+            payload=payload,
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
@@ -88,6 +93,34 @@ class TaskCommandTranslator:
                 "remainingAmount": max(0, round(float(task.quantity) - target_amount, 3)),
             },
         )
+
+    def _preferred_mining_container(self, asteroid_id, resource_type):
+        """Prefer a resource-routed detached depot, then an unassigned empty one."""
+        candidates = []
+        for container in self.operations.containers.detached():
+            if self.operations.containers.free_capacity(container) <= 0:
+                continue
+            target = (
+                container.get("targetObjectId")
+                or container.get("asteroidId")
+                or (container.get("location") or {}).get("objectId")
+            )
+            if target not in {None, "", asteroid_id}:
+                continue
+            rules = container.get("rules") or {}
+            priority = tuple(rules.get("priority") or ())
+            exclusions = set(rules.get("strictExclusion") or ()) | set(rules.get("exclusion") or ())
+            if resource_type in exclusions:
+                continue
+            preference = 0 if resource_type in priority else 1 if not priority else 2
+            candidates.append((
+                preference,
+                0 if target == asteroid_id else 1,
+                -float(self.operations.containers.free_capacity(container)),
+                str(container.get("id", "")),
+                container,
+            ))
+        return min(candidates, default=(None, None, None, None, None))[-1]
 
     def _assemble_probe(self, task):
         from src.planner.assembly import empty_assembly_containers

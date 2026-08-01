@@ -413,6 +413,9 @@ def build():
 
     add_heading(doc, "6. Resources and Inventory")
     add_body(doc, "Resources are grouped by where they exist: focused-probe storage, drifting containers, placed containers when exposed by the API, and remaining asteroid contents from the latest detailed scan. Equipment and constructed items must remain visible alongside bulk resources.")
+    add_body(doc, "The Inventory & Containers page also provides manual controls for stock moves, resource or item jettison, container deployment to space, asteroids, or planets, detached-object recovery, same-sector deuterium transfer, and Manny reassignment. Live jettison, deployment, recovery, fuel transfer, and reassignment orders require confirmation.")
+    add_note(doc, "Container operations", "A Manny can recover drifting or detected asteroid-hidden containers. Whole containers can transfer directly to another owned probe in the same sector. Individual items still use jettison and salvage. Planet deployment consumes an Atmospheric Drop Kit, and transferring a busy Manny cancels its active task.")
+    add_body(doc, "A manual mining order can deliver to the probe or a selected detached container. Probe delivery follows saved routing rules: a container assigned to the mined resource is preferred before unassigned storage. Automatic remote mining likewise prefers a compatible resource-designated detached container, then an unassigned container with free capacity.")
     add_bullets(doc, [
         "Probe deuterium is displayed as a percentage of capacity.",
         "Bulk metals, ice, carbon compounds, and other resources use ECE quantities.",
@@ -425,6 +428,7 @@ def build():
     doc.add_page_break()
     add_heading(doc, "7. Settings and Automation")
     add_body(doc, "Settings combines account access, audio, automation authority, desired-state targets, probe roles, safety floors, and help links. Read the section labels before changing values; quantity and priority controls answer different questions.")
+    add_body(doc, "Check for Updates opens the official latest-release channel. Download the signed package for the current operating system; the running application never silently replaces itself or bypasses platform security checks.")
     if has_settings_figure:
         doc.add_picture(str(SETTINGS_FIGURE), width=Inches(6.7))
         doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER

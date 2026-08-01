@@ -31,6 +31,8 @@ PanelFrame {
     signal containerRenameRequested(string containerId, string label)
     signal storageRulesSaveRequested(string containerId, var rules)
     signal storageMoveRequested(var payload)
+    signal jettisonRequested(string itemId, real amount, string containerId)
+    signal inventoryMannyActionRequested(string action, string mannyId, var payload)
     signal logbookCreateRequested(string title, string content)
     signal logbookUpdateRequested(int pageId, string title, string content)
     signal logbookDeleteRequested(int pageId)
@@ -38,6 +40,7 @@ PanelFrame {
     signal logbookPageOpenRequested(int pageId)
     signal operatorManualRequested()
     signal changeLogRequested()
+    signal updateCheckRequested()
 
     title: section
 
@@ -115,6 +118,7 @@ PanelFrame {
             onAutomationApprovalRequested: (fingerprint, riskAcknowledged) => root.automationApprovalRequested(fingerprint, riskAcknowledged)
             onOperatorManualRequested: root.operatorManualRequested()
             onChangeLogRequested: root.changeLogRequested()
+            onUpdateCheckRequested: root.updateCheckRequested()
         }
 
         NavigationControl {
@@ -141,6 +145,8 @@ PanelFrame {
             onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
             onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
             onStorageMoveRequested: payload => root.storageMoveRequested(payload)
+            onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
+            onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
         }
 
         FleetWorkspace {

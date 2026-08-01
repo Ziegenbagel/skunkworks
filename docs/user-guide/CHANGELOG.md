@@ -2,6 +2,16 @@
 
 ## 0.1 — 2026-08-01
 
+- Added complete manual inventory controls: stock moves, resource/item jettison,
+  asteroid and planet container deployment, detached-object recovery,
+  same-sector deuterium transfer, Manny reassignment, and documented two-step
+  cross-probe item/container handoffs.
+- Added recovery of drifting and detected asteroid-hidden containers, direct
+  same-sector whole-container transfers, selectable mining destinations, and
+  resource-rule-aware automatic mining-container selection.
+- Added Check for Updates beside the Operator Manual and Change Log; it opens
+  the official latest-release channel so the operating system can install the
+  correct signed package.
 - Created the first illustrated operator-manual edition.
 - Documented first launch, dashboard controls, probe selection, sector and galaxy maps, navigation, resources, automation priorities, safety controls, audio, and troubleshooting.
 - Added the numbered Mission Control dashboard diagram and maintenance contract.

@@ -115,6 +115,28 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual({first.target_id, second.target_id}, {101, 202})
 
+    def test_automatic_mining_prefers_resource_assigned_detached_container(self):
+        self.operations.world.sector["snapshot"] = {"sector": {"objects": [
+            {
+                "id": "unassigned", "type": "detached_container",
+                "mode": "drifting", "capacity": 1, "usedCapacity": 0,
+                "rules": {},
+            },
+            {
+                "id": "metals-depot", "type": "detached_container",
+                "mode": "hidden_on_asteroid", "targetObjectId": "asteroid-1",
+                "capacity": 1, "usedCapacity": 0,
+                "rules": {"priority": ["metals"]},
+            },
+        ]}}
+        from src.planner.task import Task
+        command = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Mine Resource", reason="Metals reserve", target="asteroid-1",
+            quantity=0.5, resource_type="metals", priority=3,
+        ))
+
+        self.assertEqual(command.payload["targetContainerId"], "metals-depot")
+
     def test_lower_priority_craft_cannot_reuse_reserved_resources(self):
         from src.planner.task import Task
 

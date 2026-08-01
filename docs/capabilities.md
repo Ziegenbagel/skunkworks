@@ -66,3 +66,24 @@ idempotency, rate-limit scheduling, and post-action refreshes.
 
 Community actions and irreversible controls are capabilities, not autonomous
 defaults.
+
+## Manual Inventory Operations
+
+The Resources > Inventory & Containers workspace exposes the public game
+controls for moving stock, jettisoning resources or equipment, detaching a
+container into space, hiding one on an asteroid, dropping one on a planet,
+recovering detached containers and drifting items, transferring deuterium to a
+same-sector probe, and reassigning a Manny to another same-sector probe.
+
+The game API supports direct whole-container transfer to another owned probe in
+the same sector through the Manny `attach_to_probe` task. It does not provide a
+direct arbitrary-item transfer, so individual items use the authoritative
+jettison-and-salvage workflow. Hidden asteroid containers and drifting
+containers can both be recovered by a Manny once their object id is known.
+
+Manual mining orders may target the probe or a detected detached container.
+When delivering to the probe, the game's container routing rules prefer a
+container assigned to that resource before an unassigned container. Automated
+remote mining uses the same priority: a compatible resource-designated detached
+container first, then an unassigned detached container with free capacity.
+Destructive and task-cancelling operations require confirmation in the UI.

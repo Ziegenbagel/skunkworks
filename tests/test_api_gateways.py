@@ -95,6 +95,22 @@ class ApiGatewayTests(unittest.TestCase):
             ],
         )
 
+    def test_manual_inventory_actions_use_documented_routes(self):
+        self.api.storage.jettison(42, "stock-7", 0.25, "container-2")
+        self.api.mannies.start_task(42, "mny_1", "detach-storage-container", {
+            "containerId": "container-2", "mode": "drifting",
+        })
+        self.api.mannies.start_task(42, "mny_2", "transfer-deuterium-to-probe", {
+            "targetProbeId": 7, "amount": 2.5,
+        })
+
+        self.assertEqual(self.client.calls[0], (
+            "POST", "/api/probe/42/inventory/stock-7/jettison",
+            {"json": {"amount": 0.25, "containerId": "container-2"}},
+        ))
+        self.assertEqual(self.client.calls[1][1], "/api/probe/42/mannies/mny_1/detach-storage-container")
+        self.assertEqual(self.client.calls[2][1], "/api/probe/42/mannies/mny_2/transfer-deuterium-to-probe")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -429,6 +429,27 @@ class MissionControlDataService:
     def move_storage(self, payload):
         return self.capabilities.storage.move(self._selected_probe_id, payload)
 
+    def jettison_inventory(self, item_id, amount=None, container_id=None):
+        return self.capabilities.storage.jettison(
+            self._selected_probe_id, item_id, amount, container_id,
+        )
+
+    def inventory_manny_action(self, action, manny_id, payload):
+        allowed = {
+            "detach-storage-container",
+            "drop-storage-container",
+            "recover-storage-container",
+            "salvage",
+            "transfer-deuterium-to-probe",
+            "transfer-to-probe",
+            "mine",
+        }
+        if action not in allowed:
+            raise ValueError(f"Unsupported manual inventory action: {action}")
+        return self.capabilities.mannies.start_task(
+            self._selected_probe_id, manny_id, action, payload,
+        )
+
     def scan_sector(self, target):
         response = self.capabilities.galaxy.observe_sector(target["x"], target["y"], target["z"])
         self.data_engine.record_sector_observation(self._selected_probe_id, response)
@@ -738,6 +759,12 @@ class MissionControlController(QObject):
     def openChangeLog(self):
         self._open_document(Path("docs/user-guide/CHANGELOG.md"))
 
+    @Slot()
+    def checkForUpdates(self):
+        url = QUrl("https://github.com/Ziegenbagel/skunkworks/releases/latest")
+        if not QDesktopServices.openUrl(url):
+            self._set_error("The operating system could not open the Skunkworks release page.")
+
     @Slot("QVariantMap")
     def saveExecutionPolicy(self, value):
         if self.service is None:
@@ -1039,6 +1066,20 @@ class MissionControlController(QObject):
     @Slot("QVariantMap")
     def moveStorage(self, payload):
         self._inventory_mutation(lambda: self.service.move_storage(self._qt_safe(payload)))
+
+    @Slot(str, float, str)
+    def jettisonInventory(self, item_id, amount, container_id):
+        self._inventory_mutation(lambda: self.service.jettison_inventory(
+            item_id,
+            amount if amount > 0 else None,
+            container_id or None,
+        ))
+
+    @Slot(str, str, "QVariantMap")
+    def runInventoryMannyAction(self, action, manny_id, payload):
+        self._inventory_mutation(lambda: self.service.inventory_manny_action(
+            action, manny_id, self._qt_safe(payload),
+        ))
 
     @Slot(str, str)
     def createLogbookPage(self, title, content):

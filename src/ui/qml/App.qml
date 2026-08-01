@@ -266,6 +266,16 @@ ApplicationWindow {
             if (window.backend) window.backend.moveStorage(payload);
         }
 
+        function onJettisonRequested(itemId, amount, containerId) {
+            AudioManager.play("warning");
+            if (window.backend) window.backend.jettisonInventory(itemId, amount, containerId);
+        }
+
+        function onInventoryMannyActionRequested(action, mannyId, payload) {
+            AudioManager.play(action === "transfer-deuterium-to-probe" ? "confirm" : "warning");
+            if (window.backend) window.backend.runInventoryMannyAction(action, mannyId, payload);
+        }
+
         function onLogbookCreateRequested(title, content) {
             AudioManager.play("save");
             if (window.backend) window.backend.createLogbookPage(title, content);
@@ -299,6 +309,11 @@ ApplicationWindow {
         function onChangeLogRequested() {
             AudioManager.play("navigate");
             if (window.backend) window.backend.openChangeLog();
+        }
+
+        function onUpdateCheckRequested() {
+            AudioManager.play("navigate");
+            if (window.backend) window.backend.checkForUpdates();
         }
     }
 }

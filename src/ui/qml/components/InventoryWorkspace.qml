@@ -8,10 +8,13 @@ Item {
     id: root
     property var inventoryData: ({})
     property var pendingMove: ({})
+    property var pendingOperation: ({})
     signal probeRenameRequested(string name)
     signal containerRenameRequested(string containerId, string label)
     signal storageRulesSaveRequested(string containerId, var rules)
     signal storageMoveRequested(var payload)
+    signal jettisonRequested(string itemId, real amount, string containerId)
+    signal inventoryMannyActionRequested(string action, string mannyId, var payload)
 
     readonly property var preferredContentOptions: [
         {"text": "ANY CONTENTS", "value": "any"},
@@ -77,6 +80,92 @@ Item {
                 }
             }
 
+            GroupBox {
+                title: "MANUAL JETTISON & ITEM HANDOFF"; Layout.fillWidth: true
+                GridLayout {
+                    anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
+                    Label { text: "CONTENT TYPE"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: jettisonKind; model: ["RESOURCE STOCK", "ITEM / EQUIPMENT"]; Layout.fillWidth: true }
+                    Label { text: jettisonKind.currentIndex === 0 ? "RESOURCE LOCATION" : "STORED ITEM"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: jettisonResource; visible: jettisonKind.currentIndex === 0; textRole: "displayText"; valueRole: "id"; model: root.inventoryData.resourcePlacements || []; Layout.fillWidth: true }
+                    ComboBox { id: jettisonItem; visible: jettisonKind.currentIndex === 1; textRole: "name"; valueRole: "id"; model: (root.inventoryData.items || []).filter(item => item.canJettison); Layout.fillWidth: true }
+                    Label { visible: jettisonKind.currentIndex === 0; text: "AMOUNT"; color: Constants.textColor }
+                    RowLayout { visible: jettisonKind.currentIndex === 0; SpinBox { id: jettisonAmount; from: 1; to: Math.max(1, Math.floor(Number(jettisonResource.currentIndex >= 0 ? jettisonResource.model[jettisonResource.currentIndex].amount : 0) * 100)); value: Math.min(5, to) } Label { text: "× 0.01 ECE"; color: Constants.mutedTextColor } }
+                    Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "Jettisoned contents become recoverable sector objects. For an item handoff, jettison here, switch to the receiving probe in the same sector, then use Recover drifting object below."; color: Constants.warningColor; font.pixelSize: 14; wrapMode: Text.Wrap }
+                    Button {
+                        text: "REVIEW JETTISON"; enabled: jettisonKind.currentIndex === 0 ? jettisonResource.count > 0 : jettisonItem.count > 0
+                        onClicked: {
+                            const placement = jettisonResource.currentIndex >= 0 ? jettisonResource.model[jettisonResource.currentIndex] : {};
+                            root.pendingOperation = {"kind":"jettison", "itemId": jettisonKind.currentIndex === 0 ? String(jettisonResource.currentValue) : String(jettisonItem.currentValue), "amount": jettisonKind.currentIndex === 0 ? Number(jettisonAmount.value) / 100 : 0, "containerId": jettisonKind.currentIndex === 0 ? String(placement.containerId || "") : ""};
+                            operationConfirmation.open();
+                        }
+                    }
+                }
+            }
+
+            GroupBox {
+                title: "CONTAINER DEPLOYMENT, RECOVERY & PROBE HANDOFF"; Layout.fillWidth: true
+                GridLayout {
+                    anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
+                    Label { text: "AVAILABLE MANNY"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: containerManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
+                    Label { text: "ATTACHED CONTAINER"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: deployContainer; textRole: "label"; valueRole: "id"; model: (root.inventoryData.containers || []).filter(item => item.kind === "container" || item.type === "additional_container"); Layout.fillWidth: true }
+                    Label { text: "DESTINATION"; color: Constants.textColor }
+                    ComboBox { id: deployMode; textRole: "text"; valueRole: "value"; model: [{"text":"DRIFTING IN SPACE", "value":"drifting"}, {"text":"HIDDEN ON ASTEROID", "value":"asteroid"}, {"text":"PLACED ON PLANET", "value":"planet"}, {"text":"TRANSFER TO PROBE", "value":"probe"}]; Layout.fillWidth: true }
+                    Label { visible: deployMode.currentValue !== "drifting"; text: "SECTOR OBJECT"; color: Constants.textColor }
+                    ComboBox { id: deployTarget; visible: deployMode.currentValue !== "drifting"; textRole: "name"; valueRole: "id"; model: deployMode.currentValue === "probe" ? (root.inventoryData.sameSectorProbes || []) : (root.inventoryData.sectorTargets || []).filter(item => item.type === deployMode.currentValue); Layout.fillWidth: true }
+                    Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: deployMode.currentValue === "planet" ? "Planet placement consumes an Atmospheric Drop Kit." : deployMode.currentValue === "probe" ? "The game transfers this whole attached container directly to the selected same-sector probe." : deployMode.currentValue === "drifting" ? "The container becomes a visible drifting object that can later be recovered by a Manny." : "The container will be concealed on the selected asteroid and remains recoverable after detection."; color: Constants.warningColor; font.pixelSize: 14; wrapMode: Text.Wrap }
+                    Button { text: "REVIEW DEPLOYMENT"; enabled: containerManny.count > 0 && deployContainer.count > 0 && (deployMode.currentValue === "drifting" || deployTarget.count > 0); onClicked: { const action = deployMode.currentValue === "planet" ? "drop-storage-container" : "detach-storage-container"; const mode = deployMode.currentValue === "asteroid" ? "hidden_on_asteroid" : deployMode.currentValue === "probe" ? "attach_to_probe" : "drifting"; const payload = deployMode.currentValue === "planet" ? {"containerId":String(deployContainer.currentValue), "planetId":String(deployTarget.currentValue)} : {"containerId":String(deployContainer.currentValue), "mode":mode, "objectId":deployMode.currentValue === "drifting" ? "" : String(deployTarget.currentValue)}; root.pendingOperation = {"kind":"manny", "action":action, "mannyId":String(containerManny.currentValue), "payload":payload}; operationConfirmation.open(); } }
+
+                    Label { text: "RECOVERY MANNY"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: recoveryManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
+                    Label { text: "DRIFTING OBJECT"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: recoveryObject; textRole: "name"; valueRole: "id"; model: root.inventoryData.recoverableObjects || []; Layout.fillWidth: true }
+                    Item { Layout.columnSpan: 3; Layout.fillWidth: true }
+                    Button { text: "REVIEW RECOVERY"; enabled: recoveryManny.count > 0 && recoveryObject.count > 0; onClicked: { const object = recoveryObject.model[recoveryObject.currentIndex]; const isContainer = String(object.type).indexOf("container") >= 0; root.pendingOperation = {"kind":"manny", "action":isContainer ? "recover-storage-container" : "salvage", "mannyId":String(recoveryManny.currentValue), "payload":isContainer ? {"objectId":String(recoveryObject.currentValue), "source":object.mode === "hidden_on_asteroid" ? "asteroid" : "drifting"} : {"objectId":String(recoveryObject.currentValue)}}; operationConfirmation.open(); } }
+                }
+            }
+
+            GroupBox {
+                title: "MANUAL MINING DESTINATION"; Layout.fillWidth: true
+                GridLayout {
+                    anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
+                    Label { text: "AVAILABLE MANNY"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: miningManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
+                    Label { text: "MINING TARGET"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: miningTarget; textRole: "name"; valueRole: "id"; model: root.inventoryData.miningTargets || []; Layout.fillWidth: true }
+                    Label { text: "RESOURCE"; color: Constants.textColor }
+                    ComboBox { id: miningResource; model: miningTarget.currentIndex >= 0 ? miningTarget.model[miningTarget.currentIndex].resourceTypes : []; Layout.fillWidth: true }
+                    Label { text: "TOTAL ORDER"; color: Constants.textColor }
+                    RowLayout { SpinBox { id: miningAmount; from: 1; to: 55; value: 5 } Label { text: "× 0.01 ECE"; color: Constants.mutedTextColor } }
+                    Label { text: "DELIVER TO"; color: Constants.textColor }
+                    ComboBox { id: miningDestination; textRole: "name"; valueRole: "id"; model: [{"id":"", "name":"PROBE · USE CONTAINER ROUTING RULES"}].concat(root.inventoryData.detachedContainers || []); Layout.fillWidth: true }
+                    Label { Layout.columnSpan: 1; Layout.fillWidth: true; text: miningDestination.currentValue ? "Detached containers cannot accept deuterium." : "Resource-specific attached containers are preferred by their saved routing rules; otherwise an unassigned container is used."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                    Button { text: "REVIEW MINING ORDER"; enabled: miningManny.count > 0 && miningTarget.count > 0 && miningResource.count > 0; onClicked: { const payload = {"objectId":String(miningTarget.currentValue), "resources":[String(miningResource.currentText)], "targetAmount":Number(miningAmount.value) / 100}; if (miningDestination.currentValue) payload.targetContainerId = String(miningDestination.currentValue); root.pendingOperation = {"kind":"manny", "action":"mine", "mannyId":String(miningManny.currentValue), "payload":payload}; operationConfirmation.open(); } }
+                }
+            }
+
+            GroupBox {
+                title: "SAME-SECTOR PROBE TRANSFERS"; Layout.fillWidth: true
+                GridLayout {
+                    anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
+                    Label { text: "TARGET PROBE"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: targetProbe; textRole: "name"; valueRole: "id"; model: root.inventoryData.sameSectorProbes || []; Layout.fillWidth: true }
+                    Label { text: "ACTION MANNY"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox { id: transferManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
+                    Label { text: "DEUTERIUM AMOUNT"; color: Constants.textColor }
+                    RowLayout { SpinBox { id: deuteriumAmount; from: 1; to: Math.max(1, Math.floor(Number(root.inventoryData.deuterium || 0) * 100) - 1); value: 1 } Label { text: "× 0.01"; color: Constants.mutedTextColor } }
+                    Label { Layout.columnSpan: 1; Layout.fillWidth: true; text: "SOURCE RESERVE · " + Number(root.inventoryData.deuterium || 0).toFixed(2); color: Constants.warningColor; wrapMode: Text.Wrap }
+                    Button { text: "REVIEW FUEL TRANSFER"; enabled: targetProbe.count > 0 && transferManny.count > 0 && Number(root.inventoryData.deuterium || 0) > 0.01; onClicked: { root.pendingOperation = {"kind":"manny", "action":"transfer-deuterium-to-probe", "mannyId":String(transferManny.currentValue), "payload":{"targetProbeId":Number(targetProbe.currentValue), "amount":Number(deuteriumAmount.value) / 100}}; operationConfirmation.open(); } }
+                    Label { text: "TRANSFER MANNY"; color: Constants.textColor }
+                    ComboBox { id: reassignManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.mannies || []; Layout.fillWidth: true }
+                    Label { Layout.fillWidth: true; text: "Transferring a busy Manny cancels its current task."; color: Constants.warningColor; wrapMode: Text.Wrap }
+                    Button { text: "REVIEW MANNY TRANSFER"; enabled: targetProbe.count > 0 && reassignManny.count > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"transfer-to-probe", "mannyId":String(reassignManny.currentValue), "payload":{"targetProbeId":Number(targetProbe.currentValue)}}; operationConfirmation.open(); } }
+                    Label { Layout.columnSpan: 4; Layout.fillWidth: true; text: targetProbe.count ? "Only probes in the focused probe's current sector are listed. Whole containers can be transferred directly with Container Deployment above; individual stored items use jettison and salvage." : "No other owned probe is currently observed in this sector."; color: Constants.mutedTextColor; font.pixelSize: 14; wrapMode: Text.Wrap }
+                }
+            }
+
             Label { text: "CONTAINERS & ROUTING RULES"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
             GridLayout {
                 id: containerGrid; Layout.fillWidth: true; columns: root.width >= 1200 ? 2 : 1; columnSpacing: 18; rowSpacing: 18
@@ -126,5 +215,14 @@ Item {
         id: transferConfirmation; anchors.centerIn: parent; modal: true; title: "CONFIRM STORAGE TRANSFER"; standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.storageMoveRequested(root.pendingMove)
         Label { width: 520; text: "This sends a live storage-move order to the game and assigns the selected Manny. Confirm the source, destination, item/resource, and amount before continuing."; color: Constants.textColor; font.pixelSize: 15; wrapMode: Text.Wrap }
+    }
+
+    Dialog {
+        id: operationConfirmation; anchors.centerIn: parent; modal: true; title: "CONFIRM LIVE INVENTORY ORDER"; standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: {
+            if (root.pendingOperation.kind === "jettison") root.jettisonRequested(root.pendingOperation.itemId, root.pendingOperation.amount, root.pendingOperation.containerId);
+            else root.inventoryMannyActionRequested(root.pendingOperation.action, root.pendingOperation.mannyId, root.pendingOperation.payload);
+        }
+        Label { width: 560; text: "This sends a live order to the game. Jettisoning and deployment remove contents or containers from the focused probe; Manny reassignment can cancel active work. Verify the selected source, target, amount, and focused probe before continuing."; color: Constants.textColor; font.pixelSize: 15; wrapMode: Text.Wrap }
     }
 }
