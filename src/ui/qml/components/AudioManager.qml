@@ -41,40 +41,11 @@ Item {
         loops: MediaPlayer.Infinite
     }
 
-    SoundEffect {
-        id: buttonEffect
-        source: Qt.resolvedUrl("../../assets/audio/sfx/button/soft-ui-button-click.ogg")
-        volume: root.effectsEnabled ? root.effectsVolume * 0.72 : 0
-    }
     MediaPlayer {
-        id: confirmEffect
-        source: Qt.resolvedUrl("../../assets/audio/sfx/chimey/Chime_Confirm.mp3")
+        // A single player/output pair is deliberate. Multiple players sharing an
+        // AudioOutput were silent on the macOS AVFoundation backend.
+        id: effectPlayer
         audioOutput: effectsOutput
-    }
-    MediaPlayer {
-        id: cancelEffect
-        source: Qt.resolvedUrl("../../assets/audio/sfx/chimey/Chime_Cancel.mp3")
-        audioOutput: effectsOutput
-    }
-    MediaPlayer {
-        id: loadEffect
-        source: Qt.resolvedUrl("../../assets/audio/sfx/chimey/Chime_Load.mp3")
-        audioOutput: effectsOutput
-    }
-    MediaPlayer {
-        id: saveEffect
-        source: Qt.resolvedUrl("../../assets/audio/sfx/chimey/Chime_Save.mp3")
-        audioOutput: effectsOutput
-    }
-    MediaPlayer {
-        id: discoveryEffect
-        source: Qt.resolvedUrl("../../assets/audio/sfx/chimey/Chime_LevelUp.mp3")
-        audioOutput: effectsOutput
-    }
-    SoundEffect {
-        id: errorEffect
-        source: Qt.resolvedUrl("../../assets/audio/sfx/alerts/Wrong Error.wav")
-        volume: root.effectsEnabled ? root.effectsVolume : 0
     }
 
     function startMusic() {
@@ -85,21 +56,27 @@ Item {
     function play(eventName) {
         if (!effectsEnabled)
             return;
-        const effects = {
-            "press": buttonEffect,
-            "navigate": buttonEffect,
-            "select": buttonEffect,
-            "confirm": confirmEffect,
-            "cancel": cancelEffect,
-            "load": loadEffect,
-            "save": saveEffect,
-            "discovery": discoveryEffect,
-            "warning": errorEffect,
-            "error": errorEffect
+        const sources = {
+            "press": "../../assets/audio/sfx/button/soft-ui-button-click.ogg",
+            "navigate": "../../assets/audio/sfx/button/soft-ui-button-click.ogg",
+            "select": "../../assets/audio/sfx/button/soft-ui-button-click.ogg",
+            "hover": "../../assets/audio/sfx/button/soft-ui-button-click.ogg",
+            "confirm": "../../assets/audio/sfx/chimey/Chime_Confirm.mp3",
+            "cancel": "../../assets/audio/sfx/chimey/Chime_Cancel.mp3",
+            "load": "../../assets/audio/sfx/chimey/Chime_Load.mp3",
+            "save": "../../assets/audio/sfx/chimey/Chime_Save.mp3",
+            "discovery": "../../assets/audio/sfx/chimey/Chime_LevelUp.mp3",
+            "warning": "../../assets/audio/sfx/alerts/Wrong Error.wav",
+            "error": "../../assets/audio/sfx/alerts/Wrong Error.wav"
         };
-        const effect = effects[eventName] || buttonEffect;
-        effect.stop();
-        effect.play();
+        const nextSource = Qt.resolvedUrl(sources[eventName] || sources.press);
+        effectPlayer.stop();
+        effectPlayer.source = nextSource;
+        effectPlayer.play();
+    }
+    function hover() {
+        if (hoverEnabled)
+            play("hover");
     }
     function previewMusic() {
         if (musicPlayer.playbackState === MediaPlayer.PlayingState)

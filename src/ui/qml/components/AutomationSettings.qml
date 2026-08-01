@@ -137,7 +137,7 @@ Item {
                         checked: AudioManager.hoverEnabled
                         onToggled: AudioManager.hoverEnabled = checked
                         ToolTip.visible: hovered
-                        ToolTip.text: "Reserved for optional map and control hover feedback. Disabled by default."
+                        ToolTip.text: "Plays subtle feedback when entering navigation, probe-selector, and galaxy-map controls. Disabled by default."
                     }
                     Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "SPACE AMBIENT CINEMATIC MUSIC · VIACHESLAV STAROSTIN  |  UI AUDIO · JUMMIT, MOUSEBYTE, HAELDB"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 }

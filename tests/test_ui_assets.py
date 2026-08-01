@@ -173,8 +173,10 @@ def test_audio_manager_bundles_selected_v1_assets_and_controls():
     assert Path("src/ui/assets/audio/sfx/chimey/Chime_Confirm.mp3").is_file()
     assert Path("src/ui/assets/audio/sfx/alerts/Wrong Error.wav").is_file()
     assert "loops: MediaPlayer.Infinite" in audio
-    assert '"press": buttonEffect' in audio
-    assert '"confirm": confirmEffect' in audio
+    assert '"press": "../../assets/audio/sfx/button/soft-ui-button-click.ogg"' in audio
+    assert "id: effectPlayer" in audio
+    assert "function hover()" in audio
+    assert '"confirm": "../../assets/audio/sfx/chimey/Chime_Confirm.mp3"' in audio
     assert 'category: "audio"' in audio
     assert 'title: "AUDIO"' in settings
     assert "MUSIC VOLUME" in settings

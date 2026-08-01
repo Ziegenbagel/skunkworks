@@ -102,6 +102,7 @@ Item {
                         currentIndex = root.indexForProbe(root.currentProbeId);
                     }
                 }
+                HoverHandler { onHoveredChanged: if (hovered) AudioManager.hover() }
             }
 
             Label {
@@ -120,6 +121,7 @@ Item {
             text: root.refreshing ? "…" : "↻"
             enabled: !root.refreshing
             onClicked: root.refreshRequested()
+            HoverHandler { onHoveredChanged: if (hovered) AudioManager.hover() }
             ToolTip.visible: hovered
             ToolTip.text: "Refresh focused probe"
         }

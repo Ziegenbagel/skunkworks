@@ -121,6 +121,7 @@ Item {
                         }
                         MouseArea {
                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onContainsMouseChanged: if (containsMouse) AudioManager.hover()
                             onClicked: root.selectedNode = nodeItem.modelData
                         }
                     }
