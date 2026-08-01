@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QLibraryInfo, QTimer, QUrl
+from PySide6.QtCore import QCoreApplication, QLibraryInfo, QTimer, QUrl, qVersion
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
@@ -15,9 +15,18 @@ from src.ui.controller import MissionControlController
 def configure_qt_plugin_paths():
     """Use plugins shipped with this interpreter's PySide6 installation."""
 
-    plugin_root = Path(
+    bundled_plugin_root = Path(
         QLibraryInfo.path(QLibraryInfo.LibraryPath.PluginsPath)
     ).resolve()
+    installed_qt_root = (
+        Path.home() / "Qt" / qVersion() / "macos" / "plugins"
+    )
+    plugin_root = (
+        installed_qt_root
+        if sys.platform == "darwin"
+        and (installed_qt_root / "platforms" / "libqcocoa.dylib").is_file()
+        else bundled_plugin_root
+    )
     platform_root = plugin_root / "platforms"
     if not platform_root.is_dir():
         raise RuntimeError(
