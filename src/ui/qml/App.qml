@@ -112,6 +112,11 @@ ApplicationWindow {
                 window.backend.scanSector(x, y, z);
         }
 
+        function onNeighboringSectorsScanRequested() {
+            if (window.backend)
+                window.backend.scanNeighboringSectors();
+        }
+
         function onAutonomousTravelTargetRequested(x, y, z) {
             if (window.backend)
                 window.backend.setAutonomousTravelTarget(x, y, z);

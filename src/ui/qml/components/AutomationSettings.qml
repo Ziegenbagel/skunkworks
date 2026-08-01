@@ -250,7 +250,7 @@ Item {
                 title: "OWNED PROBE ROLES"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 8
-                    Label { Layout.fillWidth: true; text: "Roles guide mining, transport, hub, tanker, reserve, exploration, and construction planning."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                    Label { Layout.fillWidth: true; text: "Roles guide mining, transport, hub, tanker, reserve, exploration, and construction planning. Explorer probes automatically scan all 12 neighboring FCC sectors once after arriving idle in a new sector."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                     Repeater {
                         model: root.availableProbes
                         delegate: RowLayout {

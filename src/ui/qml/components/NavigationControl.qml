@@ -13,6 +13,7 @@ Item {
     signal previewRequested(int x, int y, int z, string routeMode)
     signal executeRequested(bool riskAcknowledged)
     signal scanRequested(int x, int y, int z)
+    signal neighborScanRequested()
     signal autonomousTargetRequested(int x, int y, int z)
     signal transportCycleRequested(var plan)
 
@@ -169,7 +170,21 @@ Item {
             Item {
                 ColumnLayout {
                     anchors.fill: parent; spacing: 10
-                    Label { Layout.fillWidth: true; text: "Select an adjacent sector to populate Manual Travel, or scan it without issuing a movement command. SCUT coverage is calculated from live relay positions."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 15; wrapMode: Text.Wrap }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label { Layout.fillWidth: true; text: "Select an adjacent sector to populate Manual Travel, scan one sector, or survey all 12 FCC neighbors. SCUT coverage is calculated from live relay positions."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 15; wrapMode: Text.Wrap }
+                        Button { text: "SCAN ALL 12 NEIGHBORING SECTORS"; onClicked: root.neighborScanRequested(); ToolTip.visible: hovered; ToolTip.text: "Runs the same passive observation for every adjacent FCC sector and saves each result to the Skunkworks galaxy map." }
+                    }
+                    Label { visible: root.focusedRole === "explorer"; Layout.fillWidth: true; text: "EXPLORER AUTOMATION ACTIVE · NEIGHBORS ARE SCANNED ONCE AFTER ARRIVAL IN EACH NEW SECTOR"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
+                    Label {
+                        visible: Boolean(root.navigationData.scanResult)
+                        Layout.fillWidth: true
+                        text: root.navigationData.scanResult && root.navigationData.scanResult.kind === "neighbor_scan"
+                              ? String(root.navigationData.scanResult.label) + " · " + Number(root.navigationData.scanResult.scanned || 0) + "/12 SCANNED · " + Number(root.navigationData.scanResult.discoveries || 0) + " WITH KNOWN OBJECTS" + (Number(root.navigationData.scanResult.failed || 0) ? " · " + Number(root.navigationData.scanResult.failed) + " FAILED" : "")
+                              : root.navigationData.scanResult ? String(root.navigationData.scanResult.label || "SECTOR SCAN COMPLETE") + " · " + String(root.navigationData.scanResult.knowledgeLevel || "unknown").replace("_", " ").toUpperCase() : ""
+                        color: Number((root.navigationData.scanResult || {}).failed || 0) > 0 ? Constants.warningColor : Constants.cyanColor
+                        font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
                     ListView {
                         id: neighborList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 7; model: root.navigationData.neighbors || []
                         delegate: Rectangle {

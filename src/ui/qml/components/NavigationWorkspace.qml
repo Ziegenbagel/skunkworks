@@ -17,6 +17,7 @@ PanelFrame {
     signal travelPreviewRequested(int x, int y, int z, string routeMode)
     signal travelExecuteRequested(bool riskAcknowledged)
     signal sectorScanRequested(int x, int y, int z)
+    signal neighboringSectorsScanRequested()
     signal autonomousTravelTargetRequested(int x, int y, int z)
     signal apiKeySaveRequested(string apiKey)
     signal apiKeyTestRequested()
@@ -121,6 +122,7 @@ PanelFrame {
             onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
             onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
             onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
+            onNeighborScanRequested: root.neighboringSectorsScanRequested()
             onAutonomousTargetRequested: (x, y, z) => root.autonomousTravelTargetRequested(x, y, z)
             onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
         }

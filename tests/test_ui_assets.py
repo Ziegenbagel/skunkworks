@@ -124,6 +124,15 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "SCUT TRANSIT BEACONS" in Path("src/ui/qml/components/AutomationSettings.qml").read_text()
 
 
+def test_navigation_exposes_all_neighbor_scan_and_explorer_arrival_automation():
+    navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+    assert "SCAN ALL 12 NEIGHBORING SECTORS" in navigation
+    assert "neighborScanRequested" in navigation
+    assert "scanNeighboringSectors" in controller
+    assert "explorer_neighbor_scan" in controller
+
+
 def test_settings_exposes_policy_gated_automation_queue_and_approval():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()
