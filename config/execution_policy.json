@@ -1,11 +1,26 @@
 {
-  "mode": "automatic",
-  "liveExecutionEnabled": true,
-  "allowedCommandTypes": [
-    "atomic_printer_craft",
-    "manny_craft",
-    "manny_assemble_probe",
-    "manny_mine"
-  ],
-  "maxCommandsPerCycle": 10
+  "default": {
+    "mode": "automatic",
+    "liveExecutionEnabled": true,
+    "allowedCommandTypes": [
+      "atomic_printer_craft",
+      "manny_craft",
+      "manny_assemble_probe",
+      "manny_mine"
+    ],
+    "maxCommandsPerCycle": 10
+  },
+  "probes": {
+    "644": {
+      "mode": "automatic",
+      "liveExecutionEnabled": true,
+      "allowedCommandTypes": [
+        "atomic_printer_craft",
+        "manny_assemble_probe",
+        "manny_craft",
+        "manny_mine"
+      ],
+      "maxCommandsPerCycle": 10
+    }
+  }
 }
