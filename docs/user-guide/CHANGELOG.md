@@ -2,6 +2,9 @@
 
 ## 0.1 — 2026-08-01
 
+- Replaced live-load concept-data fallbacks with explicit service/API error
+  screens. Failed later refreshes now retain the last successful snapshot,
+  mark it stale, show the underlying error, and provide a retry control.
 - Added complete manual inventory controls: stock moves, resource/item jettison,
   asteroid and planet container deployment, detached-object recovery,
   same-sector deuterium transfer, Manny reassignment, and documented two-step

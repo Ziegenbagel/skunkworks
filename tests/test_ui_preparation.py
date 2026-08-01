@@ -79,6 +79,37 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.focusedProbeId, 9)
         self.assertEqual(service.requested, [7, 9])
 
+    def test_failed_refresh_retains_snapshot_and_marks_it_stale(self):
+        class Service:
+            fail = False
+
+            def load(self, probe_id):
+                if self.fail:
+                    raise RuntimeError("Game service is temporarily unavailable")
+                return {
+                    "focus": {"probeId": 7},
+                    "probeOptions": ({"id": 7, "name": "Explorer"},),
+                    "connection": "connected",
+                    "connectionLabel": "CONNECTED",
+                    "resources": ({"name": "Ice", "amount": 3},),
+                }
+
+        class ImmediatePool:
+            @staticmethod
+            def start(worker):
+                worker.run()
+
+        service = Service()
+        controller = MissionControlController(service, ImmediatePool())
+        controller.refresh()
+        service.fail = True
+        controller.refresh()
+
+        self.assertEqual(controller.dashboard["resources"][0]["amount"], 3)
+        self.assertEqual(controller.dashboard["connection"], "stale")
+        self.assertEqual(controller.dashboard["connectionLabel"], "LIVE LINK INTERRUPTED")
+        self.assertIn("temporarily unavailable", controller.error)
+
     def test_production_includes_active_manny_crafting_and_mining(self):
         probe = {
             "inventory": {

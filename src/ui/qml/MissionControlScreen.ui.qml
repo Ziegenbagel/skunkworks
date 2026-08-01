@@ -16,7 +16,7 @@ Rectangle {
     readonly property var fleetData: dashboardData.fleet || ({})
     readonly property var probeData: dashboardData.probe || ({})
     readonly property var healthData: dashboardData.health || ({})
-    readonly property var resourceRows: dashboardData.resources && dashboardData.resources.length ? dashboardData.resources : [
+    readonly property var resourceRows: dashboardData.resources && dashboardData.resources.length ? dashboardData.resources : liveMode ? [] : [
         {
             "name": "Deuterium",
             "amount": 482,

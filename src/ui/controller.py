@@ -1194,7 +1194,16 @@ class MissionControlController(QObject):
 
     @Slot(str)
     def _reject_dashboard(self, message):
+        message = message or "The game API did not return an error description."
         self._set_error(message)
+        # A failed refresh must never replace live account data with UI concept
+        # values. Keep the last authoritative snapshot, mark it stale, and let
+        # QML explain that it is retained data rather than current telemetry.
+        if self._dashboard:
+            self._dashboard["connection"] = "stale"
+            self._dashboard["connectionLabel"] = "LIVE LINK INTERRUPTED"
+            self._dashboard["refreshError"] = message
+            self.dashboardChanged.emit()
         self._finish_refresh()
 
     def _finish_refresh(self):

@@ -1,9 +1,12 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 
 ApplicationWindow {
     id: window
     property var backend: null
+    readonly property bool hasLiveSnapshot: window.backend !== null
+        && Object.keys(window.backend.dashboard || ({})).length > 0
     width: Constants.width
     height: Constants.height
     minimumWidth: Constants.minimumWidth
@@ -19,12 +22,124 @@ ApplicationWindow {
         anchors.fill: parent
         liveMode: window.backend !== null
         dashboardData: window.backend ? window.backend.dashboard : ({})
-        availableProbes: window.backend && window.backend.availableProbes.length ? window.backend.availableProbes : previewProbes
-        focusedProbeId: window.backend && window.backend.focusedProbeId >= 0 ? window.backend.focusedProbeId : availableProbes[0].id
+        availableProbes: window.backend ? window.backend.availableProbes : previewProbes
+        focusedProbeId: window.backend ? window.backend.focusedProbeId : availableProbes[0].id
         refreshing: window.backend ? window.backend.refreshing : false
         connectionError: window.backend ? window.backend.error : ""
         emergencyStopActive: window.backend ? window.backend.emergencyStopActive : false
         visible: !startupOverlay.visible
+    }
+
+    Rectangle {
+        id: staleDataBanner
+        z: 850
+        visible: window.backend !== null && window.backend.error && window.hasLiveSnapshot
+        anchors.top: parent.top
+        anchors.topMargin: 88
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width - 48, 980)
+        height: 74
+        color: "#301b08"
+        border.color: Constants.warningColor
+        border.width: 2
+        radius: 4
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 14
+            Label {
+                text: "⚠"
+                color: Constants.warningColor
+                font.pixelSize: 28
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Label {
+                    text: "LIVE LINK INTERRUPTED · SHOWING LAST SUCCESSFUL SNAPSHOT"
+                    color: Constants.warningColor
+                    font.family: Constants.technicalFont
+                    font.bold: true
+                    font.pixelSize: 14
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: window.backend ? window.backend.error : ""
+                    color: Constants.textColor
+                    font.pixelSize: 11
+                    elide: Text.ElideRight
+                }
+            }
+            Button {
+                text: window.backend && window.backend.refreshing ? "RETRYING…" : "RETRY NOW"
+                enabled: window.backend && !window.backend.refreshing
+                onClicked: window.backend.refresh()
+            }
+        }
+    }
+
+    Rectangle {
+        id: unavailableOverlay
+        anchors.fill: parent
+        z: 875
+        visible: window.backend !== null && window.backend.error && !window.hasLiveSnapshot
+        color: Constants.voidColor
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 80, 760)
+            spacing: 18
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: "LIVE FLEET DATA UNAVAILABLE"
+                color: Constants.criticalColor
+                font.family: Constants.displayFont
+                font.pixelSize: 30
+                font.bold: true
+                font.letterSpacing: 2
+            }
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: "Skunkworks did not load concept or sample fleet values.\nNo live account snapshot is currently available."
+                horizontalAlignment: Text.AlignHCenter
+                color: Constants.textColor
+                font.pixelSize: 15
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Math.max(88, unavailableMessage.implicitHeight + 32)
+                color: Constants.panelColor
+                border.color: Constants.criticalColor
+                radius: 4
+                Label {
+                    id: unavailableMessage
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    text: window.backend ? window.backend.error : ""
+                    color: Constants.mutedTextColor
+                    font.family: Constants.technicalFont
+                    font.pixelSize: 12
+                    wrapMode: Text.Wrap
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+            Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: "The game service may be temporarily unavailable. Existing local history and settings have not been erased."
+                color: Constants.warningColor
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignHCenter
+                Layout.maximumWidth: 680
+            }
+            Button {
+                Layout.alignment: Qt.AlignHCenter
+                text: window.backend && window.backend.refreshing ? "RETRYING LIVE CONNECTION…" : "RETRY LIVE CONNECTION"
+                enabled: window.backend && !window.backend.refreshing
+                onClicked: window.backend.refresh()
+            }
+        }
     }
 
     Rectangle {

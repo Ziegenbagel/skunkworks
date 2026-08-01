@@ -191,6 +191,15 @@ def test_app_uses_a_dedicated_live_data_loading_screen():
     assert "def startupLoading" in controller
 
 
+def test_live_failures_never_substitute_concept_dashboard_data():
+    app = Path("src/ui/qml/App.qml").read_text()
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    assert "LIVE FLEET DATA UNAVAILABLE" in app
+    assert "SHOWING LAST SUCCESSFUL SNAPSHOT" in app
+    assert "availableProbes: window.backend ? window.backend.availableProbes : previewProbes" in app
+    assert "liveMode ? []" in screen
+
+
 def test_probe_selector_waits_for_backend_confirmation():
     selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text()
     assert "Number(currentValue)" in selector
