@@ -26,6 +26,10 @@ PanelFrame {
     signal automationCycleRequested()
     signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
     signal transportCycleSaveRequested(var plan)
+    signal probeRenameRequested(string name)
+    signal containerRenameRequested(string containerId, string label)
+    signal storageRulesSaveRequested(string containerId, var rules)
+    signal storageMoveRequested(var payload)
 
     title: section
 
@@ -120,6 +124,11 @@ PanelFrame {
             anchors.fill: parent
             visible: root.section === "RESOURCES"
             ledgerData: root.dashboardData.resourceLedger || ({})
+            inventoryData: root.dashboardData.inventoryManagement || ({})
+            onProbeRenameRequested: name => root.probeRenameRequested(name)
+            onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
+            onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
+            onStorageMoveRequested: payload => root.storageMoveRequested(payload)
         }
 
         Column {

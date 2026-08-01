@@ -148,5 +148,21 @@ ApplicationWindow {
         function onTransportCycleSaveRequested(plan) {
             if (window.backend) window.backend.saveTransportCycle(plan);
         }
+
+        function onProbeRenameRequested(name) {
+            if (window.backend) window.backend.renameFocusedProbe(name);
+        }
+
+        function onContainerRenameRequested(containerId, label) {
+            if (window.backend) window.backend.renameStorageContainer(containerId, label);
+        }
+
+        function onStorageRulesSaveRequested(containerId, rules) {
+            if (window.backend) window.backend.saveStorageRules(containerId, rules);
+        }
+
+        function onStorageMoveRequested(payload) {
+            if (window.backend) window.backend.moveStorage(payload);
+        }
     }
 }

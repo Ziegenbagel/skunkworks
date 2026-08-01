@@ -347,6 +347,22 @@ class MissionControlDataService:
         OperationStore(self.data_engine).save(operation)
         return operation.to_dict()
 
+    def rename_probe(self, name):
+        return self.capabilities.probes.update(self._selected_probe_id, name=name.strip())
+
+    def rename_container(self, container_id, label):
+        return self.capabilities.storage.update_container(
+            self._selected_probe_id, container_id, {"label": label.strip()},
+        )
+
+    def update_container_rules(self, container_id, rules):
+        return self.capabilities.storage.update_rules(
+            self._selected_probe_id, container_id, rules,
+        )
+
+    def move_storage(self, payload):
+        return self.capabilities.storage.move(self._selected_probe_id, payload)
+
     def scan_sector(self, target):
         response = self.capabilities.galaxy.observe_sector(target["x"], target["y"], target["z"])
         self.data_engine.record_sector_observation(self._selected_probe_id, response)
@@ -805,6 +821,42 @@ class MissionControlController(QObject):
         self._dashboard["automation"] = automation
         self._set_error("")
         self.dashboardChanged.emit()
+
+    def _inventory_mutation(self, callback):
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Refresh a focused probe before changing inventory.")
+            return
+        try:
+            callback()
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._set_error("")
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot(str)
+    def renameFocusedProbe(self, name):
+        if not name.strip():
+            self._set_error("Probe name cannot be empty.")
+            return
+        self._inventory_mutation(lambda: self.service.rename_probe(name))
+
+    @Slot(str, str)
+    def renameStorageContainer(self, container_id, label):
+        if not label.strip():
+            self._set_error("Container label cannot be empty.")
+            return
+        self._inventory_mutation(lambda: self.service.rename_container(container_id, label))
+
+    @Slot(str, "QVariantMap")
+    def saveStorageRules(self, container_id, rules):
+        self._inventory_mutation(
+            lambda: self.service.update_container_rules(container_id, self._qt_safe(rules))
+        )
+
+    @Slot("QVariantMap")
+    def moveStorage(self, payload):
+        self._inventory_mutation(lambda: self.service.move_storage(self._qt_safe(payload)))
 
     def _start_refresh(self, probe_id):
         if self._refreshing:

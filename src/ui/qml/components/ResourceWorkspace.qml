@@ -7,6 +7,11 @@ import ".."
 Item {
     id: root
     property var ledgerData: ({})
+    property var inventoryData: ({})
+    signal probeRenameRequested(string name)
+    signal containerRenameRequested(string containerId, string label)
+    signal storageRulesSaveRequested(string containerId, var rules)
+    signal storageMoveRequested(var payload)
     readonly property var categories: [
         {"key": "probe", "title": "PROBE STORAGE", "description": "Resources aboard the selected probe, separated by storage container."},
         {"key": "drifting", "title": "DRIFTING CONTAINERS", "description": "Visible detached containers floating in the current sector."},
@@ -30,13 +35,23 @@ Item {
         return (ledgerData.rows || []).filter(row => categoryFor(row) === key);
     }
 
-    ScrollView {
-        anchors.fill: parent
-        clip: true
+    ColumnLayout {
+        anchors.fill: parent; spacing: 10
+        TabBar {
+            id: resourceTabs; Layout.fillWidth: true
+            TabButton { text: "RESOURCE OVERVIEW" }
+            TabButton { text: "INVENTORY & CONTAINERS" }
+        }
+        StackLayout {
+            Layout.fillWidth: true; Layout.fillHeight: true
+            currentIndex: resourceTabs.currentIndex
 
-        ColumnLayout {
-            width: root.width - 20
-            spacing: 20
+            ScrollView {
+                clip: true
+
+                ColumnLayout {
+                    width: root.width - 20
+                    spacing: 20
 
             Label {
                 text: "SECTOR RESOURCE LEDGER"
@@ -142,6 +157,16 @@ Item {
                     font.pixelSize: 13
                     wrapMode: Text.Wrap
                 }
+            }
+                }
+            }
+
+            InventoryWorkspace {
+                inventoryData: root.inventoryData
+                onProbeRenameRequested: name => root.probeRenameRequested(name)
+                onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
+                onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
+                onStorageMoveRequested: payload => root.storageMoveRequested(payload)
             }
         }
     }

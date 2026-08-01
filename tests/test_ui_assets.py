@@ -162,3 +162,18 @@ def test_navigation_separates_manual_transport_and_scanning_workflows():
     assert "unloadUntilPercent" in navigation
     assert "protectedDeuterium" in navigation
     assert 'focusedRole === "transport"' in navigation
+
+
+def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
+    inventory = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
+    resources = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text()
+
+    assert "RENAME PROBE" in inventory
+    assert "RENAME" in inventory
+    assert "Priority routing" in inventory
+    assert "Exclusion routing" in inventory
+    assert "Strict exclusion" in inventory
+    assert "MOVE STOCK BETWEEN CONTAINERS" in inventory
+    assert "STORED ITEMS & EQUIPMENT" in inventory
+    assert "CONFIRM STORAGE TRANSFER" in inventory
+    assert "INVENTORY & CONTAINERS" in resources

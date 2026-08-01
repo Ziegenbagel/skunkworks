@@ -195,6 +195,25 @@ class UiPreparationTests(unittest.TestCase):
         detached = next(row for row in ledger["rows"] if row["scope"] == "detached_container")
         self.assertIn("Contents not exposed by API", detached["detail"])
 
+    def test_inventory_management_includes_equipment_and_container_placement(self):
+        world = build_operations().world
+        world.probe["name"] = "Carrier"
+        world.probe["inventory"]["containers"] = [{
+            "id": "probe-core", "kind": "probe", "label": "Probe",
+            "capacity": 1, "usedCapacity": 0.06, "rules": {},
+        }]
+        world.probe["inventory"]["items"] = [{
+            "id": "engine-1", "type": "deuterium_engine", "name": "Deuterium engine",
+            "containerSpace": 0.06,
+            "container": {"id": "probe-core", "kind": "probe", "label": "Probe"},
+        }]
+
+        inventory = MissionControlViewModelBuilder._inventory_management(world)
+
+        self.assertEqual(inventory["probeName"], "Carrier")
+        self.assertEqual(inventory["items"][0]["type"], "deuterium_engine")
+        self.assertEqual(inventory["items"][0]["containerLabel"], "Probe")
+
     def test_galaxy_view_exposes_discovered_nodes_and_neighbor_links(self):
         from src.models.galaxy import GalaxyMap
 

@@ -55,6 +55,7 @@ class MissionControlViewModelBuilder:
             "alerts": self._alert_views(findings + self._event_alerts()),
             "resources": self._resources(probe),
             "resourceLedger": self._resource_ledger(world),
+            "inventoryManagement": self._inventory_management(world),
             "sector": self._sector_view(world, coordinates),
             "galaxy": self._galaxy_view(world, coordinates),
             "missions": self._missions(),
@@ -67,6 +68,47 @@ class MissionControlViewModelBuilder:
         }
         result["navigation"] = self.navigation_view()
         return result
+
+    @staticmethod
+    def _inventory_management(world):
+        inventory = world.probe.get("inventory", {})
+        containers = tuple(inventory.get("containers", ()) or ())
+        items = []
+        for item in inventory.get("items", ()) or ():
+            container = item.get("container") or {}
+            items.append({
+                "id": str(item.get("id", "")),
+                "type": item.get("type", "unknown"),
+                "name": item.get("name") or str(item.get("type", "Unknown")).replace("_", " ").title(),
+                "containerId": container.get("id", "unknown"),
+                "containerLabel": container.get("label", "Unknown container"),
+                "containerSpace": float(item.get("containerSpace", 0) or 0),
+                "currentTask": item.get("currentTask"),
+            })
+        resource_lines = []
+        for stock in inventory.get("resourceStocks", ()) or ():
+            for placement in stock.get("containers", ()) or ():
+                container = placement.get("container") or {}
+                resource_lines.append({
+                    "resourceType": stock.get("type"),
+                    "name": stock.get("name") or str(stock.get("type", "resource")).replace("_", " ").title(),
+                    "containerId": container.get("id"),
+                    "containerLabel": container.get("label", "Unknown container"),
+                    "amount": float(placement.get("amount", 0) or 0),
+                })
+        idle_mannies = tuple({
+            "id": str(manny.get("id")),
+            "name": manny.get("name", "Manny"),
+        } for manny in (world.mannies or {}).get("mannies", ())
+            if manny.get("currentTask") is None and manny.get("canReceiveOrders", False))
+        return {
+            "probeId": world.probe.get("id"),
+            "probeName": world.probe.get("name", "Probe"),
+            "containers": containers,
+            "items": tuple(items),
+            "resourcePlacements": tuple(resource_lines),
+            "idleMannies": idle_mannies,
+        }
 
     @classmethod
     def _resource_ledger(cls, world):
