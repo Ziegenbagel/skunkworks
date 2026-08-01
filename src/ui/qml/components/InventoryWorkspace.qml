@@ -107,7 +107,7 @@ Item {
                         implicitHeight: itemDetails.implicitHeight + 28; color: Constants.panelColor; border.color: Constants.lineColor; radius: 3
                         ColumnLayout { id: itemDetails; anchors.fill: parent; anchors.margins: 14
                             Label { Layout.fillWidth: true; text: itemCard.modelData.name; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap }
-                            Label { Layout.fillWidth: true; text: String(itemCard.modelData.type).replaceAll("_", " ").toUpperCase() + " · " + itemCard.modelData.containerLabel + " · " + Number(itemCard.modelData.containerSpace).toFixed(2) + " ECE"; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
+                            Label { Layout.fillWidth: true; text: String(itemCard.modelData.type).split("_").join(" ").toUpperCase() + " · " + itemCard.modelData.containerLabel + " · " + Number(itemCard.modelData.containerSpace).toFixed(2) + " ECE"; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
                         }
                     }
                 }

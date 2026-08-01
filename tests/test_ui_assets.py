@@ -177,3 +177,4 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "STORED ITEMS & EQUIPMENT" in inventory
     assert "CONFIRM STORAGE TRANSFER" in inventory
     assert "INVENTORY & CONTAINERS" in resources
+    assert "replaceAll(" not in inventory
