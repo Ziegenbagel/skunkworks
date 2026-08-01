@@ -10,6 +10,24 @@ PanelFrame {
     property string emptyText: "No active items"
     property string detailTitle: title
     property int previewLimit: 3
+    property double currentEpochMs: Date.now()
+
+    function countdown(epochMs) {
+        const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        const pad = value => String(value).padStart(2, "0");
+        return pad(hours) + ":" + pad(minutes) + ":" + pad(remainder);
+    }
+
+    Timer {
+        interval: 1000
+        running: root.visible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.currentEpochMs = Date.now()
+    }
 
     contentItem: Item {
         anchors.fill: parent
@@ -179,6 +197,16 @@ PanelFrame {
                                 font.family: Constants.technicalFont
                                 font.pixelSize: 10
                                 wrapMode: Text.Wrap
+                            }
+
+                            Label {
+                                visible: Number(detailRow.modelData.etaEpochMs || 0) > 0
+                                width: parent.width
+                                text: "COUNTDOWN  ·  " + root.countdown(detailRow.modelData.etaEpochMs)
+                                color: Constants.cyanColor
+                                font.family: Constants.technicalFont
+                                font.pixelSize: 12
+                                font.bold: true
                             }
                         }
                     }

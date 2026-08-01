@@ -488,6 +488,8 @@ def build():
         "Create a logbook summary for discoveries, completed construction, stranded probes, and next-session objectives.",
         "Use Emergency Stop before closing if live automation should not continue.",
     ])
+    add_note(doc, "Completion times", "Active work shows the estimated end as a local calendar date, 24-hour time, timezone abbreviation, and UTC offset. A live HH:MM:SS countdown appears beneath the estimate and updates once per second.")
+    add_note(doc, "Mining targets", "Production details show the API's current public planet or asteroid name. Internal object identifiers are used only when the API does not provide a public label.")
 
     add_heading(doc, "10. Troubleshooting Quick Reference")
     table = doc.add_table(rows=1, cols=3)

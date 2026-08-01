@@ -156,6 +156,7 @@ class UiPreparationTests(unittest.TestCase):
                         "resourceTypes": ["metals", "ice"],
                         "phase": "extracting",
                         "objectId": "asteroid-1",
+                        "target": {"id": "asteroid-1", "name": "Ferric Haven"},
                     },
                 },
             ]
@@ -166,7 +167,11 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(len(work), 2)
         self.assertIn("STEEL PLATE", work[0]["displayText"])
         self.assertIn("MINING METALS, ICE", work[1]["displayText"])
+        self.assertIn("Target: Ferric Haven", work[1]["detailText"])
+        self.assertNotIn("Target: asteroid-1", work[1]["detailText"])
         self.assertIn("Estimated completion", work[0]["detailText"])
+        self.assertRegex(work[0]["eta"], r"2026-\d{2}-\d{2}  \d{2}:\d{2}:\d{2} .+ \(UTC[+-]\d{2}:\d{2}\)")
+        self.assertGreater(work[0]["etaEpochMs"], 0)
 
     def test_production_includes_idle_mannies_and_order_readiness(self):
         work = MissionControlViewModelBuilder._production(

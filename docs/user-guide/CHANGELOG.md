@@ -2,6 +2,11 @@
 
 ## 0.1 — 2026-08-01
 
+- Corrected mining production details to prefer the API's current public
+  asteroid or planet name instead of exposing its legacy command object ID.
+- Reformatted production completion estimates in the user's local timezone
+  with a separated date, standard 24-hour clock, timezone abbreviation and UTC
+  offset, plus a live hours/minutes/seconds countdown.
 - Corrected operational-health classification so notice-only findings, such as
   every Manny currently being occupied, remain visible without incorrectly
   marking the entire system Degraded.

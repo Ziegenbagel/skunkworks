@@ -1,6 +1,7 @@
 """Stable UI view model assembled only from application services."""
 
 from dataclasses import asdict
+from datetime import datetime
 from src.models.galaxy import SectorCoordinates
 
 
@@ -600,6 +601,7 @@ class MissionControlViewModelBuilder:
             task = manny.get("task") if isinstance(manny.get("task"), dict) else {}
             progress = float(manny.get("taskProgressPercent", 0) or 0)
             eta = manny.get("taskEstimatedEndTime") or "—"
+            eta_view = MissionControlViewModelBuilder._completion_view(eta)
             operation = MissionControlViewModelBuilder._task_name(task_type, task)
             work.append({
                 "id": str(manny.get("id", manny.get("name", len(work)))),
@@ -607,10 +609,12 @@ class MissionControlViewModelBuilder:
                 "taskType": task_type,
                 "name": operation,
                 "progress": progress,
-                "eta": eta,
+                "eta": eta_view["label"],
+                "etaEpochMs": eta_view["epochMs"],
                 "displayText": f"{manny.get('name', 'MANNY')} · {operation.upper()}    {progress:.0f}%",
                 "detailText": MissionControlViewModelBuilder._task_details(
-                    manny.get("name", "Manny"), task_type, task, progress, eta,
+                    manny.get("name", "Manny"), task_type, task, progress,
+                    eta_view["label"],
                 ),
             })
 
@@ -620,6 +624,7 @@ class MissionControlViewModelBuilder:
             task = item.get("task") if isinstance(item.get("task"), dict) else {}
             progress = float(item.get("taskProgressPercent", 0) or 0)
             eta = item.get("taskEstimatedEndTime") or "—"
+            eta_view = MissionControlViewModelBuilder._completion_view(eta)
             operation = MissionControlViewModelBuilder._task_name(item["currentTask"], task)
             work.append({
                 "id": str(item.get("id", "atomic-printer")),
@@ -627,14 +632,36 @@ class MissionControlViewModelBuilder:
                 "taskType": item["currentTask"],
                 "name": operation,
                 "progress": progress,
-                "eta": eta,
+                "eta": eta_view["label"],
+                "etaEpochMs": eta_view["epochMs"],
                 "displayText": f"ATOMIC PRINTER · {operation.upper()}    {progress:.0f}%",
                 "detailText": MissionControlViewModelBuilder._task_details(
                     item.get("name", "Atomic printer"), item["currentTask"], task,
-                    progress, eta,
+                    progress, eta_view["label"],
                 ),
             })
         return tuple(work)
+
+    @staticmethod
+    def _completion_view(value):
+        """Present an API timestamp in the operator's local timezone."""
+        if not value or value == "—":
+            return {"label": "—", "epochMs": 0}
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.astimezone()
+            local = parsed.astimezone()
+        except (TypeError, ValueError, OverflowError):
+            return {"label": str(value), "epochMs": 0}
+
+        offset = local.strftime("%z")
+        offset = f"{offset[:3]}:{offset[3:]}" if len(offset) == 5 else offset
+        zone = local.tzname() or "LOCAL"
+        return {
+            "label": f"{local:%Y-%m-%d}  {local:%H:%M:%S} {zone} (UTC{offset})",
+            "epochMs": int(parsed.timestamp() * 1000),
+        }
 
     @staticmethod
     def _task_name(task_type, task):
@@ -664,7 +691,15 @@ class MissionControlViewModelBuilder:
         elif task_type == "mining":
             target = task.get("target") if isinstance(task.get("target"), dict) else {}
             lines.append(f"Phase: {str(task.get('phase', 'unknown')).replace('_', ' ').title()}")
-            lines.append(f"Target: {task.get('objectId') or target.get('name') or 'Unknown'}")
+            target_label = (
+                target.get("name")
+                or task.get("targetName")
+                or task.get("objectName")
+                or task.get("objectId")
+                or target.get("id")
+                or "Unknown"
+            )
+            lines.append(f"Target: {target_label}")
             lines.append(f"Trip: {task.get('tripIndex', '—')}")
             if task.get("targetAmount") is not None:
                 lines.append(f"Target amount: {task['targetAmount']} ECE")

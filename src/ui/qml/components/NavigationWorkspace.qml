@@ -11,6 +11,7 @@ PanelFrame {
     property var dashboardData: ({})
     property var availableProbes: []
     property int focusedProbeId: -1
+    property double currentEpochMs: Date.now()
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)
@@ -43,6 +44,23 @@ PanelFrame {
     signal changeLogRequested()
     signal updateCheckRequested()
 
+    function countdown(epochMs) {
+        const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        const pad = value => String(value).padStart(2, "0");
+        return pad(hours) + ":" + pad(minutes) + ":" + pad(remainder);
+    }
+
+    Timer {
+        interval: 1000
+        running: root.visible && root.section === "PRODUCTION"
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.currentEpochMs = Date.now()
+    }
+
     title: section
 
     function sectionRows() {
@@ -68,7 +86,8 @@ PanelFrame {
         if (section === "PRODUCTION")
             return (dashboardData.production || []).map(item => ({
                         "title": item.displayText,
-                        "detail": item.detailText
+                        "detail": item.detailText,
+                        "etaEpochMs": item.etaEpochMs || 0
                     }));
         if (section === "SAFETY")
             return (dashboardData.alerts || []).map(item => ({
@@ -240,6 +259,15 @@ PanelFrame {
                                 font.pixelSize: 15
                                 lineHeight: 1.3
                                 wrapMode: Text.Wrap
+                            }
+                            Label {
+                                visible: Number(sectionRow.modelData.etaEpochMs || 0) > 0
+                                width: parent.width
+                                text: "COUNTDOWN  ·  " + root.countdown(sectionRow.modelData.etaEpochMs)
+                                color: Constants.cyanColor
+                                font.family: Constants.technicalFont
+                                font.pixelSize: 16
+                                font.bold: true
                             }
                             }
 
