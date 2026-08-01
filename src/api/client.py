@@ -105,6 +105,14 @@ class GameClient:
         authenticated=True,
         **kwargs,
     ):
+        if authenticated and self.api_version is not None and not (
+            MINIMUM_API_VERSION <= self.api_version <= MAXIMUM_API_VERSION
+        ):
+            raise ApiCompatibilityError(
+                "Live API commands are paused because Von Neumann Game API "
+                f"v{self.api_version} has not been reviewed. Skunkworks supports "
+                f"v{MINIMUM_API_VERSION} through v{MAXIMUM_API_VERSION}."
+            )
         headers = {"Accept": "application/json"}
 
         if authenticated:

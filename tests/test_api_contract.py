@@ -72,6 +72,10 @@ class GameClientContractTests(unittest.TestCase):
         with self.assertRaises(ApiCompatibilityError):
             client.ensure_compatible_api()
 
+        with self.assertRaises(ApiCompatibilityError):
+            client.get_player()
+        self.assertEqual(len(client.session.calls), 1)
+
     def test_exposes_rate_limit_delay(self):
         client = self.client(
             [

@@ -110,6 +110,19 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.dashboard["connectionLabel"], "LIVE LINK INTERRUPTED")
         self.assertIn("temporarily unavailable", controller.error)
 
+    def test_periodic_check_pauses_automation_for_unreviewed_api(self):
+        controller = MissionControlController()
+        controller._dashboard = {"connection": "connected"}
+        controller._automation_timer.start()
+
+        controller._accept_compatibility({"version": 107, "compatible": False})
+
+        self.assertFalse(controller._api_compatible)
+        self.assertFalse(controller._automation_timer.isActive())
+        self.assertEqual(controller.dashboard["connectionLabel"], "API REVIEW REQUIRED")
+        self.assertEqual(controller.dashboard["compatibility"]["serverVersion"], 107)
+        self.assertIn("paused", controller.error)
+
     def test_production_includes_active_manny_crafting_and_mining(self):
         probe = {
             "inventory": {

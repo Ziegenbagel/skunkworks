@@ -14,6 +14,7 @@ from PySide6.QtGui import QDesktopServices
 
 from src.api.capabilities import GameCapabilities
 from src.api.client import GameClient
+from src.api.contract import MAXIMUM_API_VERSION, MINIMUM_API_VERSION
 from src.application.hazard_context import HazardContextLoader
 from src.application.history_sync import HistorySynchronizer
 from src.application.probe_selector import ProbeSelector
@@ -595,6 +596,27 @@ class _RefreshWorker(QRunnable):
             self.signals.succeeded.emit(payload)
 
 
+class _CompatibilityWorker(QRunnable):
+    """Check the unmetered API-version endpoint without refreshing fleet data."""
+
+    def __init__(self, client):
+        super().__init__()
+        self.client = client
+        self.signals = _WorkerSignals()
+
+    def run(self):
+        try:
+            version = self.client.get_api_version()
+            self.client.api_version = version
+        except Exception as error:
+            self.signals.failed.emit(str(error) or type(error).__name__)
+            return
+        self.signals.succeeded.emit({
+            "version": version,
+            "compatible": MINIMUM_API_VERSION <= version <= MAXIMUM_API_VERSION,
+        })
+
+
 class MissionControlController(QObject):
     """Asynchronous QObject consumed by App.qml."""
 
@@ -628,6 +650,11 @@ class MissionControlController(QObject):
         self._automation_timer = QTimer(self)
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
+        self._compatibility_timer = QTimer(self)
+        self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
+        self._compatibility_timer.timeout.connect(self._start_compatibility_check)
+        self._compatibility_worker = None
+        self._api_compatible = True
 
     @Property("QVariantMap", notify=dashboardChanged)
     def dashboard(self):
@@ -789,7 +816,9 @@ class MissionControlController(QObject):
         self._run_automation(fingerprint, risk_acknowledged)
 
     def _run_automation(self, fingerprint, risk_acknowledged):
-        if self.service is None or self._refreshing:
+        if self.service is None or self._refreshing or not self._api_compatible:
+            if not self._api_compatible:
+                self._set_error("Automation is paused until the current game API version has been reviewed.")
             return
         try:
             result = self.service.run_automation_cycle(fingerprint, risk_acknowledged)
@@ -811,6 +840,56 @@ class MissionControlController(QObject):
             and not self._emergency_stop
         ):
             self._run_automation(None, False)
+
+    def _start_compatibility_check(self):
+        if self.service is None or self._compatibility_worker is not None:
+            return
+        worker = _CompatibilityWorker(self.service.client)
+        worker.signals.succeeded.connect(self._accept_compatibility)
+        worker.signals.failed.connect(self._reject_compatibility)
+        self._compatibility_worker = worker
+        self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_compatibility(self, result):
+        self._compatibility_worker = None
+        version = int(result.get("version", -1))
+        compatible = bool(result.get("compatible", False))
+        self._api_compatible = compatible
+        compatibility = {
+            "checked": True,
+            "compatible": compatible,
+            "serverVersion": version,
+            "supportedMinimum": MINIMUM_API_VERSION,
+            "supportedMaximum": MAXIMUM_API_VERSION,
+            "checkIntervalHours": 6,
+        }
+        if self._dashboard:
+            self._dashboard["compatibility"] = compatibility
+            if not compatible:
+                self._dashboard["connection"] = "stale"
+                self._dashboard["connectionLabel"] = "API REVIEW REQUIRED"
+            self.dashboardChanged.emit()
+        if compatible:
+            return
+        self._automation_timer.stop()
+        self._set_error(
+            f"Von Neumann Game API v{version} is newer than the reviewed "
+            f"Skunkworks range v{MINIMUM_API_VERSION}–v{MAXIMUM_API_VERSION}. "
+            "Live commands and automation are paused pending compatibility review."
+        )
+
+    @Slot(str)
+    def _reject_compatibility(self, message):
+        self._compatibility_worker = None
+        if self._dashboard:
+            self._dashboard["compatibility"] = {
+                "checked": False,
+                "compatible": self._api_compatible,
+                "error": message,
+                "checkIntervalHours": 6,
+            }
+            self.dashboardChanged.emit()
 
     def _configure_automation_timer(self, runtime):
         enabled = runtime.get("mode") == "automatic" and runtime.get("liveExecutionEnabled")
@@ -1174,6 +1253,17 @@ class MissionControlController(QObject):
         }
         payload = self._qt_safe(payload)
         self._dashboard = payload
+        self._api_compatible = True
+        self._dashboard["compatibility"] = {
+            "checked": True,
+            "compatible": True,
+            "serverVersion": payload.get("apiVersion"),
+            "supportedMinimum": MINIMUM_API_VERSION,
+            "supportedMaximum": MAXIMUM_API_VERSION,
+            "checkIntervalHours": 6,
+        }
+        if not self._compatibility_timer.isActive():
+            self._compatibility_timer.start()
         self._configure_automation_timer(payload.get("automationRuntime", {}))
         self.dashboardChanged.emit()
 

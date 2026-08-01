@@ -2,6 +2,10 @@
 
 ## 0.1 — 2026-08-01
 
+- Added an automatic compatibility monitor: startup validation plus an
+  unmetered `/api/version` check every six hours. A newly unreviewed version
+  pauses live API commands and automation, retains the last valid snapshot,
+  and displays the detected and supported version ranges.
 - Reviewed and enabled Von Neumann Game API v105–v106 compatibility. Added
   preparation-phase movement cancellation with deuterium refund, unread
   message/alert filters at the API boundary, and terminal/atomic Manny-mining
