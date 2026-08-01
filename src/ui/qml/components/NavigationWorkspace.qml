@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import ".."
 
 PanelFrame {
@@ -112,8 +113,14 @@ PanelFrame {
             onAutonomousTargetRequested: (x, y, z) => root.autonomousTravelTargetRequested(x, y, z)
         }
 
+        ResourceWorkspace {
+            anchors.fill: parent
+            visible: root.section === "RESOURCES"
+            ledgerData: root.dashboardData.resourceLedger || ({})
+        }
+
         Column {
-            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION"
+            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES"
             anchors.fill: parent
             spacing: 12
 
@@ -122,7 +129,7 @@ PanelFrame {
                 text: root.section + " · LIVE ACCOUNT DATA"
                 color: Constants.cyanColor
                 font.family: Constants.technicalFont
-                font.pixelSize: 10
+                font.pixelSize: 14
             }
 
             Rectangle {
@@ -136,22 +143,27 @@ PanelFrame {
                 height: parent.height - 42
                 clip: true
 
-                ListView {
-                    id: sectionList
-                    model: root.sectionRows()
-                    spacing: 8
+                GridLayout {
+                    id: sectionGrid
+                    width: parent.width
+                    columns: width >= 1500 ? 3 : width >= 900 ? 2 : 1
+                    columnSpacing: 12
+                    rowSpacing: 12
 
-                    delegate: Rectangle {
-                        id: sectionRow
-                        required property var modelData
-                        required property int index
-                        width: sectionList.width
-                        height: detailsColumn.implicitHeight + 24
-                        color: rowMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
-                        border.color: modelData.probeId === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor
-                        radius: 2
+                    Repeater {
+                        model: root.sectionRows()
+                        delegate: Rectangle {
+                            id: sectionRow
+                            required property var modelData
+                            required property int index
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 300
+                            implicitHeight: detailsColumn.implicitHeight + 30
+                            color: rowMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
+                            border.color: modelData.probeId === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor
+                            radius: 2
 
-                        Column {
+                            Column {
                             id: detailsColumn
                             anchors.left: parent.left
                             anchors.right: parent.right
@@ -164,7 +176,7 @@ PanelFrame {
                                 text: sectionRow.modelData.title || "No data"
                                 color: Constants.textColor
                                 font.family: Constants.technicalFont
-                                font.pixelSize: 11
+                                font.pixelSize: 15
                                 font.bold: true
                                 wrapMode: Text.Wrap
                             }
@@ -173,28 +185,31 @@ PanelFrame {
                                 text: sectionRow.modelData.detail || ""
                                 color: Constants.mutedTextColor
                                 font.family: Constants.technicalFont
-                                font.pixelSize: 10
+                                font.pixelSize: 13
+                                lineHeight: 1.2
                                 wrapMode: Text.Wrap
                             }
-                        }
+                            }
 
-                        MouseArea {
+                            MouseArea {
                             id: rowMouse
                             anchors.fill: parent
                             hoverEnabled: true
                             enabled: sectionRow.modelData.probeId !== undefined
                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: root.probeSelected(Number(sectionRow.modelData.probeId))
+                            }
                         }
                     }
 
                     Label {
-                        visible: sectionList.count === 0
-                        anchors.centerIn: parent
+                        visible: root.sectionRows().length === 0
+                        Layout.columnSpan: sectionGrid.columns
+                        Layout.alignment: Qt.AlignHCenter
                         text: "No live " + root.section.toLowerCase() + " records are currently available."
                         color: Constants.mutedTextColor
                         font.family: Constants.technicalFont
-                        font.pixelSize: 11
+                        font.pixelSize: 14
                     }
                 }
             }

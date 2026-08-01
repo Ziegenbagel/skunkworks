@@ -133,3 +133,17 @@ def test_settings_exposes_policy_gated_automation_queue_and_approval():
     assert "automationApprovalRequested" in settings
     assert "saveExecutionPolicy" in app
     assert "runAutomationCycle" in app
+
+
+def test_resource_workspace_groups_locations_and_uses_responsive_cards():
+    workspace = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+
+    for heading in (
+        "PROBE STORAGE", "DRIFTING CONTAINERS", "PLACED CONTAINERS",
+        "ASTEROID CONTENTS", "PLANETARY RESOURCES",
+    ):
+        assert heading in workspace
+    assert "GridLayout" in workspace
+    assert "font.pixelSize: 15" in workspace
+    assert "ResourceWorkspace" in navigation

@@ -157,6 +157,8 @@ class MissionControlViewModelBuilder:
             "detail": f"{value:g} {unit} · {detail}",
             "resourceType": resource_type,
             "amount": value,
+            "sourceType": detail.split(" · ", 1)[0].removeprefix("Remaining on ").replace(" ", "_")
+                if scope == "natural_deposit" else scope,
         }
 
     def _galaxy_view(self, world, focus_coordinates):
