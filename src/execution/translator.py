@@ -45,6 +45,17 @@ class TaskCommandTranslator:
         else:
             return None
 
+        # A recipe may legitimately be ordered repeatedly from the same Manny.
+        # Scope idempotency to the inventory state that produced this proposal:
+        # an unchanged refresh retains the same fingerprint, while completion of
+        # the previous unit advances the state and permits the next order.
+        stored_before = self.operations.manufacturing.inventory_count(
+            task.target, include_active=False,
+        )
+        active_before = self.operations.manufacturing.active_production_count(
+            task.target,
+        )
+
         return Command(
             type=command_type,
             probe_id=self.probe_id,
@@ -53,7 +64,11 @@ class TaskCommandTranslator:
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
-            metadata={"remainingOrders": int(task.quantity)},
+            metadata={
+                "remainingOrders": int(task.quantity),
+                "storedBefore": int(stored_before),
+                "activeBefore": int(active_before),
+            },
         )
 
     def _mine(self, task):

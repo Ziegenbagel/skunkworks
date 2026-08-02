@@ -43,6 +43,7 @@ def plan(operations, desired_state) -> list[Task]:
                     continue
                 progress = (
                     f"Tanker component {index}/{len(component_statuses)}: "
+                    f"{component.replace('_', ' ')} — "
                     f"{status['required']} required, {status['completed']} stored, "
                     f"{status['active']} crafting, {amount} still unallocated."
                 )

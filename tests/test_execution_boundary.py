@@ -70,6 +70,30 @@ class ExecutionBoundaryTests(unittest.TestCase):
             "dry_run",
         )
 
+    def test_repeat_craft_identity_advances_after_inventory_changes(self):
+        from src.planner.task import Task
+
+        task = Task(
+            action="Craft Item",
+            reason="Repeated container production",
+            target="storage_container",
+            quantity=3,
+            priority=1,
+        )
+        first = TaskCommandTranslator(self.operations, 1).translate(task)
+        unchanged_retry = TaskCommandTranslator(self.operations, 1).translate(task)
+
+        self.assertEqual(first.fingerprint, unchanged_retry.fingerprint)
+
+        self.operations.world.probe["inventory"].setdefault("items", []).append({
+            "id": "completed-container",
+            "type": "storage_container",
+        })
+        next_unit = TaskCommandTranslator(self.operations, 1).translate(task)
+
+        self.assertNotEqual(first.fingerprint, next_unit.fingerprint)
+        self.assertEqual(next_unit.metadata["storedBefore"], first.metadata["storedBefore"] + 1)
+
     def test_mining_task_uses_contract_payload(self):
         self.operations = build_operations(metals=0)
         prepared = self.prepare(
