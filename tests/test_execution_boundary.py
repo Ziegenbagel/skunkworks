@@ -264,6 +264,35 @@ class ExecutionBoundaryTests(unittest.TestCase):
             prepared[1].blockers,
         )
 
+    def test_equal_priority_goal_does_not_monopolize_inputs(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 1
+        self.operations.world.mannies["mannies"].append({
+            "id": 202, "currentTask": None, "canReceiveOrders": True,
+            "location": {"type": "probe"},
+        })
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Prepare Manufacturing", reason="Large Manny target",
+                target="storage_container", quantity=100, priority=2,
+                constraints=("missing_resources",),
+            ),
+            Task(
+                action="Craft Item", reason="Opportunistic short craft",
+                target="storage_container", quantity=1, priority=2,
+            ),
+        ])
+
+        opportunistic = next(
+            item for item in prepared
+            if item.command.reason == "Opportunistic short craft"
+        )
+        self.assertNotIn(
+            "resource_reserved_by_higher_priority_goal",
+            opportunistic.blockers,
+        )
+
     def test_large_goal_can_dispatch_one_order_before_full_batch_is_funded(self):
         self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 1
         tasks = Planner(

@@ -109,18 +109,29 @@ class CommandPreparer:
         conflicts = []
         for resource, required in plan["required_resources"].items():
             available = float(resources.get(resource, 0))
-            already_claimed = float(resource_claims.get(resource, 0))
-            claim = min(float(required), max(0, available - already_claimed))
-            resource_claims[resource] = already_claimed + claim
-            if task.action == "Craft Item" and claim + 0.00001 < float(required):
+            claims = resource_claims.setdefault(resource, [])
+            higher_claimed = sum(
+                amount for priority, amount in claims
+                if priority < task.priority
+            )
+            available_after_higher = max(0, available - higher_claimed)
+            if (
+                task.action == "Craft Item"
+                and available_after_higher + 0.00001 < float(required)
+            ):
                 conflicts.append("resource_reserved_by_higher_priority_goal")
+            claims.append((task.priority, min(float(required), available)))
         for item_type, required in plan["consumed_inventory_items"].items():
             available = int(items.get(item_type, 0))
-            already_claimed = int(item_claims.get(item_type, 0))
-            claim = min(int(required), max(0, available - already_claimed))
-            item_claims[item_type] = already_claimed + claim
-            if task.action == "Craft Item" and claim < int(required):
+            claims = item_claims.setdefault(item_type, [])
+            higher_claimed = sum(
+                amount for priority, amount in claims
+                if priority < task.priority
+            )
+            available_after_higher = max(0, available - higher_claimed)
+            if task.action == "Craft Item" and available_after_higher < int(required):
                 conflicts.append("item_reserved_by_higher_priority_goal")
+            claims.append((task.priority, min(int(required), available)))
         return list(dict.fromkeys(conflicts))
 
     def _disposition(self, command, blockers, warnings):
