@@ -293,6 +293,35 @@ class ExecutionBoundaryTests(unittest.TestCase):
             opportunistic.blockers,
         )
 
+    def test_large_high_priority_batch_reserves_only_its_next_craft(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 2
+        self.operations.world.mannies["mannies"].append({
+            "id": 202, "currentTask": None, "canReceiveOrders": True,
+            "location": {"type": "probe"},
+        })
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Prepare Manufacturing", reason="Large protected batch",
+                target="storage_container", quantity=100, priority=1,
+                constraints=("missing_resources",),
+            ),
+            Task(
+                action="Craft Item", reason="Use genuine surplus",
+                target="storage_container", quantity=1, priority=2,
+            ),
+        ])
+
+        surplus_craft = next(
+            item for item in prepared
+            if item.command.reason == "Use genuine surplus"
+        )
+        self.assertNotIn(
+            "resource_reserved_by_higher_priority_goal",
+            surplus_craft.blockers,
+        )
+
     def test_large_goal_can_dispatch_one_order_before_full_batch_is_funded(self):
         self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 1
         tasks = Planner(

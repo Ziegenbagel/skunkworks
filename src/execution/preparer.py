@@ -98,9 +98,13 @@ class CommandPreparer:
     def _reserve_manufacturing_inputs(self, task, resource_claims, item_claims):
         if task.action not in {"Craft Item", "Prepare Manufacturing"} or not task.target:
             return []
+        # The dispatcher starts one craft per proposal. Reserve the inputs for
+        # the next unit of a higher-priority goal, not its entire desired batch;
+        # otherwise a large long-term target can strand usable surplus and idle
+        # fabricators while protected work is already in progress.
         plan = self.translator.operations.manufacturing.production_plan(
             task.target,
-            quantity=max(1, int(task.quantity)),
+            quantity=1,
             include_operational_constraints=False,
         )
         if plan is None:
