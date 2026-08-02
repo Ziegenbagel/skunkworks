@@ -51,6 +51,18 @@ Item {
     function commandAllowed(commandType) {
         return (runtimeData.allowedCommandTypes || []).indexOf(commandType) >= 0;
     }
+    function hasUnblockedCommand() {
+        const queue = runtimeData.queue || [];
+        for (let i = 0; i < queue.length; ++i) {
+            if (!(queue[i].blockers || []).length && String(queue[i].disposition) !== "blocked")
+                return true;
+        }
+        return false;
+    }
+    function waitingPlans() {
+        if (hasUnblockedCommand()) return [];
+        return (runtimeData.planning || []).slice(0, 8);
+    }
     function executionPolicyPayload() {
         const allowed = [];
         if (craftCommands.checked) {
@@ -255,10 +267,10 @@ Item {
                             }
                         }
                     }
-                    Label { visible: !(root.runtimeData.queue || []).length; text: "NO ACTIONABLE COMMANDS · TARGETS MAY ALREADY BE SATISFIED OR NO READY ASSET IS AVAILABLE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
-                    Label { visible: !(root.runtimeData.queue || []).length && (root.runtimeData.planning || []).length; text: "PLANNER STATUS · WHY ORDERS ARE WAITING"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { visible: !root.hasUnblockedCommand(); text: "NO UNBLOCKED COMMAND IS READY · REVIEW THE PLANNER STATUS BELOW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                    Label { visible: root.waitingPlans().length > 0; text: "PLANNER STATUS · WHY HIGHER-PRIORITY ORDERS ARE WAITING"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                     Repeater {
-                        model: !(root.runtimeData.queue || []).length ? (root.runtimeData.planning || []).slice(0, 8) : []
+                        model: root.waitingPlans()
                         delegate: Rectangle {
                             id: waitingRow
                             required property var modelData
