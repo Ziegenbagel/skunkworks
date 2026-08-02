@@ -48,7 +48,7 @@ class ManufacturingService:
             return completed
 
         completed = sum(
-            1
+            self._item_quantity(item)
             for item in self.world.probe[
                 "inventory"
             ].get("items", [])
@@ -473,11 +473,22 @@ class ManufacturingService:
         item_pool = {}
 
         for item in inventory.get("items", []):
-            item_pool.setdefault(item["type"], []).append(
-                item.copy()
-            )
+            for stack_index in range(self._item_quantity(item)):
+                entry = item.copy()
+                # Dependency allocation consumes units, not API stack rows.
+                entry["quantity"] = 1
+                entry["stackIndex"] = stack_index
+                item_pool.setdefault(item["type"], []).append(entry)
 
         return resources, item_pool
+
+    @staticmethod
+    def _item_quantity(item):
+        value = item.get("quantity", item.get("count", 1))
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 1
 
     def _missing_resources(self, required, available):
         return {

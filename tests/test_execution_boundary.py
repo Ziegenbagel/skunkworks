@@ -458,6 +458,21 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertLess(component_names.index("integrated_circuit"), component_names.index("steel_plate"))
         self.assertLess(component_names.index("linear_actuator"), component_names.index("steel_plate"))
 
+    def test_tanker_component_status_credits_stacked_api_inventory_quantity(self):
+        from src.planner.assembly import tanker_component_statuses
+
+        self.operations.world.probe["inventory"]["items"] = [{
+            "id": "plate-stack", "type": "steel_plate", "quantity": 10,
+        }]
+
+        plate = next(
+            status for status in tanker_component_statuses(self.operations)
+            if status["component"] == "steel_plate"
+        )
+        self.assertEqual(plate["completed"], 10)
+        self.assertEqual(plate["allocated_stored"], 10)
+        self.assertEqual(plate["missing"], 0)
+
     def test_active_tanker_component_does_not_hide_remaining_build_plan(self):
         from src.planner.assembly import TANKER_COMPONENTS
 

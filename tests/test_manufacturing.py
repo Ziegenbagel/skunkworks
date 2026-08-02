@@ -186,6 +186,16 @@ class ManufacturingServiceTests(unittest.TestCase):
         self.assertEqual(self.service.inventory_count("steel_bar"), 2)
         self.assertEqual(self.service.inventory_count("steel_bar", include_active=False), 1)
 
+    def test_inventory_count_and_dependency_allocation_expand_api_item_stacks(self):
+        self.world.probe["inventory"]["items"] = [{
+            "id": "plates", "type": "steel_bar", "quantity": 3,
+            "containerSpace": 0.03,
+        }]
+
+        self.assertEqual(self.service.inventory_count("steel_bar", include_active=False), 3)
+        resources, items = self.service.available_inputs()
+        self.assertEqual(items["steel_bar"], 3)
+
     def test_stale_task_detail_does_not_credit_idle_manny_production(self):
         self.world.mannies["mannies"][0].update({
             "currentTask": None,

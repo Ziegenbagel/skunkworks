@@ -22,7 +22,14 @@ def tanker_component_statuses(operations):
     """Return every tanker component's stored, active, and outstanding state."""
 
     inventory = operations.world.probe.get("inventory", {})
-    counts = Counter(item.get("type") for item in inventory.get("items", ()))
+    counts = Counter()
+    for item in inventory.get("items", ()):
+        value = item.get("quantity", item.get("count", 1))
+        try:
+            quantity = max(0, int(value))
+        except (TypeError, ValueError):
+            quantity = 1
+        counts[item.get("type")] += quantity
     statuses = []
     for component, required in TANKER_COMPONENTS:
         completed = counts.get(component, 0)
