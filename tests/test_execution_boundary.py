@@ -190,6 +190,43 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(prepared[1].disposition, "blocked")
         self.assertIn("resource_reserved_by_higher_priority_goal", prepared[1].blockers)
 
+    def test_lower_priority_craft_can_use_surplus_beyond_reservation(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 3
+        self.operations.world.mannies["mannies"].append({
+            "id": 202, "currentTask": None, "canReceiveOrders": True,
+            "location": {"type": "probe"},
+        })
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Craft Item", reason="High-priority containers",
+                target="storage_container", quantity=2, priority=1,
+            ),
+            Task(
+                action="Craft Item", reason="Opportunistic container",
+                target="storage_container", quantity=1, priority=5,
+            ),
+        ])
+
+        self.assertEqual(len(prepared), 2)
+        self.assertNotIn(
+            "resource_reserved_by_higher_priority_goal",
+            prepared[1].blockers,
+        )
+
+    def test_large_goal_can_dispatch_one_order_before_full_batch_is_funded(self):
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 1
+        tasks = Planner(
+            self.operations,
+            DesiredState(production=(ProductionGoal("storage_container", 100, priority=1),)),
+        ).tasks()
+        manufacturing = next(task for task in tasks if task.category == "manufacturing")
+
+        self.assertEqual(manufacturing.action, "Craft Item")
+        self.assertEqual(manufacturing.quantity, 100)
+        self.assertIn("one craft at a time", manufacturing.reason)
+
     def test_ready_tanker_goal_becomes_special_assembly_command(self):
         from src.planner.assembly import TANKER_COMPONENTS
 

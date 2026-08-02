@@ -100,7 +100,7 @@ class CommandPreparer:
             return []
         plan = self.translator.operations.manufacturing.production_plan(
             task.target,
-            quantity=1,
+            quantity=max(1, int(task.quantity)),
             include_operational_constraints=False,
         )
         if plan is None:
