@@ -331,8 +331,15 @@ class MissionControlDataService:
 
     @staticmethod
     def _execution_message(result):
+        status = result.status.replace("_", " ").title()
+        if result.status == "cancelled" and result.blockers:
+            reasons = ", ".join(
+                str(blocker).replace("_", " ")
+                for blocker in result.blockers
+            )
+            return f"{status} · {reasons}"
         if result.status != "failed" or not isinstance(result.response, dict):
-            return result.status.replace("_", " ").title()
+            return status
         detail = result.response.get("detail")
         if isinstance(detail, dict):
             error = detail.get("error", detail)
@@ -845,7 +852,7 @@ class MissionControlController(QObject):
         runtime["lastResult"] = self._qt_safe(result)
         self._dashboard["automationRuntime"] = runtime
         self.dashboardChanged.emit()
-        if result.get("status") == "succeeded":
+        if result.get("status") in {"succeeded", "cancelled", "failed", "expired"}:
             self._start_refresh(self._focused_probe_id)
 
     def _automation_tick(self):
@@ -1279,6 +1286,10 @@ class MissionControlController(QObject):
 
     @Slot(object)
     def _accept_dashboard(self, payload):
+        previous_last_result = (
+            self._dashboard.get("automationRuntime", {}).get("lastResult")
+            if self._dashboard else None
+        )
         payload["credentials"] = {
             "configured": self.credentialConfigured,
             "source": self.credentialSource,
@@ -1286,6 +1297,10 @@ class MissionControlController(QObject):
         }
         payload = self._qt_safe(payload)
         self._dashboard = payload
+        if previous_last_result is not None:
+            runtime = dict(self._dashboard.get("automationRuntime", {}))
+            runtime["lastResult"] = previous_last_result
+            self._dashboard["automationRuntime"] = runtime
         self._api_compatible = True
         self._dashboard["compatibility"] = {
             "checked": True,

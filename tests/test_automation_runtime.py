@@ -13,6 +13,7 @@ from src.execution import (
     ExecutionPolicy,
     PreparedCommand,
 )
+from src.execution.runtime import ExecutionResult
 from tests.test_planner_missions import build_operations
 
 
@@ -98,6 +99,18 @@ class AutomationRuntimeTests(unittest.TestCase):
         self.assertEqual(result.status, "cancelled")
         self.assertIn("probe_unavailable", result.blockers)
         self.assertEqual(self.mannies.calls, [])
+
+    def test_cancelled_result_message_explains_fresh_preflight_blocker(self):
+        from src.ui.controller import MissionControlDataService
+
+        result = ExecutionResult(
+            "cancelled", self.command, blockers=("manny_unavailable",)
+        )
+
+        self.assertEqual(
+            MissionControlDataService._execution_message(result),
+            "Cancelled · manny unavailable",
+        )
 
     def test_execution_lease_prevents_parallel_probe_commands(self):
         self.assertTrue(
