@@ -5,6 +5,9 @@
 - Enlarged Fleet Status counts for double/triple-digit fleets, doubled Resource
   Summary bar thickness, and added bounded sector-map placement: outward orbital
   labels, reserved perimeter slots, and overflow grouping for dense sectors.
+- Tightened Resource Summary row spacing so all four thick bars remain inside
+  the panel, moved sector perimeter objects to fixed edge buffers, and stacked
+  their Manny activity badges away from lateral object labels.
 - Fixed Save Automation Targets replacing the live fleet-wide probe-role view
   with a role-less desired-state payload and making assigned roles appear as
   Unassigned until the next refresh.

@@ -8,7 +8,7 @@ Item {
     property real value: 0.5
     property string reading: "50%"
     property color accentColor: Constants.cyanColor
-    implicitHeight: 48
+    implicitHeight: 45
 
     Label {
         id: metricLabel

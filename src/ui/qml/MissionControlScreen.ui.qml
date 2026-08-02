@@ -311,7 +311,7 @@ Rectangle {
                         title: "Resource Summary"
                         contentItem: Column {
                             width: parent.width
-                            spacing: 8
+                            spacing: 4
 
                             Repeater {
                                 model: root.resourceRows

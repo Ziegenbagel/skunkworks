@@ -41,7 +41,8 @@ Rectangle {
         return -1;
     }
     function freeObjectX(index) {
-        return width * (index < 3 ? 0.15 : 0.85);
+        const edgeBuffer = 46;
+        return index < 3 ? edgeBuffer : width - edgeBuffer;
     }
     function freeObjectY(index) {
         const leftRows = [0.20, 0.40, 0.60];
@@ -131,8 +132,9 @@ Rectangle {
             badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
             Label {
                 readonly property real angle: root.orbitAngle(orbitalMarker.index)
-                readonly property bool above: Math.sin(angle) < -0.55
-                readonly property bool below: Math.sin(angle) > 0.55
+                readonly property bool nearBottomEdge: root.bodyY(orbitalMarker.index) > root.height - 112
+                readonly property bool above: Math.sin(angle) < -0.55 || nearBottomEdge
+                readonly property bool below: Math.sin(angle) > 0.55 && !nearBottomEdge
                 readonly property bool leftSide: Math.cos(angle) < 0
                 anchors.top: below ? parent.bottom : undefined
                 anchors.topMargin: below ? 6 : 0
@@ -193,7 +195,7 @@ Rectangle {
 
     MapObjectMarker {
         width: 88; height: 88
-        x: root.width * 0.08; y: root.height * 0.80
+        x: 12; y: root.height * 0.80
         iconSource: AssetCatalog.probeIcon(root.focusProbe.model || "generic")
         selected: true
         Label {
@@ -221,11 +223,13 @@ Rectangle {
             readonly property bool clusterLeft: targetX >= root.centerX
             readonly property bool clusterAbove: targetY >= root.centerY
             width: 46; height: 46
-            x: targetIndex >= 0 || freeTargetIndex >= 0 ? (clusterLeft ? targetX - 78 : targetX + 32)
-               : targetsFocusedProbe ? root.width * 0.10 + 102
-               : root.width * 0.10 + (index % 4) * 170
-            y: targetIndex >= 0 || freeTargetIndex >= 0 ? Math.max(8, Math.min(root.height - 88, clusterAbove ? targetY - 78 : targetY + 34))
-               : targetsFocusedProbe ? root.height * 0.80 - 54
+            x: freeTargetIndex >= 0 ? targetX - width / 2
+               : targetIndex >= 0 ? (clusterLeft ? targetX - 78 : targetX + 32)
+               : targetsFocusedProbe ? 33
+               : 118 + (index % 4) * 170
+            y: freeTargetIndex >= 0 ? Math.max(8, Math.min(root.height - 88, targetY > root.height * 0.70 ? targetY - 82 : targetY + 34))
+               : targetIndex >= 0 ? Math.max(8, Math.min(root.height - 88, clusterAbove ? targetY - 78 : targetY + 34))
+               : targetsFocusedProbe ? root.height * 0.80 - 60
                : root.height * 0.84 + Math.floor(index / 4) * 46
             iconSource: AssetCatalog.icon("manny")
             Rectangle {
