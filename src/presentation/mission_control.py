@@ -331,6 +331,12 @@ class MissionControlViewModelBuilder:
             sector = observation.get("sector", observation)
             objects = sector.get("objects", ()) or ()
             object_types = [str(item.get("type", "unknown")) for item in objects]
+            resource_types = self._galaxy_resource_types(sector, objects)
+            hazard_types = self._galaxy_hazard_types(sector, objects)
+            has_detached_containers = any(
+                "container" in str(item.get("type") or item.get("kind") or "").casefold()
+                for item in objects
+            )
             knowledge = str(sector.get("knowledgeLevel", "unknown"))
             is_focused = coordinate.x == focus_coordinates.get("x") and coordinate.y == focus_coordinates.get("y") and coordinate.z == focus_coordinates.get("z")
             if is_focused:
@@ -354,6 +360,11 @@ class MissionControlViewModelBuilder:
                 "probeIds": sorted(record.observed_by_probe_ids),
                 "objectCount": len(objects),
                 "objectTypes": object_types,
+                "resourceTypes": resource_types,
+                "hasKnownResources": bool(resource_types),
+                "hasHazard": bool(hazard_types),
+                "hazardTypes": hazard_types,
+                "hasDetachedContainers": has_detached_containers,
                 "knowledgeLevel": knowledge,
                 "confidence": float(sector.get("confidence", 0) or 0),
                 "isFocused": is_focused,
@@ -364,7 +375,98 @@ class MissionControlViewModelBuilder:
             for target in nodes[index + 1:]:
                 if max(abs(source[axis] - target[axis]) for axis in ("x", "y", "z")) == 1:
                     edges.append({"from": source["id"], "to": target["id"]})
-        return {"nodes": tuple(nodes), "edges": tuple(edges), "sectorCount": len(nodes)}
+        recent_route = self._recent_galaxy_route(world, nodes)
+        return {
+            "nodes": tuple(nodes),
+            "edges": tuple(edges),
+            "sectorCount": len(nodes),
+            "recentTrail": recent_route,
+            "recentTrailCount": len(recent_route),
+            "recentTrailProbeId": world.probe.get("id"),
+        }
+
+    @staticmethod
+    def _normalized_resource_type(value):
+        normalized = str(value or "").strip().casefold().replace(" ", "_").replace("-", "_")
+        if normalized in {
+            "organic_compound", "organic_compounds",
+            "carbon_compound", "carbon_compounds",
+        }:
+            return "carbon_compounds"
+        return normalized
+
+    @classmethod
+    def _galaxy_resource_types(cls, sector, objects):
+        """Return confirmed resource types without treating unknown sectors as empty."""
+        found = set()
+
+        def collect(value):
+            if isinstance(value, dict):
+                for key, amount in value.items():
+                    try:
+                        present = float(amount or 0) > 0
+                    except (TypeError, ValueError):
+                        present = bool(amount)
+                    if present:
+                        found.add(cls._normalized_resource_type(key))
+            elif isinstance(value, (list, tuple, set)):
+                for item in value:
+                    if isinstance(item, dict):
+                        resource_type = item.get("type") or item.get("resourceType") or item.get("name")
+                        amount = item.get("amount", item.get("remaining", 1))
+                        if resource_type and amount not in (0, 0.0, "0", None):
+                            found.add(cls._normalized_resource_type(resource_type))
+                    elif item:
+                        found.add(cls._normalized_resource_type(item))
+
+        candidates = [sector, *objects]
+        candidates.extend(
+            target
+            for object_ in objects
+            for target in (object_.get("minableTargets", ()) or ())
+            if isinstance(target, dict)
+        )
+        for candidate in candidates:
+            for key in (
+                "resourceAmounts", "resources", "resourceTypes", "resourceComposition",
+                "composition", "remainingResources",
+            ):
+                collect(candidate.get(key))
+        return sorted(item for item in found if item)
+
+    @staticmethod
+    def _galaxy_hazard_types(sector, objects):
+        hazards = set()
+        for value in sector.get("hazards", ()) or ():
+            if isinstance(value, dict):
+                hazards.add(str(value.get("type") or value.get("code") or "hazard"))
+            else:
+                hazards.add(str(value))
+        dangerous_types = {"black_hole", "anomaly", "singularity", "hostile", "hazard"}
+        for object_ in objects:
+            type_ = str(object_.get("type") or object_.get("kind") or "unknown").casefold()
+            danger = str(object_.get("dangerLevel") or object_.get("danger") or "").casefold()
+            if type_ in dangerous_types or danger not in {"", "none", "safe", "low", "unknown", "0"}:
+                hazards.add(type_ if type_ != "unknown" else danger)
+        return sorted(hazards)
+
+    def _recent_galaxy_route(self, world, nodes, limit=10):
+        if self.data_engine is None or world.probe.get("id") is None:
+            return ()
+        visits = list(self.data_engine.visits(world.probe["id"]))[:limit]
+        known_ids = {node["id"] for node in nodes}
+        points = []
+        for visit in reversed(visits):
+            identifier = f"{visit['sector_x']}:{visit['sector_y']}:{visit['sector_z']}"
+            if identifier in known_ids and (not points or points[-1]["id"] != identifier):
+                points.append({"id": identifier, "visitedAt": visit["last_visited_at"] or ""})
+        return tuple(
+            {
+                "from": source["id"], "to": target["id"], "sequence": index + 1,
+                "fromVisitedAt": source["visitedAt"], "toVisitedAt": target["visitedAt"],
+            }
+            for index, (source, target) in enumerate(zip(points, points[1:]))
+        )
 
     @staticmethod
     def _coordinates(probe):

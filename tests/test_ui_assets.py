@@ -175,6 +175,12 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "Repeater3D" in galaxy
     assert "pickable: true" in galaxy
     assert "CLICK A SECTOR DOT FOR DETAILS" in galaxy
+    assert "HAZARDS ONLY" in galaxy
+    assert "CONFIRMED WITHOUT" in galaxy
+    assert "ORGANIC / CARBON COMPOUNDS" in galaxy
+    assert "DROPPED CONTAINERS" in galaxy
+    assert "FOCUSED PROBE · RECENT 10 TRAIL" in galaxy
+    assert "recentTrail" in galaxy
     assert "SCUT TRANSIT BEACONS" in Path("src/ui/qml/components/AutomationSettings.qml").read_text()
 
 

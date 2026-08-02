@@ -12,8 +12,57 @@ Item {
     property int focusedProbeId: -1
     property var selectedNode: null
     readonly property var nodes: galaxyData.nodes || []
+    property bool showCurrent: true
+    property bool showScanned: true
+    property bool showVisited: true
+    property bool showObserved: true
+    property bool showUnknown: true
+    property bool hazardsOnly: false
+    property bool salvageOnly: false
+    property bool showRecentTrail: true
+    property string resourceFilter: "all"
+    property string resourceMode: "all"
+    readonly property var visibleNodes: {
+        const dependency = [showCurrent, showScanned, showVisited, showObserved, showUnknown,
+                            hazardsOnly, salvageOnly, resourceFilter, resourceMode];
+        return nodes.filter(function(node) { return root.matchesFilters(node); });
+    }
+    readonly property var visibleEdges: {
+        const visible = {};
+        for (let i = 0; i < visibleNodes.length; ++i) visible[visibleNodes[i].id] = true;
+        return (galaxyData.edges || []).filter(function(edge) { return visible[edge.from] && visible[edge.to]; });
+    }
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
+
+    function stateEnabled(state) {
+        return (state === "current" && showCurrent) || (state === "scanned" && showScanned)
+            || (state === "visited" && showVisited) || (state === "observed" && showObserved)
+            || (state === "unknown" && showUnknown);
+    }
+    function matchesFilters(node) {
+        if (!stateEnabled(String(node.mapState || "unknown"))) return false;
+        if (hazardsOnly && !node.hasHazard) return false;
+        if (salvageOnly && !node.hasDetachedContainers) return false;
+        if (resourceMode !== "all" && resourceFilter !== "all") {
+            const types = node.resourceTypes || [];
+            const hasResource = types.indexOf(resourceFilter) >= 0;
+            if (resourceMode === "has" && !hasResource) return false;
+            // Absence is authoritative only after a sector has been scanned.
+            if (resourceMode === "without"
+                    && (String(node.knowledgeLevel || "unknown") === "unknown" || hasResource)) return false;
+        }
+        return true;
+    }
+    function showOnlyState(state) {
+        showCurrent = state === "current"; showScanned = state === "scanned";
+        showVisited = state === "visited"; showObserved = state === "observed";
+        showUnknown = state === "unknown";
+    }
+    function showAllStates() {
+        showCurrent = true; showScanned = true; showVisited = true;
+        showObserved = true; showUnknown = true;
+    }
 
     function nodeById(identifier) {
         for (let i = 0; i < nodes.length; ++i)
@@ -91,7 +140,7 @@ Item {
         }
 
         Repeater3D {
-            model: root.galaxyData.edges || []
+            model: root.visibleEdges
             delegate: Model {
                 id: linkModel
                 required property var modelData
@@ -112,7 +161,29 @@ Item {
         }
 
         Repeater3D {
-            model: root.nodes
+            model: root.showRecentTrail ? (root.galaxyData.recentTrail || []) : []
+            delegate: Model {
+                id: trailModel
+                required property var modelData
+                property var fromNode: root.nodeById(modelData.from)
+                property var toNode: root.nodeById(modelData.to)
+                property vector3d fromPosition: fromNode ? root.positionFor(fromNode) : Qt.vector3d(0, 0, 0)
+                property vector3d toPosition: toNode ? root.positionFor(toNode) : Qt.vector3d(0, 0, 0)
+                property real dx: toPosition.x - fromPosition.x
+                property real dy: toPosition.y - fromPosition.y
+                property real dz: toPosition.z - fromPosition.z
+                property real linkLength: Math.sqrt(dx * dx + dy * dy + dz * dz)
+                visible: fromNode !== null && toNode !== null
+                source: "#Cube"
+                position: Qt.vector3d((fromPosition.x + toPosition.x) / 2, (fromPosition.y + toPosition.y) / 2, (fromPosition.z + toPosition.z) / 2)
+                scale: Qt.vector3d(linkLength / 100, 0.045, 0.045)
+                eulerRotation: Qt.vector3d(0, -Math.atan2(dz, dx) * 180 / Math.PI, Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * 180 / Math.PI)
+                materials: DefaultMaterial { lighting: DefaultMaterial.NoLighting; diffuseColor: Constants.warningColor; opacity: 0.96 }
+            }
+        }
+
+        Repeater3D {
+            model: root.visibleNodes
             delegate: Model {
                 id: sectorModel
                 required property var modelData
@@ -161,6 +232,63 @@ Item {
         }
     }
 
+    Rectangle {
+        anchors.right: parent.right; anchors.top: parent.top
+        anchors.rightMargin: 12; anchors.topMargin: 94
+        width: 520; height: 244
+        color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.lineColor
+        ColumnLayout {
+            anchors.fill: parent; anchors.margins: 10; spacing: 5
+            RowLayout {
+                Layout.fillWidth: true
+                Label { text: "MAP FILTERS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                Item { Layout.fillWidth: true }
+                Button { text: "SHOW ALL"; onClicked: root.showAllStates() }
+            }
+            Label { text: "DISCOVERY STATE · CLICK A LABEL FOR ONLY THAT STATE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 4
+                CheckBox { text: "CURRENT"; checked: root.showCurrent; onToggled: root.showCurrent = checked }
+                CheckBox { text: "SCANNED"; checked: root.showScanned; onToggled: root.showScanned = checked }
+                CheckBox { text: "VISITED"; checked: root.showVisited; onToggled: root.showVisited = checked }
+                CheckBox { text: "OBSERVED"; checked: root.showObserved; onToggled: root.showObserved = checked }
+                CheckBox { text: "UNKNOWN"; checked: root.showUnknown; onToggled: root.showUnknown = checked }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Label { text: "QUICK VIEW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+                Button { text: "ONLY UNEXPLORED"; onClicked: root.showOnlyState("unknown") }
+                Button { text: "ONLY VISITED"; onClicked: root.showOnlyState("visited") }
+                Button { text: "ONLY SCANNED"; onClicked: root.showOnlyState("scanned") }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                ComboBox {
+                    id: resourceModeBox; Layout.preferredWidth: 180
+                    model: [{text:"ALL SYSTEMS", value:"all"}, {text:"HAS RESOURCE", value:"has"}, {text:"CONFIRMED WITHOUT", value:"without"}]
+                    textRole: "text"; valueRole: "value"; onActivated: root.resourceMode = currentValue
+                }
+                ComboBox {
+                    id: resourceTypeBox; Layout.fillWidth: true
+                    model: [{text:"ANY RESOURCE", value:"all"}, {text:"DEUTERIUM", value:"deuterium"}, {text:"METALS", value:"metals"}, {text:"ICE", value:"ice"}, {text:"ORGANIC / CARBON COMPOUNDS", value:"carbon_compounds"}]
+                    textRole: "text"; valueRole: "value"; onActivated: root.resourceFilter = currentValue
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                CheckBox { text: "HAZARDS ONLY"; checked: root.hazardsOnly; onToggled: root.hazardsOnly = checked }
+                CheckBox { text: "DROPPED CONTAINERS"; checked: root.salvageOnly; onToggled: root.salvageOnly = checked }
+                CheckBox { text: "FOCUSED PROBE · RECENT 10 TRAIL"; checked: root.showRecentTrail; onToggled: root.showRecentTrail = checked }
+            }
+            Label {
+                Layout.fillWidth: true
+                text: root.visibleNodes.length + " OF " + root.nodes.length + " SECTORS VISIBLE · "
+                    + Number(root.galaxyData.recentTrailCount || 0) + " RECENT ROUTE SEGMENTS"
+                color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 9
+            }
+        }
+    }
+
     Column {
         anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12; spacing: 6
         Row {
@@ -185,7 +313,7 @@ Item {
         width: 470; height: 190; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 10; spacing: 5
-            ComboBox { Layout.fillWidth: true; model: root.nodes; textRole: "label"; onActivated: root.selectedNode = root.nodes[currentIndex] }
+            ComboBox { Layout.fillWidth: true; model: root.visibleNodes; textRole: "label"; onActivated: root.selectedNode = root.visibleNodes[currentIndex] }
             Label { text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
             Label { Layout.fillWidth: true; text: root.selectedNode ? "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 9; font.bold: true }
             Label { Layout.fillWidth: true; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9; wrapMode: Text.Wrap }
@@ -206,6 +334,11 @@ Item {
                 Rectangle { width: 10; height: 10; radius: 5; color: parent.modelData.color }
                 Label { text: parent.modelData.label; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
             }
+        }
+        Row {
+            spacing: 5
+            Rectangle { width: 18; height: 4; anchors.verticalCenter: parent.verticalCenter; color: Constants.warningColor }
+            Label { text: "FOCUSED PROBE RECENT TRAIL"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
         }
     }
 

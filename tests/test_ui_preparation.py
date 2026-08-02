@@ -372,6 +372,56 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(view["nodes"][0]["mapState"], "current")
         self.assertEqual(view["nodes"][1]["mapState"], "visited")
 
+    def test_galaxy_view_exposes_resource_hazard_salvage_filters_and_recent_route(self):
+        from src.models.galaxy import GalaxyMap
+
+        class VisitHistory:
+            def visits(self, probe_id):
+                self.probe_id = probe_id
+                return [
+                    {"sector_x": 1, "sector_y": 1, "sector_z": 0, "last_visited_at": "new"},
+                    {"sector_x": 0, "sector_y": 0, "sector_z": 0, "last_visited_at": "old"},
+                ]
+
+        base = build_operations()
+        galaxy = GalaxyMap()
+        galaxy.record_observation({"sector": {
+            "relativeCoordinates": {"x": 0, "y": 0, "z": 0},
+            "knowledgeLevel": "detailed", "confidence": 1,
+            "objects": [{
+                "id": "mine", "type": "asteroid", "mannyMineable": True,
+                "resourceAmounts": {"metals": 3.5, "ice": 0},
+            }],
+        }}, probe_id=base.world.probe["id"])
+        galaxy.record_observation({"sector": {
+            "relativeCoordinates": {"x": 1, "y": 1, "z": 0},
+            "knowledgeLevel": "detailed", "confidence": 1,
+            "objects": [
+                {"id": "danger", "type": "black_hole"},
+                {"id": "cache", "type": "detached_container"},
+            ],
+        }}, probe_id=base.world.probe["id"])
+        base.world.galaxy = galaxy
+        history = VisitHistory()
+
+        builder = MissionControlViewModelBuilder(base, data_engine=history)
+        view = builder._galaxy_view(base.world, builder._coordinates(base.world.probe))
+
+        self.assertEqual(view["nodes"][0]["resourceTypes"], ["metals"])
+        self.assertTrue(view["nodes"][1]["hasHazard"])
+        self.assertTrue(view["nodes"][1]["hasDetachedContainers"])
+        self.assertEqual(view["recentTrail"][0]["from"], "0:0:0")
+        self.assertEqual(view["recentTrail"][0]["to"], "1:1:0")
+        self.assertEqual(history.probe_id, base.world.probe["id"])
+
+    def test_galaxy_resource_filter_unifies_game_and_api_compound_names(self):
+        normalize = MissionControlViewModelBuilder._normalized_resource_type
+
+        self.assertEqual(normalize("Organic compound"), "carbon_compounds")
+        self.assertEqual(normalize("organic_compounds"), "carbon_compounds")
+        self.assertEqual(normalize("Carbon compound"), "carbon_compounds")
+        self.assertEqual(normalize("carbon_compounds"), "carbon_compounds")
+
     def test_empty_detailed_sector_is_explicit_in_view_model(self):
         base = build_operations()
         base.world.sector["snapshot"] = {
