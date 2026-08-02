@@ -219,6 +219,36 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(controller.dashboard["automation"]["probeRoles"], {})
             self.assertIn("main/default probe", controller.error)
 
+    def test_saving_targets_preserves_owned_probe_roles(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            service = type(
+                "Service",
+                (),
+                {
+                    "data_engine": engine,
+                    "automation_view": lambda self: {
+                        "mode": "observe",
+                        "liveExecutionEnabled": False,
+                    },
+                },
+            )()
+            controller = MissionControlController(service)
+            controller._focused_probe_id = 1
+            controller._dashboard = {
+                "automation": {
+                    "probeRoles": {"1": "hub", "2": "miner"},
+                    "fleetStatus": [{"model": "generic"}],
+                },
+            }
+
+            controller.saveAutomationSettings({"minimumFuelPercent": 35})
+
+            automation = controller.dashboard["automation"]
+            self.assertEqual(automation["probeRoles"], {"1": "hub", "2": "miner"})
+            self.assertEqual(automation["fleetStatus"], [{"model": "generic"}])
+            self.assertEqual(automation["minimumFuelPercent"], 35)
+
     def test_resource_summary_uses_current_probe_fuel_and_inventory_amounts(self):
         resources = MissionControlViewModelBuilder._resources({
             "fuel": {"deuterium": 82, "maxDeuterium": 100},

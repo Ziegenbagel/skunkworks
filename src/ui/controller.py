@@ -967,7 +967,9 @@ class MissionControlController(QObject):
         except Exception as error:
             self._set_error(str(error) or type(error).__name__)
             return
-        self._dashboard["automation"] = self._qt_safe(state.to_dict())
+        automation = dict(self._dashboard.get("automation", {}))
+        automation.update(self._qt_safe(state.to_dict()))
+        self._dashboard["automation"] = automation
         runtime = self.service.automation_view()
         self._dashboard["automationRuntime"] = self._qt_safe(runtime)
         self._configure_automation_timer(runtime)

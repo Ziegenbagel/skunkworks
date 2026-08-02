@@ -2,6 +2,9 @@
 
 ## 0.1 — 2026-08-01
 
+- Fixed Save Automation Targets replacing the live fleet-wide probe-role view
+  with a role-less desired-state payload and making assigned roles appear as
+  Unassigned until the next refresh.
 - Added automatic rotating diagnostic error logs for handled UI/API failures
   and uncaught Python exceptions. Settings can open the support-log folder for
   bug reports, and credential-like values are redacted before writing.
