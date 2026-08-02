@@ -2,7 +2,7 @@
 
 from src.planner.priorities import HIGH, NORMAL
 from src.planner.task import Task
-from src.planner.assembly import tanker_shortage
+from src.planner.assembly import tanker_component_statuses
 
 
 def plan(operations, desired_state) -> list[Task]:
@@ -55,18 +55,12 @@ def plan(operations, desired_state) -> list[Task]:
         )
         if current_fleet >= goal.quantity:
             continue
-        missing = tanker_shortage(operations)
-        if missing is None:
-            continue
-        component, amount, _, _ = missing
-        # Active production may satisfy the whole component shortage. In that
-        # case there is no recipe quantity to expand and no resource demand to
-        # reserve; the fleet rule emits the explanatory waiting task.
-        if amount <= 0:
-            continue
-        production = operations.manufacturing.production_plan(
-            component, quantity=amount, include_operational_constraints=False,
-        )
+        requests = {
+            status["component"]: status["missing"]
+            for status in tanker_component_statuses(operations)
+            if status["missing"] > 0
+        }
+        production = operations.manufacturing.production_bundle_plan(requests)
         if production is None:
             continue
         for resource_type, resource_amount in production["missing_resources"].items():

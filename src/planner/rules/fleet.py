@@ -1,7 +1,7 @@
 """Desired assembled-fleet planning."""
 
 from src.planner.task import Task
-from src.planner.assembly import empty_assembly_containers, tanker_shortage
+from src.planner.assembly import empty_assembly_containers, tanker_component_statuses
 
 
 def plan(operations, desired_state) -> list[Task]:
@@ -30,40 +30,57 @@ def plan(operations, desired_state) -> list[Task]:
             ))
             continue
 
-        missing = tanker_shortage(operations)
-        if missing is not None:
-            component, amount, required, current = missing
-            active = operations.manufacturing.active_production_count(component)
-            if amount == 0:
+        component_statuses = tanker_component_statuses(operations)
+        unfinished = [
+            status for status in component_statuses
+            if status["completed"] < status["required"]
+        ]
+        if unfinished:
+            for index, status in enumerate(component_statuses, start=1):
+                component = status["component"]
+                amount = status["missing"]
+                if status["completed"] >= status["required"]:
+                    continue
+                progress = (
+                    f"Tanker component {index}/{len(component_statuses)}: "
+                    f"{status['required']} required, {status['completed']} stored, "
+                    f"{status['active']} crafting, {amount} still unallocated."
+                )
+                if amount == 0:
+                    surplus = max(0, status["active"] - status["credited_active"])
+                    surplus_text = (
+                        f" {surplus} additional active craft will be surplus to this tanker."
+                        if surplus else ""
+                    )
+                    tasks.append(Task(
+                        action="Await Active Production",
+                        reason=(
+                            f"{progress} Active production covers this requirement; "
+                            f"no duplicate order is needed.{surplus_text}"
+                        ),
+                        category="fleet_assembly",
+                        target=component,
+                        quantity=status["credited_active"],
+                        constraints=("active_production_pending",),
+                        priority=goal.priority,
+                    ))
+                    continue
+                production = operations.manufacturing.production_plan(
+                    component, quantity=1,
+                )
+                blockers = ("unknown_recipe",) if production is None else production["blockers"]
                 tasks.append(Task(
-                    action="Await Active Production",
+                    action="Craft Item" if production and production["achievable"] else "Prepare Manufacturing",
                     reason=(
-                        f"Priority {goal.priority} tanker goal reserves {active} active "
-                        f"{component.replace('_', ' ')} craft; no duplicate order is needed."
+                        f"{progress} Priority {goal.priority} tanker goal reserves "
+                        f"this work ahead of lower-priority goals."
                     ),
                     category="fleet_assembly",
                     target=component,
-                    quantity=active,
-                    constraints=("active_production_pending",),
+                    quantity=amount,
+                    constraints=blockers,
                     priority=goal.priority,
                 ))
-                continue
-            production = operations.manufacturing.production_plan(
-                component, quantity=amount,
-            )
-            blockers = ("unknown_recipe",) if production is None else production["blockers"]
-            tasks.append(Task(
-                action="Craft Item" if production and production["achievable"] else "Prepare Manufacturing",
-                reason=(
-                    f"Priority {goal.priority} tanker goal requires {required} "
-                    f"{component.replace('_', ' ')}; {current} available."
-                ),
-                category="fleet_assembly",
-                target=component,
-                quantity=amount,
-                constraints=blockers,
-                priority=goal.priority,
-            ))
             continue
 
         containers = empty_assembly_containers(operations)

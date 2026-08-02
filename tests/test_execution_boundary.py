@@ -232,6 +232,96 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertIn("no duplicate order", tasks[0].reason)
         self.assertEqual(CommandPreparer(self.operations, 1, self.policy).prepare(tasks), ())
 
+    def test_active_tanker_component_does_not_hide_remaining_build_plan(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["items"] = [
+            {"id": "engine-1", "type": "deuterium_engine"},
+        ]
+        self.operations.world.mannies["mannies"][0].update({
+            "currentTask": "crafting",
+            "task": {"recipe": "scut_relay", "recipeName": "SCUT relay"},
+        })
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+        ).tasks()
+        tanker_tasks = [task for task in tasks if task.category == "fleet_assembly"]
+        targets = {task.target for task in tanker_tasks}
+
+        self.assertIn("scut_relay", targets)
+        self.assertIn("electric_motor", targets)
+        self.assertIn("integrated_circuit", targets)
+        self.assertEqual(
+            targets,
+            {component for component, _ in TANKER_COMPONENTS} - {"deuterium_engine"},
+        )
+        self.assertTrue(all(task.priority == 1 for task in tanker_tasks))
+        self.assertIn("component 2/8", tanker_tasks[0].reason.lower())
+
+    def test_tanker_resource_mining_inherits_tanker_priority(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        for component, _ in TANKER_COMPONENTS:
+            self.operations.manufacturing.recipes._recipes[component] = {
+                "id": component,
+                "name": component.replace("_", " ").title(),
+                "craftableBy": ["manny"],
+                "durationSeconds": 60,
+                "ingredients": [
+                    {"type": "metals", "quantity": 1, "kind": "resource"},
+                ],
+                "output": {"type": component, "containerSpace": 0.1},
+            }
+        for stock in self.operations.world.probe["inventory"]["resourceStocks"]:
+            stock["amount"] = 0
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+        ).tasks()
+        mining = [task for task in tasks if task.category == "mining"]
+
+        self.assertTrue(mining)
+        self.assertTrue(all(task.priority == 1 for task in mining))
+
+    def test_tanker_component_can_start_before_full_batch_is_funded(self):
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.manufacturing.recipes._recipes["steel_plate"] = {
+            "id": "steel_plate",
+            "name": "Steel plate",
+            "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [
+                {"type": "metals", "quantity": 1, "kind": "resource"},
+            ],
+            "output": {"type": "steel_plate", "containerSpace": 0.1},
+        }
+        self.operations.world.probe["inventory"]["items"] = [
+            {"id": f"{component}-{index}", "type": component}
+            for component, quantity in (
+                ("deuterium_engine", 1),
+                ("scut_relay", 1),
+                ("electric_motor", 5),
+                ("atomic_printer_part", 2),
+                ("solar_panel", 4),
+            )
+            for index in range(quantity)
+        ]
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 1
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+        ).tasks()
+        plate = next(task for task in tasks if task.target == "steel_plate")
+
+        self.assertEqual(plate.action, "Craft Item")
+        self.assertEqual(plate.quantity, 10)
+
     def test_travel_command_uses_safe_direct_distance(self):
         prepared = self.prepare(
             DesiredState(

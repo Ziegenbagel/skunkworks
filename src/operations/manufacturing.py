@@ -253,6 +253,49 @@ class ManufacturingService:
             "achievable": not blockers,
         }
 
+    def production_bundle_plan(self, requests):
+        """Resolve several recipe quantities against one shared inventory pool."""
+
+        normalized = {
+            recipe_id: int(quantity)
+            for recipe_id, quantity in requests.items()
+            if quantity and int(quantity) == quantity and int(quantity) > 0
+        }
+        if not normalized:
+            return {
+                "required_resources": {},
+                "missing_resources": {},
+                "consumed_inventory_items": {},
+                "synthesized_components": {},
+                "uncraftable_items": {},
+            }
+        if any(self.recipes.get(recipe_id) is None for recipe_id in normalized):
+            return None
+
+        resources, item_pool = self._inventory()
+        required_resources = {}
+        consumed_items = []
+        synthesized = {}
+        uncraftable_items = {}
+        for recipe_id, quantity in normalized.items():
+            for _ in range(quantity):
+                self._resolve_recipe(
+                    recipe_id,
+                    item_pool,
+                    required_resources,
+                    consumed_items,
+                    synthesized,
+                    uncraftable_items,
+                    set(),
+                )
+        return {
+            "required_resources": self._rounded(required_resources),
+            "missing_resources": self._missing_resources(required_resources, resources),
+            "consumed_inventory_items": self._item_counts(consumed_items),
+            "synthesized_components": synthesized,
+            "uncraftable_items": self._rounded(uncraftable_items),
+        }
+
     def _resolve_recipe(
         self,
         recipe_id,

@@ -15,17 +15,38 @@ TANKER_COMPONENTS = (
 )
 
 
-def tanker_shortage(operations):
-    """Return the first unfinished component, crediting active production."""
+def tanker_component_statuses(operations):
+    """Return every tanker component's stored, active, and outstanding state."""
 
     inventory = operations.world.probe.get("inventory", {})
     counts = Counter(item.get("type") for item in inventory.get("items", ()))
+    statuses = []
     for component, required in TANKER_COMPONENTS:
         completed = counts.get(component, 0)
-        missing = max(0, required - completed)
-        if missing:
-            active = operations.manufacturing.active_production_count(component)
-            return component, max(0, missing - active), required, completed
+        active = operations.manufacturing.active_production_count(component)
+        credited_active = min(active, max(0, required - completed))
+        statuses.append({
+            "component": component,
+            "required": required,
+            "completed": completed,
+            "active": active,
+            "credited_active": credited_active,
+            "missing": max(0, required - completed - credited_active),
+        })
+    return tuple(statuses)
+
+
+def tanker_shortage(operations):
+    """Return the first unfinished component for compatibility callers."""
+
+    for status in tanker_component_statuses(operations):
+        if status["completed"] < status["required"]:
+            return (
+                status["component"],
+                status["missing"],
+                status["required"],
+                status["completed"],
+            )
     return None
 
 
