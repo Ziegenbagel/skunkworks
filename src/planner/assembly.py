@@ -9,9 +9,12 @@ TANKER_COMPONENTS = (
     ("electric_motor", 5),
     ("atomic_printer_part", 2),
     ("solar_panel", 4),
-    ("steel_plate", 10),
     ("linear_actuator", 2),
     ("integrated_circuit", 1),
+    # Steel plates are also ingredients of several components above. Build the
+    # tanker's final plate allotment only after those consumers are complete so
+    # the same ten plates are not mistakenly credited and then consumed.
+    ("steel_plate", 10),
 )
 
 
@@ -31,6 +34,10 @@ def tanker_component_statuses(operations):
             "completed": completed,
             "active": active,
             "credited_active": credited_active,
+            "allocated_stored": min(completed, required),
+            "allocated_active": credited_active,
+            "surplus_stored": max(0, completed - required),
+            "surplus_active": max(0, active - credited_active),
             "missing": max(0, required - completed - credited_active),
         })
     return tuple(statuses)

@@ -44,11 +44,13 @@ def plan(operations, desired_state) -> list[Task]:
                 progress = (
                     f"Tanker component {index}/{len(component_statuses)}: "
                     f"{component.replace('_', ' ')} — "
-                    f"{status['required']} required, {status['completed']} stored, "
-                    f"{status['active']} crafting, {amount} still unallocated."
+                    f"{status['required']} required; "
+                    f"{status['allocated_stored']} stored and allocated, "
+                    f"{status['allocated_active']} active craft allocated, "
+                    f"{amount} still unallocated."
                 )
                 if amount == 0:
-                    surplus = max(0, status["active"] - status["credited_active"])
+                    surplus = status["surplus_active"]
                     surplus_text = (
                         f" {surplus} additional active craft will be surplus to this tanker."
                         if surplus else ""

@@ -445,7 +445,18 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual(tasks[0].action, "Await Active Production")
         self.assertIn("no duplicate order", tasks[0].reason)
+        self.assertIn("1 active craft allocated", tasks[0].reason)
         self.assertEqual(CommandPreparer(self.operations, 1, self.policy).prepare(tasks), ())
+
+    def test_tanker_builds_final_steel_plate_allotment_after_consuming_components(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        component_names = [component for component, _quantity in TANKER_COMPONENTS]
+
+        self.assertEqual(component_names[-1], "steel_plate")
+        self.assertLess(component_names.index("scut_relay"), component_names.index("steel_plate"))
+        self.assertLess(component_names.index("integrated_circuit"), component_names.index("steel_plate"))
+        self.assertLess(component_names.index("linear_actuator"), component_names.index("steel_plate"))
 
     def test_active_tanker_component_does_not_hide_remaining_build_plan(self):
         from src.planner.assembly import TANKER_COMPONENTS
