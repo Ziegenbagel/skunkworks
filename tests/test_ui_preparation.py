@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from src.data import DataEngine
 from src.operations.operations import Operations
@@ -109,6 +110,48 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.dashboard["connection"], "stale")
         self.assertEqual(controller.dashboard["connectionLabel"], "LIVE LINK INTERRUPTED")
         self.assertIn("temporarily unavailable", controller.error)
+
+    def test_automatic_tick_refreshes_before_replanning_and_execution(self):
+        events = []
+
+        class Service:
+            def load(self, probe_id):
+                events.append(("refresh", probe_id))
+                return {
+                    "focus": {"probeId": probe_id},
+                    "probeOptions": ({"id": probe_id, "name": "Explorer"},),
+                    "connection": "connected",
+                    "automationRuntime": {
+                        "mode": "automatic",
+                        "liveExecutionEnabled": True,
+                    },
+                }
+
+        class ImmediatePool:
+            @staticmethod
+            def start(worker):
+                worker.run()
+
+        controller = MissionControlController(Service(), ImmediatePool())
+        controller._focused_probe_id = 7
+        controller._dashboard = {
+            "automationRuntime": {
+                "mode": "automatic",
+                "liveExecutionEnabled": True,
+            },
+        }
+        controller._run_automation = lambda fingerprint, acknowledged: events.append(
+            ("automation", fingerprint, acknowledged)
+        )
+
+        with patch(
+            "src.ui.controller.QTimer.singleShot",
+            side_effect=lambda _delay, callback: callback(),
+        ):
+            controller._automation_tick()
+
+        self.assertEqual(events[0], ("refresh", 7))
+        self.assertEqual(events[1], ("automation", None, False))
 
     def test_periodic_check_pauses_automation_for_unreviewed_api(self):
         controller = MissionControlController()

@@ -658,6 +658,7 @@ class MissionControlController(QObject):
         self._automation_timer = QTimer(self)
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
+        self._automation_after_refresh = False
         self._compatibility_timer = QTimer(self)
         self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
         self._compatibility_timer.timeout.connect(self._start_compatibility_check)
@@ -854,7 +855,16 @@ class MissionControlController(QObject):
             and runtime.get("liveExecutionEnabled")
             and not self._emergency_stop
         ):
-            self._run_automation(None, False)
+            # A server-side task may have completed since the last dashboard
+            # snapshot. Refresh first so replanning never relies on a cached
+            # busy Manny, stale inventory, or finished production operation.
+            self._automation_after_refresh = True
+            if not self._refreshing:
+                self._start_refresh(
+                    self._focused_probe_id
+                    if self._focused_probe_id >= 0
+                    else None
+                )
 
     def _start_compatibility_check(self):
         if self.service is None or self._compatibility_worker is not None:
@@ -1330,6 +1340,7 @@ class MissionControlController(QObject):
             self._dashboard["connectionLabel"] = "LIVE LINK INTERRUPTED"
             self._dashboard["refreshError"] = message
             self.dashboardChanged.emit()
+        self._automation_after_refresh = False
         self._finish_refresh()
 
     def _finish_refresh(self):
@@ -1340,6 +1351,13 @@ class MissionControlController(QObject):
         self._pending_probe_id = None
         if pending is not None and pending != self._focused_probe_id:
             self._start_refresh(pending)
+            return
+        if self._automation_after_refresh:
+            self._automation_after_refresh = False
+            QTimer.singleShot(
+                0,
+                lambda: self._run_automation(None, False),
+            )
 
     def _set_refreshing(self, value):
         if value == self._refreshing:
