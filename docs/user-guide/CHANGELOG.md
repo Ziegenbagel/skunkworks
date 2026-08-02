@@ -8,6 +8,9 @@
 - Tightened Resource Summary row spacing so all four thick bars remain inside
   the panel, moved sector perimeter objects to fixed edge buffers, and stacked
   their Manny activity badges away from lateral object labels.
+- Reserved the sector map's lower-right zone for SCUT relay/transit-beacon
+  infrastructure, moved asteroid Manny activity into staggered inner lanes,
+  and changed planet placement to a stable irregular orbital distribution.
 - Fixed Save Automation Targets replacing the live fleet-wide probe-role view
   with a role-less desired-state payload and making assigned roles appear as
   Unassigned until the next refresh.

@@ -201,6 +201,10 @@ def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
     assert "freeObjectIndex(modelData.targetObjectId)" in sector
     assert "const edgeBuffer = 46" in sector
     assert "leftRows" in sector and "rightRows" in sector
+    assert "relayObjects" in sector
+    assert "SCUT RELAY · TRANSIT BEACON" in sector
+    assert "irregularAngles" in sector
+    assert "freeTargetIndex % 2" in sector
 
 
 def test_app_uses_a_dedicated_live_data_loading_screen():

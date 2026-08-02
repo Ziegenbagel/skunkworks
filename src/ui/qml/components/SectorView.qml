@@ -11,7 +11,8 @@ Rectangle {
     readonly property var objectModel: sectorData.objects || []
     readonly property var orbitalBodies: objectModel.filter(item => item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet")))
     readonly property var stars: objectModel.filter(item => item.layoutRole === "orbital_body" && item.type === "star")
-    readonly property var freeObjects: objectModel.filter(item => item.type !== "star" && !(item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet"))))
+    readonly property var relayObjects: objectModel.filter(item => String(item.type).toLowerCase() === "scut_relay")
+    readonly property var freeObjects: objectModel.filter(item => item.type !== "star" && String(item.type).toLowerCase() !== "scut_relay" && !(item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet"))))
     readonly property var mannyClusters: buildMannyClusters(sectorData.activeMannies || [])
     readonly property int maximumMannyAreas: 12
     readonly property int maximumFreeObjects: 8
@@ -27,7 +28,17 @@ Rectangle {
             return Math.min(maximumRadius, minimumRadius * 1.45);
         return minimumRadius + index * (maximumRadius - minimumRadius) / (orbitalBodies.length - 1);
     }
-    function orbitAngle(index) { return -Math.PI / 2 + index * 0.74; }
+    function stableRotation() {
+        const identifier = String((sectorData.system || {}).systemId || sectorData.label || "sector");
+        let hash = 0;
+        for (let i = 0; i < identifier.length; ++i)
+            hash = ((hash * 31) + identifier.charCodeAt(i)) & 0x7fffffff;
+        return (hash % 628) / 100;
+    }
+    function orbitAngle(index) {
+        const irregularAngles = [-1.34, 0.42, 2.76, -2.58, 1.48, -0.18, 3.08, -1.96];
+        return irregularAngles[index % irregularAngles.length] + stableRotation();
+    }
     function bodyX(index) { return centerX + Math.cos(orbitAngle(index)) * orbitRadius(index); }
     function bodyY(index) { return centerY + Math.sin(orbitAngle(index)) * orbitRadius(index) * orbitAspect; }
     function objectIndex(identifier) {
@@ -40,6 +51,11 @@ Rectangle {
             if (String(freeObjects[i].id) === String(identifier)) return i;
         return -1;
     }
+    function relayObjectIndex(identifier) {
+        for (let i = 0; i < relayObjects.length; ++i)
+            if (String(relayObjects[i].id) === String(identifier)) return i;
+        return -1;
+    }
     function freeObjectX(index) {
         const edgeBuffer = 46;
         return index < 3 ? edgeBuffer : width - edgeBuffer;
@@ -49,6 +65,8 @@ Rectangle {
         const rightRows = [0.20, 0.35, 0.50, 0.65, 0.80];
         return height * (index < 3 ? leftRows[index] : rightRows[index - 3]);
     }
+    function relayObjectX(index) { return width - 62; }
+    function relayObjectY(index) { return height - 112 - Math.min(index, 2) * 78; }
     function placeLabelOnLeft(markerCenterX) { return markerCenterX > width * 0.72; }
     function buildMannyClusters(mannies) {
         const groups = {};
@@ -180,6 +198,26 @@ Rectangle {
         }
     }
 
+    Repeater {
+        model: root.relayObjects.slice(0, 3)
+        delegate: MapObjectMarker {
+            id: relayMarker
+            required property var modelData
+            required property int index
+            width: 76; height: 76
+            x: root.relayObjectX(index) - width / 2
+            y: root.relayObjectY(index) - height / 2
+            iconSource: AssetCatalog.objectIcon(modelData.type, modelData)
+            badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
+            Label {
+                anchors.right: parent.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter
+                width: 235; horizontalAlignment: Text.AlignRight; elide: Text.ElideRight
+                text: relayMarker.modelData.isTransitBeacon ? "SCUT RELAY · TRANSIT BEACON" : (relayMarker.modelData.name || "SCUT RELAY")
+                color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true
+            }
+        }
+    }
+
     Label {
         visible: root.freeObjects.length > root.maximumFreeObjects
         anchors.right: parent.right
@@ -213,21 +251,26 @@ Rectangle {
             required property int index
             readonly property int targetIndex: root.objectIndex(modelData.targetObjectId)
             readonly property int freeTargetIndex: root.freeObjectIndex(modelData.targetObjectId)
+            readonly property int relayTargetIndex: root.relayObjectIndex(modelData.targetObjectId)
             readonly property bool targetsFocusedProbe: modelData.targetObjectId === "focused-probe"
             readonly property real targetX: targetIndex >= 0 ? root.bodyX(targetIndex)
                                                  : freeTargetIndex >= 0 ? root.freeObjectX(freeTargetIndex)
+                                                 : relayTargetIndex >= 0 ? root.relayObjectX(relayTargetIndex)
                                                  : root.width * 0.10
             readonly property real targetY: targetIndex >= 0 ? root.bodyY(targetIndex)
                                                  : freeTargetIndex >= 0 ? root.freeObjectY(freeTargetIndex)
+                                                 : relayTargetIndex >= 0 ? root.relayObjectY(relayTargetIndex)
                                                  : root.height * 0.80
             readonly property bool clusterLeft: targetX >= root.centerX
             readonly property bool clusterAbove: targetY >= root.centerY
             width: 46; height: 46
-            x: freeTargetIndex >= 0 ? targetX - width / 2
+            x: freeTargetIndex >= 0 ? (targetX < root.centerX ? 286 : root.width - 332)
+               : relayTargetIndex >= 0 ? root.width - 332
                : targetIndex >= 0 ? (clusterLeft ? targetX - 78 : targetX + 32)
                : targetsFocusedProbe ? 33
                : 118 + (index % 4) * 170
-            y: freeTargetIndex >= 0 ? Math.max(8, Math.min(root.height - 88, targetY > root.height * 0.70 ? targetY - 82 : targetY + 34))
+            y: freeTargetIndex >= 0 ? Math.max(8, Math.min(root.height - 88, targetY - height / 2 + (freeTargetIndex % 2 === 0 ? -20 : 20)))
+               : relayTargetIndex >= 0 ? Math.max(8, targetY - 82)
                : targetIndex >= 0 ? Math.max(8, Math.min(root.height - 88, clusterAbove ? targetY - 78 : targetY + 34))
                : targetsFocusedProbe ? root.height * 0.80 - 60
                : root.height * 0.84 + Math.floor(index / 4) * 46
