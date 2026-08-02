@@ -192,12 +192,32 @@ class UiPreparationTests(unittest.TestCase):
             engine = DataEngine(Path(temporary) / "ui.sqlite3")
             service = type("Service", (), {"data_engine": engine})()
             controller = MissionControlController(service)
-            controller._dashboard = {"automation": {"probeRoles": {}}}
+            controller._focused_probe_id = 9
+            controller._dashboard = {
+                "defaultProbeId": 9,
+                "automation": {"probeRoles": {}},
+            }
 
             controller.assignProbeRole(9, "deuterium_reserve")
 
             self.assertEqual(controller.dashboard["automation"]["probeRoles"]["9"], "deuterium_reserve")
             self.assertEqual(engine.fleet_roles("probe")[0]["role"], "deuterium_reserve")
+
+    def test_controller_rejects_probe_role_change_from_secondary_probe(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            service = type("Service", (), {"data_engine": engine})()
+            controller = MissionControlController(service)
+            controller._focused_probe_id = 2
+            controller._dashboard = {
+                "defaultProbeId": 1,
+                "automation": {"probeRoles": {}},
+            }
+
+            controller.assignProbeRole(2, "miner")
+
+            self.assertEqual(controller.dashboard["automation"]["probeRoles"], {})
+            self.assertIn("main/default probe", controller.error)
 
     def test_resource_summary_uses_current_probe_fuel_and_inventory_amounts(self):
         resources = MissionControlViewModelBuilder._resources({

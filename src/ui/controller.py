@@ -127,11 +127,18 @@ class MissionControlDataService:
                 option["status"] = dashboard["focus"]["status"]
                 option["model"] = dashboard["focus"]["model"]
         dashboard["probeOptions"] = options
+        default_probe = next(
+            (item for item in options if item.get("isDefault")),
+            None,
+        )
+        dashboard["defaultProbeId"] = (
+            default_probe["id"] if default_probe is not None else None
+        )
         dashboard["syncFailures"] = sync_failures
         dashboard["emergencyStopActive"] = self.data_engine.emergency_stop_active()
         if self._last_scan_result is not None:
             dashboard.setdefault("navigation", {})["scanResult"] = self._last_scan_result
-        desired_state = DesiredStateStore(self.data_engine).load()
+        desired_state = DesiredStateStore(self.data_engine).load(selected["id"])
         automation = desired_state.to_dict()
         probes = world.fleet.get("probes", ()) if getattr(world, "fleet", None) else (probe,)
         model_counts = {}
@@ -218,7 +225,7 @@ class MissionControlDataService:
         else:
             tasks = Planner(
                 operations,
-                DesiredStateStore(self.data_engine).load(),
+                DesiredStateStore(self.data_engine).load(probe_id),
             ).tasks()
             self._prepared_commands = CommandPreparer(
                 operations, probe_id, policy,
@@ -946,7 +953,9 @@ class MissionControlController(QObject):
             self.service = MissionControlDataService()
         try:
             state = DesiredState.from_dict(self._qt_safe(settings))
-            DesiredStateStore(self.service.data_engine).save(state)
+            DesiredStateStore(self.service.data_engine).save(
+                state, self._focused_probe_id,
+            )
         except Exception as error:
             self._set_error(str(error) or type(error).__name__)
             return
@@ -961,6 +970,10 @@ class MissionControlController(QObject):
     def assignProbeRole(self, probe_id, role):
         if self.service is None:
             self.service = MissionControlDataService()
+        default_probe_id = self._dashboard.get("defaultProbeId")
+        if default_probe_id is None or int(self._focused_probe_id) != int(default_probe_id):
+            self._set_error("Probe roles can only be managed while the main/default probe is focused.")
+            return
         try:
             FleetRoleService(self.service.data_engine).assign("probe", probe_id, role)
         except Exception as error:
@@ -1086,7 +1099,7 @@ class MissionControlController(QObject):
             return
         try:
             store = DesiredStateStore(self.service.data_engine)
-            current = store.load()
+            current = store.load(self._focused_probe_id)
             state = DesiredState(
                 production=current.production,
                 resources=current.resources,
@@ -1095,7 +1108,7 @@ class MissionControlController(QObject):
                 travel=TravelGoal(SectorCoordinates(x, y, z)),
                 fleet=current.fleet,
             )
-            store.save(state)
+            store.save(state, self._focused_probe_id)
         except Exception as error:
             self._set_error(str(error) or type(error).__name__)
             return

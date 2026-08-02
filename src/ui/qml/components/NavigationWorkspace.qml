@@ -127,6 +127,8 @@ PanelFrame {
             runtimeData: root.dashboardData.automationRuntime || ({})
             credentialData: root.dashboardData.credentials || ({})
             availableProbes: root.availableProbes
+            focusedProbeId: root.focusedProbeId
+            defaultProbeId: root.dashboardData.defaultProbeId === undefined ? -1 : Number(root.dashboardData.defaultProbeId)
             onSaveRequested: settings => root.automationSettingsSaved(settings)
             onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
             onApiKeySaveRequested: apiKey => root.apiKeySaveRequested(apiKey)

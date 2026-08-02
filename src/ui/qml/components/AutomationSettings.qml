@@ -10,6 +10,9 @@ Item {
     property var runtimeData: ({})
     property var availableProbes: []
     property var credentialData: ({})
+    property int focusedProbeId: -1
+    property int defaultProbeId: -1
+    readonly property bool canManageProbeRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
     signal saveRequested(var settings)
     signal roleAssignmentRequested(int probeId, string role)
     signal apiKeySaveRequested(string apiKey)
@@ -71,8 +74,38 @@ Item {
         miningCommands.checked = commandAllowed("manny_mine");
         travelCommands.checked = commandAllowed("move_probe");
     }
+    function syncDesiredStateControls() {
+        genericTarget.value = Number((settingsData.fleetTargets || {}).generic || 0);
+        tankerTarget.value = Number((settingsData.fleetTargets || {}).deuterium_tanker || 0);
+        genericPriority.value = Number((settingsData.fleetPriorities || {}).generic || 5);
+        tankerPriority.value = Number((settingsData.fleetPriorities || {}).deuterium_tanker || 1);
+        mannyTarget.value = productionQuantity("manny");
+        mannyPriority.value = productionPriority("manny");
+        containerTarget.value = productionQuantity("additional_container");
+        containerPriority.value = productionPriority("additional_container");
+        relayTarget.value = productionQuantity("scut_relay");
+        relayPriority.value = productionPriority("scut_relay");
+        beaconTarget.value = productionQuantity("scut_transit_beacon");
+        beaconPriority.value = productionPriority("scut_transit_beacon");
+        deuteriumReserve.value = reserve("deuterium");
+        metalsReserve.value = reserve("metals");
+        iceReserve.value = reserve("ice");
+        carbonReserve.value = reserve("carbon_compounds");
+        deuteriumPriority.value = Number((settingsData.resourcePriorities || {}).deuterium || 5);
+        metalsPriority.value = Number((settingsData.resourcePriorities || {}).metals || 5);
+        icePriority.value = Number((settingsData.resourcePriorities || {}).ice || 5);
+        carbonPriority.value = Number((settingsData.resourcePriorities || {}).carbon_compounds || 5);
+        fuelFloor.value = Number(settingsData.minimumFuelPercent || 20);
+        fuelPriority.value = Number(settingsData.fuelPriority || 3);
+        freeCapacity.value = Number(settingsData.minimumFreeCapacity || 1);
+        capacityPriority.value = Number(settingsData.inventoryPriority || 3);
+    }
     onRuntimeDataChanged: syncExecutionControls()
-    Component.onCompleted: syncExecutionControls()
+    onSettingsDataChanged: syncDesiredStateControls()
+    Component.onCompleted: {
+        syncExecutionControls();
+        syncDesiredStateControls();
+    }
     function payload() {
         const production = [];
         const existing = settingsData.production || [];
@@ -108,50 +141,6 @@ Item {
         anchors.fill: parent; clip: true
         ColumnLayout {
             width: root.width - 24; spacing: 14
-            Label { text: "AUTOMATION DESIRED STATE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true }
-            Label { Layout.fillWidth: true; text: "Targets are persistent planner goals. Priority 1 is highest. Goals never bypass safety review or the emergency stop."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-
-            GroupBox {
-                title: "AUDIO"; Layout.fillWidth: true
-                GridLayout {
-                    anchors.fill: parent; columns: 4; columnSpacing: 18; rowSpacing: 10
-                    CheckBox {
-                        text: "BACKGROUND MUSIC"
-                        checked: AudioManager.musicEnabled
-                        onToggled: AudioManager.musicEnabled = checked
-                    }
-                    Label { text: "MUSIC VOLUME"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    Slider {
-                        Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.01
-                        value: AudioManager.musicVolume
-                        onMoved: AudioManager.musicVolume = value
-                    }
-                    Button { text: AudioManager.musicPlaying ? "PAUSE MUSIC" : "PLAY MUSIC"; onClicked: AudioManager.previewMusic() }
-
-                    CheckBox {
-                        text: "INTERFACE EFFECTS"
-                        checked: AudioManager.effectsEnabled
-                        onToggled: AudioManager.effectsEnabled = checked
-                    }
-                    Label { text: "EFFECTS VOLUME"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    Slider {
-                        Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.01
-                        value: AudioManager.effectsVolume
-                        onMoved: AudioManager.effectsVolume = value
-                    }
-                    Button { text: "TEST EFFECT"; enabled: AudioManager.effectsEnabled; onClicked: AudioManager.play("confirm") }
-
-                    CheckBox {
-                        text: "HOVER SOUNDS"
-                        checked: AudioManager.hoverEnabled
-                        onToggled: AudioManager.hoverEnabled = checked
-                        ToolTip.visible: hovered
-                        ToolTip.text: "Plays subtle feedback when entering navigation, probe-selector, and galaxy-map controls. Disabled by default."
-                    }
-                    Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "SPACE AMBIENT CINEMATIC MUSIC · VIACHESLAV STAROSTIN  |  UI AUDIO · JUMMIT, MOUSEBYTE, HAELDB"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                }
-            }
-
             GroupBox {
                 title: "ACCOUNT & API CREDENTIAL"; Layout.fillWidth: true
                 ColumnLayout {
@@ -171,12 +160,29 @@ Item {
             }
 
             GroupBox {
+                title: "AUDIO"; Layout.fillWidth: true
+                GridLayout {
+                    anchors.fill: parent; columns: 4; columnSpacing: 18; rowSpacing: 10
+                    CheckBox { text: "BACKGROUND MUSIC"; checked: AudioManager.musicEnabled; onToggled: AudioManager.musicEnabled = checked }
+                    Label { text: "MUSIC VOLUME"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    Slider { Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.01; value: AudioManager.musicVolume; onMoved: AudioManager.musicVolume = value }
+                    Button { text: AudioManager.musicPlaying ? "PAUSE MUSIC" : "PLAY MUSIC"; onClicked: AudioManager.previewMusic() }
+                    CheckBox { text: "INTERFACE EFFECTS"; checked: AudioManager.effectsEnabled; onToggled: AudioManager.effectsEnabled = checked }
+                    Label { text: "EFFECTS VOLUME"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    Slider { Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.01; value: AudioManager.effectsVolume; onMoved: AudioManager.effectsVolume = value }
+                    Button { text: "TEST EFFECT"; enabled: AudioManager.effectsEnabled; onClicked: AudioManager.play("confirm") }
+                    CheckBox { text: "HOVER SOUNDS"; checked: AudioManager.hoverEnabled; onToggled: AudioManager.hoverEnabled = checked; ToolTip.visible: hovered; ToolTip.text: "Plays subtle feedback when entering navigation, probe-selector, and galaxy-map controls. Disabled by default." }
+                    Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "SPACE AMBIENT CINEMATIC MUSIC · VIACHESLAV STAROSTIN  |  UI AUDIO · JUMMIT, MOUSEBYTE, HAELDB"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                }
+            }
+
+            GroupBox {
                 title: "AUTOMATION EXECUTION"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 10
                     Label {
                         Layout.fillWidth: true
-                        text: "EXECUTION POLICY FOR FOCUSED PROBE · " + root.probeName(root.runtimeData.probeId).toUpperCase() + "\nMode, command permissions, and the cycle limit apply only to this probe. Targets create proposed actions. Observe only previews them; Approval requires a click for each command; Automatic evaluates the probe queue every 60 seconds."
+                        text: "AUTOMATION SETTINGS FOR FOCUSED PROBE · " + root.probeName(root.runtimeData.probeId).toUpperCase() + "\nExecution policy, targets, priorities, reserves, and safety floors apply only to this probe. Targets are persistent planner goals; Priority 1 is highest. Goals never bypass safety review or the emergency stop. Observe Only previews commands; Approval requires a click; Automatic evaluates this probe every 60 seconds."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     GridLayout {
@@ -301,6 +307,7 @@ Item {
                 ColumnLayout {
                     anchors.fill: parent; spacing: 8
                     Label { Layout.fillWidth: true; text: "Roles guide mining, transport, hub, tanker, reserve, exploration, and construction planning. Explorer probes automatically scan all 12 neighboring FCC sectors once after arriving idle in a new sector."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                    Label { Layout.fillWidth: true; visible: !root.canManageProbeRoles; text: "LOCKED · Focus the main/default probe to change owned probe roles."; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
                     Repeater {
                         model: root.availableProbes
                         delegate: RowLayout {
@@ -312,6 +319,7 @@ Item {
                             ComboBox {
                                 id: roleSelector
                                 Layout.preferredWidth: 230
+                                enabled: root.canManageProbeRoles
                                 model: root.roleOptions
                                 currentIndex: Math.max(0, root.roleOptions.indexOf(root.roleFor(probeRoleRow.modelData.id)))
                                 onActivated: root.roleAssignmentRequested(Number(probeRoleRow.modelData.id), String(currentText))

@@ -428,7 +428,7 @@ def build():
 
     doc.add_page_break()
     add_heading(doc, "7. Settings and Automation")
-    add_body(doc, "Settings combines account access, audio, automation authority, desired-state targets, probe roles, safety floors, and help links. Read the section labels before changing values; quantity and priority controls answer different questions.")
+    add_body(doc, "Settings begins with account access, followed by audio, automation authority, desired-state targets, probe roles, safety floors, and help links. Automation policies, targets, priorities, reserves, and safety floors are stored separately for each focused probe. Owned probe roles are fleet-wide and can only be changed while the main/default probe is focused. Read the section labels before changing values; quantity and priority controls answer different questions.")
     add_body(doc, "Check for Updates opens the official latest-release channel. Download the signed package for the current operating system; the running application never silently replaces itself or bypasses platform security checks.")
     add_body(doc, "API compatibility is checked at startup and every six hours. If the server advertises an unreviewed API version, Skunkworks keeps the last valid snapshot visible, labels it stale, and pauses live commands until compatibility has been reviewed. This version check does not consume the probe request budget.")
     if has_settings_figure:
@@ -438,10 +438,10 @@ def build():
         caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
         font(caption.add_run("Figure 7-1. Settings workspace: command authority and desired-state controls."), size=9, color=MUTED)
         add_settings_legend(doc)
-    add_note(doc, "More settings below", "Scroll to configure probe roles, live target status, resource and safety floors, audio, and the Help & Documentation links.")
+    add_note(doc, "More settings below", "Scroll to configure probe roles, live target status, resource and safety floors, and the Help & Documentation links.")
 
     add_heading(doc, "Automation and priorities", 2)
-    add_body(doc, "Execution authority is probe-specific. The mode, live-order permission, command allowlist, and maximum orders per cycle shown in Settings belong to the focused probe. Switching probes loads that probe's policy and queue; a command prepared for one probe cannot be dispatched under another probe's policy. Desired-state fleet targets remain account-level planning goals.")
+    add_body(doc, "Automation configuration is probe-specific. The mode, live-order permission, command allowlist, maximum orders per cycle, targets, priorities, reserves, and safety floors shown in Settings belong to the focused probe. Switching probes loads that probe's saved configuration and queue; a command prepared for one probe cannot be dispatched under another probe's policy. Probe-role assignments are the fleet-wide exception and are editable only from the main/default probe.")
     add_body(doc, "Automation targets describe a desired state. Priority uses a 1–10 scale: 1 is highest; equal numbers receive equal priority. The planner compares targets with existing inventory, active work, available Mannys, recipes, resource needs, fuel floors, and safety policy.")
     add_note(doc, "Allocation ledger", "Active crafting outputs count toward the goal that requested them, preventing duplicate work. During each planning cycle, higher-priority operations claim their required stored resources and component items first. Lower-priority commands cannot spend those claims; equal-priority goals are evaluated in stable target order and refreshed against live inventory before execution.")
     add_heading(doc, "Recommended commissioning sequence", 2)
@@ -457,7 +457,6 @@ def build():
     add_heading(doc, "Max orders per cycle", 2)
     add_body(doc, "This limit is the maximum number of separate live game orders Skunkworks may send during one 60-second automatic cycle. It is a rate and blast-radius control, not a target quantity.")
 
-    doc.add_page_break()
     add_heading(doc, "8. Safety Controls")
     add_bullets(doc, [
         "Travel-distance risk warns when a proposed journey may destroy a probe.",

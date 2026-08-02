@@ -21,6 +21,12 @@
         "manny_mine"
       ],
       "maxCommandsPerCycle": 10
+    },
+    "762": {
+      "mode": "automatic",
+      "liveExecutionEnabled": true,
+      "allowedCommandTypes": [],
+      "maxCommandsPerCycle": 10
     }
   }
 }

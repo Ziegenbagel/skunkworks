@@ -119,6 +119,20 @@ class DesiredStateTests(unittest.TestCase):
             store.save(saved)
             self.assertEqual(store.load(), saved)
 
+    def test_store_keeps_probe_desired_states_separate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = DesiredStateStore(
+                DataEngine(Path(directory) / "data.sqlite3"),
+            )
+            probe_one = DesiredState(fuel=FuelGoal(30))
+            probe_two = DesiredState(fuel=FuelGoal(70))
+
+            store.save(probe_one, 1)
+            store.save(probe_two, 2)
+
+            self.assertEqual(store.load(1), probe_one)
+            self.assertEqual(store.load(2), probe_two)
+
 
 if __name__ == "__main__":
     unittest.main()

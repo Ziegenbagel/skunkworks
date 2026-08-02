@@ -2,6 +2,10 @@
 
 ## 0.1 — 2026-08-01
 
+- Corrected Settings scope: execution policy and desired-state automation
+  values are now stored per probe, while fleet-wide role assignments are
+  locked unless the main/default probe is focused. Reordered API credentials
+  above Audio and moved planner guidance into Automation Execution.
 - Corrected mining production details to prefer the API's current public
   asteroid or planet name instead of exposing its legacy command object ID.
 - Reformatted production completion estimates in the user's local timezone
