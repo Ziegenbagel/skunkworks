@@ -31,6 +31,11 @@ def plan(operations, desired_state) -> list[Task]:
             continue
 
         component_statuses = tanker_component_statuses(operations)
+        reserved_items = tuple(
+            (status["component"], status["allocated_stored"])
+            for status in component_statuses
+            if status["allocated_stored"] > 0
+        )
         unfinished = [
             status for status in component_statuses
             if status["completed"] < status["required"]
@@ -65,6 +70,7 @@ def plan(operations, desired_state) -> list[Task]:
                         target=component,
                         quantity=status["credited_active"],
                         constraints=("active_production_pending",),
+                        reserved_items=reserved_items,
                         priority=goal.priority,
                     ))
                     continue
@@ -82,6 +88,7 @@ def plan(operations, desired_state) -> list[Task]:
                     target=component,
                     quantity=amount,
                     constraints=blockers,
+                    reserved_items=reserved_items,
                     priority=goal.priority,
                 ))
             continue
@@ -101,6 +108,7 @@ def plan(operations, desired_state) -> list[Task]:
                 if len(containers) >= 2
                 else ("two_unassigned_empty_containers_required",)
             ),
+            reserved_items=reserved_items,
             priority=goal.priority,
         ))
     return tasks

@@ -94,6 +94,22 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertNotEqual(first.fingerprint, next_unit.fingerprint)
         self.assertEqual(next_unit.metadata["storedBefore"], first.metadata["storedBefore"] + 1)
 
+    def test_repeat_craft_identity_advances_when_same_count_has_new_item(self):
+        from src.planner.task import Task
+
+        task = Task(
+            action="Craft Item", reason="Replacement production",
+            target="storage_container", priority=1,
+        )
+        items = self.operations.world.probe["inventory"].setdefault("items", [])
+        items.append({"id": "old-output", "type": "storage_container"})
+        first = TaskCommandTranslator(self.operations, 1).translate(task)
+        items[-1] = {"id": "replacement-output", "type": "storage_container"}
+        replacement = TaskCommandTranslator(self.operations, 1).translate(task)
+
+        self.assertEqual(first.metadata["storedBefore"], replacement.metadata["storedBefore"])
+        self.assertNotEqual(first.fingerprint, replacement.fingerprint)
+
     def test_mining_task_uses_contract_payload(self):
         self.operations = build_operations(metals=0)
         prepared = self.prepare(
@@ -238,6 +254,41 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(prepared[0].disposition, "ready")
         self.assertEqual(prepared[1].disposition, "blocked")
         self.assertIn("resource_reserved_by_higher_priority_goal", prepared[1].blockers)
+
+    def test_lower_priority_recipe_cannot_consume_stored_tanker_components(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"].setdefault("items", []).extend(
+            {"id": f"plate-{index}", "type": "steel_plate"}
+            for index in range(9)
+        )
+        self.operations.manufacturing.recipes._recipes["uses_plate"] = {
+            "id": "uses_plate", "name": "Uses plate", "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [{"type": "steel_plate", "quantity": 1, "kind": "item"}],
+            "output": {"type": "uses_plate", "containerSpace": 0.1},
+        }
+        self.operations.world.mannies["mannies"].append({
+            "id": 202, "currentTask": None, "canReceiveOrders": True,
+            "location": {"type": "probe"},
+        })
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Prepare Manufacturing", reason="Protected tanker plates",
+                target="steel_plate", constraints=("fabricator_unavailable",),
+                reserved_items=(("steel_plate", 9),), priority=1,
+            ),
+            Task(
+                action="Craft Item", reason="Lower-priority consumer",
+                target="uses_plate", priority=2,
+            ),
+        ])
+
+        consumer = next(
+            item for item in prepared
+            if item.command.reason == "Lower-priority consumer"
+        )
+        self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
 
     def test_lower_priority_craft_can_use_surplus_beyond_reservation(self):
         from src.planner.task import Task

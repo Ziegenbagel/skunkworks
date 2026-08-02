@@ -55,6 +55,12 @@ class TaskCommandTranslator:
         active_before = self.operations.manufacturing.active_production_count(
             task.target,
         )
+        inventory_items = self.operations.world.probe.get("inventory", {}).get("items", ())
+        output_item_ids = sorted(
+            str(item.get("id", item.get("itemId", "")))
+            for item in inventory_items
+            if item.get("type") == task.target
+        )
 
         return Command(
             type=command_type,
@@ -68,6 +74,10 @@ class TaskCommandTranslator:
                 "remainingOrders": int(task.quantity),
                 "storedBefore": int(stored_before),
                 "activeBefore": int(active_before),
+                # Counts can repeat after another recipe consumes an output.
+                # Identities distinguish the legitimate replacement order from
+                # the earlier successful command without weakening retries.
+                "outputItemIds": output_item_ids,
             },
         )
 

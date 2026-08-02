@@ -39,7 +39,7 @@ class CommandPreparer:
     def prepare(self, tasks):
         prepared = []
         resource_claims = {}
-        item_claims = {}
+        item_claims = self._goal_item_claims(tasks)
 
         for task in tasks:
             reservation_blockers = self._reserve_manufacturing_inputs(
@@ -94,6 +94,24 @@ class CommandPreparer:
         return tuple(
             prepared[: self.policy.max_commands_per_cycle]
         )
+
+    @staticmethod
+    def _goal_item_claims(tasks):
+        """Seed claims for completed parts committed to assembly goals.
+
+        Every task emitted for the same goal carries the same snapshot, so use
+        the maximum claim at each priority rather than adding duplicate copies.
+        """
+
+        grouped = {}
+        for task in tasks:
+            for item_type, amount in getattr(task, "reserved_items", ()):
+                key = (item_type, task.priority)
+                grouped[key] = max(grouped.get(key, 0), int(amount))
+        claims = {}
+        for (item_type, priority), amount in grouped.items():
+            claims.setdefault(item_type, []).append((priority, amount))
+        return claims
 
     def _reserve_manufacturing_inputs(self, task, resource_claims, item_claims):
         if task.action not in {"Craft Item", "Prepare Manufacturing"} or not task.target:
