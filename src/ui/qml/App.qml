@@ -285,6 +285,12 @@ ApplicationWindow {
                 window.backend.saveAutomationSettings(settings);
         }
 
+        function onDiagnosticLogsRequested() {
+            AudioManager.play("press");
+            if (window.backend)
+                window.backend.openDiagnosticLogs();
+        }
+
         function onProbeRoleAssigned(probeId, role) {
             AudioManager.play("confirm");
             if (window.backend)

@@ -43,6 +43,7 @@ PanelFrame {
     signal operatorManualRequested()
     signal changeLogRequested()
     signal updateCheckRequested()
+    signal diagnosticLogsRequested()
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -141,6 +142,7 @@ PanelFrame {
             onOperatorManualRequested: root.operatorManualRequested()
             onChangeLogRequested: root.changeLogRequested()
             onUpdateCheckRequested: root.updateCheckRequested()
+            onDiagnosticLogsRequested: root.diagnosticLogsRequested()
         }
 
         NavigationControl {

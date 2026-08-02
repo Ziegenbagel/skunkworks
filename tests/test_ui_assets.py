@@ -138,6 +138,16 @@ def test_settings_exposes_official_update_channel():
     assert "https://github.com/Ziegenbagel/skunkworks/releases/latest" in controller
 
 
+def test_settings_exposes_privacy_safe_diagnostic_logs():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+    diagnostics = Path("src/diagnostics.py").read_text()
+    assert "OPEN DIAGNOSTIC LOGS" in settings
+    assert "openDiagnosticLogs" in controller
+    assert "RotatingFileHandler" in diagnostics
+    assert "[REDACTED]" in diagnostics
+
+
 def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
     galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()

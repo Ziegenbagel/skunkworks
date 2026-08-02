@@ -2,6 +2,9 @@
 
 ## 0.1 — 2026-08-01
 
+- Added automatic rotating diagnostic error logs for handled UI/API failures
+  and uncaught Python exceptions. Settings can open the support-log folder for
+  bug reports, and credential-like values are redacted before writing.
 - Corrected Settings scope: execution policy and desired-state automation
   values are now stored per probe, while fleet-wide role assignments are
   locked unless the main/default probe is focused. Reordered API credentials

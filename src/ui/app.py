@@ -10,6 +10,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
 from src.ui.controller import MissionControlController
+from src.diagnostics import configure_diagnostics, install_exception_hooks
 
 
 def configure_qt_plugin_paths():
@@ -40,6 +41,8 @@ def configure_qt_plugin_paths():
 
 
 def run(controller=None):
+    configure_diagnostics()
+    install_exception_hooks()
     configure_qt_plugin_paths()
     QQuickStyle.setStyle("Basic")
     application = QGuiApplication(sys.argv)

@@ -25,7 +25,9 @@
     "762": {
       "mode": "automatic",
       "liveExecutionEnabled": true,
-      "allowedCommandTypes": [],
+      "allowedCommandTypes": [
+        "manny_mine"
+      ],
       "maxCommandsPerCycle": 10
     }
   }

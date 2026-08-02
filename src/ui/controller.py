@@ -39,6 +39,7 @@ from src.execution import (
     ExecutionMode, ExecutionPolicy,
 )
 from src.execution.policy import ExecutionPolicyStore
+from src.diagnostics import diagnostic_log_directory, log_handled_error
 
 
 class MissionControlDataService:
@@ -799,6 +800,13 @@ class MissionControlController(QObject):
         if not QDesktopServices.openUrl(url):
             self._set_error("The operating system could not open the Skunkworks release page.")
 
+    @Slot()
+    def openDiagnosticLogs(self):
+        directory = diagnostic_log_directory()
+        directory.mkdir(parents=True, exist_ok=True)
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory))):
+            self._set_error("The operating system could not open the diagnostic log folder.")
+
     @Slot("QVariantMap")
     def saveExecutionPolicy(self, value):
         if self.service is None:
@@ -1347,5 +1355,7 @@ class MissionControlController(QObject):
     def _set_error(self, value):
         if value == self._error:
             return
+        if value:
+            log_handled_error(value)
         self._error = value
         self.errorChanged.emit()

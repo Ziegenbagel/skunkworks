@@ -429,7 +429,7 @@ def build():
     doc.add_page_break()
     add_heading(doc, "7. Settings and Automation")
     add_body(doc, "Settings begins with account access, followed by audio, automation authority, desired-state targets, probe roles, safety floors, and help links. Automation policies, targets, priorities, reserves, and safety floors are stored separately for each focused probe. Owned probe roles are fleet-wide and can only be changed while the main/default probe is focused. Read the section labels before changing values; quantity and priority controls answer different questions.")
-    add_body(doc, "Check for Updates opens the official latest-release channel. Download the signed package for the current operating system; the running application never silently replaces itself or bypasses platform security checks.")
+    add_body(doc, "Check for Updates opens the official latest-release channel. Download the signed package for the current operating system; the running application never silently replaces itself or bypasses platform security checks. Open Diagnostic Logs opens the per-user support folder containing rotating error logs that can be attached to a bug report. API keys, authorization tokens, and secrets are redacted automatically.")
     add_body(doc, "API compatibility is checked at startup and every six hours. If the server advertises an unreviewed API version, Skunkworks keeps the last valid snapshot visible, labels it stale, and pauses live commands until compatibility has been reviewed. This version check does not consume the probe request budget.")
     if has_settings_figure:
         doc.add_picture(str(SETTINGS_FIGURE), width=Inches(6.7))
