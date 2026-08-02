@@ -254,6 +254,74 @@ class ExecutionBoundaryTests(unittest.TestCase):
             "containerIds": ["container-a", "container-b"],
         })
 
+    def test_tanker_assembly_preserves_resource_assigned_containers(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        inventory = self.operations.world.probe["inventory"]
+        inventory["items"] = [
+            {"id": f"{item}-{index}", "type": item}
+            for item, quantity in TANKER_COMPONENTS
+            for index in range(quantity)
+        ]
+        inventory["containers"] = [
+            {
+                "id": "metals-depot", "kind": "container", "capacity": 1,
+                "usedCapacity": 0, "rules": {"priority": ["metals"]},
+            },
+            {
+                "id": "unassigned-a", "kind": "container", "capacity": 1,
+                "usedCapacity": 0, "rules": {},
+            },
+            {
+                "id": "unassigned-b", "kind": "container", "capacity": 1,
+                "usedCapacity": 0,
+                "rules": {"priority": [], "exclusion": [], "strictExclusion": []},
+            },
+        ]
+
+        prepared = self.prepare(DesiredState(
+            fleet=(FleetGoal("deuterium_tanker", 1, priority=1),),
+        ))
+
+        self.assertEqual(
+            prepared[0].command.payload["containerIds"],
+            ["unassigned-a", "unassigned-b"],
+        )
+
+    def test_tanker_assembly_waits_instead_of_consuming_assigned_container(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        inventory = self.operations.world.probe["inventory"]
+        inventory["items"] = [
+            {"id": f"{item}-{index}", "type": item}
+            for item, quantity in TANKER_COMPONENTS
+            for index in range(quantity)
+        ]
+        inventory["containers"] = [
+            {
+                "id": "assigned", "kind": "container", "capacity": 1,
+                "usedCapacity": 0, "rules": {"priority": ["ice"]},
+            },
+            {
+                "id": "unassigned", "kind": "container", "capacity": 1,
+                "usedCapacity": 0, "rules": {},
+            },
+        ]
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+        ).tasks()
+        assembly = next(task for task in tasks if task.category == "fleet_assembly")
+
+        self.assertEqual(assembly.action, "Prepare Probe Assembly")
+        self.assertEqual(
+            assembly.constraints,
+            ("two_unassigned_empty_containers_required",),
+        )
+
     def test_active_tanker_component_is_not_ordered_twice(self):
         self.operations.world.fleet = {"probes": [{"model": "generic"}]}
         self.operations.world.probe["inventory"]["items"] = [

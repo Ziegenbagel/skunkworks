@@ -51,7 +51,7 @@ def tanker_shortage(operations):
 
 
 def empty_assembly_containers(operations):
-    """Select empty attached additional containers accepted by the API."""
+    """Select empty, attached, policy-unassigned assembly containers."""
 
     result = []
     inventory = operations.world.probe.get("inventory", {})
@@ -61,7 +61,19 @@ def empty_assembly_containers(operations):
         used = float(container.get("usedCapacity", container.get("used", 0)) or 0)
         capacity = float(container.get("capacity", 0) or 0)
         free = float(container.get("freeCapacity", capacity - used) or 0)
-        if used <= 0.00001 and (capacity <= 0 or free + 0.00001 >= capacity):
+        rules = container.get("rules") or {}
+        assigned = any(
+            rules.get(key)
+            for key in ("priority", "exclusion", "strictExclusion")
+        ) or bool(
+            container.get("assignedResource")
+            or container.get("resourceType")
+        )
+        if (
+            not assigned
+            and used <= 0.00001
+            and (capacity <= 0 or free + 0.00001 >= capacity)
+        ):
             identifier = container.get("id") or container.get("containerId")
             if identifier is not None:
                 result.append(identifier)

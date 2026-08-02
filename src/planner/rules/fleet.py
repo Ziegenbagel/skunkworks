@@ -88,12 +88,16 @@ def plan(operations, desired_state) -> list[Task]:
             action="Assemble Probe" if len(containers) >= 2 else "Prepare Probe Assembly",
             reason=(
                 f"Priority {goal.priority} tanker goal has all crafted components; "
-                f"{len(containers)} of 2 empty attached containers are ready."
+                f"{len(containers)} of 2 empty, unassigned attached containers are ready."
             ),
             category="fleet_assembly",
             target=goal.model,
             quantity=shortage,
-            constraints=() if len(containers) >= 2 else ("two_empty_containers_required",),
+            constraints=(
+                ()
+                if len(containers) >= 2
+                else ("two_unassigned_empty_containers_required",)
+            ),
             priority=goal.priority,
         ))
     return tasks
