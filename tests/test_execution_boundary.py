@@ -249,7 +249,10 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual(command.type, CommandType.MANNY_ASSEMBLE_PROBE)
         self.assertEqual(command.priority, 1)
-        self.assertEqual(command.payload, {"containerIds": ["container-a", "container-b"]})
+        self.assertEqual(command.payload, {
+            "model": "deuterium_tanker",
+            "containerIds": ["container-a", "container-b"],
+        })
 
     def test_active_tanker_component_is_not_ordered_twice(self):
         self.operations.world.fleet = {"probes": [{"model": "generic"}]}

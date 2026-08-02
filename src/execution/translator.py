@@ -133,7 +133,10 @@ class TaskCommandTranslator:
             type=CommandType.MANNY_ASSEMBLE_PROBE,
             probe_id=self.probe_id,
             target_id=manny["id"],
-            payload={"containerIds": containers[:2]},
+            payload={
+                "model": "deuterium_tanker",
+                "containerIds": containers[:2],
+            },
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
