@@ -75,11 +75,15 @@ class ManufacturingService:
 
     def _active_recipe(self, asset):
         current = asset.get("currentTask")
-        details = asset.get("task") or (current if isinstance(current, dict) else {})
-        task_type = (
-            details.get("type")
-            or (current.get("type") if isinstance(current, dict) else current)
-        )
+        if isinstance(current, dict):
+            details = current
+            task_type = current.get("type")
+        else:
+            # The API may retain the detail of the previous task after a Manny
+            # becomes idle or starts different work. currentTask is the
+            # authoritative activity flag; task only describes that activity.
+            task_type = current
+            details = asset.get("task") if isinstance(asset.get("task"), dict) else {}
         if task_type not in {"crafting", "assisting_atomic_printer"}:
             return None
         reference = (

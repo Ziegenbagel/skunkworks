@@ -186,6 +186,30 @@ class ManufacturingServiceTests(unittest.TestCase):
         self.assertEqual(self.service.inventory_count("steel_bar"), 2)
         self.assertEqual(self.service.inventory_count("steel_bar", include_active=False), 1)
 
+    def test_stale_task_detail_does_not_credit_idle_manny_production(self):
+        self.world.mannies["mannies"][0].update({
+            "currentTask": None,
+            "task": {
+                "type": "crafting",
+                "recipe": "steel_bar",
+                "recipeName": "Steel bar",
+            },
+        })
+
+        self.assertEqual(self.service.active_production_count("steel_bar"), 0)
+
+    def test_stale_task_detail_does_not_credit_mining_manny_production(self):
+        self.world.mannies["mannies"][0].update({
+            "currentTask": "mining",
+            "task": {
+                "type": "crafting",
+                "recipe": "steel_bar",
+                "recipeName": "Steel bar",
+            },
+        })
+
+        self.assertEqual(self.service.active_production_count("steel_bar"), 0)
+
     def test_builds_dependency_tree(self):
         tree = self.service.dependency_tree(
             "electric_motor"
