@@ -181,6 +181,8 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "DROPPED CONTAINERS" in galaxy
     assert "FOCUSED PROBE · RECENT 10 TRAIL" in galaxy
     assert "recentTrail" in galaxy
+    assert "filtersExpanded" in galaxy
+    assert "Collapse map filters" in galaxy
     assert "SCUT TRANSIT BEACONS" in Path("src/ui/qml/components/AutomationSettings.qml").read_text()
 
 

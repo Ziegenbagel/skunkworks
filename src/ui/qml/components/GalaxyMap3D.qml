@@ -20,6 +20,7 @@ Item {
     property bool hazardsOnly: false
     property bool salvageOnly: false
     property bool showRecentTrail: true
+    property bool filtersExpanded: true
     property string resourceFilter: "all"
     property string resourceMode: "all"
     readonly property var visibleNodes: {
@@ -233,38 +234,50 @@ Item {
     }
 
     Rectangle {
-        anchors.right: parent.right; anchors.top: parent.top
-        anchors.rightMargin: 12; anchors.topMargin: 94
-        width: 520; height: 244
+        anchors.left: parent.left; anchors.top: parent.top
+        anchors.leftMargin: 12; anchors.topMargin: 294
+        width: 470; height: root.filtersExpanded ? 330 : 42
         color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.lineColor
+        clip: true
+        Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 10; spacing: 5
             RowLayout {
                 Layout.fillWidth: true
                 Label { text: "MAP FILTERS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                 Item { Layout.fillWidth: true }
-                Button { text: "SHOW ALL"; onClicked: root.showAllStates() }
+                Label {
+                    visible: !root.filtersExpanded
+                    text: root.visibleNodes.length + " / " + root.nodes.length + " VISIBLE"
+                    color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 9
+                }
+                Button {
+                    text: root.filtersExpanded ? "▲" : "▼"
+                    Accessible.name: root.filtersExpanded ? "Collapse map filters" : "Expand map filters"
+                    onClicked: root.filtersExpanded = !root.filtersExpanded
+                }
             }
-            Label { text: "DISCOVERY STATE · CLICK A LABEL FOR ONLY THAT STATE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 4
+            Label { visible: root.filtersExpanded; text: "DISCOVERY STATE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+            GridLayout {
+                visible: root.filtersExpanded; Layout.fillWidth: true
+                columns: 3; columnSpacing: 4; rowSpacing: 2
                 CheckBox { text: "CURRENT"; checked: root.showCurrent; onToggled: root.showCurrent = checked }
                 CheckBox { text: "SCANNED"; checked: root.showScanned; onToggled: root.showScanned = checked }
                 CheckBox { text: "VISITED"; checked: root.showVisited; onToggled: root.showVisited = checked }
                 CheckBox { text: "OBSERVED"; checked: root.showObserved; onToggled: root.showObserved = checked }
                 CheckBox { text: "UNKNOWN"; checked: root.showUnknown; onToggled: root.showUnknown = checked }
+                Button { text: "SHOW ALL"; onClicked: root.showAllStates() }
             }
             RowLayout {
-                Layout.fillWidth: true
-                Label { text: "QUICK VIEW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+                visible: root.filtersExpanded; Layout.fillWidth: true
                 Button { text: "ONLY UNEXPLORED"; onClicked: root.showOnlyState("unknown") }
                 Button { text: "ONLY VISITED"; onClicked: root.showOnlyState("visited") }
                 Button { text: "ONLY SCANNED"; onClicked: root.showOnlyState("scanned") }
             }
             RowLayout {
-                Layout.fillWidth: true
+                visible: root.filtersExpanded; Layout.fillWidth: true
                 ComboBox {
-                    id: resourceModeBox; Layout.preferredWidth: 180
+                    id: resourceModeBox; Layout.preferredWidth: 170
                     model: [{text:"ALL SYSTEMS", value:"all"}, {text:"HAS RESOURCE", value:"has"}, {text:"CONFIRMED WITHOUT", value:"without"}]
                     textRole: "text"; valueRole: "value"; onActivated: root.resourceMode = currentValue
                 }
@@ -274,14 +287,19 @@ Item {
                     textRole: "text"; valueRole: "value"; onActivated: root.resourceFilter = currentValue
                 }
             }
-            RowLayout {
-                Layout.fillWidth: true
+            GridLayout {
+                visible: root.filtersExpanded; Layout.fillWidth: true
+                columns: 2; columnSpacing: 5; rowSpacing: 2
                 CheckBox { text: "HAZARDS ONLY"; checked: root.hazardsOnly; onToggled: root.hazardsOnly = checked }
                 CheckBox { text: "DROPPED CONTAINERS"; checked: root.salvageOnly; onToggled: root.salvageOnly = checked }
-                CheckBox { text: "FOCUSED PROBE · RECENT 10 TRAIL"; checked: root.showRecentTrail; onToggled: root.showRecentTrail = checked }
+                CheckBox {
+                    Layout.columnSpan: 2
+                    text: "FOCUSED PROBE · RECENT 10 TRAIL"
+                    checked: root.showRecentTrail; onToggled: root.showRecentTrail = checked
+                }
             }
             Label {
-                Layout.fillWidth: true
+                visible: root.filtersExpanded; Layout.fillWidth: true
                 text: root.visibleNodes.length + " OF " + root.nodes.length + " SECTORS VISIBLE · "
                     + Number(root.galaxyData.recentTrailCount || 0) + " RECENT ROUTE SEGMENTS"
                 color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 9
