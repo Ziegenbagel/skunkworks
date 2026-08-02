@@ -146,6 +146,7 @@ class PlannerMissionTests(unittest.TestCase):
         )
         self.assertEqual(mining.action, "Mine Resource")
         self.assertEqual(mining.target, "asteroid-1")
+        self.assertIn("production target: storage container", mining.reason)
 
     def test_mission_12_plans_resource_and_fuel_reserves(self):
         tasks = Planner(

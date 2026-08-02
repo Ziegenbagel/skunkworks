@@ -1,5 +1,7 @@
 """Resource-reserve and manufacturing-shortage mining planning."""
 
+from collections import defaultdict
+
 from src.planner.priorities import HIGH, NORMAL
 from src.planner.task import Task
 from src.planner.assembly import tanker_component_statuses
@@ -10,10 +12,15 @@ def plan(operations, desired_state) -> list[Task]:
         desired_state.resources
     )
     manufacturing_resources = set()
+    resource_reasons = defaultdict(set)
     priorities = {
         goal.resource_type: goal.priority
         for goal in desired_state.resources
     }
+    for goal in desired_state.resources:
+        resource_reasons[goal.resource_type].add(
+            f"the {goal.minimum_amount:g} {goal.resource_type.replace('_', ' ')} reserve target"
+        )
 
     for goal in desired_state.production:
         current = operations.manufacturing.inventory_count(
@@ -41,6 +48,9 @@ def plan(operations, desired_state) -> list[Task]:
                 amount,
             )
             manufacturing_resources.add(resource_type)
+            resource_reasons[resource_type].add(
+                f"production target: {goal.recipe_id.replace('_', ' ')}"
+            )
             priorities[resource_type] = min(
                 priorities.get(resource_type, goal.priority),
                 goal.priority,
@@ -63,6 +73,19 @@ def plan(operations, desired_state) -> list[Task]:
         production = operations.manufacturing.production_bundle_plan(requests)
         if production is None:
             continue
+        for component, quantity in requests.items():
+            component_plan = operations.manufacturing.production_plan(
+                component,
+                quantity=quantity,
+                include_operational_constraints=False,
+            )
+            if component_plan is None:
+                continue
+            for resource_type, amount in component_plan["missing_resources"].items():
+                if amount > 0:
+                    resource_reasons[resource_type].add(
+                        f"tanker component: {component.replace('_', ' ')}"
+                    )
         for resource_type, resource_amount in production["missing_resources"].items():
             shortages[resource_type] = max(shortages.get(resource_type, 0), resource_amount)
             manufacturing_resources.add(resource_type)
@@ -93,6 +116,12 @@ def plan(operations, desired_state) -> list[Task]:
         if resource_type != "deuterium":
             order_amount = min(order_amount, free_capacity)
 
+        reasons = sorted(resource_reasons.get(resource_type, ()))
+        purpose = (
+            "; ".join(reasons)
+            if reasons
+            else "the highest-priority unmet goal"
+        )
         tasks.append(
             Task(
                 action=(
@@ -100,8 +129,10 @@ def plan(operations, desired_state) -> list[Task]:
                     if not constraints
                     else "Locate Mining Opportunity"
                 ),
-                reason=(f"Need {amount:.3f} additional {resource_type.replace('_', ' ')} "
-                        f"for the highest-priority unmet goal."),
+                reason=(
+                    f"Need {amount:.3f} additional {resource_type.replace('_', ' ')}. "
+                    f"This mining order unlocks {purpose}."
+                ),
                 category="mining",
                 target=(
                     target["id"]

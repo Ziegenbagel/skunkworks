@@ -183,6 +183,31 @@ class ExecutionBoundaryTests(unittest.TestCase):
             for task in tasks
         ))
 
+    def test_tanker_mining_reason_names_component_it_unlocks(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        for component, _quantity in TANKER_COMPONENTS:
+            self.operations.manufacturing.recipes._recipes[component] = {
+                "id": component,
+                "name": component.replace("_", " ").title(),
+                "craftableBy": ["manny"],
+                "durationSeconds": 60,
+                "ingredients": [
+                    {"type": "metals", "quantity": 1, "kind": "resource"},
+                ],
+                "output": {"type": component, "containerSpace": 0.1},
+            }
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 0
+        desired = DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),))
+
+        mining = next(
+            task for task in Planner(self.operations, desired).tasks()
+            if task.category == "mining" and task.resource_type == "metals"
+        )
+
+        self.assertIn("tanker component: integrated circuit", mining.reason)
+        self.assertIn("This mining order unlocks", mining.reason)
+
     def test_lower_priority_craft_cannot_reuse_reserved_resources(self):
         from src.planner.task import Task
 
