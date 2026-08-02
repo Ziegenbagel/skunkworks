@@ -148,6 +148,17 @@ def test_settings_exposes_privacy_safe_diagnostic_logs():
     assert "[REDACTED]" in diagnostics
 
 
+def test_dashboard_density_controls_scale_summaries_and_bound_sector_labels():
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    telemetry = Path("src/ui/qml/components/TelemetryBar.qml").read_text()
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text()
+    assert "font.pixelSize: 34" in screen
+    assert "height: 14" in telemetry
+    assert "maximumFreeObjects: 8" in sector
+    assert "MORE SECTOR OBJECTS" in sector
+    assert "readonly property bool above" in sector
+
+
 def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
     galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()
@@ -188,8 +199,8 @@ def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
     assert "maximumMannyAreas: 12" in sector
     assert "buildMannyClusters" in sector
     assert "freeObjectIndex(modelData.targetObjectId)" in sector
-    assert "safeColumns" in sector
-    assert "safeRows" in sector
+    assert "index < 3 ? 0.15 : 0.85" in sector
+    assert "leftRows" in sector and "rightRows" in sector
 
 
 def test_app_uses_a_dedicated_live_data_loading_screen():

@@ -2,6 +2,9 @@
 
 ## 0.1 — 2026-08-01
 
+- Enlarged Fleet Status counts for double/triple-digit fleets, doubled Resource
+  Summary bar thickness, and added bounded sector-map placement: outward orbital
+  labels, reserved perimeter slots, and overflow grouping for dense sectors.
 - Fixed Save Automation Targets replacing the live fleet-wide probe-role view
   with a role-less desired-state payload and making assigned roles appear as
   Unassigned until the next refresh.

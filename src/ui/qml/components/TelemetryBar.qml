@@ -8,7 +8,7 @@ Item {
     property real value: 0.5
     property string reading: "50%"
     property color accentColor: Constants.cyanColor
-    implicitHeight: 42
+    implicitHeight: 48
 
     Label {
         id: metricLabel
@@ -17,7 +17,7 @@ Item {
         text: root.label
         color: Constants.mutedTextColor
         font.family: Constants.technicalFont
-        font.pixelSize: 9
+        font.pixelSize: 11
     }
 
     Label {
@@ -26,7 +26,7 @@ Item {
         text: root.reading
         color: root.accentColor
         font.family: Constants.technicalFont
-        font.pixelSize: 10
+        font.pixelSize: 12
         font.bold: true
     }
 
@@ -34,7 +34,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: 7
+        height: 14
         color: Constants.voidColor
         border.color: Constants.lineColor
 

@@ -241,11 +241,12 @@ Rectangle {
                         Layout.maximumHeight: Layout.preferredHeight
                         title: "Fleet Status"
                         contentItem: Row {
-                            spacing: 18
+                            anchors.centerIn: parent
+                            spacing: 24
                             Rectangle {
-                                width: 92
-                                height: 92
-                                radius: 46
+                                width: 126
+                                height: 126
+                                radius: 63
                                 color: Constants.voidColor
                                 border.color: Constants.cyanColor
                                 border.width: 8
@@ -256,41 +257,47 @@ Rectangle {
                                         text: root.fleetData.total !== undefined ? root.fleetData.total : "14"
                                         color: Constants.textColor
                                         font.family: Constants.technicalFont
-                                        font.pixelSize: 26
+                                        font.pixelSize: 34
+                                        font.bold: true
                                     }
                                     Label {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: "TOTAL"
                                         color: Constants.mutedTextColor
-                                        font.pixelSize: 8
+                                        font.pixelSize: 11
                                     }
                                 }
                             }
                             Column {
-                                spacing: 9
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 13
                                 Label {
                                     text: (root.fleetData.idle !== undefined ? root.fleetData.idle : "12") + "  OPERATIONAL"
                                     color: Constants.nominalColor
                                     font.family: Constants.technicalFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 14
+                                    font.bold: true
                                 }
                                 Label {
                                     text: root.healthData.findings && root.healthData.findings.length ? (root.healthData.findings.length < 10 ? "0" : "") + root.healthData.findings.length + "  FINDINGS" : "00  FINDINGS"
                                     color: Constants.warningColor
                                     font.family: Constants.technicalFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 14
+                                    font.bold: true
                                 }
                                 Label {
                                     text: (root.fleetData.total !== undefined ? root.fleetData.total - (root.fleetData.idle || 0) : "01") + "  ACTIVE"
                                     color: Constants.cyanColor
                                     font.family: Constants.technicalFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 14
+                                    font.bold: true
                                 }
                                 Label {
                                     text: root.healthData.state === "critical" ? "01  CRITICAL" : "00  CRITICAL"
                                     color: Constants.criticalColor
                                     font.family: Constants.technicalFont
-                                    font.pixelSize: 10
+                                    font.pixelSize: 14
+                                    font.bold: true
                                 }
                             }
                         }

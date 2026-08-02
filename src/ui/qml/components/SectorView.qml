@@ -14,19 +14,20 @@ Rectangle {
     readonly property var freeObjects: objectModel.filter(item => item.type !== "star" && !(item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet"))))
     readonly property var mannyClusters: buildMannyClusters(sectorData.activeMannies || [])
     readonly property int maximumMannyAreas: 12
+    readonly property int maximumFreeObjects: 8
     readonly property real centerX: width * 0.50
     readonly property real centerY: height * 0.50
-    readonly property real orbitAspect: 0.52
+    readonly property real orbitAspect: 0.62
     property string sectorLabel: "FCC 0 / 0 / 0"
 
     function orbitRadius(index) {
-        const minimumRadius = 96;
+        const minimumRadius = 170;
         const maximumRadius = Math.max(150, Math.min(width * 0.34, height * 0.38 / orbitAspect));
         if (orbitalBodies.length <= 1)
             return Math.min(maximumRadius, minimumRadius * 1.45);
         return minimumRadius + index * (maximumRadius - minimumRadius) / (orbitalBodies.length - 1);
     }
-    function orbitAngle(index) { return -Math.PI / 2 + index * 0.78; }
+    function orbitAngle(index) { return -Math.PI / 2 + index * 0.74; }
     function bodyX(index) { return centerX + Math.cos(orbitAngle(index)) * orbitRadius(index); }
     function bodyY(index) { return centerY + Math.sin(orbitAngle(index)) * orbitRadius(index) * orbitAspect; }
     function objectIndex(identifier) {
@@ -40,12 +41,12 @@ Rectangle {
         return -1;
     }
     function freeObjectX(index) {
-        const safeColumns = [0.18, 0.76, 0.84, 0.74, 0.34, 0.14];
-        return width * safeColumns[index % safeColumns.length];
+        return width * (index < 3 ? 0.15 : 0.85);
     }
     function freeObjectY(index) {
-        const safeRows = [0.25, 0.28, 0.52, 0.73, 0.74, 0.48];
-        return height * safeRows[index % safeRows.length];
+        const leftRows = [0.20, 0.40, 0.60];
+        const rightRows = [0.20, 0.35, 0.50, 0.65, 0.80];
+        return height * (index < 3 ? leftRows[index] : rightRows[index - 3]);
     }
     function placeLabelOnLeft(markerCenterX) { return markerCenterX > width * 0.72; }
     function buildMannyClusters(mannies) {
@@ -129,17 +130,22 @@ Rectangle {
             dimmed: modelData.estimated || root.sectorData.confidence < 0.5
             badgeSources: modelData.isTransitBeacon ? [AssetCatalog.icon("badge-scut-transit-beacon")] : []
             Label {
-                readonly property bool verticalLabel: orbitalMarker.index === 0 || orbitalMarker.index === root.orbitalBodies.length - 1
-                anchors.left: verticalLabel ? undefined : parent.right
-                anchors.leftMargin: verticalLabel ? 0 : 9
-                anchors.top: orbitalMarker.index === 0 ? parent.bottom : undefined
-                anchors.topMargin: orbitalMarker.index === 0 ? 5 : 0
-                anchors.bottom: orbitalMarker.index === root.orbitalBodies.length - 1 ? parent.top : undefined
-                anchors.bottomMargin: orbitalMarker.index === root.orbitalBodies.length - 1 ? 5 : 0
-                anchors.horizontalCenter: verticalLabel ? parent.horizontalCenter : undefined
-                anchors.verticalCenter: verticalLabel ? undefined : parent.verticalCenter
-                width: 190; elide: Text.ElideRight
-                horizontalAlignment: verticalLabel ? Text.AlignHCenter : Text.AlignLeft
+                readonly property real angle: root.orbitAngle(orbitalMarker.index)
+                readonly property bool above: Math.sin(angle) < -0.55
+                readonly property bool below: Math.sin(angle) > 0.55
+                readonly property bool leftSide: Math.cos(angle) < 0
+                anchors.top: below ? parent.bottom : undefined
+                anchors.topMargin: below ? 6 : 0
+                anchors.bottom: above ? parent.top : undefined
+                anchors.bottomMargin: above ? 6 : 0
+                anchors.left: !above && !below && !leftSide ? parent.right : undefined
+                anchors.leftMargin: 9
+                anchors.right: !above && !below && leftSide ? parent.left : undefined
+                anchors.rightMargin: 9
+                anchors.horizontalCenter: above || below ? parent.horizontalCenter : undefined
+                anchors.verticalCenter: above || below ? undefined : parent.verticalCenter
+                width: 170; elide: Text.ElideRight
+                horizontalAlignment: above || below ? Text.AlignHCenter : leftSide ? Text.AlignRight : Text.AlignLeft
                 text: (orbitalMarker.index + 1) + " · " + (orbitalMarker.modelData.name || String(orbitalMarker.modelData.type).toUpperCase())
                 color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true
             }
@@ -147,7 +153,7 @@ Rectangle {
     }
 
     Repeater {
-        model: root.freeObjects
+        model: root.freeObjects.slice(0, root.maximumFreeObjects)
         delegate: MapObjectMarker {
             id: freeMarker
             required property var modelData
@@ -172,9 +178,22 @@ Rectangle {
         }
     }
 
+    Label {
+        visible: root.freeObjects.length > root.maximumFreeObjects
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.rightMargin: 14
+        anchors.topMargin: 82
+        text: "+" + (root.freeObjects.length - root.maximumFreeObjects) + " MORE SECTOR OBJECTS · OPEN RESOURCES FOR DETAILS"
+        color: Constants.warningColor
+        font.family: Constants.technicalFont
+        font.pixelSize: 11
+        font.bold: true
+    }
+
     MapObjectMarker {
         width: 88; height: 88
-        x: root.width * 0.10; y: root.height * 0.70
+        x: root.width * 0.08; y: root.height * 0.80
         iconSource: AssetCatalog.probeIcon(root.focusProbe.model || "generic")
         selected: true
         Label {
@@ -198,15 +217,16 @@ Rectangle {
                                                  : root.width * 0.10
             readonly property real targetY: targetIndex >= 0 ? root.bodyY(targetIndex)
                                                  : freeTargetIndex >= 0 ? root.freeObjectY(freeTargetIndex)
-                                                 : root.height * 0.70
-            readonly property bool placeInward: root.placeLabelOnLeft(targetX)
+                                                 : root.height * 0.80
+            readonly property bool clusterLeft: targetX >= root.centerX
+            readonly property bool clusterAbove: targetY >= root.centerY
             width: 46; height: 46
-            x: targetIndex >= 0 || freeTargetIndex >= 0 ? (placeInward ? targetX - 78 : targetX + 32)
+            x: targetIndex >= 0 || freeTargetIndex >= 0 ? (clusterLeft ? targetX - 78 : targetX + 32)
                : targetsFocusedProbe ? root.width * 0.10 + 102
                : root.width * 0.10 + (index % 4) * 170
-            y: targetIndex >= 0 || freeTargetIndex >= 0 ? Math.min(root.height - 88, targetY + 34)
-               : targetsFocusedProbe ? root.height * 0.70 + 54
-               : root.height * 0.82 + Math.floor(index / 4) * 46
+            y: targetIndex >= 0 || freeTargetIndex >= 0 ? Math.max(8, Math.min(root.height - 88, clusterAbove ? targetY - 78 : targetY + 34))
+               : targetsFocusedProbe ? root.height * 0.80 - 54
+               : root.height * 0.84 + Math.floor(index / 4) * 46
             iconSource: AssetCatalog.icon("manny")
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
