@@ -290,6 +290,41 @@ class ExecutionBoundaryTests(unittest.TestCase):
         )
         self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
 
+    def test_blocked_craft_releases_manny_for_following_mining_order(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"].setdefault("items", []).append(
+            {"id": "reserved-plate", "type": "steel_plate"}
+        )
+        self.operations.manufacturing.recipes._recipes["uses_plate"] = {
+            "id": "uses_plate", "name": "Uses plate", "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [{"type": "steel_plate", "quantity": 1, "kind": "item"}],
+            "output": {"type": "uses_plate", "containerSpace": 0.1},
+        }
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Prepare Manufacturing", reason="Protected tanker plate",
+                target="steel_plate", constraints=("active_production_pending",),
+                reserved_items=(("steel_plate", 1),), priority=1,
+            ),
+            Task(
+                action="Craft Item", reason="Blocked lower consumer",
+                target="uses_plate", priority=2,
+            ),
+            Task(
+                action="Mine Resource", reason="Useful fallback work",
+                target="asteroid-1", resource_type="metals", quantity=0.55,
+                priority=2,
+            ),
+        ])
+
+        blocked = next(item for item in prepared if item.command.source_action == "Craft Item")
+        mining = next(item for item in prepared if item.command.source_action == "Mine Resource")
+        self.assertEqual(blocked.disposition, "blocked")
+        self.assertNotEqual(mining.disposition, "blocked")
+        self.assertEqual(mining.command.target_id, 101)
+
     def test_lower_priority_craft_can_use_surplus_beyond_reservation(self):
         from src.planner.task import Task
 

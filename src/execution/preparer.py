@@ -71,6 +71,12 @@ class CommandPreparer:
             ):
                 blockers.append("already_completed")
 
+            # Translation assigns idle Mannys so simultaneously executable
+            # commands cannot collide. A command that will not execute must not
+            # retain that temporary claim and starve later valid proposals.
+            if blockers:
+                self.translator.release_claim(command)
+
             disposition = self._disposition(
                 command,
                 blockers,

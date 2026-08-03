@@ -220,3 +220,9 @@ class TaskCommandTranslator:
         if manny is not None:
             self._claimed_manny_ids.add(manny["id"])
         return manny
+
+    def release_claim(self, command):
+        """Release a planning-only Manny claim held by a blocked command."""
+
+        if command is not None and command.target_id is not None:
+            self._claimed_manny_ids.discard(command.target_id)
