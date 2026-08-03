@@ -66,9 +66,17 @@ class WorldBuilder:
             )
         )
 
+        # The detailed sector endpoint is the authoritative inventory source.
+        # GET /probe may contain only its compact resource summary, which made
+        # crafted equipment disappear from the Resources workspace even though
+        # it was present in the just-fetched sector snapshot.
+        probe_with_inventory = dict(probe)
+        if isinstance(snapshot, dict) and isinstance(snapshot.get("inventory"), dict):
+            probe_with_inventory["inventory"] = snapshot["inventory"]
+
         world.probe = (
             self.probe_analyzer.analyze(
-                probe
+                probe_with_inventory
             )
         )
 

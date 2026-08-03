@@ -167,6 +167,17 @@ class MissionControlDataService:
         ]
         dashboard["automation"] = automation
         dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
+        dashboard["crafting"] = {
+            "recipes": tuple({
+                "id": recipe.get("id"),
+                "name": recipe.get("name") or str(recipe.get("id", "")).replace("_", " ").title(),
+                "description": recipe.get("description", ""),
+                "craftableBy": tuple(recipe.get("craftableBy", ())),
+                "durationSeconds": int(recipe.get("durationSeconds", 0) or 0),
+                "ingredients": tuple(recipe.get("ingredients", ())),
+            } for recipe in self.recipes.all()),
+            "idleMannies": dashboard.get("inventoryManagement", {}).get("idleMannies", ()),
+        }
         dashboard["logbook"] = self.logbook_view(
             selected["id"], probe_data.get("probes", ()),
         )
@@ -465,6 +476,26 @@ class MissionControlDataService:
         return self.capabilities.mannies.start_task(
             self._selected_probe_id, manny_id, action, payload,
         )
+
+    def manual_craft(self, recipe_id, manny_id):
+        recipe = self.recipes.get(recipe_id)
+        if recipe is None:
+            raise ValueError(f"Unknown crafting recipe: {recipe_id}")
+        craftable_by = tuple(recipe.get("craftableBy", ()))
+        if "manny" in craftable_by:
+            if not manny_id:
+                raise ValueError("Select an idle Manny for this manual build order.")
+            return self.capabilities.mannies.start_task(
+                self._selected_probe_id,
+                manny_id,
+                "craft",
+                {"recipe": recipe_id},
+            )
+        if "atomic_3d_printer" in craftable_by:
+            return self.capabilities.mannies.atomic_printer_craft(
+                self._selected_probe_id, recipe_id,
+            )
+        raise ValueError("This recipe has no supported fabricator.")
 
     def scan_sector(self, target):
         response = self.capabilities.galaxy.observe_sector(target["x"], target["y"], target["z"])
@@ -992,6 +1023,27 @@ class MissionControlController(QObject):
         self._configure_automation_timer(runtime)
         self._set_error("")
         self.dashboardChanged.emit()
+        # A saved goal is an explicit request to replan. Refresh authoritative
+        # inventory/task state first, then let automatic mode evaluate without
+        # waiting for the next 60-second timer tick.
+        runtime_mode = runtime.get("mode")
+        if runtime_mode == "automatic" and runtime.get("liveExecutionEnabled"):
+            self._automation_after_refresh = True
+        if not self._refreshing:
+            self._start_refresh(self._focused_probe_id)
+
+    @Slot(str, str)
+    def queueManualCraft(self, recipe_id, manny_id):
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Select and refresh a probe before queuing a manual build.")
+            return
+        try:
+            self.service.manual_craft(recipe_id, manny_id)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._set_error("")
+        self._start_refresh(self._focused_probe_id)
 
     @Slot(int, str)
     def assignProbeRole(self, probe_id, role):

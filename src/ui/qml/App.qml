@@ -285,6 +285,12 @@ ApplicationWindow {
                 window.backend.saveAutomationSettings(settings);
         }
 
+        function onManualCraftRequested(recipeId, mannyId) {
+            AudioManager.play("confirm");
+            if (window.backend)
+                window.backend.queueManualCraft(recipeId, mannyId);
+        }
+
         function onDiagnosticLogsRequested() {
             AudioManager.play("press");
             if (window.backend)

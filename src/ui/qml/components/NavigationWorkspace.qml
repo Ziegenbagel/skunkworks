@@ -44,6 +44,7 @@ PanelFrame {
     signal changeLogRequested()
     signal updateCheckRequested()
     signal diagnosticLogsRequested()
+    signal manualCraftRequested(string recipeId, string mannyId)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -208,6 +209,32 @@ PanelFrame {
             }
 
             Rectangle {
+                visible: root.section === "PRODUCTION"
+                width: parent.width
+                height: visible ? manualBuildColumn.implicitHeight + 28 : 0
+                color: Constants.raisedColor
+                border.color: Constants.lineColor
+                radius: 4
+
+                ColumnLayout {
+                    id: manualBuildColumn
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 14
+                    spacing: 8
+                    Label { text: "MANUAL BUILD ORDER"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
+                    Label { Layout.fillWidth: true; text: "Start any API recipe without creating a persistent automation target. Manual orders still use the game's ingredient, storage-reservation, and Manny availability checks."; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        ComboBox { id: manualRecipe; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: (root.dashboardData.crafting || {}).recipes || [] }
+                        ComboBox { id: manualManny; Layout.preferredWidth: 260; textRole: "name"; valueRole: "id"; model: (root.dashboardData.crafting || {}).idleMannies || []; enabled: manualRecipe.currentValue && (((root.dashboardData.crafting || {}).recipes || [])[manualRecipe.currentIndex] || {}).craftableBy.indexOf("manny") >= 0 }
+                        Button { text: "QUEUE BUILD"; enabled: manualRecipe.currentValue && (!manualManny.enabled || manualManny.currentValue); onClicked: root.manualCraftRequested(String(manualRecipe.currentValue), manualManny.enabled ? String(manualManny.currentValue) : "") }
+                    }
+                }
+            }
+
+            Rectangle {
                 width: parent.width
                 height: 1
                 color: Constants.lineColor
@@ -215,7 +242,7 @@ PanelFrame {
 
             ScrollView {
                 width: parent.width
-                height: parent.height - 42
+                height: parent.height - 42 - (root.section === "PRODUCTION" ? manualBuildColumn.implicitHeight + 40 : 0)
                 clip: true
 
                 GridLayout {
