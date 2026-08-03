@@ -8,8 +8,11 @@ Item {
     id: root
     property var probes: []
     property int focusedProbeId: -1
+    property var probeData: ({})
+    property var idleMannies: []
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
+    signal repairRequested(string mannyId, real integrityPercent)
 
     ColumnLayout {
         anchors.fill: parent; spacing: 14
@@ -19,6 +22,18 @@ Item {
             Label { text: "RENAME FOCUSED PROBE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
             TextField { id: probeName; Layout.fillWidth: true; placeholderText: "New probe name" }
             Button { text: "RENAME"; enabled: probeName.text.trim().length > 0; onClicked: root.probeRenameRequested(probeName.text) }
+        }
+        GroupBox {
+            title: "MANUAL PROBE REPAIR"; Layout.fillWidth: true
+            RowLayout {
+                anchors.fill: parent; spacing: 12
+                Label { text: "CURRENT INTEGRITY · " + Number(root.probeData.integrityPercent === undefined ? 100 : root.probeData.integrityPercent).toFixed(1) + "%"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                ComboBox { id: repairManny; Layout.preferredWidth: 240; model: root.idleMannies; textRole: "name"; valueRole: "id" }
+                Label { text: "RESTORE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                SpinBox { id: repairAmount; from: 1; to: 100; editable: true; value: Math.max(1, Math.ceil(100 - Number(root.probeData.integrityPercent === undefined ? 100 : root.probeData.integrityPercent))); textFromValue: function(value, locale) { return value + "%" }; valueFromText: function(text, locale) { return Math.max(1, Math.min(100, Number(String(text).replace(/[^0-9]/g, "")) || 1)) } }
+                Button { text: "ORDER REPAIR"; enabled: repairManny.currentIndex >= 0 && root.idleMannies.length > 0 && Number(root.probeData.integrityPercent || 100) < 100; onClicked: root.repairRequested(String(repairManny.currentValue), repairAmount.value) }
+                Label { Layout.fillWidth: true; text: root.idleMannies.length ? "Uses 0.01 containers of metals and 10 real minutes per restored percent." : "No idle Manny is available."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+            }
         }
         ScrollView {
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true

@@ -45,6 +45,7 @@ PanelFrame {
     signal updateCheckRequested()
     signal diagnosticLogsRequested()
     signal manualCraftRequested(string recipeId, string mannyId)
+    signal manualRepairRequested(string mannyId, real integrityPercent)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -180,8 +181,11 @@ PanelFrame {
             visible: root.section === "FLEET"
             probes: root.availableProbes
             focusedProbeId: root.focusedProbeId
+            probeData: root.dashboardData.probe || ({})
+            idleMannies: (root.dashboardData.inventoryManagement || {}).idleMannies || []
             onProbeSelected: probeId => root.probeSelected(probeId)
             onProbeRenameRequested: name => root.probeRenameRequested(name)
+            onRepairRequested: (mannyId, integrityPercent) => root.manualRepairRequested(mannyId, integrityPercent)
         }
 
         LogbookWorkspace {

@@ -78,6 +78,25 @@ class InventoryGoal:
 
 
 @dataclass(frozen=True)
+class RepairGoal:
+    """Automatic repair policy; a zero trigger disables it."""
+
+    trigger_percent: float = 0
+    target_percent: float = 100
+    priority: int = 2
+
+    def __post_init__(self):
+        if not 0 <= self.trigger_percent <= 99:
+            raise ValueError("Repair trigger must be between 0 and 99 percent.")
+        if not 1 <= self.target_percent <= 100:
+            raise ValueError("Repair target must be between 1 and 100 percent.")
+        if self.trigger_percent and self.target_percent <= self.trigger_percent:
+            raise ValueError("Repair target must be above the automatic repair trigger.")
+        if not 1 <= self.priority <= 10:
+            raise ValueError("Goal priority must be between 1 and 10.")
+
+
+@dataclass(frozen=True)
 class TravelGoal:
     target: SectorCoordinates
 
@@ -113,6 +132,7 @@ class DesiredState:
     inventory: InventoryGoal = field(
         default_factory=InventoryGoal
     )
+    repair: RepairGoal = field(default_factory=RepairGoal)
     maximum_mining_order_amount: float = 0.55
     travel: TravelGoal | None = None
     fleet: tuple[FleetGoal, ...] = field(default_factory=tuple)
@@ -181,6 +201,11 @@ class DesiredState:
                 ),
                 priority=normalize_priority(value.get("inventoryPriority"), 3, legacy_priorities),
             ),
+            repair=RepairGoal(
+                trigger_percent=float(value.get("repairTriggerPercent", 0)),
+                target_percent=float(value.get("repairTargetPercent", 100)),
+                priority=normalize_priority(value.get("repairPriority"), 2, legacy_priorities),
+            ),
             maximum_mining_order_amount=float(
                 value.get("maximumMiningOrderAmount", 0.55)
             ),
@@ -227,6 +252,9 @@ class DesiredState:
                 self.inventory.minimum_free_capacity
             ),
             "inventoryPriority": self.inventory.priority,
+            "repairTriggerPercent": self.repair.trigger_percent,
+            "repairTargetPercent": self.repair.target_percent,
+            "repairPriority": self.repair.priority,
             "maximumMiningOrderAmount": self.maximum_mining_order_amount,
             "travelTarget": (
                 {

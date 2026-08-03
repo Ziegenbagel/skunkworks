@@ -13,6 +13,7 @@ class CapabilityDispatcher:
             CommandType.ATOMIC_PRINTER_CRAFT: self._printer_craft,
             CommandType.MANNY_MINE: self._manny_mine,
             CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,
+            CommandType.MANNY_REPAIR: self._manny_repair,
             CommandType.MOVE_PROBE: self._move_probe,
         }
         try:
@@ -51,6 +52,11 @@ class CapabilityDispatcher:
             command.target_id,
             "assemble-probe",
             command.payload,
+        )
+
+    def _manny_repair(self, command):
+        return self.capabilities.mannies.start_task(
+            command.probe_id, command.target_id, "repair", command.payload,
         )
 
     def _move_probe(self, command):

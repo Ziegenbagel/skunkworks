@@ -72,6 +72,7 @@ Item {
         }
         if (miningCommands.checked) allowed.push("manny_mine");
         if (travelCommands.checked) allowed.push("move_probe");
+        if (repairCommands.checked) allowed.push("manny_repair");
         return {
             "mode": executionMode.currentValue,
             "liveExecutionEnabled": liveExecution.checked,
@@ -86,6 +87,7 @@ Item {
         craftCommands.checked = commandAllowed("manny_craft") || commandAllowed("atomic_printer_craft") || commandAllowed("manny_assemble_probe");
         miningCommands.checked = commandAllowed("manny_mine");
         travelCommands.checked = commandAllowed("move_probe");
+        repairCommands.checked = commandAllowed("manny_repair");
     }
     function syncDesiredStateControls() {
         genericTarget.value = Number((settingsData.fleetTargets || {}).generic || 0);
@@ -113,6 +115,9 @@ Item {
         freeCapacity.value = Number(settingsData.minimumFreeCapacity || 1);
         capacityPriority.value = Number(settingsData.inventoryPriority || 3);
         miningOrderSteps.value = Math.max(1, Math.min(11, Math.round(Number(settingsData.maximumMiningOrderAmount || 0.55) / 0.05)));
+        repairTrigger.value = Number(settingsData.repairTriggerPercent || 0);
+        repairTarget.value = Number(settingsData.repairTargetPercent || 100);
+        repairPriority.value = Number(settingsData.repairPriority || 2);
     }
     onRuntimeDataChanged: syncExecutionControls()
     onSettingsDataChanged: syncDesiredStateControls()
@@ -148,6 +153,9 @@ Item {
             "minimumFreeCapacity": freeCapacity.value,
             "inventoryPriority": capacityPriority.value,
             "maximumMiningOrderAmount": Number((miningOrderSteps.value * 0.05).toFixed(2)),
+            "repairTriggerPercent": repairTrigger.value,
+            "repairTargetPercent": repairTarget.value,
+            "repairPriority": repairPriority.value,
             "travelTarget": settingsData.travelTarget || null
         };
     }
@@ -222,6 +230,7 @@ Item {
                         CheckBox { id: craftCommands; text: "CRAFTING & PROBE ASSEMBLY"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") || root.commandAllowed("manny_assemble_probe") }
                         CheckBox { id: miningCommands; text: "MINING"; checked: root.commandAllowed("manny_mine") }
                         CheckBox { id: travelCommands; text: "TRAVEL"; checked: root.commandAllowed("move_probe") }
+                        CheckBox { id: repairCommands; text: "PROBE REPAIR"; checked: root.commandAllowed("manny_repair"); ToolTip.visible: hovered; ToolTip.text: "Allows automatic repair only when the focused probe reaches its configured integrity trigger." }
                     }
                     Label {
                         visible: Boolean(root.runtimeData.emergencyStopActive)
@@ -407,6 +416,12 @@ Item {
                     Label { text: "MIN FREE CAPACITY"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: freeCapacity; from: 0; to: 1000; editable: true; value: Number(root.settingsData.minimumFreeCapacity || 1) }
                     SpinBox { id: capacityPriority; from: 1; to: 10; editable: true; value: Number(root.settingsData.inventoryPriority || 3) }
+                    Label { text: "AUTO REPAIR AT / BELOW %"; color: Constants.warningColor; font.family: Constants.technicalFont; ToolTip.visible: repairHover.hovered; ToolTip.text: "0 disables automatic repair. When enabled, an idle Manny restores integrity after the focused probe reaches this threshold."; HoverHandler { id: repairHover } }
+                    SpinBox { id: repairTrigger; from: 0; to: 99; editable: true; value: Number(root.settingsData.repairTriggerPercent || 0); textFromValue: function(value, locale) { return value === 0 ? "OFF" : value + "%" }; valueFromText: function(text, locale) { const value = Number(String(text).replace(/[^0-9]/g, "")); return isFinite(value) ? Math.max(0, Math.min(99, value)) : 0 } }
+                    SpinBox { id: repairPriority; from: 1; to: 10; editable: true; value: Number(root.settingsData.repairPriority || 2) }
+                    Label { text: "REPAIR TARGET %"; color: Constants.textColor; font.family: Constants.technicalFont }
+                    SpinBox { id: repairTarget; from: 1; to: 100; editable: true; value: Number(root.settingsData.repairTargetPercent || 100) }
+                    Label { text: "RESTORES TO THIS LEVEL"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                 }
             }
 

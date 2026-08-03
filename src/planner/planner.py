@@ -32,7 +32,7 @@ class Planner:
         tasks: list[Task] = []
 
         tasks.extend(
-            safety.plan(self.operations)
+            safety.plan(self.operations, self.desired_state)
         )
 
         tasks.extend(

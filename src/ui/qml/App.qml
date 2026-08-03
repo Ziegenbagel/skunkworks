@@ -291,6 +291,12 @@ ApplicationWindow {
                 window.backend.queueManualCraft(recipeId, mannyId);
         }
 
+        function onManualRepairRequested(mannyId, integrityPercent) {
+            AudioManager.play("confirm");
+            if (window.backend)
+                window.backend.queueManualRepair(mannyId, integrityPercent);
+        }
+
         function onDiagnosticLogsRequested() {
             AudioManager.play("press");
             if (window.backend)

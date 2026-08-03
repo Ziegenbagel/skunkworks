@@ -53,6 +53,7 @@ class MissionControlViewModelBuilder:
             },
             "probe": {
                 "fuelPercent": self.operations.travel.fuel_percentage(),
+                "integrityPercent": float(probe.get("systems", {}).get("integrityPercent", 100)),
                 "inventoryFree": self.operations.inventory.free_capacity(),
                 "mannyTotal": self.operations.mannies.total(),
                 "mannyAvailable": len(self.operations.mannies.available()),

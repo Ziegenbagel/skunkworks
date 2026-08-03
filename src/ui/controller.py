@@ -497,6 +497,17 @@ class MissionControlDataService:
             )
         raise ValueError("This recipe has no supported fabricator.")
 
+    def manual_repair(self, manny_id, integrity_percent):
+        if not manny_id:
+            raise ValueError("Select an idle Manny for this repair order.")
+        amount = float(integrity_percent)
+        if not 0 < amount <= 100:
+            raise ValueError("Repair amount must be between 1 and 100 percent.")
+        return self.capabilities.mannies.start_task(
+            self._selected_probe_id, manny_id, "repair",
+            {"integrityPercent": amount},
+        )
+
     def scan_sector(self, target):
         response = self.capabilities.galaxy.observe_sector(target["x"], target["y"], target["z"])
         self.data_engine.record_sector_observation(self._selected_probe_id, response)
@@ -1039,6 +1050,19 @@ class MissionControlController(QObject):
             return
         try:
             self.service.manual_craft(recipe_id, manny_id)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._set_error("")
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot(str, float)
+    def queueManualRepair(self, manny_id, integrity_percent):
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Select and refresh a probe before ordering repairs.")
+            return
+        try:
+            self.service.manual_repair(manny_id, integrity_percent)
         except Exception as error:
             self._set_error(str(error) or type(error).__name__)
             return

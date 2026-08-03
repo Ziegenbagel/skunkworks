@@ -10,6 +10,7 @@ from src.planner.desired_state import (
     InventoryGoal,
     ProductionGoal,
     ResourceGoal,
+    RepairGoal,
     TravelGoal,
 )
 from src.planner.desired_state_store import DesiredStateStore
@@ -41,6 +42,25 @@ class DesiredStateTests(unittest.TestCase):
             state.production[0].recipe_id,
             "manny",
         )
+
+    def test_repair_goal_round_trips_and_plans_only_below_trigger(self):
+        state = DesiredState.from_dict({
+            "repairTriggerPercent": 70,
+            "repairTargetPercent": 95,
+            "repairPriority": 2,
+            "priorityScaleMax": 10,
+        })
+        self.assertEqual(state.repair, RepairGoal(70, 95, 2))
+        self.assertEqual(state.to_dict()["repairTargetPercent"], 95)
+
+        operations = build_operations()
+        operations.world.probe["systems"] = {"integrityPercent": 65}
+        repair = next(
+            task for task in Planner(operations, state).tasks()
+            if task.action == "Repair Probe"
+        )
+        self.assertEqual(repair.quantity, 30)
+        self.assertEqual(repair.priority, 2)
 
     def test_negative_goal_is_invalid(self):
         with self.assertRaises(ValueError):

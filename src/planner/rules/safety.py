@@ -6,7 +6,7 @@ from src.planner.priorities import (
     HIGH,
 )
 
-def plan(operations) -> list[Task]:
+def plan(operations, desired_state=None) -> list[Task]:
     """
     Generate safety-related tasks.
     """
@@ -15,6 +15,24 @@ def plan(operations) -> list[Task]:
 
     probe_service = operations.probes
     snapshot_service = operations.snapshots
+
+    # Probe repair is optional and probe-scoped. The API repair value is the
+    # percentage restored, rather than a target integrity percentage.
+    if desired_state is not None and desired_state.repair.trigger_percent > 0:
+        current = float(operations.world.probe.get("systems", {}).get("integrityPercent", 100))
+        goal = desired_state.repair
+        if current <= goal.trigger_percent and current < goal.target_percent:
+            constraints = () if operations.mining.idle_mannies() else ("no_idle_manny",)
+            tasks.append(Task(
+                action="Repair Probe",
+                reason=(f"Probe integrity is {current:.1f}%, at or below the "
+                        f"{goal.trigger_percent:.1f}% repair trigger; restore to "
+                        f"{goal.target_percent:.1f}%."),
+                category="repair",
+                quantity=goal.target_percent - current,
+                constraints=constraints,
+                priority=goal.priority,
+            ))
 
     #
     # Snapshot freshness

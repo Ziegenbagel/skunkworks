@@ -19,9 +19,24 @@ class TaskCommandTranslator:
             "Mine Deuterium": self._mine,
             "Move Probe": self._move,
             "Assemble Probe": self._assemble_probe,
+            "Repair Probe": self._repair,
         }.get(task.action)
 
         return handler(task) if handler is not None else None
+
+    def _repair(self, task):
+        manny = self._claim_idle_manny()
+        if manny is None:
+            return None
+        return Command(
+            type=CommandType.MANNY_REPAIR,
+            probe_id=self.probe_id,
+            target_id=manny["id"],
+            payload={"integrityPercent": round(float(task.quantity), 2)},
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+        )
 
     def _craft(self, task):
         recipe = self.operations.manufacturing.recipes.get(
