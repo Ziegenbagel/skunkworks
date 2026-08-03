@@ -90,7 +90,11 @@ class TaskCommandTranslator:
 
         cargo = manny.get("cargo") or {}
         trip_capacity = float(cargo.get("capacity", 0.05) or 0.05)
-        target_amount = round(min(float(task.quantity), 0.55), 3)
+        target_amount = round(min(
+            float(task.quantity),
+            float(task.maximum_order_amount),
+            0.55,
+        ), 3)
         trips = max(1, int((target_amount / trip_capacity) + 0.999999))
         target_container = self._preferred_mining_container(task.target, resource_type)
 

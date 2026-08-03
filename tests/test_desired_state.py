@@ -88,6 +88,7 @@ class DesiredStateTests(unittest.TestCase):
             resources=(ResourceGoal("metals", 4.5, priority=4),),
             fuel=FuelGoal(35, priority=8),
             inventory=InventoryGoal(2, priority=6),
+            maximum_mining_order_amount=0.25,
             travel=TravelGoal(SectorCoordinates(2, 0, 0)),
             fleet=(FleetGoal("deuterium_tanker", 2, priority=1),),
         )
@@ -96,6 +97,14 @@ class DesiredStateTests(unittest.TestCase):
             DesiredState.from_dict(state.to_dict()),
             state,
         )
+
+    def test_mining_order_amount_requires_game_increment(self):
+        self.assertEqual(
+            DesiredState.from_dict({"maximumMiningOrderAmount": 0.25}).maximum_mining_order_amount,
+            0.25,
+        )
+        with self.assertRaises(ValueError):
+            DesiredState(maximum_mining_order_amount=0.26)
 
     def test_store_loads_config_then_persisted_override(self):
         with tempfile.TemporaryDirectory() as directory:

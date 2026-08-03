@@ -112,6 +112,7 @@ Item {
         fuelPriority.value = Number(settingsData.fuelPriority || 3);
         freeCapacity.value = Number(settingsData.minimumFreeCapacity || 1);
         capacityPriority.value = Number(settingsData.inventoryPriority || 3);
+        miningOrderSteps.value = Math.max(1, Math.min(11, Math.round(Number(settingsData.maximumMiningOrderAmount || 0.55) / 0.05)));
     }
     onRuntimeDataChanged: syncExecutionControls()
     onSettingsDataChanged: syncDesiredStateControls()
@@ -146,6 +147,7 @@ Item {
             "fuelPriority": fuelPriority.value,
             "minimumFreeCapacity": freeCapacity.value,
             "inventoryPriority": capacityPriority.value,
+            "maximumMiningOrderAmount": Number((miningOrderSteps.value * 0.05).toFixed(2)),
             "travelTarget": settingsData.travelTarget || null
         };
     }
@@ -371,6 +373,16 @@ Item {
                     Label { text: "AUTOMATION FLOOR"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "MINIMUM QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { text: "MAX PER MANNY MINING ORDER"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    SpinBox {
+                        id: miningOrderSteps
+                        from: 1; to: 11; stepSize: 1; value: 11
+                        textFromValue: function(value, locale) { return (value * 0.05).toFixed(2) + " ECE" }
+                        ToolTip.visible: miningOrderHover.hovered
+                        ToolTip.text: "Caps each continuous mining assignment. Smaller orders return Mannys to the available pool sooner; remaining demand is reconsidered next cycle."
+                        HoverHandler { id: miningOrderHover }
+                    }
+                    Label { text: "0.05–0.55 ECE · PER PROBE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                     Label { text: "DEUTERIUM"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: deuteriumReserve; from: 0; to: 100000; value: root.reserve("deuterium") }
                     SpinBox { id: deuteriumPriority; from: 1; to: 10; value: Number((root.settingsData.resourcePriorities || {}).deuterium || 5) }

@@ -453,7 +453,7 @@ def build():
         "Inspect the proposed command queue and its explanation of why each command exists or why no action is available.",
         "Enable only the command types you are willing to send, then choose Approval or Automatic.",
     ])
-    add_note(doc, "Mining quantities", "A Manny carries 0.05 ECE per trip, but a mining order can request a larger campaign amount (up to the game’s accepted limit) and complete multiple trips. Skunkworks should request the amount required by the selected goal, not blindly choose the smallest or largest value.")
+    add_note(doc, "Mining quantities", "Maximum per Manny Mining Order is stored separately for each probe and accepts 0.05–0.55 ECE in 0.05 increments. A Manny carries 0.05 ECE per trip, so a larger order remains one continuous multi-trip campaign. Lower the maximum to return Mannys to the available pool sooner and let Skunkworks reconsider other work more frequently; 0.55 ECE preserves the longest, least-interrupted campaign behavior. The planner still tracks the full uncovered requirement and sends another capped order later when it remains necessary.")
     add_heading(doc, "Max orders per cycle", 2)
     add_body(doc, "This limit is the maximum number of separate live game orders Skunkworks may send during one 60-second automatic cycle. It is a rate and blast-radius control, not a target quantity.")
 

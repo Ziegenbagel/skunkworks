@@ -18,6 +18,9 @@ class Task:
     quantity: float = 1
     constraints: tuple[str, ...] = ()
     resource_type: str | None = None
+    # Per-dispatch cap. The task quantity remains the full uncovered need so
+    # planning explanations and remaining-amount accounting stay accurate.
+    maximum_order_amount: float = 0.55
     destination: SectorCoordinates | None = None
     route: tuple[SectorCoordinates, ...] = ()
     hazards: tuple[object, ...] = ()

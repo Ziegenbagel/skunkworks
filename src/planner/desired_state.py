@@ -113,8 +113,21 @@ class DesiredState:
     inventory: InventoryGoal = field(
         default_factory=InventoryGoal
     )
+    maximum_mining_order_amount: float = 0.55
     travel: TravelGoal | None = None
     fleet: tuple[FleetGoal, ...] = field(default_factory=tuple)
+
+    def __post_init__(self):
+        amount = float(self.maximum_mining_order_amount)
+        if not 0.05 <= amount <= 0.55:
+            raise ValueError(
+                "Maximum mining order must be between 0.05 and 0.55 ECE."
+            )
+        steps = amount / 0.05
+        if abs(steps - round(steps)) > 0.000001:
+            raise ValueError(
+                "Maximum mining order must use 0.05 ECE increments."
+            )
 
     @classmethod
     def empty(cls):
@@ -168,6 +181,9 @@ class DesiredState:
                 ),
                 priority=normalize_priority(value.get("inventoryPriority"), 3, legacy_priorities),
             ),
+            maximum_mining_order_amount=float(
+                value.get("maximumMiningOrderAmount", 0.55)
+            ),
             travel=(
                 TravelGoal(
                     target=SectorCoordinates.from_api(
@@ -211,6 +227,7 @@ class DesiredState:
                 self.inventory.minimum_free_capacity
             ),
             "inventoryPriority": self.inventory.priority,
+            "maximumMiningOrderAmount": self.maximum_mining_order_amount,
             "travelTarget": (
                 {
                     "x": self.travel.target.x,

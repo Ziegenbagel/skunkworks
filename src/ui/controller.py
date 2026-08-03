@@ -1132,6 +1132,7 @@ class MissionControlController(QObject):
                 resources=current.resources,
                 fuel=current.fuel,
                 inventory=current.inventory,
+                maximum_mining_order_amount=current.maximum_mining_order_amount,
                 travel=TravelGoal(SectorCoordinates(x, y, z)),
                 fleet=current.fleet,
             )

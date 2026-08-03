@@ -211,6 +211,25 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertIn("0.550 is already committed", carbon.reason)
         self.assertEqual(carbon.quantity, 5)
 
+    def test_mining_order_uses_probe_specific_maximum(self):
+        operations = build_operations(metals=0)
+        tasks = Planner(
+            operations,
+            DesiredState(
+                resources=(ResourceGoal("metals", 4, priority=2),),
+                maximum_mining_order_amount=0.25,
+            ),
+        ).tasks()
+
+        mining = next(task for task in tasks if task.category == "mining")
+        self.assertEqual(mining.quantity, 4)
+        self.assertEqual(mining.maximum_order_amount, 0.25)
+
+        from src.execution.translator import TaskCommandTranslator
+        command = TaskCommandTranslator(operations, 1).translate(mining)
+        self.assertEqual(command.payload["targetAmount"], 0.25)
+        self.assertEqual(command.metadata["remainingAmount"], 3.75)
+
     def test_mission_13_plans_capacity_and_travel(self):
         operations = build_operations(free_capacity=0.5)
         target = SectorCoordinates(2, 0, 0)

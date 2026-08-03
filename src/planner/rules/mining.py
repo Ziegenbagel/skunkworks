@@ -151,6 +151,7 @@ def plan(operations, desired_state) -> list[Task]:
                     else resource_type
                 ),
                 quantity=round(order_amount, 3),
+                maximum_order_amount=desired_state.maximum_mining_order_amount,
                 constraints=tuple(constraints),
                 resource_type=resource_type,
                 priority=priorities.get(
