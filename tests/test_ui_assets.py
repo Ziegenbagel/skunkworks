@@ -138,6 +138,18 @@ def test_settings_exposes_official_update_channel():
     assert "https://github.com/Ziegenbagel/skunkworks/releases/latest" in controller
 
 
+def test_settings_numeric_targets_accept_keyboard_entry():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    for control_id in (
+        "genericTarget", "tankerTarget", "mannyTarget", "containerTarget",
+        "relayTarget", "beaconTarget", "deuteriumReserve", "metalsReserve",
+        "iceReserve", "carbonReserve",
+    ):
+        declaration = settings.split("id: " + control_id, 1)[1].split("}", 1)[0]
+        assert "editable: true" in declaration
+    assert "valueFromText: function(text, locale)" in settings
+
+
 def test_settings_exposes_privacy_safe_diagnostic_logs():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
     controller = Path("src/ui/controller.py").read_text()

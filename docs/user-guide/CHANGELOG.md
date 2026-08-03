@@ -6,6 +6,8 @@
   in 0.05 increments. The planner retains the full uncovered requirement while
   each live order is capped, allowing operators to trade fewer long campaigns
   for faster Manny availability and more frequent replanning.
+- Made Settings quantity, priority, reserve, safety-floor, and cycle-limit
+  selectors directly editable from the keyboard while retaining their bounds.
 - Enlarged Fleet Status counts for double/triple-digit fleets, doubled Resource
   Summary bar thickness, and added bounded sector-map placement: outward orbital
   labels, reserved perimeter slots, and overflow grouping for dense sectors.

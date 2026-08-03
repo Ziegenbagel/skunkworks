@@ -216,7 +216,7 @@ Item {
                         CheckBox { id: liveExecution; text: "ALLOW SKUNKWORKS TO SEND GAME ORDERS"; checked: Boolean(root.runtimeData.liveExecutionEnabled); ToolTip.visible: hovered; ToolTip.text: "Required for Approval and Automatic modes. When off, Skunkworks only plans and displays commands; it sends no POST requests to the game." }
                         RowLayout {
                             Label { text: "MAX ORDERS PER 60-SECOND CYCLE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
-                            SpinBox { id: commandsPerCycle; from: 1; to: 10; value: Number(root.runtimeData.maxCommandsPerCycle || 1); ToolTip.visible: hovered; ToolTip.text: "Safety and rate limit: the most separate Manny, crafting, or travel orders Skunkworks may send in one automatic cycle." }
+                            SpinBox { id: commandsPerCycle; from: 1; to: 10; editable: true; value: Number(root.runtimeData.maxCommandsPerCycle || 1); ToolTip.visible: hovered; ToolTip.text: "Safety and rate limit: the most separate Manny, crafting, or travel orders Skunkworks may send in one automatic cycle." }
                         }
                         Label { text: "COMMAND ALLOWLIST"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                         CheckBox { id: craftCommands; text: "CRAFTING & PROBE ASSEMBLY"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") || root.commandAllowed("manny_assemble_probe") }
@@ -297,23 +297,23 @@ Item {
                     Label { text: "DESIRED QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "GENERIC PROBES"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: genericTarget; from: 0; to: 99; value: Number((root.settingsData.fleetTargets || {}).generic || 0) }
-                    SpinBox { id: genericPriority; from: 1; to: 10; value: Number((root.settingsData.fleetPriorities || {}).generic || 5) }
+                    SpinBox { id: genericTarget; from: 0; to: 99; editable: true; value: Number((root.settingsData.fleetTargets || {}).generic || 0) }
+                    SpinBox { id: genericPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.fleetPriorities || {}).generic || 5) }
                     Label { text: "DEUTERIUM TANKERS"; color: Constants.cyanColor; font.family: Constants.technicalFont }
-                    SpinBox { id: tankerTarget; from: 0; to: 99; value: Number((root.settingsData.fleetTargets || {}).deuterium_tanker || 0) }
-                    SpinBox { id: tankerPriority; from: 1; to: 10; value: Number((root.settingsData.fleetPriorities || {}).deuterium_tanker || 1) }
+                    SpinBox { id: tankerTarget; from: 0; to: 99; editable: true; value: Number((root.settingsData.fleetTargets || {}).deuterium_tanker || 0) }
+                    SpinBox { id: tankerPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.fleetPriorities || {}).deuterium_tanker || 1) }
                     Label { text: "MANNYS"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: mannyTarget; from: 0; to: 999; value: root.productionQuantity("manny") }
-                    SpinBox { id: mannyPriority; from: 1; to: 10; value: root.productionPriority("manny") }
+                    SpinBox { id: mannyTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("manny") }
+                    SpinBox { id: mannyPriority; from: 1; to: 10; editable: true; value: root.productionPriority("manny") }
                     Label { text: "ADDITIONAL CONTAINERS"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: containerTarget; from: 0; to: 999; value: root.productionQuantity("additional_container") }
-                    SpinBox { id: containerPriority; from: 1; to: 10; value: root.productionPriority("additional_container") }
+                    SpinBox { id: containerTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("additional_container") }
+                    SpinBox { id: containerPriority; from: 1; to: 10; editable: true; value: root.productionPriority("additional_container") }
                     Label { text: "SCUT RELAYS"; color: Constants.cyanColor; font.family: Constants.technicalFont; ToolTip.visible: relayHover.hovered; ToolTip.text: "Maintain completed SCUT relays in inventory. Relay crafting can require multiple days."; HoverHandler { id: relayHover } }
-                    SpinBox { id: relayTarget; from: 0; to: 99; value: root.productionQuantity("scut_relay") }
-                    SpinBox { id: relayPriority; from: 1; to: 10; value: root.productionPriority("scut_relay") }
+                    SpinBox { id: relayTarget; from: 0; to: 99; editable: true; value: root.productionQuantity("scut_relay") }
+                    SpinBox { id: relayPriority; from: 1; to: 10; editable: true; value: root.productionPriority("scut_relay") }
                     Label { text: "SCUT TRANSIT BEACONS"; color: Constants.cyanColor; font.family: Constants.technicalFont; ToolTip.visible: beaconHover.hovered; ToolTip.text: "Maintain transit beacons ready for installation on active SCUT relays."; HoverHandler { id: beaconHover } }
-                    SpinBox { id: beaconTarget; from: 0; to: 99; value: root.productionQuantity("scut_transit_beacon") }
-                    SpinBox { id: beaconPriority; from: 1; to: 10; value: root.productionPriority("scut_transit_beacon") }
+                    SpinBox { id: beaconTarget; from: 0; to: 99; editable: true; value: root.productionQuantity("scut_transit_beacon") }
+                    SpinBox { id: beaconPriority; from: 1; to: 10; editable: true; value: root.productionPriority("scut_transit_beacon") }
                 }
             }
 
@@ -376,31 +376,37 @@ Item {
                     Label { text: "MAX PER MANNY MINING ORDER"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     SpinBox {
                         id: miningOrderSteps
-                        from: 1; to: 11; stepSize: 1; value: 11
+                        from: 1; to: 11; stepSize: 1; editable: true; value: 11
                         textFromValue: function(value, locale) { return (value * 0.05).toFixed(2) + " ECE" }
+                        valueFromText: function(text, locale) {
+                            var amount = Number(String(text).replace(/[^0-9.]/g, ""))
+                            if (!isFinite(amount))
+                                return miningOrderSteps.value
+                            return Math.max(miningOrderSteps.from, Math.min(miningOrderSteps.to, Math.round(amount / 0.05)))
+                        }
                         ToolTip.visible: miningOrderHover.hovered
                         ToolTip.text: "Caps each continuous mining assignment. Smaller orders return Mannys to the available pool sooner; remaining demand is reconsidered next cycle."
                         HoverHandler { id: miningOrderHover }
                     }
                     Label { text: "0.05–0.55 ECE · PER PROBE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                     Label { text: "DEUTERIUM"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: deuteriumReserve; from: 0; to: 100000; value: root.reserve("deuterium") }
-                    SpinBox { id: deuteriumPriority; from: 1; to: 10; value: Number((root.settingsData.resourcePriorities || {}).deuterium || 5) }
+                    SpinBox { id: deuteriumReserve; from: 0; to: 100000; editable: true; value: root.reserve("deuterium") }
+                    SpinBox { id: deuteriumPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).deuterium || 5) }
                     Label { text: "METALS"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: metalsReserve; from: 0; to: 100000; value: root.reserve("metals") }
-                    SpinBox { id: metalsPriority; from: 1; to: 10; value: Number((root.settingsData.resourcePriorities || {}).metals || 5) }
+                    SpinBox { id: metalsReserve; from: 0; to: 100000; editable: true; value: root.reserve("metals") }
+                    SpinBox { id: metalsPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).metals || 5) }
                     Label { text: "ICE"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: iceReserve; from: 0; to: 100000; value: root.reserve("ice") }
-                    SpinBox { id: icePriority; from: 1; to: 10; value: Number((root.settingsData.resourcePriorities || {}).ice || 5) }
+                    SpinBox { id: iceReserve; from: 0; to: 100000; editable: true; value: root.reserve("ice") }
+                    SpinBox { id: icePriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).ice || 5) }
                     Label { text: "CARBON COMPOUNDS"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: carbonReserve; from: 0; to: 100000; value: root.reserve("carbon_compounds") }
-                    SpinBox { id: carbonPriority; from: 1; to: 10; value: Number((root.settingsData.resourcePriorities || {}).carbon_compounds || 5) }
+                    SpinBox { id: carbonReserve; from: 0; to: 100000; editable: true; value: root.reserve("carbon_compounds") }
+                    SpinBox { id: carbonPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).carbon_compounds || 5) }
                     Label { text: "FUEL FLOOR %"; color: Constants.warningColor; font.family: Constants.technicalFont }
-                    SpinBox { id: fuelFloor; from: 0; to: 100; value: Number(root.settingsData.minimumFuelPercent || 20) }
-                    SpinBox { id: fuelPriority; from: 1; to: 10; value: Number(root.settingsData.fuelPriority || 3) }
+                    SpinBox { id: fuelFloor; from: 0; to: 100; editable: true; value: Number(root.settingsData.minimumFuelPercent || 20) }
+                    SpinBox { id: fuelPriority; from: 1; to: 10; editable: true; value: Number(root.settingsData.fuelPriority || 3) }
                     Label { text: "MIN FREE CAPACITY"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: freeCapacity; from: 0; to: 1000; value: Number(root.settingsData.minimumFreeCapacity || 1) }
-                    SpinBox { id: capacityPriority; from: 1; to: 10; value: Number(root.settingsData.inventoryPriority || 3) }
+                    SpinBox { id: freeCapacity; from: 0; to: 1000; editable: true; value: Number(root.settingsData.minimumFreeCapacity || 1) }
+                    SpinBox { id: capacityPriority; from: 1; to: 10; editable: true; value: Number(root.settingsData.inventoryPriority || 3) }
                 }
             }
 
