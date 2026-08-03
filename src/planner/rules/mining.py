@@ -31,9 +31,13 @@ def plan(operations, desired_state) -> list[Task]:
         if shortage <= 0:
             continue
 
+        # A desired quantity is a persistent destination, not permission to
+        # reserve the inputs for the entire outstanding batch. Manufacturing
+        # dispatches one unit at a time, so mining should fund the same bounded
+        # scheduling horizon and let the next cycle compare every goal again.
         production = operations.manufacturing.production_plan(
             goal.recipe_id,
-            quantity=shortage,
+            quantity=1,
             include_operational_constraints=False,
         )
 
@@ -49,7 +53,7 @@ def plan(operations, desired_state) -> list[Task]:
             )
             manufacturing_resources.add(resource_type)
             resource_reasons[resource_type].add(
-                f"production target: {goal.recipe_id.replace('_', ' ')}"
+                f"next production unit: {goal.recipe_id.replace('_', ' ')}"
             )
             priorities[resource_type] = min(
                 priorities.get(resource_type, goal.priority),
@@ -92,8 +96,13 @@ def plan(operations, desired_state) -> list[Task]:
             priorities[resource_type] = min(priorities.get(resource_type, goal.priority), goal.priority)
 
     tasks = []
+    active_commitments = operations.mining.active_commitments()
 
     for resource_type, amount in shortages.items():
+        committed = float(active_commitments.get(resource_type, 0))
+        uncovered_amount = max(0, float(amount) - committed)
+        if uncovered_amount <= 0.00001:
+            continue
         target = operations.mining.best_target(resource_type)
         constraints = []
 
@@ -110,7 +119,7 @@ def plan(operations, desired_state) -> list[Task]:
         if resource_type != "deuterium" and free_capacity <= 0:
             constraints.append("insufficient_probe_storage")
 
-        order_amount = amount
+        order_amount = uncovered_amount
         if target is not None:
             order_amount = min(order_amount, target.get("available_amount", order_amount))
         if resource_type != "deuterium":
@@ -130,7 +139,9 @@ def plan(operations, desired_state) -> list[Task]:
                     else "Locate Mining Opportunity"
                 ),
                 reason=(
-                    f"Need {amount:.3f} additional {resource_type.replace('_', ' ')}. "
+                    f"Need {amount:.3f} additional {resource_type.replace('_', ' ')}; "
+                    f"{committed:.3f} is already committed to active mining and "
+                    f"{uncovered_amount:.3f} remains uncovered. "
                     f"This mining order unlocks {purpose}."
                 ),
                 category="mining",
@@ -149,4 +160,13 @@ def plan(operations, desired_state) -> list[Task]:
             )
         )
 
+    # Equal-priority resource orders are balanced by current active coverage.
+    # This prevents the first resource in saved settings from claiming every
+    # newly-idle Manny while other requirements remain completely uncovered.
+    tasks.sort(key=lambda task: (
+        task.priority,
+        active_commitments.get(task.resource_type, 0)
+        / max(float(shortages.get(task.resource_type, 0)), 0.00001),
+        -float(shortages.get(task.resource_type, 0)),
+    ))
     return tasks

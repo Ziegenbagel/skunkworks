@@ -205,7 +205,11 @@ class UiPreparationTests(unittest.TestCase):
             ]
         }
 
-        work = MissionControlViewModelBuilder._production(probe, mannies)
+        work = MissionControlViewModelBuilder._production(
+            probe,
+            mannies,
+            {"manny-a": "Build the next tanker component."},
+        )
 
         self.assertEqual(len(work), 2)
         self.assertIn("STEEL PLATE", work[0]["displayText"])
@@ -213,6 +217,11 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("Target: Ferric Haven", work[1]["detailText"])
         self.assertNotIn("Target: asteroid-1", work[1]["detailText"])
         self.assertIn("Estimated completion", work[0]["detailText"])
+        self.assertIn(
+            "Automation reason: Build the next tanker component.",
+            work[0]["detailText"],
+        )
+        self.assertIn("Task origin: No matching Skunkworks", work[1]["detailText"])
         self.assertRegex(work[0]["eta"], r"2026-\d{2}-\d{2}  \d{2}:\d{2}:\d{2} .+ \(UTC[+-]\d{2}:\d{2}\)")
         self.assertGreater(work[0]["etaEpochMs"], 0)
 

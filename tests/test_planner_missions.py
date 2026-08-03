@@ -146,7 +146,21 @@ class PlannerMissionTests(unittest.TestCase):
         )
         self.assertEqual(mining.action, "Mine Resource")
         self.assertEqual(mining.target, "asteroid-1")
-        self.assertIn("production target: storage container", mining.reason)
+        self.assertIn("next production unit: storage container", mining.reason)
+
+    def test_large_goal_mines_for_next_unit_not_entire_batch(self):
+        tasks = Planner(
+            build_operations(metals=0),
+            DesiredState(
+                production=(
+                    ProductionGoal("storage_container", 100),
+                )
+            ),
+        ).tasks()
+
+        mining = next(task for task in tasks if task.category == "mining")
+        self.assertEqual(mining.quantity, 1)
+        self.assertIn("Need 1.000 additional metals", mining.reason)
 
     def test_mission_12_plans_resource_and_fuel_reserves(self):
         tasks = Planner(
@@ -160,6 +174,42 @@ class PlannerMissionTests(unittest.TestCase):
         categories = {task.category for task in tasks}
         self.assertIn("mining", categories)
         self.assertIn("fuel", categories)
+
+    def test_equal_priority_mining_balances_against_active_commitments(self):
+        operations = build_operations(metals=0)
+        operations.world.sector["resources"].extend([
+            {
+                "id": "carbon-rock", "classification": "persistent",
+                "resources": {"carbon_compounds": 100},
+                "composition": {"carbon_compounds": 1},
+            },
+            {
+                "id": "ice-rock", "classification": "persistent",
+                "resources": {"ice": 100}, "composition": {"ice": 1},
+            },
+        ])
+        operations.world.mannies["mannies"].append({
+            "id": 102, "currentTask": "mining", "canReceiveOrders": False,
+            "location": {"type": "sector"},
+            "task": {
+                "resourceType": "carbon_compounds",
+                "targetAmount": 0.55,
+                "depositedAmount": 0,
+            },
+        })
+        tasks = Planner(
+            operations,
+            DesiredState(resources=(
+                ResourceGoal("carbon_compounds", 10, priority=2),
+                ResourceGoal("ice", 10, priority=2),
+            )),
+        ).tasks()
+        mining = [task for task in tasks if task.category == "mining"]
+
+        self.assertEqual(mining[0].resource_type, "ice")
+        carbon = next(task for task in mining if task.resource_type == "carbon_compounds")
+        self.assertIn("0.550 is already committed", carbon.reason)
+        self.assertEqual(carbon.quantity, 5)
 
     def test_mission_13_plans_capacity_and_travel(self):
         operations = build_operations(free_capacity=0.5)

@@ -2,6 +2,7 @@
 
 from dataclasses import asdict
 from datetime import datetime
+import json
 from src.models.galaxy import SectorCoordinates
 
 
@@ -65,7 +66,11 @@ class MissionControlViewModelBuilder:
             "sector": self._sector_view(world, coordinates),
             "galaxy": self._galaxy_view(world, coordinates),
             "missions": self._missions(),
-            "production": self._production(probe, world.mannies),
+            "production": self._production(
+                probe,
+                world.mannies,
+                self._automation_task_reasons(world.mannies, probe.get("id")),
+            ),
             "events": self.operations.events.timeline(probe["id"])
                 if self.operations.events else (),
             "operations": self._operation_records(),
@@ -680,7 +685,8 @@ class MissionControlViewModelBuilder:
         return tuple(missions)
 
     @staticmethod
-    def _production(probe, mannies):
+    def _production(probe, mannies, automation_reasons=None):
+        automation_reasons = automation_reasons or {}
         work = []
         for manny in (mannies or {}).get("mannies", ()):
             task_type = manny.get("currentTask")
@@ -705,6 +711,12 @@ class MissionControlViewModelBuilder:
             eta = manny.get("taskEstimatedEndTime") or "—"
             eta_view = MissionControlViewModelBuilder._completion_view(eta)
             operation = MissionControlViewModelBuilder._task_name(task_type, task)
+            automation_reason = automation_reasons.get(str(manny.get("id")))
+            reason_line = (
+                f"Automation reason: {automation_reason}"
+                if automation_reason
+                else "Task origin: No matching Skunkworks automation order is recorded; this task may have been assigned manually or by the game."
+            )
             work.append({
                 "id": str(manny.get("id", manny.get("name", len(work)))),
                 "asset": manny.get("name", "Manny"),
@@ -713,11 +725,12 @@ class MissionControlViewModelBuilder:
                 "progress": progress,
                 "eta": eta_view["label"],
                 "etaEpochMs": eta_view["epochMs"],
+                "automationReason": automation_reason or "",
                 "displayText": f"{manny.get('name', 'MANNY')} · {operation.upper()}    {progress:.0f}%",
                 "detailText": MissionControlViewModelBuilder._task_details(
                     manny.get("name", "Manny"), task_type, task, progress,
                     eta_view["label"],
-                ),
+                ) + "\n" + reason_line,
             })
 
         for item in probe.get("inventory", {}).get("items", ()):
@@ -743,6 +756,53 @@ class MissionControlViewModelBuilder:
                 ),
             })
         return tuple(work)
+
+    def _automation_task_reasons(self, mannies, probe_id=None):
+        """Match live Manny work to the successful command that started it."""
+        if not self.data_engine:
+            return {}
+        live = {
+            str(item.get("id")): item
+            for item in (mannies or {}).get("mannies", ())
+            if item.get("currentTask")
+        }
+        if not live:
+            return {}
+        reasons = {}
+        for row in reversed(self.data_engine.action_history(probe_id)):
+            if row["status"] != "succeeded":
+                continue
+            try:
+                command = json.loads(row["command_json"])
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            manny_id = str(command.get("targetId"))
+            if manny_id in reasons or manny_id not in live:
+                continue
+            if self._command_matches_live_task(command, live[manny_id]):
+                reason = str(command.get("reason") or "").strip()
+                if reason:
+                    reasons[manny_id] = reason
+        return reasons
+
+    @staticmethod
+    def _command_matches_live_task(command, manny):
+        task_type = manny.get("currentTask")
+        task = manny.get("task") if isinstance(manny.get("task"), dict) else {}
+        payload = command.get("payload") if isinstance(command.get("payload"), dict) else {}
+        command_type = command.get("type")
+        if task_type == "crafting" and command_type == "manny_craft":
+            live_recipe = task.get("recipe") or task.get("recipeId")
+            return not live_recipe or payload.get("recipe") == live_recipe
+        if task_type == "mining" and command_type == "manny_mine":
+            live_target = task.get("objectId") or task.get("targetId")
+            if live_target and str(payload.get("objectId")) != str(live_target):
+                return False
+            live_resources = set(task.get("resourceTypes") or [task.get("resourceType")])
+            ordered_resources = set(payload.get("resources") or ())
+            live_resources.discard(None)
+            return not live_resources or bool(live_resources & ordered_resources)
+        return False
 
     @staticmethod
     def _completion_view(value):
