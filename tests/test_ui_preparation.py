@@ -239,6 +239,26 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("IDLE · READY", work[0]["displayText"])
         self.assertIn("Can receive automation order: No", work[1]["detailText"])
 
+    def test_production_reason_summarizes_actual_order_and_one_purpose(self):
+        reason = MissionControlViewModelBuilder._concise_automation_reason({
+            "type": "manny_mine",
+            "payload": {
+                "resources": ["carbon_compounds"],
+                "targetAmount": 0.55,
+            },
+            "reason": (
+                "Need 76.480 additional carbon compounds. This mining order unlocks "
+                "production target: manny; the 20 carbon compounds reserve target."
+            ),
+        })
+
+        self.assertEqual(
+            reason,
+            "Mine 0.55 ECE Organic Compound. Supports production target: manny.",
+        )
+        self.assertNotIn("76.480", reason)
+        self.assertNotIn("reserve target", reason)
+
     def test_controller_persists_probe_role_and_updates_live_settings(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")

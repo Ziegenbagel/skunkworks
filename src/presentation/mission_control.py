@@ -780,10 +780,52 @@ class MissionControlViewModelBuilder:
             if manny_id in reasons or manny_id not in live:
                 continue
             if self._command_matches_live_task(command, live[manny_id]):
-                reason = str(command.get("reason") or "").strip()
+                reason = self._concise_automation_reason(command)
                 if reason:
                     reasons[manny_id] = reason
         return reasons
+
+    @staticmethod
+    def _concise_automation_reason(command):
+        """Turn an internal planner explanation into one operator-facing purpose."""
+        payload = command.get("payload") if isinstance(command.get("payload"), dict) else {}
+        raw_reason = str(command.get("reason") or "").strip()
+        command_type = command.get("type")
+
+        if command_type == "manny_mine":
+            resources = payload.get("resources") or ("resource",)
+            resource = str(resources[0]).replace("carbon_compounds", "organic_compound")
+            resource = resource.replace("_", " ").title()
+            amount = float(payload.get("targetAmount", 0) or 0)
+            action = f"Mine {amount:g} ECE {resource}"
+        elif command_type == "manny_craft":
+            recipe = str(payload.get("recipe") or "item").replace("_", " ").title()
+            action = f"Craft one {recipe}"
+        else:
+            return raw_reason
+
+        purpose_text = raw_reason
+        marker = "This mining order unlocks "
+        if marker in purpose_text:
+            purpose_text = purpose_text.split(marker, 1)[1]
+        clauses = [item.strip().rstrip(".") for item in purpose_text.split(";") if item.strip()]
+        preferred = next(
+            (
+                clause for label in (
+                    "tanker component:",
+                    "next production unit:",
+                    "production target:",
+                    "reserve target",
+                )
+                for clause in clauses
+                if label in clause.lower()
+            ),
+            "",
+        )
+        if preferred:
+            preferred = preferred.replace("production target:", "production target:")
+            return f"{action}. Supports {preferred}."
+        return f"{action}. Dispatched by Skunkworks automation."
 
     @staticmethod
     def _command_matches_live_task(command, manny):
