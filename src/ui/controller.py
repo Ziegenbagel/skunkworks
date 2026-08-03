@@ -481,6 +481,25 @@ class MissionControlDataService:
         recipe = self.recipes.get(recipe_id)
         if recipe is None:
             raise ValueError(f"Unknown crafting recipe: {recipe_id}")
+        if self._operations is None or self._selected_probe_id is None:
+            raise RuntimeError("Refresh the focused probe before starting a manual build.")
+        desired_state = DesiredStateStore(self.data_engine).load(self._selected_probe_id)
+        planned_tasks = Planner(self._operations, desired_state).tasks()
+        policy = ExecutionPolicyStore().load(self._selected_probe_id)
+        conflicts = CommandPreparer(
+            self._operations, self._selected_probe_id, policy,
+        ).manual_manufacturing_blockers(recipe_id, planned_tasks)
+        if conflicts:
+            labels = {
+                "item_reserved_by_higher_priority_goal": "crafted items",
+                "resource_reserved_by_higher_priority_goal": "raw resources",
+            }
+            protected = " and ".join(labels.get(item, item) for item in conflicts)
+            raise ValueError(
+                f"Manual build blocked: {protected} required by this recipe are "
+                "allocated to a higher-priority automation goal. Lower that goal, "
+                "wait for surplus inputs, or change its target before crafting manually."
+            )
         craftable_by = tuple(recipe.get("craftableBy", ()))
         if "manny" in craftable_by:
             if not manny_id:

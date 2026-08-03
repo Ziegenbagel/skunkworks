@@ -325,6 +325,29 @@ class ExecutionBoundaryTests(unittest.TestCase):
         )
         self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
 
+    def test_manual_craft_cannot_consume_planner_reserved_tanker_component(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"].setdefault("items", []).append(
+            {"id": "reserved-plate", "type": "steel_plate"}
+        )
+        self.operations.manufacturing.recipes._recipes["uses_plate"] = {
+            "id": "uses_plate", "name": "Uses plate", "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [{"type": "steel_plate", "quantity": 1, "kind": "item"}],
+            "output": {"type": "uses_plate", "containerSpace": 0.1},
+        }
+        preparer = CommandPreparer(self.operations, 1, self.policy)
+        blockers = preparer.manual_manufacturing_blockers("uses_plate", [
+            Task(
+                action="Await Active Production", reason="Protected tanker plate",
+                target="scut_relay", constraints=("active_production_pending",),
+                reserved_items=(("steel_plate", 1),), priority=1,
+            ),
+        ])
+
+        self.assertIn("item_reserved_by_higher_priority_goal", blockers)
+
     def test_blocked_craft_releases_manny_for_following_mining_order(self):
         from src.planner.task import Task
 

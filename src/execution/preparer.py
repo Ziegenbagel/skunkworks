@@ -115,6 +115,33 @@ class CommandPreparer:
             prepared[: self.policy.max_commands_per_cycle]
         )
 
+    def manual_manufacturing_blockers(self, recipe_id, planned_tasks):
+        """Protect planner allocations before a user starts a manual craft.
+
+        Manual commands intentionally bypass automatic dispatch policy, but
+        they must not bypass the resource and completed-item ledger belonging
+        to higher-priority goals. Treat the ad-hoc order as lowest priority and
+        replay the current planner claims before evaluating one unit.
+        """
+
+        from src.planner.task import Task
+
+        tasks = tuple(sorted(planned_tasks, key=lambda task: task.priority))
+        resource_claims = {}
+        item_claims = self._goal_item_claims(tasks)
+        for task in tasks:
+            self._reserve_manufacturing_inputs(task, resource_claims, item_claims)
+        manual = Task(
+            action="Craft Item",
+            reason="Manual build order",
+            target=recipe_id,
+            quantity=1,
+            priority=11,
+        )
+        return tuple(self._reserve_manufacturing_inputs(
+            manual, resource_claims, item_claims,
+        ))
+
     def _background_mining_slots(self):
         """Keep reserve-floor mining from saturating the Manny workforce.
 
