@@ -40,8 +40,15 @@ class CommandPreparer:
         prepared = []
         resource_claims = {}
         item_claims = self._goal_item_claims(tasks)
+        background_mining_slots = self._background_mining_slots()
 
         for task in tasks:
+            if (
+                task.category == "mining"
+                and getattr(task, "background_work", False)
+                and background_mining_slots <= 0
+            ):
+                continue
             reservation_blockers = self._reserve_manufacturing_inputs(
                 task, resource_claims, item_claims,
             )
@@ -90,6 +97,13 @@ class CommandPreparer:
             )
             prepared.append(item)
 
+            if (
+                not blockers
+                and task.category == "mining"
+                and getattr(task, "background_work", False)
+            ):
+                background_mining_slots -= 1
+
             if self.journal is not None:
                 self.journal.record(
                     command,
@@ -100,6 +114,32 @@ class CommandPreparer:
         return tuple(
             prepared[: self.policy.max_commands_per_cycle]
         )
+
+    def _background_mining_slots(self):
+        """Keep reserve-floor mining from saturating the Manny workforce.
+
+        Production-dependency mining remains unrestricted. Pure stockpile
+        replenishment may use at most one third of the onboard workforce, with
+        a minimum of one worker for small probes.
+        """
+
+        mannies = self.translator.operations.world.mannies.get("mannies", ())
+        onboard = [
+            manny for manny in mannies
+            if (manny.get("location") or {}).get("type") == "probe"
+        ]
+        workforce = len(onboard)
+        if workforce == 0:
+            return 0
+        budget = max(1, workforce // 3)
+        active_background_candidates = 0
+        for manny in mannies:
+            current = manny.get("currentTask")
+            details = current if isinstance(current, dict) else manny.get("task") or {}
+            task_type = details.get("type") if isinstance(current, dict) else current
+            if task_type == "mining":
+                active_background_candidates += 1
+        return max(0, budget - active_background_candidates)
 
     @staticmethod
     def _goal_item_claims(tasks):

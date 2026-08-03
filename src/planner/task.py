@@ -21,6 +21,9 @@ class Task:
     # Per-dispatch cap. The task quantity remains the full uncovered need so
     # planning explanations and remaining-amount accounting stay accurate.
     maximum_order_amount: float = 0.55
+    # Reserve-floor replenishment is useful background work, but it must not
+    # occupy the whole Manny workforce and prevent fabrication from resuming.
+    background_work: bool = False
     destination: SectorCoordinates | None = None
     route: tuple[SectorCoordinates, ...] = ()
     hazards: tuple[object, ...] = ()

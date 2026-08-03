@@ -155,6 +155,41 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual({first.target_id, second.target_id}, {101, 202})
 
+    def test_reserve_floor_mining_cannot_saturate_manny_workforce(self):
+        for manny_id in range(102, 110):
+            self.operations.world.mannies["mannies"].append({
+                "id": manny_id,
+                "currentTask": None,
+                "canReceiveOrders": True,
+                "location": {"type": "probe"},
+            })
+        desired = DesiredState(resources=(
+            ResourceGoal("metals", 10, priority=2),
+            ResourceGoal("ice", 10, priority=2),
+            ResourceGoal("carbon_compounds", 10, priority=2),
+            ResourceGoal("deuterium", 10, priority=2),
+        ))
+        self.operations.world.sector["resources"][0]["resources"].update({
+            "ice": 20,
+            "carbon_compounds": 20,
+        })
+
+        prepared = self.prepare(desired)
+        mining = [item for item in prepared if item.command.type == CommandType.MANNY_MINE]
+
+        self.assertEqual(len(mining), 3)
+        self.assertTrue(all("background work" in item.command.reason for item in mining))
+
+    def test_production_dependency_mining_is_not_background_throttled(self):
+        self.operations = build_operations(metals=0)
+        tasks = Planner(
+            self.operations,
+            DesiredState(production=(ProductionGoal("storage_container", 1, priority=1),)),
+        ).tasks()
+        mining = next(task for task in tasks if task.category == "mining")
+
+        self.assertFalse(mining.background_work)
+
     def test_automatic_mining_prefers_resource_assigned_detached_container(self):
         self.operations.world.sector["snapshot"] = {"sector": {"objects": [
             {

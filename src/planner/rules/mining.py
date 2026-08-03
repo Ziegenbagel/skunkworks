@@ -131,6 +131,7 @@ def plan(operations, desired_state) -> list[Task]:
             if reasons
             else "the highest-priority unmet goal"
         )
+        background_work = resource_type not in manufacturing_resources
         tasks.append(
             Task(
                 action=(
@@ -143,6 +144,11 @@ def plan(operations, desired_state) -> list[Task]:
                     f"{committed:.3f} is already committed to active mining and "
                     f"{uncovered_amount:.3f} remains uncovered. "
                     f"This mining order unlocks {purpose}."
+                    + (
+                        " Reserve-floor mining runs as background work so "
+                        "fabrication capacity remains available."
+                        if background_work else ""
+                    )
                 ),
                 category="mining",
                 target=(
@@ -152,6 +158,7 @@ def plan(operations, desired_state) -> list[Task]:
                 ),
                 quantity=round(order_amount, 3),
                 maximum_order_amount=desired_state.maximum_mining_order_amount,
+                background_work=background_work,
                 constraints=tuple(constraints),
                 resource_type=resource_type,
                 priority=priorities.get(
