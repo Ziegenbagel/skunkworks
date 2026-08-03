@@ -3,6 +3,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import requests
+
 from src.data import DataEngine
 from src.operations.operations import Operations
 from src.presentation import MissionControlViewModelBuilder
@@ -186,6 +188,7 @@ class UiPreparationTests(unittest.TestCase):
                     "name": "Z1-A",
                     "currentTask": "crafting",
                     "taskProgressPercent": 79.01,
+                    "taskStartTime": "2026-07-31T20:41:12+00:00",
                     "taskEstimatedEndTime": "2026-08-01T00:41:12+00:00",
                     "task": {"recipe": "steel_plate", "recipeName": "Steel plate"},
                 },
@@ -224,6 +227,22 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("Task origin: No matching Skunkworks", work[1]["detailText"])
         self.assertRegex(work[0]["eta"], r"2026-\d{2}-\d{2}  \d{2}:\d{2}:\d{2} .+ \(UTC[+-]\d{2}:\d{2}\)")
         self.assertGreater(work[0]["etaEpochMs"], 0)
+        self.assertGreater(work[0]["startedAtEpochMs"], 0)
+        self.assertIn("Started: 2026-", work[0]["detailText"])
+
+    def test_reserved_container_business_error_is_operator_readable(self):
+        response = requests.Response()
+        response.status_code = 409
+        response._content = (
+            b'{"detail":{"error":{"code":"storage_container_reserved",'
+            b'"message":"reserved"}}}'
+        )
+        error = requests.HTTPError(response=response)
+
+        message = MissionControlController._inventory_error_message(error)
+
+        self.assertIn("STORAGE CONTAINER RESERVED", message)
+        self.assertIn("active crafting task", message)
 
     def test_production_includes_idle_mannies_and_order_readiness(self):
         work = MissionControlViewModelBuilder._production(

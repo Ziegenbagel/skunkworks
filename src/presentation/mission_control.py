@@ -710,6 +710,9 @@ class MissionControlViewModelBuilder:
             progress = float(manny.get("taskProgressPercent", 0) or 0)
             eta = manny.get("taskEstimatedEndTime") or "—"
             eta_view = MissionControlViewModelBuilder._completion_view(eta)
+            started_view = MissionControlViewModelBuilder._completion_view(
+                manny.get("taskStartTime")
+            )
             operation = MissionControlViewModelBuilder._task_name(task_type, task)
             automation_reason = automation_reasons.get(str(manny.get("id")))
             reason_line = (
@@ -725,11 +728,16 @@ class MissionControlViewModelBuilder:
                 "progress": progress,
                 "eta": eta_view["label"],
                 "etaEpochMs": eta_view["epochMs"],
+                "startedAt": started_view["label"],
+                "startedAtEpochMs": started_view["epochMs"],
                 "automationReason": automation_reason or "",
                 "displayText": f"{manny.get('name', 'MANNY')} · {operation.upper()}    {progress:.0f}%",
                 "detailText": MissionControlViewModelBuilder._task_details(
                     manny.get("name", "Manny"), task_type, task, progress,
                     eta_view["label"],
+                ) + (
+                    f"\nStarted: {started_view['label']}"
+                    if started_view["epochMs"] else ""
                 ) + "\n" + reason_line,
             })
 

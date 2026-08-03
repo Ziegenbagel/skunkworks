@@ -2,6 +2,9 @@
 
 ## 0.1 — 2026-08-01
 
+- Added compatibility with the game’s 2026-08-02 crafting-reservation update:
+  Production displays Manny task start times, while reserved-container and
+  invalid-reservation failures now retain clear business explanations.
 - Added a per-probe Maximum per Manny Mining Order setting from 0.05–0.55 ECE
   in 0.05 increments. The planner retains the full uncovered requirement while
   each live order is capped, allowing operators to trade fewer long campaigns

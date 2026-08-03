@@ -38,6 +38,13 @@ Crafting now reserves its output container and volume when work starts. Those
 reservations are included in storage-capacity calculations until the scheduler
 replaces them with the completed output.
 
+As of the 2026-08-02 game update, container detach and planet-drop operations
+reject a container whose space is reserved for active crafting output with HTTP
+409 and business code `storage_container_reserved`. If a reservation becomes
+invalid before completion, the game terminates the Manny task, releases the
+reservation, and preserves `invalid_cargo_reservation` as the failure reason.
+Manny list and detail responses also expose nullable ISO 8601 `taskStartTime`.
+
 ## Observation 001
 
 ### Endpoint

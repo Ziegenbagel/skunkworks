@@ -1171,10 +1171,38 @@ class MissionControlController(QObject):
         try:
             callback()
         except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
+            self._set_error(self._inventory_error_message(error))
             return
         self._set_error("")
         self._start_refresh(self._focused_probe_id)
+
+    @staticmethod
+    def _inventory_error_message(error):
+        """Preserve public game business errors as useful operator guidance."""
+        response = getattr(error, "response", None)
+        payload = None
+        if response is not None:
+            try:
+                payload = response.json()
+            except (TypeError, ValueError):
+                payload = None
+        detail = payload.get("detail", payload) if isinstance(payload, dict) else {}
+        business_error = detail.get("error", detail) if isinstance(detail, dict) else {}
+        code = business_error.get("code") if isinstance(business_error, dict) else None
+        message = business_error.get("message") if isinstance(business_error, dict) else None
+        if code == "storage_container_reserved":
+            return (
+                "STORAGE CONTAINER RESERVED · An active crafting task has reserved "
+                "space in this container for its output. Wait for or cancel that craft "
+                "before detaching, dropping, transferring, or emptying the container."
+            )
+        if code == "invalid_cargo_reservation":
+            return "INVALID CARGO RESERVATION · " + str(
+                message or "The crafting output reservation became invalid and the Manny task was stopped."
+            )
+        if code or message:
+            return " · ".join(str(value) for value in (code, message) if value)
+        return str(error) or type(error).__name__
 
     @Slot(str)
     def renameFocusedProbe(self, name):
