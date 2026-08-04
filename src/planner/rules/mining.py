@@ -5,6 +5,10 @@ from collections import defaultdict
 from src.planner.priorities import HIGH, NORMAL
 from src.planner.task import Task
 from src.planner.assembly import tanker_component_statuses
+from src.planner.reservations import (
+    first_reserved_dependency,
+    higher_priority_item_reservations,
+)
 
 
 def plan(operations, desired_state) -> list[Task]:
@@ -35,8 +39,15 @@ def plan(operations, desired_state) -> list[Task]:
         # reserve the inputs for the entire outstanding batch. Manufacturing
         # dispatches one unit at a time, so mining should fund the same bounded
         # scheduling horizon and let the next cycle compare every goal again.
+        reservations = higher_priority_item_reservations(
+            operations, desired_state, goal.priority,
+        )
+        dependency = first_reserved_dependency(
+            operations, goal.recipe_id, reservations,
+        )
+        planned_recipe = dependency or goal.recipe_id
         production = operations.manufacturing.production_plan(
-            goal.recipe_id,
+            planned_recipe,
             quantity=1,
             include_operational_constraints=False,
         )
@@ -54,6 +65,10 @@ def plan(operations, desired_state) -> list[Task]:
             manufacturing_resources.add(resource_type)
             resource_reasons[resource_type].add(
                 f"next production unit: {goal.recipe_id.replace('_', ' ')}"
+                + (
+                    f" via surplus {dependency.replace('_', ' ')}"
+                    if dependency else ""
+                )
             )
             priorities[resource_type] = min(
                 priorities.get(resource_type, goal.priority),

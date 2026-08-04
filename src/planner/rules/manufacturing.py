@@ -2,6 +2,10 @@
 
 from src.planner.priorities import NORMAL
 from src.planner.task import Task
+from src.planner.reservations import (
+    first_reserved_dependency,
+    higher_priority_item_reservations,
+)
 
 
 def plan(operations, desired_state) -> list[Task]:
@@ -18,6 +22,36 @@ def plan(operations, desired_state) -> list[Task]:
 
         if shortage == 0:
             continue
+
+        reservations = higher_priority_item_reservations(
+            operations, desired_state, goal.priority,
+        )
+        dependency = first_reserved_dependency(
+            operations, goal.recipe_id, reservations,
+        )
+        if dependency is not None:
+            dependency_plan = operations.manufacturing.production_plan(
+                dependency, quantity=1,
+            )
+            if dependency_plan is not None:
+                tasks.append(Task(
+                    action=(
+                        "Craft Item"
+                        if dependency_plan["achievable"]
+                        else "Prepare Manufacturing"
+                    ),
+                    reason=(
+                        f"Build one surplus {dependency.replace('_', ' ')} for the next "
+                        f"{goal.recipe_id.replace('_', ' ')}. Existing {dependency.replace('_', ' ')} "
+                        "inventory is committed to a higher-priority goal and will not be consumed."
+                    ),
+                    category="manufacturing",
+                    target=dependency,
+                    quantity=1,
+                    constraints=dependency_plan["blockers"],
+                    priority=goal.priority,
+                ))
+                continue
 
         production = operations.manufacturing.production_plan(
             goal.recipe_id,

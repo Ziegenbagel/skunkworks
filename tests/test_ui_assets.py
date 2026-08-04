@@ -109,7 +109,7 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
     assert "signal sectionSelected(string section)" in navigation
     assert "onClicked: root.sectionSelected" in navigation
     assert '"RESEARCH"' not in navigation
-    assert "font.pixelSize: 10" in navigation
+    assert "font.pixelSize: 12" in navigation
 
 
 def test_fleet_workspace_exposes_live_probe_upgrade_controls():

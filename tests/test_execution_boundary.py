@@ -478,6 +478,74 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(manufacturing.quantity, 100)
         self.assertIn("one craft at a time", manufacturing.reason)
 
+    def test_lower_priority_container_builds_surplus_reserved_dependency(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.manufacturing.recipes._recipes["storage_container"] = {
+            "id": "storage_container", "name": "Additional container",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [{"type": "steel_plate", "quantity": 1, "kind": "item"}],
+            "output": {"type": "storage_container", "containerSpace": 1},
+        }
+        self.operations.manufacturing.recipes._recipes["steel_plate"] = {
+            "id": "steel_plate", "name": "Steel plate",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [{"type": "metals", "quantity": 1, "kind": "resource"}],
+            "output": {"type": "steel_plate", "containerSpace": 0.1},
+        }
+        inventory = self.operations.world.probe["inventory"]
+        inventory["items"] = [
+            {"id": f"plate-{index}", "type": "steel_plate"}
+            for index in range(dict(TANKER_COMPONENTS)["steel_plate"])
+        ]
+
+        tasks = Planner(self.operations, DesiredState(
+            fleet=(FleetGoal("deuterium_tanker", 1, priority=1),),
+            production=(ProductionGoal("storage_container", 100, priority=2),),
+        )).tasks()
+
+        dependency = next(
+            task for task in tasks
+            if task.category == "manufacturing" and task.priority == 2
+        )
+        self.assertEqual(dependency.target, "steel_plate")
+        self.assertEqual(dependency.action, "Craft Item")
+        self.assertIn("will not be consumed", dependency.reason)
+
+    def test_reserved_container_dependency_requests_its_raw_resource(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 0
+        self.operations.manufacturing.recipes._recipes["storage_container"] = {
+            "id": "storage_container", "name": "Additional container",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [{"type": "steel_plate", "quantity": 1, "kind": "item"}],
+            "output": {"type": "storage_container", "containerSpace": 1},
+        }
+        self.operations.manufacturing.recipes._recipes["steel_plate"] = {
+            "id": "steel_plate", "name": "Steel plate",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [{"type": "metals", "quantity": 1, "kind": "resource"}],
+            "output": {"type": "steel_plate", "containerSpace": 0.1},
+        }
+        self.operations.world.probe["inventory"]["items"] = [
+            {"id": f"plate-{index}", "type": "steel_plate"}
+            for index in range(dict(TANKER_COMPONENTS)["steel_plate"])
+        ]
+
+        tasks = Planner(self.operations, DesiredState(
+            fleet=(FleetGoal("deuterium_tanker", 1, priority=1),),
+            production=(ProductionGoal("storage_container", 100, priority=2),),
+        )).tasks()
+
+        mining = next(
+            task for task in tasks
+            if task.category == "mining" and task.resource_type == "metals"
+        )
+        self.assertIn("via surplus steel plate", mining.reason)
+
     def test_ready_tanker_goal_becomes_special_assembly_command(self):
         from src.planner.assembly import TANKER_COMPONENTS
 
