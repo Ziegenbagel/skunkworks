@@ -108,6 +108,30 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
     assert "NavigationWorkspace" in screen
     assert "signal sectionSelected(string section)" in navigation
     assert "onClicked: root.sectionSelected" in navigation
+    assert '"RESEARCH"' not in navigation
+    assert "font.pixelSize: 10" in navigation
+
+
+def test_fleet_workspace_exposes_live_probe_upgrade_controls():
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+
+    assert "MANUAL PROBE UPGRADE" in fleet
+    assert "INSTALL UPGRADE" in fleet
+    assert "upgradeRequested" in fleet
+    assert "probeImprovements" in workspace
+    assert "onManualUpgradeRequested" in app
+    assert "def queueManualUpgrade" in controller
+
+
+def test_automation_queue_names_the_actual_output_for_each_craft():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+
+    assert "outputLabel" in settings
+    assert '"outputLabel"' in controller
 
 
 def test_inventory_workspace_exposes_complete_manual_game_controls():

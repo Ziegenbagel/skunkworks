@@ -46,6 +46,7 @@ PanelFrame {
     signal diagnosticLogsRequested()
     signal manualCraftRequested(string recipeId, string mannyId)
     signal manualRepairRequested(string mannyId, real integrityPercent)
+    signal manualUpgradeRequested(string mannyId, string improvementId)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -102,13 +103,6 @@ PanelFrame {
                         "title": String(item.domain || "EVENT").toUpperCase(),
                         "detail": item.observedAt || "Recorded event"
                     }));
-        if (section === "RESEARCH")
-            return [
-                {
-                    "title": "RESEARCH INTELLIGENCE",
-                    "detail": "No account research endpoint is exposed by API v106. Discovered improvements remain available through probe inspection and safety context."
-                }
-            ];
         return [];
     }
 
@@ -183,9 +177,11 @@ PanelFrame {
             focusedProbeId: root.focusedProbeId
             probeData: root.dashboardData.probe || ({})
             idleMannies: (root.dashboardData.inventoryManagement || {}).idleMannies || []
+            improvements: root.dashboardData.probeImprovements || []
             onProbeSelected: probeId => root.probeSelected(probeId)
             onProbeRenameRequested: name => root.probeRenameRequested(name)
             onRepairRequested: (mannyId, integrityPercent) => root.manualRepairRequested(mannyId, integrityPercent)
+            onUpgradeRequested: (mannyId, improvementId) => root.manualUpgradeRequested(mannyId, improvementId)
         }
 
         LogbookWorkspace {

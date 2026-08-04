@@ -178,6 +178,15 @@ class MissionControlDataService:
             } for recipe in self.recipes.all()),
             "idleMannies": dashboard.get("inventoryManagement", {}).get("idleMannies", ()),
         }
+        improvements_response = world.hazard_context.get("improvements") or {}
+        dashboard["probeImprovements"] = tuple({
+            "id": improvement.get("id"),
+            "displayName": improvement.get("name") or str(improvement.get("id", "")).replace("_", " ").title(),
+            "description": improvement.get("description", ""),
+            "durationSeconds": int(improvement.get("durationSeconds", 0) or 0),
+            "ingredients": tuple(improvement.get("ingredients", ())),
+        } for improvement in improvements_response.get("improvements", ())
+          if improvement.get("available", False) and not improvement.get("done", False))
         dashboard["logbook"] = self.logbook_view(
             selected["id"], probe_data.get("probes", ()),
         )
@@ -262,6 +271,12 @@ class MissionControlDataService:
     @staticmethod
     def _prepared_view(prepared):
         command = prepared.command
+        output_label = (
+            command.payload.get("recipe")
+            or command.metadata.get("model")
+            or command.metadata.get("resource")
+            or ""
+        )
         return {
             "fingerprint": command.fingerprint,
             "type": command.type.value,
@@ -274,6 +289,7 @@ class MissionControlDataService:
             "warnings": [asdict(item) for item in prepared.warnings],
             "payload": command.payload,
             "metadata": command.metadata,
+            "outputLabel": str(output_label).replace("_", " "),
         }
 
     def save_execution_policy(self, value):
@@ -525,6 +541,23 @@ class MissionControlDataService:
         return self.capabilities.mannies.start_task(
             self._selected_probe_id, manny_id, "repair",
             {"integrityPercent": amount},
+        )
+
+    def manual_upgrade(self, manny_id, improvement_id):
+        if not manny_id:
+            raise ValueError("Select an idle Manny for this probe upgrade.")
+        if not improvement_id:
+            raise ValueError("Select an available probe upgrade.")
+        response = (self._operations.world.hazard_context.get("improvements") or {}) if self._operations else {}
+        available = {
+            item.get("id") for item in response.get("improvements", ())
+            if item.get("available", False) and not item.get("done", False)
+        }
+        if improvement_id not in available:
+            raise ValueError("That upgrade is locked, completed, or no longer available. Refresh Fleet and choose again.")
+        return self.capabilities.mannies.start_task(
+            self._selected_probe_id, manny_id, "improve-probe",
+            {"improvement": improvement_id},
         )
 
     def scan_sector(self, target):
@@ -1082,6 +1115,19 @@ class MissionControlController(QObject):
             return
         try:
             self.service.manual_repair(manny_id, integrity_percent)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._set_error("")
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot(str, str)
+    def queueManualUpgrade(self, manny_id, improvement_id):
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Select and refresh a probe before ordering an upgrade.")
+            return
+        try:
+            self.service.manual_upgrade(manny_id, improvement_id)
         except Exception as error:
             self._set_error(str(error) or type(error).__name__)
             return

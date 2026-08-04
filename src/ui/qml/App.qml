@@ -297,6 +297,12 @@ ApplicationWindow {
                 window.backend.queueManualRepair(mannyId, integrityPercent);
         }
 
+        function onManualUpgradeRequested(mannyId, improvementId) {
+            AudioManager.play("confirm");
+            if (window.backend)
+                window.backend.queueManualUpgrade(mannyId, improvementId);
+        }
+
         function onDiagnosticLogsRequested() {
             AudioManager.play("press");
             if (window.backend)

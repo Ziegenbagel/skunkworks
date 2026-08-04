@@ -10,9 +10,11 @@ Item {
     property int focusedProbeId: -1
     property var probeData: ({})
     property var idleMannies: []
+    property var improvements: []
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
     signal repairRequested(string mannyId, real integrityPercent)
+    signal upgradeRequested(string mannyId, string improvementId)
 
     ColumnLayout {
         anchors.fill: parent; spacing: 14
@@ -33,6 +35,24 @@ Item {
                 SpinBox { id: repairAmount; from: 1; to: 100; editable: true; value: Math.max(1, Math.ceil(100 - Number(root.probeData.integrityPercent === undefined ? 100 : root.probeData.integrityPercent))); textFromValue: function(value, locale) { return value + "%" }; valueFromText: function(text, locale) { return Math.max(1, Math.min(100, Number(String(text).replace(/[^0-9]/g, "")) || 1)) } }
                 Button { text: "ORDER REPAIR"; enabled: repairManny.currentIndex >= 0 && root.idleMannies.length > 0 && Number(root.probeData.integrityPercent || 100) < 100; onClicked: root.repairRequested(String(repairManny.currentValue), repairAmount.value) }
                 Label { Layout.fillWidth: true; text: root.idleMannies.length ? "Uses 0.01 containers of metals and 10 real minutes per restored percent." : "No idle Manny is available."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+            }
+        }
+        GroupBox {
+            title: "MANUAL PROBE UPGRADE"; Layout.fillWidth: true
+            RowLayout {
+                anchors.fill: parent; spacing: 12
+                ComboBox { id: upgradeChoice; Layout.fillWidth: true; model: root.improvements; textRole: "displayName"; valueRole: "id" }
+                ComboBox { id: upgradeManny; Layout.preferredWidth: 240; model: root.idleMannies; textRole: "name"; valueRole: "id" }
+                Button {
+                    text: "INSTALL UPGRADE"
+                    enabled: upgradeChoice.currentIndex >= 0 && upgradeManny.currentIndex >= 0 && root.improvements.length > 0 && root.idleMannies.length > 0
+                    onClicked: root.upgradeRequested(String(upgradeManny.currentValue), String(upgradeChoice.currentValue))
+                }
+                Label {
+                    Layout.preferredWidth: 420
+                    text: root.improvements.length ? String((root.improvements[upgradeChoice.currentIndex] || {}).description || "Selected upgrade is available for this probe.") : "No unlocked, unfinished upgrade is currently available for this probe."
+                    color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                }
             }
         }
         ScrollView {
