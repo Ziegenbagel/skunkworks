@@ -356,6 +356,20 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "replaceAll(" not in inventory
 
 
+def test_fleet_workspace_exposes_quick_manual_mining_orders():
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text()
+
+    assert "MANUAL MINING ORDER" in fleet
+    assert "REVIEW MINING ORDER" in fleet
+    assert "maximumMiningOrderAmount" in fleet
+    assert '"targetAmount"' in fleet
+    assert "manualMiningRequested" in navigation
+    assert "inventoryManagement || {}).miningTargets" in navigation
+    assert 'runInventoryMannyAction("mine", mannyId, payload)' in app
+
+
 def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     logbook = Path("src/ui/qml/components/LogbookWorkspace.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()

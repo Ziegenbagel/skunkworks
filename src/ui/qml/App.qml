@@ -303,6 +303,12 @@ ApplicationWindow {
                 window.backend.queueManualUpgrade(mannyId, improvementId);
         }
 
+        function onManualMiningRequested(mannyId, payload) {
+            AudioManager.play("confirm");
+            if (window.backend)
+                window.backend.runInventoryMannyAction("mine", mannyId, payload);
+        }
+
         function onDiagnosticLogsRequested() {
             AudioManager.play("press");
             if (window.backend)

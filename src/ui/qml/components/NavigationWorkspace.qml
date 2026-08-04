@@ -47,6 +47,7 @@ PanelFrame {
     signal manualCraftRequested(string recipeId, string mannyId)
     signal manualRepairRequested(string mannyId, real integrityPercent)
     signal manualUpgradeRequested(string mannyId, string improvementId)
+    signal manualMiningRequested(string mannyId, var payload)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -178,10 +179,13 @@ PanelFrame {
             probeData: root.dashboardData.probe || ({})
             idleMannies: (root.dashboardData.inventoryManagement || {}).idleMannies || []
             improvements: root.dashboardData.probeImprovements || []
+            miningTargets: (root.dashboardData.inventoryManagement || {}).miningTargets || []
+            maximumMiningOrderAmount: Number((root.dashboardData.automation || {}).maximumMiningOrderAmount || 0.55)
             onProbeSelected: probeId => root.probeSelected(probeId)
             onProbeRenameRequested: name => root.probeRenameRequested(name)
             onRepairRequested: (mannyId, integrityPercent) => root.manualRepairRequested(mannyId, integrityPercent)
             onUpgradeRequested: (mannyId, improvementId) => root.manualUpgradeRequested(mannyId, improvementId)
+            onMiningRequested: (mannyId, payload) => root.manualMiningRequested(mannyId, payload)
         }
 
         LogbookWorkspace {

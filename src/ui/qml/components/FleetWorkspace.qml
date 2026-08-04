@@ -11,10 +11,14 @@ Item {
     property var probeData: ({})
     property var idleMannies: []
     property var improvements: []
+    property var miningTargets: []
+    property real maximumMiningOrderAmount: 0.55
+    property var pendingMiningOrder: ({})
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
     signal repairRequested(string mannyId, real integrityPercent)
     signal upgradeRequested(string mannyId, string improvementId)
+    signal miningRequested(string mannyId, var payload)
 
     ColumnLayout {
         anchors.fill: parent; spacing: 14
@@ -55,6 +59,55 @@ Item {
                 }
             }
         }
+        GroupBox {
+            title: "MANUAL MINING ORDER"; Layout.fillWidth: true
+            ColumnLayout {
+                anchors.fill: parent; spacing: 8
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 12
+                    Label { text: "MANNY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    ComboBox { id: miningManny; Layout.preferredWidth: 220; model: root.idleMannies; textRole: "name"; valueRole: "id" }
+                    Label { text: "MINEABLE OBJECT"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    ComboBox { id: miningTarget; Layout.fillWidth: true; model: root.miningTargets; textRole: "name"; valueRole: "id" }
+                    Label { text: "RESOURCE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    ComboBox {
+                        id: miningResource; Layout.preferredWidth: 220
+                        model: miningTarget.currentIndex >= 0 ? (root.miningTargets[miningTarget.currentIndex] || {}).resourceTypes || [] : []
+                    }
+                    Label { text: "AMOUNT"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    SpinBox {
+                        id: miningAmount; editable: true; from: 1
+                        to: Math.max(1, Math.min(11, Math.round(root.maximumMiningOrderAmount / 0.05)))
+                        value: Math.min(5, to)
+                        textFromValue: function(value, locale) { return (value * 0.05).toFixed(2) + " ECE" }
+                        valueFromText: function(text, locale) {
+                            const amount = Number(String(text).replace(/[^0-9.]/g, ""));
+                            return Math.max(from, Math.min(to, Math.round(amount / 0.05)));
+                        }
+                    }
+                    Button {
+                        text: "REVIEW MINING ORDER"
+                        enabled: miningManny.currentIndex >= 0 && miningTarget.currentIndex >= 0 && miningResource.currentIndex >= 0
+                        onClicked: {
+                            root.pendingMiningOrder = {
+                                "mannyId": String(miningManny.currentValue),
+                                "payload": {
+                                    "objectId": String(miningTarget.currentValue),
+                                    "resources": [String(miningResource.currentText)],
+                                    "targetAmount": Number((miningAmount.value * 0.05).toFixed(2))
+                                }
+                            };
+                            miningConfirmation.open();
+                        }
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: "Uses the focused probe's container content rules for delivery. The amount is capped by this probe's Max per Manny mining order setting. Detailed detached-container routing remains available under Resources · Inventory & Containers."
+                    color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 13; wrapMode: Text.Wrap
+                }
+            }
+        }
         ScrollView {
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
             GridLayout {
@@ -74,6 +127,17 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    Dialog {
+        id: miningConfirmation; anchors.centerIn: parent; modal: true
+        title: "CONFIRM MANUAL MINING ORDER"; standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.miningRequested(String(root.pendingMiningOrder.mannyId), root.pendingMiningOrder.payload || ({}))
+        Label {
+            width: 540
+            text: "This sends a live mining order to the selected idle Manny. Confirm the focused probe, mineable object, resource, and amount before continuing."
+            color: Constants.textColor; font.pixelSize: 15; wrapMode: Text.Wrap
         }
     }
 }
