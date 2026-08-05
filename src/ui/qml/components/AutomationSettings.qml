@@ -12,6 +12,7 @@ Item {
     property var credentialData: ({})
     property int focusedProbeId: -1
     property int defaultProbeId: -1
+    property int desiredStateProbeId: -2
     readonly property bool canManageProbeRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
     signal saveRequested(var settings)
     signal roleAssignmentRequested(int probeId, string role)
@@ -118,9 +119,19 @@ Item {
         repairTrigger.value = Number(settingsData.repairTriggerPercent || 0);
         repairTarget.value = Number(settingsData.repairTargetPercent || 100);
         repairPriority.value = Number(settingsData.repairPriority || 2);
+        desiredStateProbeId = focusedProbeId;
     }
     onRuntimeDataChanged: syncExecutionControls()
-    onSettingsDataChanged: syncDesiredStateControls()
+    // Periodic reconnects replace settingsData with a fresh QVariant object.
+    // Do not overwrite the operator's in-progress edits for the same probe.
+    onSettingsDataChanged: {
+        if (desiredStateProbeId !== focusedProbeId)
+            syncDesiredStateControls();
+    }
+    onFocusedProbeIdChanged: {
+        desiredStateProbeId = -2;
+        Qt.callLater(syncDesiredStateControls);
+    }
     Component.onCompleted: {
         syncExecutionControls();
         syncDesiredStateControls();
@@ -186,6 +197,14 @@ Item {
                 title: "AUDIO"; Layout.fillWidth: true
                 GridLayout {
                     anchors.fill: parent; columns: 4; columnSpacing: 18; rowSpacing: 10
+                    CheckBox {
+                        text: "MUTE ALL AUDIO"
+                        checked: AudioManager.muted
+                        onToggled: AudioManager.muted = checked
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Silences music and interface effects while preserving their individual settings and volume levels."
+                    }
+                    Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: AudioManager.muted ? "ALL SKUNKWORKS AUDIO IS MUTED" : "AUDIO OUTPUT ACTIVE"; color: AudioManager.muted ? Constants.warningColor : Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
                     CheckBox { text: "BACKGROUND MUSIC"; checked: AudioManager.musicEnabled; onToggled: AudioManager.musicEnabled = checked }
                     Label { text: "MUSIC VOLUME"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     Slider { Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.01; value: AudioManager.musicVolume; onMoved: AudioManager.musicVolume = value }

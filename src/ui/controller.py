@@ -447,6 +447,10 @@ class MissionControlDataService:
             refuel_sectors=refuel_sectors,
             minimum_refuel_source_amount=float(value.get("minimumRefuelSourceAmount", 0)),
             repeat=bool(value.get("repeat", True)),
+            source_probe_id=int(value["sourceProbeId"]) if value.get("sourceProbeId") not in {None, ""} else None,
+            destination_probe_id=int(value["destinationProbeId"]) if value.get("destinationProbeId") not in {None, ""} else None,
+            load_amount=float(value["loadAmount"]) if value.get("loadAmount") is not None else None,
+            unload_amount=float(value["unloadAmount"]) if value.get("unloadAmount") is not None else None,
         )
         operation = OperationFactory.create(
             "round_trip_transport",
@@ -486,6 +490,7 @@ class MissionControlDataService:
             "transfer-deuterium-to-probe",
             "transfer-to-probe",
             "mine",
+            "recall",
         }
         if action not in allowed:
             raise ValueError(f"Unsupported manual inventory action: {action}")
@@ -680,6 +685,11 @@ class MissionControlDataService:
             "sectorLabel": label,
             "isReachable": probe.get("isReachable", True),
             "isDefault": probe.get("isDefault", False),
+            "movement": probe.get("movement") or probe.get("travel") or {},
+            "velocity": probe.get("velocity", probe.get("velocityC", 0)),
+            "sensorMode": probe.get("sensorMode") or probe.get("sensors") or "unknown",
+            "deuterium": probe.get("deuterium", probe.get("fuel", 0)),
+            "maxDeuterium": probe.get("maxDeuterium", probe.get("maxFuel", 100)),
         }
 
 
@@ -726,6 +736,36 @@ class _CompatibilityWorker(QRunnable):
         })
 
 
+class _FleetAutomationWorker(QRunnable):
+    """Run eligible probe schedulers without changing the operator's focus."""
+
+    def __init__(self, probe_ids, service_factory=MissionControlDataService):
+        super().__init__()
+        self.probe_ids = tuple(int(value) for value in probe_ids)
+        self.service_factory = service_factory
+        self.signals = _WorkerSignals()
+
+    def run(self):
+        results = []
+        try:
+            for probe_id in self.probe_ids:
+                policy = ExecutionPolicyStore().load(probe_id)
+                if not (
+                    policy.mode == ExecutionMode.AUTOMATIC
+                    and policy.live_execution_enabled
+                ):
+                    continue
+                service = self.service_factory()
+                service.load(probe_id)
+                result = service.run_automation_cycle(None, False)
+                results.append({"probeId": probe_id, "result": result})
+        except Exception as error:
+            traceback.print_exc()
+            self.signals.failed.emit(str(error) or type(error).__name__)
+            return
+        self.signals.succeeded.emit(results)
+
+
 class MissionControlController(QObject):
     """Asynchronous QObject consumed by App.qml."""
 
@@ -746,12 +786,14 @@ class MissionControlController(QObject):
         self.thread_pool = thread_pool or QThreadPool.globalInstance()
         self._dashboard = {}
         self._available_probes = []
+        self._probe_snapshot_cache = {}
         self._focused_probe_id = -1
         self._refreshing = False
         self._error = ""
         self._emergency_stop = False
         self._worker = None
         self._pending_probe_id = None
+        self._refresh_target_id = None
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
@@ -760,6 +802,7 @@ class MissionControlController(QObject):
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
         self._automation_after_refresh = False
+        self._fleet_automation_worker = None
         self._compatibility_timer = QTimer(self)
         self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
         self._compatibility_timer.timeout.connect(self._start_compatibility_check)
@@ -950,22 +993,52 @@ class MissionControlController(QObject):
             self._start_refresh(self._focused_probe_id)
 
     def _automation_tick(self):
-        runtime = self._dashboard.get("automationRuntime", {})
-        if (
-            runtime.get("mode") == "automatic"
-            and runtime.get("liveExecutionEnabled")
-            and not self._emergency_stop
-        ):
-            # A server-side task may have completed since the last dashboard
-            # snapshot. Refresh first so replanning never relies on a cached
-            # busy Manny, stale inventory, or finished production operation.
-            self._automation_after_refresh = True
-            if not self._refreshing:
-                self._start_refresh(
-                    self._focused_probe_id
-                    if self._focused_probe_id >= 0
-                    else None
-                )
+        if self._emergency_stop or self._refreshing or self._fleet_automation_worker is not None:
+            return
+        # Keep the original refresh-then-plan path for bootstrap/single-probe
+        # sessions where the account probe roster has not been synchronized yet.
+        # Besides avoiding a second API client, this guarantees that automation
+        # never plans against the concept/last-known dashboard.
+        if not self._available_probes and self._focused_probe_id >= 0:
+            runtime = self._dashboard.get("automationRuntime", {})
+            if (
+                runtime.get("mode") == ExecutionMode.AUTOMATIC.value
+                and runtime.get("liveExecutionEnabled")
+            ):
+                self._automation_after_refresh = True
+                self._start_refresh(self._focused_probe_id)
+            return
+        probe_ids = [item.get("id") for item in self._available_probes if item.get("id")]
+        if not probe_ids and self._focused_probe_id >= 0:
+            probe_ids = [self._focused_probe_id]
+        eligible = []
+        for probe_id in probe_ids:
+            policy = ExecutionPolicyStore().load(int(probe_id))
+            if policy.mode == ExecutionMode.AUTOMATIC and policy.live_execution_enabled:
+                eligible.append(int(probe_id))
+        if not eligible:
+            return
+        worker = _FleetAutomationWorker(eligible)
+        worker.signals.succeeded.connect(self._accept_fleet_automation)
+        worker.signals.failed.connect(self._reject_fleet_automation)
+        self._fleet_automation_worker = worker
+        self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_fleet_automation(self, results):
+        self._fleet_automation_worker = None
+        runtime = dict(self._dashboard.get("automationRuntime", {}))
+        runtime["fleetResults"] = self._qt_safe(results)
+        runtime["lastFleetCycleProbeCount"] = len(results)
+        self._dashboard["automationRuntime"] = runtime
+        self.dashboardChanged.emit()
+        self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
+
+    @Slot(str)
+    def _reject_fleet_automation(self, message):
+        self._fleet_automation_worker = None
+        self._set_error("Fleet automation cycle failed: " + message)
+        self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
 
     def _start_compatibility_check(self):
         if self.service is None or self._compatibility_worker is not None:
@@ -1019,6 +1092,12 @@ class MissionControlController(QObject):
 
     def _configure_automation_timer(self, runtime):
         enabled = runtime.get("mode") == "automatic" and runtime.get("liveExecutionEnabled")
+        if not enabled:
+            for probe in self._available_probes:
+                policy = ExecutionPolicyStore().load(int(probe["id"]))
+                if policy.mode == ExecutionMode.AUTOMATIC and policy.live_execution_enabled:
+                    enabled = True
+                    break
         if enabled and not self._automation_timer.isActive():
             self._automation_timer.start()
         elif not enabled:
@@ -1448,6 +1527,7 @@ class MissionControlController(QObject):
                 self._set_error(str(error) or type(error).__name__)
                 self._set_refreshing(False)
                 return
+        self._refresh_target_id = probe_id
         worker = _RefreshWorker(self.service, probe_id)
         worker.signals.succeeded.connect(self._accept_dashboard)
         worker.signals.failed.connect(self._reject_dashboard)
@@ -1456,6 +1536,7 @@ class MissionControlController(QObject):
 
     @Slot(object)
     def _accept_dashboard(self, payload):
+        requested_probe_id = self._refresh_target_id
         previous_last_result = (
             self._dashboard.get("automationRuntime", {}).get("lastResult")
             if self._dashboard else None
@@ -1483,22 +1564,87 @@ class MissionControlController(QObject):
         if not self._compatibility_timer.isActive():
             self._compatibility_timer.start()
         self._configure_automation_timer(payload.get("automationRuntime", {}))
-        self.dashboardChanged.emit()
-
         emergency_stop = bool(payload.get("emergencyStopActive", False))
         if emergency_stop != self._emergency_stop:
             self._emergency_stop = emergency_stop
             self.emergencyStopChanged.emit()
 
         probes = [dict(item) for item in payload.get("probeOptions", ())]
+        focus = dict(payload.get("focus", {}))
+        focus_id = int(focus.get("probeId", -1))
+        # Account-level probe rows currently omit some live telemetry. Retain
+        # the last authoritative per-probe sector/status so a refresh or focus
+        # change cannot turn every non-focused Fleet card into UNKNOWN.
+        for item in probes:
+            probe_id = int(item.get("id", -1))
+            cached = self._probe_snapshot_cache.get(probe_id, {})
+            if item.get("sectorLabel") in {None, "", "SECTOR UNKNOWN"}:
+                item["sectorLabel"] = cached.get("sectorLabel", "SECTOR UNKNOWN")
+            if item.get("status") in {None, "", "unknown"}:
+                item["status"] = cached.get("status", "unknown")
+            for telemetry_key, fallback in (
+                ("movement", {}),
+                ("velocity", 0),
+                ("sensorMode", "unknown"),
+                ("deuterium", 0),
+                ("maxDeuterium", 100),
+            ):
+                telemetry_value = item.get(telemetry_key)
+                if telemetry_value is None or telemetry_value == "" or (
+                    isinstance(telemetry_value, str) and telemetry_value == "unknown"
+                ) or (telemetry_key == "movement" and not telemetry_value):
+                    item[telemetry_key] = cached.get(telemetry_key, fallback)
+            if probe_id == focus_id:
+                item["sectorLabel"] = focus.get("sectorLabel") or item.get("sectorLabel")
+                item["status"] = focus.get("status") or item.get("status")
+                item["model"] = focus.get("model") or item.get("model")
+                for telemetry_key in (
+                    "movement", "velocity", "sensorMode", "deuterium", "maxDeuterium",
+                ):
+                    if telemetry_key in focus:
+                        item[telemetry_key] = focus[telemetry_key]
+            self._probe_snapshot_cache[probe_id] = dict(item)
+        # The account fleet endpoint may omit coordinates for non-focused
+        # probes. Reconstruct same-sector transfer choices from the last
+        # authoritative snapshot instead of presenting an empty selector.
+        focused_row = self._probe_snapshot_cache.get(focus_id, {})
+        focused_sector = focus.get("sectorLabel") or focused_row.get("sectorLabel")
+        if focused_sector and focused_sector != "SECTOR UNKNOWN":
+            peers = []
+            for candidate_id, candidate in self._probe_snapshot_cache.items():
+                if int(candidate_id) == focus_id:
+                    continue
+                if candidate.get("sectorLabel") != focused_sector:
+                    continue
+                peers.append({
+                    "id": int(candidate_id),
+                    "name": candidate.get("name", f"Probe {candidate_id}"),
+                    "model": candidate.get("model", "generic"),
+                    "fuel": float(candidate.get("deuterium", 0) or 0),
+                    "maxFuel": float(candidate.get("maxDeuterium", 100) or 100),
+                })
+            if peers:
+                inventory = dict(self._dashboard.get("inventoryManagement", {}))
+                known_ids = {int(item.get("id", -1)) for item in inventory.get("sameSectorProbes", ())}
+                inventory["sameSectorProbes"] = list(inventory.get("sameSectorProbes", ())) + [
+                    item for item in peers if item["id"] not in known_ids
+                ]
+                self._dashboard["inventoryManagement"] = inventory
         if probes != self._available_probes:
             self._available_probes = probes
             self.availableProbesChanged.emit()
 
-        probe_id = int(payload.get("focus", {}).get("probeId", -1))
+        probe_id = focus_id
+        # A reconnect response for an older request must not steal focus from
+        # the probe the operator explicitly selected while it was in flight.
+        if requested_probe_id is not None and int(requested_probe_id) >= 0:
+            probe_id = int(requested_probe_id) if any(
+                int(item.get("id", -1)) == int(requested_probe_id) for item in probes
+            ) else focus_id
         if probe_id != self._focused_probe_id:
             self._focused_probe_id = probe_id
             self.focusedProbeIdChanged.emit()
+        self.dashboardChanged.emit()
         self._finish_refresh()
 
     @classmethod
@@ -1531,6 +1677,7 @@ class MissionControlController(QObject):
     def _finish_refresh(self):
         self._set_startup_loading(False)
         self._worker = None
+        self._refresh_target_id = None
         self._set_refreshing(False)
         pending = self._pending_probe_id
         self._pending_probe_id = None

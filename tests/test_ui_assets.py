@@ -109,19 +109,21 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
     assert "signal sectionSelected(string section)" in navigation
     assert "onClicked: root.sectionSelected" in navigation
     assert '"RESEARCH"' not in navigation
-    assert "font.pixelSize: 12" in navigation
+    assert "Math.min(24, Math.max(16, root.width / 95))" in navigation
 
 
 def test_fleet_workspace_exposes_live_probe_upgrade_controls():
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()
     controller = Path("src/ui/controller.py").read_text()
 
     assert "MANUAL PROBE UPGRADE" in fleet
     assert "INSTALL UPGRADE" in fleet
     assert "upgradeRequested" in fleet
-    assert "probeImprovements" in workspace
+    assert "ManualControlWorkspace" in workspace
+    assert "probeImprovements" in manual
     assert "onManualUpgradeRequested" in app
     assert "def queueManualUpgrade" in controller
 
@@ -359,6 +361,7 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
 def test_fleet_workspace_exposes_quick_manual_mining_orders():
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
     navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()
 
     assert "MANUAL MINING ORDER" in fleet
@@ -366,7 +369,7 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert "maximumMiningOrderAmount" in fleet
     assert '"targetAmount"' in fleet
     assert "manualMiningRequested" in navigation
-    assert "inventoryManagement || {}).miningTargets" in navigation
+    assert "inventoryManagement || {}).miningTargets" in manual
     assert 'runInventoryMannyAction("mine", mannyId, payload)' in app
 
 

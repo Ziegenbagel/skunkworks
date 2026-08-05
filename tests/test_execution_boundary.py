@@ -478,7 +478,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(manufacturing.quantity, 100)
         self.assertIn("one craft at a time", manufacturing.reason)
 
-    def test_lower_priority_container_builds_surplus_reserved_dependency(self):
+    def test_lower_priority_container_orders_direct_recipe_with_assembly_items_protected(self):
         from src.planner.assembly import TANKER_COMPONENTS
 
         self.operations.world.fleet = {"probes": [{"model": "generic"}]}
@@ -505,13 +505,13 @@ class ExecutionBoundaryTests(unittest.TestCase):
             production=(ProductionGoal("storage_container", 100, priority=2),),
         )).tasks()
 
-        dependency = next(
+        task = next(
             task for task in tasks
             if task.category == "manufacturing" and task.priority == 2
         )
-        self.assertEqual(dependency.target, "steel_plate")
-        self.assertEqual(dependency.action, "Craft Item")
-        self.assertIn("will not be consumed", dependency.reason)
+        self.assertEqual(task.target, "storage_container")
+        self.assertEqual(task.action, "Craft Item")
+        self.assertIn("direct game recipe", task.reason)
 
     def test_reserved_container_dependency_requests_its_raw_resource(self):
         from src.planner.assembly import TANKER_COMPONENTS
@@ -544,7 +544,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
             task for task in tasks
             if task.category == "mining" and task.resource_type == "metals"
         )
-        self.assertIn("via surplus steel plate", mining.reason)
+        self.assertIn("next production unit: storage container", mining.reason)
 
     def test_ready_tanker_goal_becomes_special_assembly_command(self):
         from src.planner.assembly import TANKER_COMPONENTS

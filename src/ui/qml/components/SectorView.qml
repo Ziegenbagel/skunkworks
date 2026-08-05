@@ -20,6 +20,7 @@ Rectangle {
     readonly property real centerY: height * 0.50
     readonly property real orbitAspect: 0.62
     property string sectorLabel: "FCC 0 / 0 / 0"
+    readonly property bool probeInTransit: ["preparing", "accelerating", "cruising", "decelerating", "traveling"].indexOf(String(focusProbe.status || "").toLowerCase()) >= 0
 
     function orbitRadius(index) {
         const minimumRadius = 170;
@@ -90,6 +91,29 @@ Rectangle {
     color: "#09141c"
     border.color: Constants.lineColor
     clip: true
+
+    Rectangle {
+        visible: root.probeInTransit
+        z: 1000
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: 22
+        width: Math.min(parent.width - 44, 680)
+        height: transitColumn.implicitHeight + 30
+        color: Qt.rgba(0.02, 0.07, 0.10, 0.94)
+        border.color: Constants.cyanColor
+        radius: 4
+        Column {
+            id: transitColumn
+            anchors.fill: parent
+            anchors.margins: 15
+            spacing: 7
+            Label { text: "PROBE IN TRANSIT · " + String(root.focusProbe.status || "traveling").toUpperCase(); color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 22; font.bold: true }
+            Label { width: parent.width; text: "DESTINATION · " + String((root.focusProbe.movement || {}).destinationLabel || (root.focusProbe.movement || {}).destination || "UNKNOWN / UNSCANNED"); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 16; wrapMode: Text.Wrap }
+            Label { width: parent.width; text: "SENSORS · " + String(root.focusProbe.sensorMode || "UNKNOWN").toUpperCase() + "    VELOCITY · " + String((root.focusProbe.movement || {}).velocity || root.focusProbe.velocity || "—") + "    SEGMENTS · " + String((root.focusProbe.movement || {}).segmentsRemaining || (root.focusProbe.movement || {}).segmentCount || "—"); color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 14; wrapMode: Text.Wrap }
+            Label { width: parent.width; text: "ARRIVAL · " + String((root.focusProbe.movement || {}).estimatedArrival || (root.focusProbe.movement || {}).eta || "AWAITING TELEMETRY"); color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap }
+        }
+    }
 
     Repeater {
         model: root.orbitalBodies

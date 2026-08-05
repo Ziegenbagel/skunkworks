@@ -174,6 +174,7 @@ class ManufacturingService:
         recipe_id,
         quantity=1,
         include_operational_constraints=True,
+        protected_items=None,
     ):
         """
         Analyze repeated server craft orders without inventing sub-orders.
@@ -190,6 +191,13 @@ class ManufacturingService:
             )
 
         resources, item_pool = self._inventory()
+        for item_type, protected_count in (protected_items or {}).items():
+            available = item_pool.get(item_type, [])
+            if available and protected_count:
+                # Assembly allocations remain in inventory but are invisible to
+                # ordinary recipe analysis. The server can then satisfy the
+                # direct target recipe from recursively calculated raw inputs.
+                del available[max(0, len(available) - int(protected_count)):]
         required_resources = {}
         consumed_items = []
         synthesized = {}
@@ -255,6 +263,7 @@ class ManufacturingService:
             "duration_seconds": duration_seconds,
             "blockers": tuple(dict.fromkeys(blockers)),
             "achievable": not blockers,
+            "protected_inventory_items": dict(protected_items or {}),
         }
 
     def production_bundle_plan(self, requests):

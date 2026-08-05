@@ -7,7 +7,7 @@ import ".."
 RowLayout {
     id: root
 
-    property var sections: ["MISSION CONTROL", "FLEET", "GALAXY MAP", "NAVIGATION", "RESOURCES", "MISSIONS", "PRODUCTION", "SAFETY", "LOGBOOK", "SETTINGS"]
+    property var sections: ["MISSION CONTROL", "FLEET", "GALAXY MAP", "NAVIGATION", "RESOURCES", "MISSIONS", "PRODUCTION", "SAFETY", "LOGBOOK", "MANUAL CONTROL", "SETTINGS"]
     property string currentSection: "MISSION CONTROL"
     signal sectionSelected(string section)
 
@@ -31,7 +31,7 @@ RowLayout {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 font.family: Constants.technicalFont
-                font.pixelSize: 12
+                font.pixelSize: Math.min(24, Math.max(16, root.width / 95))
                 font.bold: navigationItem.modelData === root.currentSection
             }
 

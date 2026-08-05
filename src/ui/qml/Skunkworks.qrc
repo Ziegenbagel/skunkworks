@@ -85,6 +85,7 @@
         <file>components/GalaxyMap3D.qml</file>
         <file>components/InventoryWorkspace.qml</file>
         <file>components/LogbookWorkspace.qml</file>
+        <file>components/ManualControlWorkspace.qml</file>
         <file>components/MapObjectMarker.qml</file>
         <file>components/MetricTile.qml</file>
         <file>components/NavigationControl.qml</file>

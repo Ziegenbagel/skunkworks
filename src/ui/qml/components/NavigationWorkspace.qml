@@ -48,6 +48,7 @@ PanelFrame {
     signal manualRepairRequested(string mannyId, real integrityPercent)
     signal manualUpgradeRequested(string mannyId, string improvementId)
     signal manualMiningRequested(string mannyId, var payload)
+    signal mannyCancelRequested(string mannyId)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -92,7 +93,9 @@ PanelFrame {
             return (dashboardData.production || []).map(item => ({
                         "title": item.displayText,
                         "detail": item.detailText,
-                        "etaEpochMs": item.etaEpochMs || 0
+                        "etaEpochMs": item.etaEpochMs || 0,
+                        "mannyId": item.id || "",
+                        "cancellable": item.taskType !== "idle" && String(item.asset || "").toLowerCase().indexOf("printer") < 0
                     }));
         if (section === "SAFETY")
             return (dashboardData.alerts || []).map(item => ({
@@ -149,6 +152,7 @@ PanelFrame {
             travelPreview: root.dashboardData.travelPreview || ({})
             automationData: root.dashboardData.automation || ({})
             focusedProbe: root.dashboardData.focus || ({})
+            availableProbes: root.availableProbes
             onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
             onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
             onCancelMovementRequested: root.travelCancelRequested()
@@ -177,15 +181,25 @@ PanelFrame {
             probes: root.availableProbes
             focusedProbeId: root.focusedProbeId
             probeData: root.dashboardData.probe || ({})
-            idleMannies: (root.dashboardData.inventoryManagement || {}).idleMannies || []
-            improvements: root.dashboardData.probeImprovements || []
-            miningTargets: (root.dashboardData.inventoryManagement || {}).miningTargets || []
-            maximumMiningOrderAmount: Number((root.dashboardData.automation || {}).maximumMiningOrderAmount || 0.55)
             onProbeSelected: probeId => root.probeSelected(probeId)
             onProbeRenameRequested: name => root.probeRenameRequested(name)
+        }
+
+        ManualControlWorkspace {
+            anchors.fill: parent
+            visible: root.section === "MANUAL CONTROL"
+            dashboardData: root.dashboardData
+            probes: root.availableProbes
+            focusedProbeId: root.focusedProbeId
+            onCraftRequested: (recipeId, mannyId) => root.manualCraftRequested(recipeId, mannyId)
             onRepairRequested: (mannyId, integrityPercent) => root.manualRepairRequested(mannyId, integrityPercent)
             onUpgradeRequested: (mannyId, improvementId) => root.manualUpgradeRequested(mannyId, improvementId)
             onMiningRequested: (mannyId, payload) => root.manualMiningRequested(mannyId, payload)
+            onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
+            onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
+            onStorageMoveRequested: payload => root.storageMoveRequested(payload)
+            onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
+            onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
         }
 
         LogbookWorkspace {
@@ -200,7 +214,7 @@ PanelFrame {
         }
 
         Column {
-            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES" && root.section !== "FLEET" && root.section !== "LOGBOOK"
+            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES" && root.section !== "FLEET" && root.section !== "LOGBOOK" && root.section !== "MANUAL CONTROL"
             anchors.fill: parent
             spacing: 12
 
@@ -213,32 +227,6 @@ PanelFrame {
             }
 
             Rectangle {
-                visible: root.section === "PRODUCTION"
-                width: parent.width
-                height: visible ? manualBuildColumn.implicitHeight + 28 : 0
-                color: Constants.raisedColor
-                border.color: Constants.lineColor
-                radius: 4
-
-                ColumnLayout {
-                    id: manualBuildColumn
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 14
-                    spacing: 8
-                    Label { text: "MANUAL BUILD ORDER"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
-                    Label { Layout.fillWidth: true; text: "Start any API recipe without creating a persistent automation target. Manual orders still use the game's ingredient, storage-reservation, and Manny availability checks."; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        ComboBox { id: manualRecipe; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: (root.dashboardData.crafting || {}).recipes || [] }
-                        ComboBox { id: manualManny; Layout.preferredWidth: 260; textRole: "name"; valueRole: "id"; model: (root.dashboardData.crafting || {}).idleMannies || []; enabled: manualRecipe.currentValue && (((root.dashboardData.crafting || {}).recipes || [])[manualRecipe.currentIndex] || {}).craftableBy.indexOf("manny") >= 0 }
-                        Button { text: "QUEUE BUILD"; enabled: manualRecipe.currentValue && (!manualManny.enabled || manualManny.currentValue); onClicked: root.manualCraftRequested(String(manualRecipe.currentValue), manualManny.enabled ? String(manualManny.currentValue) : "") }
-                    }
-                }
-            }
-
-            Rectangle {
                 width: parent.width
                 height: 1
                 color: Constants.lineColor
@@ -246,7 +234,7 @@ PanelFrame {
 
             ScrollView {
                 width: parent.width
-                height: parent.height - 42 - (root.section === "PRODUCTION" ? manualBuildColumn.implicitHeight + 40 : 0)
+                height: parent.height - 42
                 clip: true
 
                 GridLayout {
@@ -304,10 +292,17 @@ PanelFrame {
                                 font.pixelSize: 16
                                 font.bold: true
                             }
+                            Button {
+                                visible: Boolean(sectionRow.modelData.cancellable)
+                                text: "CANCEL / RECALL TASK"
+                                z: 2
+                                onClicked: root.mannyCancelRequested(String(sectionRow.modelData.mannyId))
+                            }
                             }
 
                             MouseArea {
                             id: rowMouse
+                            z: 0
                             anchors.fill: parent
                             hoverEnabled: true
                             enabled: sectionRow.modelData.probeId !== undefined

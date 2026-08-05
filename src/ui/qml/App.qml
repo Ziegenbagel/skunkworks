@@ -309,6 +309,12 @@ ApplicationWindow {
                 window.backend.runInventoryMannyAction("mine", mannyId, payload);
         }
 
+        function onMannyCancelRequested(mannyId) {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.runInventoryMannyAction("recall", mannyId, ({}));
+        }
+
         function onDiagnosticLogsRequested() {
             AudioManager.play("press");
             if (window.backend)

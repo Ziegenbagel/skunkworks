@@ -10,6 +10,7 @@ Item {
     property var travelPreview: ({})
     property var automationData: ({})
     property var focusedProbe: ({})
+    property var availableProbes: []
     signal previewRequested(int x, int y, int z, string routeMode)
     signal executeRequested(bool riskAcknowledged)
     signal cancelMovementRequested()
@@ -44,6 +45,10 @@ Item {
             "refuelEnabled": refuelEnabled.checked,
             "refuelSector": coordinates(refuelCoordinates.xControl.value, refuelCoordinates.yControl.value, refuelCoordinates.zControl.value),
             "minimumRefuelSourceAmount": minimumRefuelAmount.value
+            ,"sourceProbeId": sourceProbe.currentValue || null
+            ,"destinationProbeId": destinationProbe.currentValue || null
+            ,"loadAmount": root.tankerEligible && resourceType.currentValue === "deuterium" ? loadAmount.value : null
+            ,"unloadAmount": root.tankerEligible && resourceType.currentValue === "deuterium" ? unloadAmount.value : null
         };
     }
 
@@ -119,6 +124,13 @@ Item {
                             Repeater { model: root.travelPreview.hazards || []; delegate: Label { required property var modelData; Layout.fillWidth: true; text: "⚠ " + modelData.message; color: modelData.severity === "critical" ? Constants.criticalColor : Constants.warningColor; font.pixelSize: 14; wrapMode: Text.Wrap } }
                             CheckBox { id: acknowledgeRisk; visible: Boolean(root.travelPreview.acknowledgementRequired); text: "I acknowledge the displayed travel risks" }
                             Button { text: "CONFIRM ONE-TIME TRAVEL COMMAND"; enabled: Boolean(root.travelPreview.canExecute) && (!root.travelPreview.acknowledgementRequired || acknowledgeRisk.checked); onClicked: root.executeRequested(acknowledgeRisk.checked) }
+                            Button {
+                                text: "SET AUTOMATIC SEGMENTED DESTINATION"
+                                enabled: root.validManualCoordinates
+                                onClicked: root.autonomousTargetRequested(manualX.value, manualY.value, manualZ.value)
+                                ToolTip.visible: hovered
+                                ToolTip.text: "Saves a durable destination. When Travel is allowlisted, automation sends the next safe one-sector jump after every arrival until the probe reaches it."
+                            }
                         }
                     }
                 }
@@ -149,10 +161,19 @@ Item {
                             Label { text: "RETURN POINT"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                             CoordinateEditor { id: returnCoordinates; Layout.columnSpan: 3 }
 
+                            Label { text: "LOAD FROM PROBE"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox { id: sourceProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
+                            Label { text: "UNLOAD INTO PROBE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox { id: destinationProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
+
                             Label { text: "LOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
                             RowLayout { SpinBox { id: loadThreshold; from: 1; to: 100; value: 90 } Label { text: "% FULL" } }
                             Label { text: "UNLOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
                             RowLayout { SpinBox { id: unloadThreshold; from: 0; to: 99; value: 10 } Label { text: "% REMAINS" } }
+                            Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "LOAD TANK TO"; color: Constants.textColor; font.family: Constants.technicalFont }
+                            RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: loadAmount; from: 0; to: 800; value: 400; editable: true } Label { text: "ECE (MAX 800)" } }
+                            Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "UNLOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
+                            RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: unloadAmount; from: 0; to: 800; value: 0; editable: true } Label { text: "ECE REMAINS" } }
                             Label { text: "PROTECTED DEUTERIUM"; color: Constants.warningColor; font.family: Constants.technicalFont }
                             RowLayout { SpinBox { id: protectedFuel; from: 0; to: 100; value: 20 } Label { text: "% FLOOR" } }
                             Label { text: "CONTINGENCY"; color: Constants.textColor; font.family: Constants.technicalFont }

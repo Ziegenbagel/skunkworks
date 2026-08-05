@@ -12,7 +12,9 @@ Item {
     property var idleMannies: []
     property var improvements: []
     property var miningTargets: []
+    property var detachedContainers: []
     property real maximumMiningOrderAmount: 0.55
+    property bool manualOnly: false
     property var pendingMiningOrder: ({})
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
@@ -20,16 +22,29 @@ Item {
     signal upgradeRequested(string mannyId, string improvementId)
     signal miningRequested(string mannyId, var payload)
 
+    function movementSummary(probe) {
+        const movement = probe.movement || {};
+        const status = String(probe.status || "unknown").toUpperCase();
+        if (["PREPARING", "ACCELERATING", "CRUISING", "DECELERATING", "TRAVELING"].indexOf(status) < 0)
+            return "";
+        return "TRANSIT · " + status
+            + " · DESTINATION " + String(movement.destinationLabel || movement.destination || "UNKNOWN")
+            + " · VELOCITY " + String(movement.velocity || probe.velocity || "—")
+            + " · ARRIVAL " + String(movement.estimatedArrival || movement.eta || "AWAITING TELEMETRY");
+    }
+
     ColumnLayout {
         anchors.fill: parent; spacing: 14
-        Label { text: "FLEET & PROBE IDENTITY"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+        Label { visible: !root.manualOnly; text: "FLEET & PROBE IDENTITY"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
         RowLayout {
+            visible: !root.manualOnly
             Layout.fillWidth: true
             Label { text: "RENAME FOCUSED PROBE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
             TextField { id: probeName; Layout.fillWidth: true; placeholderText: "New probe name" }
             Button { text: "RENAME"; enabled: probeName.text.trim().length > 0; onClicked: root.probeRenameRequested(probeName.text) }
         }
         GroupBox {
+            visible: root.manualOnly
             title: "MANUAL PROBE REPAIR"; Layout.fillWidth: true
             RowLayout {
                 anchors.fill: parent; spacing: 12
@@ -42,6 +57,7 @@ Item {
             }
         }
         GroupBox {
+            visible: root.manualOnly
             title: "MANUAL PROBE UPGRADE"; Layout.fillWidth: true
             RowLayout {
                 anchors.fill: parent; spacing: 12
@@ -60,6 +76,7 @@ Item {
             }
         }
         GroupBox {
+            visible: root.manualOnly
             title: "MANUAL MINING ORDER"; Layout.fillWidth: true
             ColumnLayout {
                 anchors.fill: parent; spacing: 8
@@ -85,17 +102,34 @@ Item {
                             return Math.max(from, Math.min(to, Math.round(amount / 0.05)));
                         }
                     }
+                    Label { text: "DELIVER TO"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    ComboBox {
+                        id: miningDestination
+                        Layout.preferredWidth: 300
+                        textRole: "displayName"
+                        valueRole: "id"
+                        model: [{"id": "", "displayName": "ATTACHED STORAGE · USE ROUTING RULES"}].concat(
+                            root.detachedContainers.map(container => ({
+                                "id": String(container.id || ""),
+                                "displayName": String(container.name || "Detached container")
+                                    + " · " + Number(container.freeCapacity || 0).toFixed(2)
+                                    + "/" + Number(container.capacity || 0).toFixed(2) + " ECE FREE"
+                            })))
+                    }
                     Button {
                         text: "REVIEW MINING ORDER"
                         enabled: miningManny.currentIndex >= 0 && miningTarget.currentIndex >= 0 && miningResource.currentIndex >= 0
                         onClicked: {
+                            const payload = {
+                                "objectId": String(miningTarget.currentValue),
+                                "resources": [String(miningResource.currentText)],
+                                "targetAmount": Number((miningAmount.value * 0.05).toFixed(2))
+                            };
+                            if (miningDestination.currentValue)
+                                payload.targetContainerId = String(miningDestination.currentValue);
                             root.pendingMiningOrder = {
                                 "mannyId": String(miningManny.currentValue),
-                                "payload": {
-                                    "objectId": String(miningTarget.currentValue),
-                                    "resources": [String(miningResource.currentText)],
-                                    "targetAmount": Number((miningAmount.value * 0.05).toFixed(2))
-                                }
+                                "payload": payload
                             };
                             miningConfirmation.open();
                         }
@@ -103,12 +137,13 @@ Item {
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "Uses the focused probe's container content rules for delivery. The amount is capped by this probe's Max per Manny mining order setting. Detailed detached-container routing remains available under Resources · Inventory & Containers."
+                    text: "Attached storage follows the focused probe's container routing rules. A detached container may be selected explicitly when the game API reports it as a valid destination. The amount is capped by this probe's Max per Manny mining order setting."
                     color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 13; wrapMode: Text.Wrap
                 }
             }
         }
         ScrollView {
+            visible: !root.manualOnly
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
             GridLayout {
                 id: fleetGrid; width: root.width; columns: root.width >= 1050 ? 2 : 1; columnSpacing: 18; rowSpacing: 18
@@ -117,11 +152,12 @@ Item {
                     delegate: Rectangle {
                         id: probeCard; required property var modelData
                         Layout.preferredWidth: (root.width - (fleetGrid.columns - 1) * fleetGrid.columnSpacing) / fleetGrid.columns
-                        implicitHeight: 120; color: probeCard.modelData.id === root.focusedProbeId ? Constants.selectedColor : Constants.raisedColor; border.color: probeCard.modelData.id === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor; radius: 4
+                        implicitHeight: root.movementSummary(probeCard.modelData) ? 152 : 120; color: probeCard.modelData.id === root.focusedProbeId ? Constants.selectedColor : Constants.raisedColor; border.color: probeCard.modelData.id === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor; radius: 4
                         ColumnLayout { anchors.fill: parent; anchors.margins: 18
                             Label { Layout.fillWidth: true; text: probeCard.modelData.name + (probeCard.modelData.id === root.focusedProbeId ? " · FOCUSED" : ""); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true }
                             Label { Layout.fillWidth: true; text: String(probeCard.modelData.model || "generic").split("_").join(" ").toUpperCase() + " · " + String(probeCard.modelData.status || "unknown").toUpperCase(); color: Constants.mutedTextColor; font.pixelSize: 15 }
                             Label { Layout.fillWidth: true; text: probeCard.modelData.sectorLabel || "SECTOR UNKNOWN"; color: Constants.cyanColor; font.pixelSize: 14 }
+                            Label { visible: root.movementSummary(probeCard.modelData) !== ""; Layout.fillWidth: true; text: root.movementSummary(probeCard.modelData); color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 13; wrapMode: Text.Wrap }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.probeSelected(Number(probeCard.modelData.id)) }
                     }

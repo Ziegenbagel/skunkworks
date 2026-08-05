@@ -12,6 +12,21 @@ Item {
     property int focusedProbeId: -1
     property var selectedNode: null
     readonly property var nodes: galaxyData.nodes || []
+    readonly property var nodeIndex: {
+        const result = {};
+        for (let i = 0; i < nodes.length; ++i)
+            result[String(nodes[i].id)] = nodes[i];
+        return result;
+    }
+    readonly property var recentTrailNodes: {
+        const result = {};
+        const trail = galaxyData.recentTrail || [];
+        for (let i = 0; i < trail.length; ++i) {
+            result[String(trail[i].from)] = true;
+            result[String(trail[i].to)] = true;
+        }
+        return result;
+    }
     property bool showCurrent: true
     property bool showScanned: true
     property bool showVisited: true
@@ -66,9 +81,7 @@ Item {
     }
 
     function nodeById(identifier) {
-        for (let i = 0; i < nodes.length; ++i)
-            if (nodes[i].id === identifier) return nodes[i];
-        return null;
+        return nodeIndex[String(identifier)] || null;
     }
     function positionFor(node) {
         return Qt.vector3d(Number(node.x) * spacing3D, Number(node.y) * spacing3D, Number(node.z) * spacing3D);
@@ -105,6 +118,8 @@ Item {
         );
     }
     function colorFor(node) {
+        if (showRecentTrail && recentTrailNodes[String(node.id)])
+            return Constants.warningColor;
         const state = String(node.mapState || "unknown");
         if (state === "current") return Constants.nominalColor;
         if (state === "scanned") return Constants.cyanColor;
@@ -121,8 +136,9 @@ Item {
         environment: SceneEnvironment {
             backgroundMode: SceneEnvironment.Color
             clearColor: Constants.voidColor
-            antialiasingMode: SceneEnvironment.MSAA
-            antialiasingQuality: SceneEnvironment.High
+            // MSAA made orbit/pan noticeably jittery once a modest route was
+            // discovered. Geometry is already large enough to remain legible.
+            antialiasingMode: SceneEnvironment.NoAA
         }
 
         Node {
@@ -135,7 +151,7 @@ Item {
         DirectionalLight { eulerRotation: Qt.vector3d(-35, -35, 0); brightness: 1.3 }
         DirectionalLight { eulerRotation: Qt.vector3d(35, 145, 0); brightness: 0.55; color: Constants.cyanColor }
         AxisHelper {
-            enableXZGrid: true; enableXYGrid: true; enableYZGrid: true; enableAxisLines: true
+            enableXZGrid: false; enableXYGrid: false; enableYZGrid: false; enableAxisLines: true
             gridColor: Constants.lineColor; gridOpacity: 0.22
             scale: Qt.vector3d(0.12, 0.12, 0.12)
         }
@@ -235,7 +251,7 @@ Item {
 
     Rectangle {
         anchors.left: parent.left; anchors.top: parent.top
-        anchors.leftMargin: 12; anchors.topMargin: 294
+        anchors.leftMargin: 12; anchors.topMargin: 354
         width: 470; height: root.filtersExpanded ? 330 : 42
         color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.lineColor
         clip: true
@@ -328,13 +344,29 @@ Item {
 
     Rectangle {
         anchors.left: parent.left; anchors.top: parent.top; anchors.leftMargin: 12; anchors.topMargin: 94
-        width: 470; height: 190; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
+        width: 470; height: 250; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 10; spacing: 5
             ComboBox { Layout.fillWidth: true; model: root.visibleNodes; textRole: "label"; onActivated: root.selectedNode = root.visibleNodes[currentIndex] }
             Label { text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
             Label { Layout.fillWidth: true; text: root.selectedNode ? "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 9; font.bold: true }
             Label { Layout.fillWidth: true; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9; wrapMode: Text.Wrap }
+            ScrollView {
+                visible: root.selectedNode && (root.selectedNode.objects || []).length > 0
+                Layout.fillWidth: true; Layout.preferredHeight: 62; clip: true
+                Row {
+                    spacing: 10
+                    Repeater {
+                        model: root.selectedNode ? (root.selectedNode.objects || []) : []
+                        delegate: Row {
+                            id: objectDetail
+                            required property var modelData; spacing: 4
+                            Image { width: 28; height: 28; source: objectDetail.modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(objectDetail.modelData.type, objectDetail.modelData); fillMode: Image.PreserveAspectFit }
+                            Label { anchors.verticalCenter: parent.verticalCenter; text: (objectDetail.modelData.estimated ? "EST. " : "") + String(objectDetail.modelData.name || objectDetail.modelData.type).toUpperCase(); color: objectDetail.modelData.estimated ? Constants.warningColor : Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                        }
+                    }
+                }
+            }
             Label { Layout.fillWidth: true; text: root.selectedNode ? "OBSERVED BY PROBES · " + ((root.selectedNode.probeIds || []).join(", ") || "NONE") + (root.selectedNode.lastVisitedAt ? "    LAST VISIT · " + root.selectedNode.lastVisitedAt : "") : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8; wrapMode: Text.Wrap }
             RowLayout {
                 Label { Layout.fillWidth: true; text: root.selectedNode ? "KNOWLEDGE " + String(root.selectedNode.knowledgeLevel).toUpperCase() + " · " + Math.round(root.selectedNode.confidence * 100) + "% CONFIDENCE" : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }

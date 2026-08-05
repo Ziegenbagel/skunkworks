@@ -32,6 +32,10 @@ class RoundTripTransportPlan:
     refuel_sectors: tuple[SectorCoordinates, ...] = ()
     minimum_refuel_source_amount: float = 0
     repeat: bool = True
+    source_probe_id: int | None = None
+    destination_probe_id: int | None = None
+    load_amount: float | None = None
+    unload_amount: float | None = None
 
     def __post_init__(self):
         for name, value in (
@@ -46,6 +50,9 @@ class RoundTripTransportPlan:
             raise ValueError("Fuel costs and reserves cannot be negative.")
         if self.minimum_refuel_source_amount < 0:
             raise ValueError("Minimum refuel source amount cannot be negative.")
+        for name, value in (("load_amount", self.load_amount), ("unload_amount", self.unload_amount)):
+            if value is not None and not 0 <= value <= 800:
+                raise ValueError(f"{name} must be between 0 and 800 ECE.")
 
     @property
     def cycle_hops(self):
@@ -81,6 +88,10 @@ class RoundTripTransportPlan:
             "refuelSectors": [coordinates(value) for value in self.refuel_sectors],
             "minimumRefuelSourceAmount": self.minimum_refuel_source_amount,
             "repeat": self.repeat,
+            "sourceProbeId": self.source_probe_id,
+            "destinationProbeId": self.destination_probe_id,
+            "loadAmount": self.load_amount,
+            "unloadAmount": self.unload_amount,
         }
 
 
@@ -126,11 +137,11 @@ class RoundTripTransportService:
         )
 
         if state == TransportCycleState.LOADING:
-            ready = cargo_percent >= plan.load_until_percent
+            ready = (cargo_amount >= plan.load_amount) if plan.load_amount is not None else (cargo_percent >= plan.load_until_percent)
             if not ready:
                 warnings.append("waiting_for_load_threshold")
         elif state == TransportCycleState.UNLOADING:
-            ready = cargo_percent <= plan.unload_until_percent
+            ready = (cargo_amount <= plan.unload_amount) if plan.unload_amount is not None else (cargo_percent <= plan.unload_until_percent)
             if not ready:
                 warnings.append("waiting_for_unload_threshold")
         else:

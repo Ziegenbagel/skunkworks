@@ -14,6 +14,7 @@ Item {
     property alias musicVolume: preferences.musicVolume
     property alias effectsVolume: preferences.effectsVolume
     property alias hoverEnabled: preferences.hoverEnabled
+    property alias muted: preferences.muted
     readonly property bool musicPlaying: musicPlayer.playbackState === MediaPlayer.PlayingState
 
     Settings {
@@ -22,17 +23,18 @@ Item {
         property bool musicEnabled: true
         property bool effectsEnabled: true
         property bool hoverEnabled: false
+        property bool muted: false
         property real musicVolume: 0.22
         property real effectsVolume: 0.55
     }
 
     AudioOutput {
         id: musicOutput
-        volume: root.musicEnabled ? root.musicVolume : 0
+        volume: root.musicEnabled && !root.muted ? root.musicVolume : 0
     }
     AudioOutput {
         id: effectsOutput
-        volume: root.effectsEnabled ? root.effectsVolume : 0
+        volume: root.effectsEnabled && !root.muted ? root.effectsVolume : 0
     }
     MediaPlayer {
         id: musicPlayer
@@ -49,12 +51,12 @@ Item {
     }
 
     function startMusic() {
-        if (musicEnabled && musicPlayer.playbackState !== MediaPlayer.PlayingState)
+        if (musicEnabled && !muted && musicPlayer.playbackState !== MediaPlayer.PlayingState)
             musicPlayer.play();
     }
     function stopMusic() { musicPlayer.stop(); }
     function play(eventName) {
-        if (!effectsEnabled)
+        if (!effectsEnabled || muted)
             return;
         const sources = {
             "press": "../../assets/audio/sfx/button/soft-ui-button-click.ogg",
@@ -90,6 +92,12 @@ Item {
             startMusic();
         else
             musicPlayer.pause();
+    }
+    onMutedChanged: {
+        if (muted)
+            musicPlayer.pause();
+        else
+            startMusic();
     }
     Component.onCompleted: startMusic()
 }

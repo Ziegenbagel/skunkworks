@@ -39,6 +39,8 @@ class MissionControlViewModelBuilder:
                 "sector": coordinates,
                 "sectorLabel": self._sector_label(coordinates),
                 "movement": dict(probe.get("movement") or {}),
+                "sensorMode": probe.get("sensor_mode", probe.get("sensorMode", "unknown")),
+                "velocity": probe.get("velocity", (probe.get("movement") or {}).get("velocity")),
                 "canCancelMovement": (
                     (probe.get("movement") or {}).get("phase") == "preparing"
                     or (probe.get("movement") or {}).get("status") == "preparing"
@@ -366,6 +368,7 @@ class MissionControlViewModelBuilder:
                 "probeIds": sorted(record.observed_by_probe_ids),
                 "objectCount": len(objects),
                 "objectTypes": object_types,
+                "objects": tuple(self._sector_object(item) for item in objects),
                 "resourceTypes": resource_types,
                 "hasKnownResources": bool(resource_types),
                 "hasHazard": bool(hazard_types),

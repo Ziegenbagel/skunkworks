@@ -39,7 +39,7 @@ QtObject {
             return icon("star-remnant");
 
         const names = {
-            "star": "star",
+            "star": "star-v2",
             "planet": "planet-rocky",
             "asteroid": details.resources ? "resource-asteroid" : "wandering-asteroid",
             "dust_cloud": "dust-cloud",
