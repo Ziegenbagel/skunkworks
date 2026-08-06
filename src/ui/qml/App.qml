@@ -285,6 +285,12 @@ ApplicationWindow {
                 window.backend.saveAutomationSettings(settings);
         }
 
+        function onFleetNamingRequested(policy, applyExisting) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.saveFleetNamingPolicy(policy, applyExisting);
+        }
+
         function onManualCraftRequested(recipeId, mannyId) {
             AudioManager.play("confirm");
             if (window.backend)

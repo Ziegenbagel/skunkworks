@@ -31,7 +31,7 @@ RowLayout {
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 font.family: Constants.technicalFont
-                font.pixelSize: Math.min(24, Math.max(16, root.width / 95))
+                font.pixelSize: Math.min(18, Math.max(13, root.width / 125))
                 font.bold: navigationItem.modelData === root.currentSection
             }
 

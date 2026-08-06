@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import traceback
 import json
+import re
 import sys
+import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -67,8 +69,11 @@ class MissionControlDataService:
         self._last_scan_result = None
         self._prepared_commands = ()
         self._logbook_page_probes = {}
+        self._history_sync_at = {}
+        self._hazard_cache = {}
+        self._logbook_cache = None
 
-    def load(self, probe_id=None):
+    def load(self, probe_id=None, include_archival=True):
         self._initialize()
         player = self.client.get_player()
         probe_data = self.client.get_probes()
@@ -86,20 +91,41 @@ class MissionControlDataService:
             mannies = self.client.get_mannies(selected["id"])
 
         world = self._build_world(player, probe_data, probe, selected, mannies)
-        sync_failures = HistorySynchronizer(
-            self.data_engine,
-            self.capabilities,
-        ).sync(
-            world,
-            selected["id"],
-            reachable=selected.get("isReachable", True),
+        selected_id = int(selected["id"])
+        now = time.monotonic()
+        # Secondary-probe interaction and fleet automation need current probe
+        # telemetry, not a repeated account-wide archival import.  The default
+        # probe performs that slower synchronization at most once per five
+        # minutes; every load still records the live world snapshot locally.
+        should_sync_history = (
+            include_archival
+            and bool(selected.get("isDefault"))
+            and now - self._history_sync_at.get(selected_id, 0) >= 300
         )
+        if should_sync_history:
+            sync_failures = HistorySynchronizer(
+                self.data_engine,
+                self.capabilities,
+            ).sync(
+                world,
+                selected_id,
+                reachable=selected.get("isReachable", True),
+            )
+            self._history_sync_at[selected_id] = now
+        else:
+            self.data_engine.record_world(world)
+            sync_failures = {}
         world.galaxy = self.data_engine.galaxy_map()
-        world.hazard_context = HazardContextLoader(self.capabilities).load(
-            world,
-            selected["id"],
-            reachable=selected.get("isReachable", True),
-        )
+        cached_hazards = self._hazard_cache.get(selected_id)
+        if cached_hazards and now - cached_hazards[0] < 60:
+            world.hazard_context = cached_hazards[1]
+        else:
+            world.hazard_context = HazardContextLoader(self.capabilities).load(
+                world,
+                selected_id,
+                reachable=selected.get("isReachable", True),
+            )
+            self._hazard_cache[selected_id] = (now, world.hazard_context)
 
         operations = Operations(
             world,
@@ -165,6 +191,12 @@ class MissionControlDataService:
             for row in self.data_engine.operation_records()
             if json.loads(row["payload_json"]).get("metadata", {}).get("template") == "round_trip_transport"
         ]
+        try:
+            automation["namingPolicy"] = json.loads(
+                self.data_engine.get_preference("fleet_naming_policy", "{}")
+            )
+        except (TypeError, ValueError, json.JSONDecodeError):
+            automation["namingPolicy"] = {}
         dashboard["automation"] = automation
         dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
         dashboard["crafting"] = {
@@ -187,9 +219,21 @@ class MissionControlDataService:
             "ingredients": tuple(improvement.get("ingredients", ())),
         } for improvement in improvements_response.get("improvements", ())
           if improvement.get("available", False) and not improvement.get("done", False))
-        dashboard["logbook"] = self.logbook_view(
-            selected["id"], probe_data.get("probes", ()),
-        )
+        if include_archival and bool(selected.get("isDefault")):
+            if self._logbook_cache is None or now - self._logbook_cache[0] >= 300:
+                self._logbook_cache = (
+                    now,
+                    self.logbook_view(selected_id, probe_data.get("probes", ())),
+                )
+            dashboard["logbook"] = self._logbook_cache[1]
+        else:
+            dashboard["logbook"] = {
+                "pages": [], "focusedProbeId": selected_id, "failures": [],
+                "autoLoggingEnabled": self.data_engine.get_preference(
+                    "auto_game_logbook", "false"
+                ) == "true",
+                "deferred": True,
+            }
         return dashboard
 
     def logbook_view(self, probe_id=None, probes=None):
@@ -692,6 +736,70 @@ class MissionControlDataService:
             "maxDeuterium": probe.get("maxDeuterium", probe.get("maxFuel", 100)),
         }
 
+    def save_fleet_naming_policy(self, policy, apply_existing=False):
+        """Persist a naming scheme and rename either existing or newly seen assets."""
+
+        policy = dict(policy or {})
+        policy.setdefault("enabled", False)
+        policy.setdefault("inferPrefix", False)
+        policy.setdefault("prefix", "SKUNKWORKS")
+        policy.setdefault("probeTemplate", "{prefix}-{number:02d}")
+        policy.setdefault("mannyTemplate", "{probe}-M{number:02d}")
+        response = self.capabilities.probes.list()
+        probes = list(response.get("probes", ()))
+        try:
+            seen = json.loads(self.data_engine.get_preference("fleet_naming_seen") or "{}")
+        except (TypeError, ValueError):
+            seen = {}
+        seen_probe_ids = {str(value) for value in seen.get("probes", ())}
+        seen_manny_ids = {str(value) for value in seen.get("mannies", ())}
+        prefix = str(policy.get("prefix") or "SKUNKWORKS").strip()
+        if policy.get("inferPrefix") and probes:
+            current_name = str(probes[0].get("name") or "").strip()
+            inferred = re.sub(r"(?:[-_ ]?\d+)+$", "", current_name).strip("-_ ")
+            if inferred:
+                prefix = inferred
+                policy["prefix"] = prefix
+                self.data_engine.set_preference("fleet_naming_policy", json.dumps(policy))
+
+        renamed_probes = 0
+        renamed_mannies = 0
+        current_probe_ids = set()
+        current_manny_ids = set()
+        for number, probe in enumerate(sorted(probes, key=lambda row: int(row["id"])), 1):
+            probe_key = str(probe["id"])
+            current_probe_ids.add(probe_key)
+            values = {
+                "prefix": prefix,
+                "number": number,
+                "model": str(probe.get("model") or "generic").replace("_", "-"),
+                "probe": str(probe.get("name") or f"Probe-{number}"),
+            }
+            new_probe_name = str(policy["probeTemplate"]).format_map(values).strip()
+            rename_probe = apply_existing or (seen_probe_ids and probe_key not in seen_probe_ids)
+            if rename_probe and new_probe_name and new_probe_name != probe.get("name"):
+                self.capabilities.probes.update(probe["id"], name=new_probe_name)
+                renamed_probes += 1
+            values["probe"] = (new_probe_name if rename_probe else values["probe"])
+            manny_response = self.capabilities.mannies.list(probe["id"])
+            for manny_number, manny in enumerate(manny_response.get("mannies", ()), 1):
+                manny_key = f"{probe_key}:{manny['id']}"
+                current_manny_ids.add(manny_key)
+                manny_values = dict(values, number=manny_number)
+                new_manny_name = str(policy["mannyTemplate"]).format_map(manny_values).strip()
+                rename_manny = apply_existing or (seen_manny_ids and manny_key not in seen_manny_ids)
+                if rename_manny and new_manny_name and new_manny_name != manny.get("name"):
+                    self.capabilities.mannies.rename(probe["id"], manny["id"], new_manny_name)
+                    renamed_mannies += 1
+        self.data_engine.set_preference("fleet_naming_policy", json.dumps(policy))
+        self.data_engine.set_preference("fleet_naming_seen", json.dumps({
+            "probes": sorted(current_probe_ids), "mannies": sorted(current_manny_ids),
+        }))
+        return {
+            "status": "applied", "renamedProbes": renamed_probes,
+            "renamedMannies": renamed_mannies, "policy": policy,
+        }
+
 
 class _WorkerSignals(QObject):
     succeeded = Signal(object)
@@ -736,6 +844,25 @@ class _CompatibilityWorker(QRunnable):
         })
 
 
+class _FleetNamingWorker(QRunnable):
+    def __init__(self, policy, apply_existing, service_factory=MissionControlDataService):
+        super().__init__()
+        self.policy = dict(policy or {})
+        self.apply_existing = bool(apply_existing)
+        self.service_factory = service_factory
+        self.signals = _WorkerSignals()
+
+    def run(self):
+        try:
+            service = self.service_factory()
+            result = service.save_fleet_naming_policy(self.policy, self.apply_existing)
+        except Exception as error:
+            traceback.print_exc()
+            self.signals.failed.emit(str(error) or type(error).__name__)
+            return
+        self.signals.succeeded.emit(result)
+
+
 class _FleetAutomationWorker(QRunnable):
     """Run eligible probe schedulers without changing the operator's focus."""
 
@@ -756,7 +883,12 @@ class _FleetAutomationWorker(QRunnable):
                 ):
                     continue
                 service = self.service_factory()
-                service.load(probe_id)
+                try:
+                    service.load(probe_id, include_archival=False)
+                except TypeError:
+                    # Preserve lightweight test/service doubles with the older
+                    # one-argument protocol.
+                    service.load(probe_id)
                 result = service.run_automation_cycle(None, False)
                 results.append({"probeId": probe_id, "result": result})
         except Exception as error:
@@ -808,6 +940,12 @@ class MissionControlController(QObject):
         self._compatibility_timer.timeout.connect(self._start_compatibility_check)
         self._compatibility_worker = None
         self._api_compatible = True
+        self._retry_timer = QTimer(self)
+        self._retry_timer.setSingleShot(True)
+        self._retry_timer.timeout.connect(self._retry_rate_limited_refresh)
+        self._retry_probe_id = None
+        self._naming_worker = None
+        self._naming_last_audit = 0.0
 
     @Property("QVariantMap", notify=dashboardChanged)
     def dashboard(self):
@@ -966,6 +1104,27 @@ class MissionControlController(QObject):
         self._configure_automation_timer(runtime)
         self._set_error("")
         self.dashboardChanged.emit()
+
+    @Slot("QVariantMap", bool)
+    def saveFleetNamingPolicy(self, policy, apply_existing=False):
+        if self._naming_worker is not None:
+            return
+        worker = _FleetNamingWorker(self._qt_safe(policy), apply_existing)
+        worker.signals.succeeded.connect(self._accept_fleet_naming)
+        worker.signals.failed.connect(self._reject_fleet_naming)
+        self._naming_worker = worker
+        self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_fleet_naming(self, result):
+        self._naming_worker = None
+        self._set_error("")
+        self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
+
+    @Slot(str)
+    def _reject_fleet_naming(self, message):
+        self._naming_worker = None
+        self._set_error(message)
 
     @Slot()
     def runAutomationCycle(self):
@@ -1365,6 +1524,15 @@ class MissionControlController(QObject):
         self._dashboard["automation"] = automation
         self._set_error("")
         self.dashboardChanged.emit()
+        runtime = self._dashboard.get("automationRuntime", {})
+        if (
+            runtime.get("mode") == ExecutionMode.AUTOMATIC.value
+            and runtime.get("liveExecutionEnabled")
+            and "move_probe" in runtime.get("allowedCommandTypes", ())
+        ):
+            # A new travel goal is actionable immediately; do not require the
+            # operator to wait for the next minute boundary or change focus.
+            QTimer.singleShot(0, self._automation_tick)
 
     @Slot("QVariantMap")
     def saveTransportCycle(self, value):
@@ -1536,6 +1704,9 @@ class MissionControlController(QObject):
 
     @Slot(object)
     def _accept_dashboard(self, payload):
+        if self._retry_timer.isActive():
+            self._retry_timer.stop()
+        self._retry_probe_id = None
         requested_probe_id = self._refresh_target_id
         previous_last_result = (
             self._dashboard.get("automationRuntime", {}).get("lastResult")
@@ -1564,6 +1735,18 @@ class MissionControlController(QObject):
         if not self._compatibility_timer.isActive():
             self._compatibility_timer.start()
         self._configure_automation_timer(payload.get("automationRuntime", {}))
+        naming_policy = payload.get("automation", {}).get("namingPolicy", {})
+        if (
+            naming_policy.get("enabled")
+            and self._naming_worker is None
+            and time.monotonic() - self._naming_last_audit >= 300
+        ):
+            self._naming_last_audit = time.monotonic()
+            naming_worker = _FleetNamingWorker(naming_policy, False)
+            naming_worker.signals.succeeded.connect(self._accept_fleet_naming_audit)
+            naming_worker.signals.failed.connect(self._reject_fleet_naming)
+            self._naming_worker = naming_worker
+            self.thread_pool.start(naming_worker)
         emergency_stop = bool(payload.get("emergencyStopActive", False))
         if emergency_stop != self._emergency_stop:
             self._emergency_stop = emergency_stop
@@ -1647,6 +1830,12 @@ class MissionControlController(QObject):
         self.dashboardChanged.emit()
         self._finish_refresh()
 
+    @Slot(object)
+    def _accept_fleet_naming_audit(self, result):
+        self._naming_worker = None
+        if int(result.get("renamedProbes", 0)) or int(result.get("renamedMannies", 0)):
+            self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
+
     @classmethod
     def _qt_safe(cls, value):
         """Convert nested Python containers into predictable QVariant shapes."""
@@ -1662,6 +1851,17 @@ class MissionControlController(QObject):
     @Slot(str)
     def _reject_dashboard(self, message):
         message = message or "The game API did not return an error description."
+        retry_probe_id = self._refresh_target_id
+        retry_match = re.search(
+            r"retry(?:\s+after|\s+in)?\s+(\d+(?:\.\d+)?)\s*seconds?",
+            message,
+            flags=re.IGNORECASE,
+        )
+        if retry_match:
+            delay_seconds = max(1.0, float(retry_match.group(1)))
+            self._retry_probe_id = retry_probe_id
+            self._retry_timer.start(int(delay_seconds * 1000) + 250)
+            message += f" Automatic retry scheduled in {delay_seconds:g} seconds."
         self._set_error(message)
         # A failed refresh must never replace live account data with UI concept
         # values. Keep the last authoritative snapshot, mark it stale, and let
@@ -1673,6 +1873,12 @@ class MissionControlController(QObject):
             self.dashboardChanged.emit()
         self._automation_after_refresh = False
         self._finish_refresh()
+
+    def _retry_rate_limited_refresh(self):
+        probe_id = self._retry_probe_id
+        self._retry_probe_id = None
+        if not self._refreshing and self.credentialConfigured:
+            self._start_refresh(probe_id)
 
     def _finish_refresh(self):
         self._set_startup_loading(False)

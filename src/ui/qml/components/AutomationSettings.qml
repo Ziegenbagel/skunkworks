@@ -27,6 +27,7 @@ Item {
     signal changeLogRequested()
     signal updateCheckRequested()
     signal diagnosticLogsRequested()
+    signal fleetNamingRequested(var policy, bool applyExisting)
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -215,6 +216,41 @@ Item {
                     Button { text: "TEST EFFECT"; enabled: AudioManager.effectsEnabled; onClicked: AudioManager.play("confirm") }
                     CheckBox { text: "HOVER SOUNDS"; checked: AudioManager.hoverEnabled; onToggled: AudioManager.hoverEnabled = checked; ToolTip.visible: hovered; ToolTip.text: "Plays subtle feedback when entering navigation, probe-selector, and galaxy-map controls. Disabled by default." }
                     Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "SPACE AMBIENT CINEMATIC MUSIC · VIACHESLAV STAROSTIN  |  UI AUDIO · JUMMIT, MOUSEBYTE, HAELDB"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                }
+            }
+
+            GroupBox {
+                title: "FLEET AUTO-NAMING"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Name new probes and Mannys consistently, or apply the scheme to the established fleet. Templates support {prefix}, {number}, {model}, and {probe}. Number formatting such as {number:02d} is supported."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    GridLayout {
+                        Layout.fillWidth: true; columns: 4; columnSpacing: 12; rowSpacing: 8
+                        CheckBox { id: namingEnabled; text: "AUTO-NAME NEW ASSETS"; checked: Boolean((root.settingsData.namingPolicy || {}).enabled) }
+                        CheckBox { id: inferNaming; text: "INFER PREFIX FROM CURRENT FLEET"; checked: Boolean((root.settingsData.namingPolicy || {}).inferPrefix) }
+                        Label { text: "PREFIX"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        TextField { id: namingPrefix; Layout.fillWidth: true; text: String((root.settingsData.namingPolicy || {}).prefix || "SKUNKWORKS"); placeholderText: "Fleet prefix" }
+                        Label { text: "PROBE TEMPLATE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        TextField { id: probeNamingTemplate; Layout.fillWidth: true; text: String((root.settingsData.namingPolicy || {}).probeTemplate || "{prefix}-{number:02d}") }
+                        Label { text: "MANNY TEMPLATE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        TextField { id: mannyNamingTemplate; Layout.fillWidth: true; text: String((root.settingsData.namingPolicy || {}).mannyTemplate || "{probe}-M{number:02d}") }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Button {
+                            text: "SAVE FOR NEW ASSETS"
+                            onClicked: root.fleetNamingRequested({"enabled": namingEnabled.checked, "inferPrefix": inferNaming.checked, "prefix": namingPrefix.text, "probeTemplate": probeNamingTemplate.text, "mannyTemplate": mannyNamingTemplate.text}, false)
+                        }
+                        Button {
+                            text: "APPLY TO CURRENT FLEET"
+                            onClicked: root.fleetNamingRequested({"enabled": namingEnabled.checked, "inferPrefix": inferNaming.checked, "prefix": namingPrefix.text, "probeTemplate": probeNamingTemplate.text, "mannyTemplate": mannyNamingTemplate.text}, true)
+                        }
+                        Label { Layout.fillWidth: true; text: "Existing names change only when APPLY TO CURRENT FLEET is pressed."; color: Constants.warningColor; font.family: Constants.technicalFont; horizontalAlignment: Text.AlignRight; wrapMode: Text.Wrap }
+                    }
                 }
             }
 

@@ -49,6 +49,7 @@ PanelFrame {
     signal manualUpgradeRequested(string mannyId, string improvementId)
     signal manualMiningRequested(string mannyId, var payload)
     signal mannyCancelRequested(string mannyId)
+    signal fleetNamingRequested(var policy, bool applyExisting)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -143,6 +144,7 @@ PanelFrame {
             onChangeLogRequested: root.changeLogRequested()
             onUpdateCheckRequested: root.updateCheckRequested()
             onDiagnosticLogsRequested: root.diagnosticLogsRequested()
+            onFleetNamingRequested: (policy, applyExisting) => root.fleetNamingRequested(policy, applyExisting)
         }
 
         NavigationControl {

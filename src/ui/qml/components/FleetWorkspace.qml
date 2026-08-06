@@ -143,16 +143,25 @@ Item {
             }
         }
         ScrollView {
+            id: fleetScroll
             visible: !root.manualOnly
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+            contentWidth: availableWidth
             GridLayout {
-                id: fleetGrid; width: root.width; columns: root.width >= 1050 ? 2 : 1; columnSpacing: 18; rowSpacing: 18
+                id: fleetGrid
+                width: Math.max(1, fleetScroll.availableWidth)
+                columns: fleetScroll.availableWidth >= 1050 ? 2 : 1
+                columnSpacing: 18; rowSpacing: 18
                 Repeater {
                     model: root.probes
                     delegate: Rectangle {
                         id: probeCard; required property var modelData
-                        Layout.preferredWidth: (root.width - (fleetGrid.columns - 1) * fleetGrid.columnSpacing) / fleetGrid.columns
-                        implicitHeight: root.movementSummary(probeCard.modelData) ? 152 : 120; color: probeCard.modelData.id === root.focusedProbeId ? Constants.selectedColor : Constants.raisedColor; border.color: probeCard.modelData.id === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor; radius: 4
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 300
+                        Layout.preferredWidth: Math.max(300, (fleetGrid.width - (fleetGrid.columns - 1) * fleetGrid.columnSpacing) / fleetGrid.columns)
+                        Layout.minimumHeight: root.movementSummary(probeCard.modelData) ? 152 : 120
+                        Layout.preferredHeight: Layout.minimumHeight
+                        color: probeCard.modelData.id === root.focusedProbeId ? Constants.selectedColor : Constants.raisedColor; border.color: probeCard.modelData.id === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor; radius: 4
                         ColumnLayout { anchors.fill: parent; anchors.margins: 18
                             Label { Layout.fillWidth: true; text: probeCard.modelData.name + (probeCard.modelData.id === root.focusedProbeId ? " · FOCUSED" : ""); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true }
                             Label { Layout.fillWidth: true; text: String(probeCard.modelData.model || "generic").split("_").join(" ").toUpperCase() + " · " + String(probeCard.modelData.status || "unknown").toUpperCase(); color: Constants.mutedTextColor; font.pixelSize: 15 }
