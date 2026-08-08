@@ -469,15 +469,35 @@ class MissionControlViewModelBuilder:
             return None
         origin = first("originSector", "origin", "from", "departureSector")
         destination = first("arrivalSector", "destinationSector", "destination", "target", "to")
+        estimated_arrival = first("estimatedArrival", "arrivalAt", "arrivalTime", "eta")
+        remaining_time = first("remainingTime", "timeRemaining", "remainingSeconds", "secondsRemaining")
+        arrival_epoch_ms = cls._travel_arrival_epoch_ms(estimated_arrival, remaining_time)
         movement.update({
             "originLabel": coordinate_label(origin) or first("originLabel") or "UNKNOWN",
             "destinationLabel": coordinate_label(destination) or first("destinationLabel") or "UNKNOWN",
-            "estimatedArrival": first("estimatedArrival", "arrivalAt", "arrivalTime", "eta"),
-            "remainingTime": first("remainingTime", "timeRemaining", "remainingSeconds", "secondsRemaining"),
+            "estimatedArrival": estimated_arrival,
+            "remainingTime": remaining_time,
+            "arrivalEpochMs": arrival_epoch_ms,
             "velocity": first("velocity", "velocityC") or probe.get("velocity", probe.get("velocityC")),
             "heading": first("heading", "vector", "direction"),
         })
         return movement
+
+    @staticmethod
+    def _travel_arrival_epoch_ms(estimated_arrival, remaining_time):
+        if estimated_arrival:
+            try:
+                parsed = datetime.fromisoformat(
+                    str(estimated_arrival).replace("Z", "+00:00")
+                )
+                return int(parsed.timestamp() * 1000)
+            except (TypeError, ValueError):
+                pass
+        try:
+            seconds = float(remaining_time)
+        except (TypeError, ValueError):
+            return 0
+        return int(datetime.now().timestamp() * 1000 + max(0, seconds) * 1000)
 
     @staticmethod
     def _normalized_resource_type(value):

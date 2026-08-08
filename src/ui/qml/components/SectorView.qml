@@ -20,9 +20,14 @@ Rectangle {
     readonly property real centerY: height * 0.50
     readonly property real orbitAspect: 0.62
     property string sectorLabel: "FCC 0 / 0 / 0"
+    property double currentEpochMs: Date.now()
     readonly property bool probeInTransit: ["preparing", "accelerating", "cruising", "decelerating", "traveling"].indexOf(String(focusProbe.status || "").toLowerCase()) >= 0
     function headingLabel(value) { return value && typeof value === "object" ? [value.x || 0, value.y || 0, value.z || 0].join(":") : String(value || "—"); }
     function remainingLabel(movement) {
+        if (Number(movement.arrivalEpochMs || 0) > 0) {
+            const seconds = Math.max(0, Math.floor((Number(movement.arrivalEpochMs) - root.currentEpochMs) / 1000));
+            return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S";
+        }
         const raw = movement.remainingTime;
         if (raw !== undefined && raw !== null) {
             if (typeof raw === "number") { const seconds = Math.max(0, Math.floor(raw)); return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S"; }
@@ -30,6 +35,14 @@ Rectangle {
         }
         if (movement.estimatedArrival) { const seconds = Math.max(0, Math.floor((Date.parse(movement.estimatedArrival) - Date.now()) / 1000)); if (!isNaN(seconds)) return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S"; }
         return "AWAITING TELEMETRY";
+    }
+
+    Timer {
+        interval: 1000
+        running: root.visible && root.probeInTransit
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.currentEpochMs = Date.now()
     }
 
     function orbitRadius(index) {

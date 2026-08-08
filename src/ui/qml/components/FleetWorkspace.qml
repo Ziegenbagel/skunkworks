@@ -18,6 +18,7 @@ Item {
     property var mannies: []
     property var namingPolicy: ({})
     property var pendingMiningOrder: ({})
+    property double currentEpochMs: Date.now()
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
     signal mannyRenameRequested(string mannyId, string name)
@@ -40,6 +41,10 @@ Item {
     }
 
     function remainingLabel(movement) {
+        if (Number(movement.arrivalEpochMs || 0) > 0) {
+            const seconds = Math.max(0, Math.floor((Number(movement.arrivalEpochMs) - root.currentEpochMs) / 1000));
+            return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S";
+        }
         const raw = movement.remainingTime;
         if (raw !== undefined && raw !== null) {
             if (typeof raw === "number") {
@@ -58,6 +63,14 @@ Item {
         if (!heading) return "—";
         if (typeof heading === "object") return [heading.x || 0, heading.y || 0, heading.z || 0].join(":");
         return String(heading);
+    }
+
+    Timer {
+        interval: 1000
+        running: root.visible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.currentEpochMs = Date.now()
     }
 
     ColumnLayout {

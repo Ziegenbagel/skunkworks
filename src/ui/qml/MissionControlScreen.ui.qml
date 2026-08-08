@@ -345,11 +345,11 @@ Rectangle {
                                 delegate: Row {
                                     required property var modelData
                                     width: parent.width; spacing: 8
-                                    Label { width: parent.width * 0.62; text: modelData.label; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 11 }
+                                    Label { width: parent.width * 0.62; text: modelData.label; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
                                     Label {
                                         text: Number(modelData.amount || 0).toFixed(Number(modelData.amount || 0) < 100 ? 2 : 0) + " ECE"
                                         color: Number(modelData.amount || 0) < 25 ? Constants.criticalColor : Number(modelData.amount || 0) < 100 ? Constants.warningColor : Constants.nominalColor
-                                        font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true
+                                        font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
                                     }
                                 }
                             }

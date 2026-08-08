@@ -16,6 +16,7 @@ def test_movement_view_normalizes_game_transit_fields():
     assert movement["originLabel"] == "-6:7:5"
     assert movement["destinationLabel"] == "-4:5:5"
     assert movement["remainingTime"] == 438
+    assert movement["arrivalEpochMs"] > 0
     assert movement["velocity"] == 0.23
 
 

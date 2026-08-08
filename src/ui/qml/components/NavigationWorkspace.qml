@@ -12,6 +12,7 @@ PanelFrame {
     property var availableProbes: []
     property int focusedProbeId: -1
     property double currentEpochMs: Date.now()
+    readonly property int standardProductionCardHeight: 330
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)
@@ -254,10 +255,9 @@ PanelFrame {
 
                 Grid {
                     id: sectionGrid
-                    // These cards have content-dependent heights. A GridLayout
-                    // repeatedly polished wrapped labels when several long task
-                    // cards were present; a fixed-width Grid has no size solver
-                    // and therefore cannot enter that feedback cycle.
+                    // A fixed-width Grid avoids the layout feedback loop that
+                    // previously caused high CPU use. Production cards also use
+                    // one mining-sized height so the two-column queue stays even.
                     width: sectionScroll.availableWidth
                     columns: sectionScroll.availableWidth >= 1050 ? 2 : 1
                     spacing: 18
@@ -269,7 +269,10 @@ PanelFrame {
                             required property var modelData
                             required property int index
                             width: (sectionGrid.width - (sectionGrid.columns - 1) * sectionGrid.spacing) / sectionGrid.columns
-                            height: detailsColumn.implicitHeight + 40
+                            height: root.section === "PRODUCTION"
+                                ? root.standardProductionCardHeight
+                                : detailsColumn.implicitHeight + 40
+                            clip: root.section === "PRODUCTION"
                             color: rowMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
                             border.color: modelData.probeId === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor
                             radius: 4
