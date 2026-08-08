@@ -15,9 +15,13 @@ Item {
     property var detachedContainers: []
     property real maximumMiningOrderAmount: 0.55
     property bool manualOnly: false
+    property var mannies: []
+    property var namingPolicy: ({})
     property var pendingMiningOrder: ({})
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
+    signal mannyRenameRequested(string mannyId, string name)
+    signal fleetNamingRequested(var policy, bool applyExisting)
     signal repairRequested(string mannyId, real integrityPercent)
     signal upgradeRequested(string mannyId, string improvementId)
     signal miningRequested(string mannyId, var payload)
@@ -42,6 +46,29 @@ Item {
             Label { text: "RENAME FOCUSED PROBE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
             TextField { id: probeName; Layout.fillWidth: true; placeholderText: "New probe name" }
             Button { text: "RENAME"; enabled: probeName.text.trim().length > 0; onClicked: root.probeRenameRequested(probeName.text) }
+        }
+        GroupBox {
+            visible: !root.manualOnly
+            title: "FLEET AUTO-NAMING · DEFAULT PROBE CONTROLS"; Layout.fillWidth: true
+            GridLayout {
+                anchors.fill: parent; columns: 6; columnSpacing: 10
+                CheckBox { id: namingEnabled; text: "AUTO-NAME NEW"; checked: Boolean(root.namingPolicy.enabled) }
+                CheckBox { id: inferNaming; text: "INFER PREFIX"; checked: Boolean(root.namingPolicy.inferPrefix) }
+                TextField { id: namingPrefix; placeholderText: "Fleet prefix"; text: String(root.namingPolicy.prefix || "SKUNKWORKS"); Layout.preferredWidth: 180 }
+                TextField { id: probeNamingTemplate; placeholderText: "Probe template"; text: String(root.namingPolicy.probeTemplate || "{prefix}-{number:02d}"); Layout.fillWidth: true }
+                TextField { id: mannyNamingTemplate; placeholderText: "Manny template"; text: String(root.namingPolicy.mannyTemplate || "{probe}-M{number:02d}"); Layout.fillWidth: true }
+                Button { text: "SAVE"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"inferPrefix":inferNaming.checked,"prefix":namingPrefix.text,"probeTemplate":probeNamingTemplate.text,"mannyTemplate":mannyNamingTemplate.text}, false) }
+                Label { Layout.columnSpan: 5; Layout.fillWidth: true; text: "Templates: {prefix}, {probe}, {model}, {number} or {number:02d}. Inference uses the default probe name and removes its trailing number."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                Button { text: "APPLY EXISTING"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"inferPrefix":inferNaming.checked,"prefix":namingPrefix.text,"probeTemplate":probeNamingTemplate.text,"mannyTemplate":mannyNamingTemplate.text}, true) }
+            }
+        }
+        RowLayout {
+            visible: !root.manualOnly
+            Layout.fillWidth: true
+            Label { text: "RENAME MANNY"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
+            ComboBox { id: renameMannyChoice; Layout.preferredWidth: 280; model: root.mannies; textRole: "name"; valueRole: "id" }
+            TextField { id: mannyName; Layout.fillWidth: true; placeholderText: "New Manny name" }
+            Button { text: "RENAME"; enabled: renameMannyChoice.currentIndex >= 0 && mannyName.text.trim().length > 0; onClicked: root.mannyRenameRequested(String(renameMannyChoice.currentValue), mannyName.text) }
         }
         GroupBox {
             visible: root.manualOnly

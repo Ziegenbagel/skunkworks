@@ -20,6 +20,9 @@ Item {
     }
     readonly property var recentTrailNodes: {
         const result = {};
+        const nodeIds = galaxyData.recentTrailNodes || [];
+        for (let i = 0; i < nodeIds.length; ++i)
+            result[String(nodeIds[i])] = true;
         const trail = galaxyData.recentTrail || [];
         for (let i = 0; i < trail.length; ++i) {
             result[String(trail[i].from)] = true;
@@ -120,6 +123,11 @@ Item {
     function colorFor(node) {
         if (showRecentTrail && recentTrailNodes[String(node.id)])
             return Constants.warningColor;
+        if (resourceMode === "has" && resourceFilter !== "all"
+                && (node.resourceTypes || []).indexOf(resourceFilter) >= 0) {
+            const resourceColors = {"deuterium":"#c76dff", "metals":"#d7dce5", "ice":"#69bfff", "carbon_compounds":"#69d391"};
+            return resourceColors[resourceFilter] || Constants.cyanColor;
+        }
         const state = String(node.mapState || "unknown");
         if (state === "current") return Constants.nominalColor;
         if (state === "scanned") return Constants.cyanColor;

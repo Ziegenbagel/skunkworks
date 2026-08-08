@@ -143,11 +143,20 @@ Item {
                             CheckBox { id: acknowledgeRisk; visible: Boolean(root.travelPreview.acknowledgementRequired); text: "I acknowledge the displayed travel risks" }
                             Button { text: "CONFIRM ONE-TIME TRAVEL COMMAND"; enabled: Boolean(root.travelPreview.canExecute) && (!root.travelPreview.acknowledgementRequired || acknowledgeRisk.checked); onClicked: root.executeRequested(acknowledgeRisk.checked) }
                             Button {
-                                text: "SET AUTOMATIC SEGMENTED DESTINATION"
-                                enabled: root.validManualCoordinates
+                                text: "SAVE AUTO-TRAVEL DESTINATION"
+                                enabled: root.validManualCoordinates && Boolean(root.travelPreview.targetLabel)
                                 onClicked: root.autonomousTargetRequested(manualX.value, manualY.value, manualZ.value)
-                                ToolTip.visible: hovered
-                                ToolTip.text: "Saves a durable destination. When Travel is allowlisted, automation sends the next safe one-sector jump after every arrival until the probe reaches it."
+                            }
+                            Label {
+                                Layout.fillWidth: true; wrapMode: Text.Wrap
+                                text: "Saves the reviewed segmented route as a durable goal. An order is sent immediately only when execution mode is AUTOMATIC, live orders are enabled, and MOVE PROBE is allowed; otherwise it waits safely in the planner."
+                                color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 13
+                            }
+                            Label {
+                                visible: Boolean((root.automationData || {}).travelTarget)
+                                Layout.fillWidth: true
+                                text: "ACTIVE AUTO-TRAVEL TARGET · FCC " + root.automationData.travelTarget.x + " / " + root.automationData.travelTarget.y + " / " + root.automationData.travelTarget.z
+                                color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true
                             }
                         }
                     }
@@ -245,12 +254,15 @@ Item {
                         id: neighborList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 7; model: root.navigationData.neighbors || []
                         delegate: Rectangle {
                             id: neighborRow; required property var modelData; required property int index
-                            width: neighborList.width; height: 58; color: neighborMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
+                            width: neighborList.width; height: 78; color: neighborMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
                             border.color: modelData.scutCoverage && modelData.scutCoverage.covered ? Constants.nominalColor : Constants.lineColor
                             RowLayout { anchors.fill: parent; anchors.margins: 10
                                 Label { Layout.preferredWidth: 210; text: neighborRow.modelData.label; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true }
                                 Label { Layout.preferredWidth: 180; text: String(neighborRow.modelData.knowledgeLevel).split("_").join(" ").toUpperCase(); color: neighborRow.modelData.visited ? Constants.cyanColor : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 13 }
-                                Label { Layout.fillWidth: true; text: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? "SCUT · " + neighborRow.modelData.scutCoverage.networkName : "OUTSIDE KNOWN SCUT"; color: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 13 }
+                                ColumnLayout { Layout.fillWidth: true
+                                    Label { Layout.fillWidth: true; text: neighborRow.modelData.scanSummary || "Long-range details unavailable"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 13; wrapMode: Text.Wrap }
+                                    Label { Layout.fillWidth: true; text: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? "SCUT · " + neighborRow.modelData.scutCoverage.networkName : "OUTSIDE KNOWN SCUT"; color: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+                                }
                                 Button { text: "USE FOR MANUAL TRAVEL"; onClicked: root.chooseSector(neighborRow.modelData) }
                                 Button { text: "SCAN"; onClicked: root.scanRequested(neighborRow.modelData.x, neighborRow.modelData.y, neighborRow.modelData.z) }
                             }

@@ -188,7 +188,12 @@ ApplicationWindow {
             }
             Label {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: "ESTABLISHING SECURE LINK · LOADING LIVE FLEET DATA"
+                text: (window.backend ? window.backend.loadingProgress : 0) + "%"
+                color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 18; font.bold: true
+            }
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: String(window.backend ? window.backend.loadingStatus : "LOADING LIVE FLEET DATA").toUpperCase()
                 color: Constants.mutedTextColor
                 font.family: Constants.technicalFont
                 font.pixelSize: 12
@@ -412,6 +417,12 @@ ApplicationWindow {
         function onProbeRenameRequested(name) {
             AudioManager.play("save");
             if (window.backend) window.backend.renameFocusedProbe(name);
+        }
+
+        function onMannyRenameRequested(mannyId, name) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.renameManny(mannyId, name);
         }
 
         function onContainerRenameRequested(containerId, label) {

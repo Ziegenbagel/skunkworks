@@ -94,7 +94,8 @@ def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
     screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
     panel = Path("src/ui/qml/components/SummaryListPanel.qml").read_text()
 
-    assert screen.count("SummaryListPanel") == 2
+    assert screen.count("SummaryListPanel") == 1
+    assert "Focused Probe Hull Integrity" in screen
     assert "onClicked: details.open()" in panel
     assert "Dialog {" in panel
     assert "ScrollView" in panel
@@ -260,6 +261,8 @@ def test_app_uses_a_dedicated_live_data_loading_screen():
     assert "LOADING LIVE FLEET DATA" in app
     assert "window.backend.startupLoading" in app
     assert "def startupLoading" in controller
+    assert "loadingProgress" in app
+    assert "loadingStatus" in app
 
 
 def test_live_failures_never_substitute_concept_dashboard_data():
@@ -340,6 +343,9 @@ def test_navigation_separates_manual_transport_and_scanning_workflows():
     assert "unloadUntilPercent" in navigation
     assert "protectedDeuterium" in navigation
     assert 'focusedRole === "transport"' in navigation
+    assert "SAVE AUTO-TRAVEL DESTINATION" in navigation
+    assert "ACTIVE AUTO-TRAVEL TARGET" in navigation
+    assert "scanSummary" in navigation
 
 
 def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
@@ -356,6 +362,15 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "CONFIRM STORAGE TRANSFER" in inventory
     assert "INVENTORY & CONTAINERS" in resources
     assert "replaceAll(" not in inventory
+
+
+def test_fleet_workspace_restores_manny_naming_and_owns_auto_naming():
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+
+    assert "RENAME MANNY" in fleet
+    assert "FLEET AUTO-NAMING" in fleet
+    assert "FLEET AUTO-NAMING" not in settings
 
 
 def test_fleet_workspace_exposes_quick_manual_mining_orders():

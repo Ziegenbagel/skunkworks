@@ -305,13 +305,20 @@ Rectangle {
 
                     PanelFrame {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.round(258 * root.uiScale)
+                        Layout.preferredHeight: Math.round(300 * root.uiScale)
                         Layout.minimumHeight: Layout.preferredHeight
                         Layout.maximumHeight: Layout.preferredHeight
                         title: "Resource Summary"
                         contentItem: Column {
                             width: parent.width
-                            spacing: 4
+                            spacing: 6
+
+                            Label {
+                                width: parent.width
+                                text: "STORAGE · " + Number((root.dashboardData.probe || {}).inventoryUsed || 0).toFixed(2)
+                                      + " / " + Number((root.dashboardData.probe || {}).inventoryCapacity || 0).toFixed(2) + " ECE USED"
+                                color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 11; font.bold: true
+                            }
 
                             Repeater {
                                 model: root.resourceRows
@@ -439,14 +446,26 @@ Rectangle {
                         Layout.minimumHeight: Layout.preferredHeight
                         Layout.maximumHeight: Layout.preferredHeight
                         spacing: 10
-                        SummaryListPanel {
-                            objectName: "missionsSummaryPanel"
+                        PanelFrame {
+                            objectName: "hullIntegrityPanel"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            title: "Active Missions"
-                            detailTitle: "Active Missions · Full Details"
-                            emptyText: "No active missions"
-                            entries: root.dashboardData.missions || []
+                            title: "Focused Probe Hull Integrity"
+                            contentItem: Column {
+                                width: parent.width; spacing: 12
+                                Label {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: Number((root.dashboardData.probe || {}).integrityPercent === undefined ? 100 : root.dashboardData.probe.integrityPercent).toFixed(1) + "%"
+                                    color: Number((root.dashboardData.probe || {}).integrityPercent || 0) < 50 ? Constants.criticalColor : Constants.nominalColor
+                                    font.family: Constants.technicalFont; font.pixelSize: 28; font.bold: true
+                                }
+                                TelemetryBar {
+                                    width: parent.width; label: "HULL"
+                                    value: Number((root.dashboardData.probe || {}).integrityPercent || 0) / 100
+                                    reading: Number((root.dashboardData.probe || {}).integrityPercent === undefined ? 100 : root.dashboardData.probe.integrityPercent).toFixed(1) + "%"
+                                    accentColor: value < 0.5 ? Constants.criticalColor : value < 0.8 ? Constants.warningColor : Constants.nominalColor
+                                }
+                            }
                         }
                         SummaryListPanel {
                             objectName: "productionSummaryPanel"

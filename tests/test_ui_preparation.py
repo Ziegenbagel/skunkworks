@@ -460,6 +460,7 @@ class UiPreparationTests(unittest.TestCase):
         self.assertTrue(view["nodes"][1]["hasDetachedContainers"])
         self.assertEqual(view["recentTrail"][0]["from"], "0:0:0")
         self.assertEqual(view["recentTrail"][0]["to"], "1:1:0")
+        self.assertEqual(view["recentTrailNodes"], ("1:1:0", "0:0:0"))
         self.assertEqual(history.probe_id, base.world.probe["id"])
 
     def test_galaxy_resource_filter_unifies_game_and_api_compound_names(self):

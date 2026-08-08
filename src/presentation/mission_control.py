@@ -57,6 +57,8 @@ class MissionControlViewModelBuilder:
                 "fuelPercent": self.operations.travel.fuel_percentage(),
                 "integrityPercent": float(probe.get("systems", {}).get("integrityPercent", 100)),
                 "inventoryFree": self.operations.inventory.free_capacity(),
+                "inventoryCapacity": float((probe.get("inventory") or {}).get("capacity", 0) or 0),
+                "inventoryUsed": max(0, float((probe.get("inventory") or {}).get("capacity", 0) or 0) - self.operations.inventory.free_capacity()),
                 "mannyTotal": self.operations.mannies.total(),
                 "mannyAvailable": len(self.operations.mannies.available()),
             },
@@ -385,11 +387,13 @@ class MissionControlViewModelBuilder:
                 if max(abs(source[axis] - target[axis]) for axis in ("x", "y", "z")) == 1:
                     edges.append({"from": source["id"], "to": target["id"]})
         recent_route = self._recent_galaxy_route(world, nodes)
+        recent_nodes = self._recent_galaxy_nodes(world, nodes)
         return {
             "nodes": tuple(nodes),
             "edges": tuple(edges),
             "sectorCount": len(nodes),
             "recentTrail": recent_route,
+            "recentTrailNodes": recent_nodes,
             "recentTrailCount": len(recent_route),
             "recentTrailProbeId": world.probe.get("id"),
         }
@@ -475,6 +479,16 @@ class MissionControlViewModelBuilder:
                 "fromVisitedAt": source["visitedAt"], "toVisitedAt": target["visitedAt"],
             }
             for index, (source, target) in enumerate(zip(points, points[1:]))
+        )
+
+    def _recent_galaxy_nodes(self, world, nodes, limit=10):
+        if self.data_engine is None or world.probe.get("id") is None:
+            return ()
+        known_ids = {node["id"] for node in nodes}
+        return tuple(
+            identifier
+            for visit in self.data_engine.visits(world.probe["id"])[:limit]
+            if (identifier := f"{visit['sector_x']}:{visit['sector_y']}:{visit['sector_z']}") in known_ids
         )
 
     @staticmethod
@@ -605,6 +619,7 @@ class MissionControlViewModelBuilder:
                 "knowledgeLevel": sector.get("knowledgeLevel", "unscanned"),
                 "confidence": float(sector.get("confidence", 0) or 0),
                 "objectCount": len(sector.get("objects", ()) or ()),
+                "scanSummary": self._scan_summary(sector),
                 "scutCoverage": self._scut_coverage(world, coordinates),
             })
         return {
@@ -617,6 +632,24 @@ class MissionControlViewModelBuilder:
             "probeStatus": world.probe.get("status", "unknown"),
             "telemetryAvailable": world.probe.get("telemetry_available", False),
         }
+
+    @staticmethod
+    def _scan_summary(sector):
+        objects = sector.get("objects", ()) or ()
+        possible = sector.get("possibleObjects", ()) or ()
+        estimates = sector.get("estimatedObjects", {}) or {}
+        danger = sector.get("dangerEstimate", sector.get("navigationalRisk"))
+        if objects:
+            types = [str(item.get("name") or item.get("type") or "object").replace("_", " ") for item in objects]
+            return "Known: " + ", ".join(types)
+        if possible:
+            return "Possible: " + ", ".join(str(item).replace("_", " ") for item in possible)
+        if estimates:
+            return "Estimate: " + ", ".join(f"{key.replace('_', ' ')} {value}" for key, value in estimates.items())
+        if danger and str(danger).lower() not in {"unknown", "none", "safe"}:
+            return "Hazard estimate: " + str(danger).replace("_", " ")
+        knowledge = str(sector.get("knowledgeLevel", "unscanned"))
+        return "Empty sector" if knowledge in {"detailed", "scanned", "full"} else "Long-range details unavailable"
 
     @staticmethod
     def _scut_coverage(world, coordinates):
@@ -916,11 +949,12 @@ class MissionControlViewModelBuilder:
                 or "Unknown"
             )
             lines.append(f"Target: {target_label}")
-            lines.append(f"Trip: {task.get('tripIndex', '—')}")
+            trip = task.get("tripIndex") or task.get("currentTrip")
+            lines.append(f"Trip: {trip}" if trip is not None else "Trip: Single scheduled delivery (API v106)")
             if task.get("targetAmount") is not None:
                 lines.append(f"Target amount: {task['targetAmount']} ECE")
             if task.get("depositedAmount") is not None:
-                lines.append(f"Deposited: {task['depositedAmount']} ECE")
+                lines.append(f"Deposited: {task['depositedAmount']} ECE (commits at completion)")
             if progress < 100 and float(task.get("depositedAmount", 0) or 0) == 0:
                 lines.append("Delivery: commits atomically at the final task deadline")
         return "\n".join(lines)

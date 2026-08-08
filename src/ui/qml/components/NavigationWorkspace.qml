@@ -30,6 +30,7 @@ PanelFrame {
     signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
     signal transportCycleSaveRequested(var plan)
     signal probeRenameRequested(string name)
+    signal mannyRenameRequested(string mannyId, string name)
     signal containerRenameRequested(string containerId, string label)
     signal storageRulesSaveRequested(string containerId, var rules)
     signal storageMoveRequested(var payload)
@@ -183,8 +184,12 @@ PanelFrame {
             probes: root.availableProbes
             focusedProbeId: root.focusedProbeId
             probeData: root.dashboardData.probe || ({})
+            mannies: (root.dashboardData.inventoryManagement || {}).mannies || []
+            namingPolicy: (root.dashboardData.automation || {}).namingPolicy || ({})
             onProbeSelected: probeId => root.probeSelected(probeId)
             onProbeRenameRequested: name => root.probeRenameRequested(name)
+            onMannyRenameRequested: (mannyId, name) => root.mannyRenameRequested(mannyId, name)
+            onFleetNamingRequested: (policy, applyExisting) => root.fleetNamingRequested(policy, applyExisting)
         }
 
         ManualControlWorkspace {

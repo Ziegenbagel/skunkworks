@@ -73,8 +73,11 @@ class MissionControlDataService:
         self._hazard_cache = {}
         self._logbook_cache = None
 
-    def load(self, probe_id=None, include_archival=True):
+    def load(self, probe_id=None, include_archival=True, progress=None):
+        report = progress or (lambda percent, label: None)
+        report(5, "Checking API compatibility and recipes")
         self._initialize()
+        report(15, "Loading commander and fleet")
         player = self.client.get_player()
         probe_data = self.client.get_probes()
         selected = self.probe_selector.select(
@@ -84,12 +87,15 @@ class MissionControlDataService:
         )
         self.data_engine.remember_probe(selected["id"])
 
+        report(30, "Loading focused probe telemetry")
         details = self.client.get_probe(selected["id"])
         probe = details.get("probe", details)
         mannies = None
         if selected.get("isReachable", True):
+            report(42, "Loading Manny tasks")
             mannies = self.client.get_mannies(selected["id"])
 
+        report(52, "Loading sector and inventory")
         world = self._build_world(player, probe_data, probe, selected, mannies)
         selected_id = int(selected["id"])
         now = time.monotonic()
@@ -103,6 +109,7 @@ class MissionControlDataService:
             and now - self._history_sync_at.get(selected_id, 0) >= 300
         )
         if should_sync_history:
+            report(62, "Synchronizing fleet history")
             sync_failures = HistorySynchronizer(
                 self.data_engine,
                 self.capabilities,
@@ -116,6 +123,7 @@ class MissionControlDataService:
             self.data_engine.record_world(world)
             sync_failures = {}
         world.galaxy = self.data_engine.galaxy_map()
+        report(76, "Evaluating hazards and automation")
         cached_hazards = self._hazard_cache.get(selected_id)
         if cached_hazards and now - cached_hazards[0] < 60:
             world.hazard_context = cached_hazards[1]
@@ -145,6 +153,7 @@ class MissionControlDataService:
             operations,
             self.data_engine,
         ).build()
+        report(92, "Preparing mission-control displays")
         dashboard["apiVersion"] = self.api_version
         dashboard["player"] = self._player_view(player)
         options = [self._probe_option(item) for item in probe_data.get("probes", ())]
@@ -234,6 +243,7 @@ class MissionControlDataService:
                 ) == "true",
                 "deferred": True,
             }
+        report(100, "Mission control ready")
         return dashboard
 
     def logbook_view(self, probe_id=None, probes=None):
@@ -523,6 +533,11 @@ class MissionControlDataService:
             self._selected_probe_id, container_id, {"label": label.strip()},
         )
 
+    def rename_manny(self, manny_id, name):
+        return self.capabilities.mannies.rename(
+            self._selected_probe_id, manny_id, name.strip(),
+        )
+
     def update_container_rules(self, container_id, rules):
         return self.capabilities.storage.update_rules(
             self._selected_probe_id, container_id, rules,
@@ -766,7 +781,8 @@ class MissionControlDataService:
         seen_manny_ids = {str(value) for value in seen.get("mannies", ())}
         prefix = str(policy.get("prefix") or "SKUNKWORKS").strip()
         if policy.get("inferPrefix") and probes:
-            current_name = str(probes[0].get("name") or "").strip()
+            reference_probe = next((probe for probe in probes if probe.get("isDefault")), probes[0])
+            current_name = str(reference_probe.get("name") or "").strip()
             inferred = re.sub(r"(?:[-_ ]?\d+)+$", "", current_name).strip("-_ ")
             if inferred:
                 prefix = inferred
@@ -815,6 +831,7 @@ class MissionControlDataService:
 class _WorkerSignals(QObject):
     succeeded = Signal(object)
     failed = Signal(str)
+    progress = Signal(int, str)
 
 
 class _RefreshWorker(QRunnable):
@@ -826,7 +843,12 @@ class _RefreshWorker(QRunnable):
 
     def run(self):
         try:
-            payload = self.service.load(self.probe_id)
+            try:
+                payload = self.service.load(self.probe_id, progress=self.signals.progress.emit)
+            except TypeError as error:
+                if "progress" not in str(error):
+                    raise
+                payload = self.service.load(self.probe_id)
         except Exception as error:  # UI boundary: preserve the process and report.
             traceback.print_exc()
             self.signals.failed.emit(str(error) or type(error).__name__)
@@ -922,6 +944,7 @@ class MissionControlController(QObject):
     onboardingChanged = Signal()
     credentialMessageChanged = Signal()
     startupLoadingChanged = Signal()
+    loadingProgressChanged = Signal()
 
     def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
         super().__init__()
@@ -941,6 +964,8 @@ class MissionControlController(QObject):
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
         self._startup_loading = True
+        self._loading_progress = 0
+        self._loading_status = "Preparing secure connection"
         self._automation_timer = QTimer(self)
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
@@ -977,6 +1002,14 @@ class MissionControlController(QObject):
     @Property(bool, notify=startupLoadingChanged)
     def startupLoading(self):
         return self._startup_loading
+
+    @Property(int, notify=loadingProgressChanged)
+    def loadingProgress(self):
+        return self._loading_progress
+
+    @Property(str, notify=loadingProgressChanged)
+    def loadingStatus(self):
+        return self._loading_status
 
     @Property(str, notify=errorChanged)
     def error(self):
@@ -1621,6 +1654,13 @@ class MissionControlController(QObject):
             return
         self._inventory_mutation(lambda: self.service.rename_container(container_id, label))
 
+    @Slot(str, str)
+    def renameManny(self, manny_id, name):
+        if not manny_id or not name.strip():
+            self._set_error("Select a Manny and enter a non-empty name.")
+            return
+        self._inventory_mutation(lambda: self.service.rename_manny(manny_id, name))
+
     @Slot(str, "QVariantMap")
     def saveStorageRules(self, container_id, rules):
         self._inventory_mutation(
@@ -1714,6 +1754,7 @@ class MissionControlController(QObject):
         worker = _RefreshWorker(self.service, probe_id)
         worker.signals.succeeded.connect(self._accept_dashboard)
         worker.signals.failed.connect(self._reject_dashboard)
+        worker.signals.progress.connect(self._set_loading_progress)
         self._worker = worker
         self.thread_pool.start(worker)
 
@@ -1926,6 +1967,12 @@ class MissionControlController(QObject):
             return
         self._startup_loading = value
         self.startupLoadingChanged.emit()
+
+    @Slot(int, str)
+    def _set_loading_progress(self, percent, status):
+        self._loading_progress = max(0, min(100, int(percent)))
+        self._loading_status = str(status)
+        self.loadingProgressChanged.emit()
 
     def _set_error(self, value):
         if value == self._error:
