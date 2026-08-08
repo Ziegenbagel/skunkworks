@@ -121,6 +121,24 @@ Item {
                             anchors.fill: parent; spacing: 10
                             Label { text: root.travelPreview.targetLabel ? "ROUTE TO " + root.travelPreview.targetLabel : "NO ROUTE PREVIEW"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
                             Label { Layout.fillWidth: true; text: root.travelPreview.targetLabel ? "Selected " + String(root.travelPreview.selectedRoute).toUpperCase() + " · next command " + root.travelPreview.executionLabel + " · recommended " + String(root.travelPreview.recommendedRoute).toUpperCase() : "Enter a destination above or select a sector from Sector Scanning."; color: Constants.textColor; font.family: Constants.bodyFont; font.pixelSize: 15; wrapMode: Text.Wrap }
+                            Label {
+                                visible: Boolean(root.travelPreview.targetLabel)
+                                Layout.fillWidth: true
+                                text: Number(root.travelPreview.hopCount || 0) + " STOP" + (Number(root.travelPreview.hopCount || 0) === 1 ? "" : "S")
+                                      + " · GAME ETA BECOMES AVAILABLE AFTER EACH ORDER STARTS"
+                                color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true
+                            }
+                            Repeater {
+                                model: root.travelPreview.routeHops || []
+                                delegate: Label {
+                                    required property var modelData
+                                    required property int index
+                                    Layout.fillWidth: true
+                                    text: (index + 1) + ". " + String(modelData.label) + (index === 0 ? " · NEXT COMMAND" : "")
+                                    color: index === 0 ? Constants.cyanColor : Constants.textColor
+                                    font.family: Constants.technicalFont; font.pixelSize: 14
+                                }
+                            }
                             Repeater { model: root.travelPreview.hazards || []; delegate: Label { required property var modelData; Layout.fillWidth: true; text: "⚠ " + modelData.message; color: modelData.severity === "critical" ? Constants.criticalColor : Constants.warningColor; font.pixelSize: 14; wrapMode: Text.Wrap } }
                             CheckBox { id: acknowledgeRisk; visible: Boolean(root.travelPreview.acknowledgementRequired); text: "I acknowledge the displayed travel risks" }
                             Button { text: "CONFIRM ONE-TIME TRAVEL COMMAND"; enabled: Boolean(root.travelPreview.canExecute) && (!root.travelPreview.acknowledgementRequired || acknowledgeRisk.checked); onClicked: root.executeRequested(acknowledgeRisk.checked) }
@@ -167,17 +185,17 @@ Item {
                             ComboBox { id: destinationProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
 
                             Label { text: "LOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
-                            RowLayout { SpinBox { id: loadThreshold; from: 1; to: 100; value: 90 } Label { text: "% FULL" } }
+                            RowLayout { SpinBox { id: loadThreshold; from: 1; to: 100; value: 90; editable: true } Label { text: "% FULL" } }
                             Label { text: "UNLOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
-                            RowLayout { SpinBox { id: unloadThreshold; from: 0; to: 99; value: 10 } Label { text: "% REMAINS" } }
+                            RowLayout { SpinBox { id: unloadThreshold; from: 0; to: 99; value: 10; editable: true } Label { text: "% REMAINS" } }
                             Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "LOAD TANK TO"; color: Constants.textColor; font.family: Constants.technicalFont }
                             RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: loadAmount; from: 0; to: 800; value: 400; editable: true } Label { text: "ECE (MAX 800)" } }
                             Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "UNLOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
                             RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: unloadAmount; from: 0; to: 800; value: 0; editable: true } Label { text: "ECE REMAINS" } }
                             Label { text: "PROTECTED DEUTERIUM"; color: Constants.warningColor; font.family: Constants.technicalFont }
-                            RowLayout { SpinBox { id: protectedFuel; from: 0; to: 100; value: 20 } Label { text: "% FLOOR" } }
+                            RowLayout { SpinBox { id: protectedFuel; from: 0; to: 100; value: 20; editable: true } Label { text: "% FLOOR" } }
                             Label { text: "CONTINGENCY"; color: Constants.textColor; font.family: Constants.technicalFont }
-                            RowLayout { SpinBox { id: reserveHops; from: 0; to: 20; value: 1 } Label { text: "RESERVE HOPS" } }
+                            RowLayout { SpinBox { id: reserveHops; from: 0; to: 20; value: 1; editable: true } Label { text: "RESERVE HOPS" } }
                         }
                     }
                     GroupBox {
@@ -187,7 +205,7 @@ Item {
                             CheckBox { id: refuelEnabled; text: "ROUTE DEPENDS ON REFUELING" }
                             CoordinateEditor { id: refuelCoordinates; enabled: refuelEnabled.checked }
                             Label { text: "MINIMUM SOURCE"; color: Constants.mutedTextColor }
-                            SpinBox { id: minimumRefuelAmount; from: 0; to: 100000; enabled: refuelEnabled.checked }
+                            SpinBox { id: minimumRefuelAmount; from: 0; to: 100000; editable: true; enabled: refuelEnabled.checked }
                             Label { text: "ECE"; color: Constants.mutedTextColor }
                         }
                     }

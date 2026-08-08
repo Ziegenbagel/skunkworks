@@ -438,6 +438,7 @@ class MissionControlDataService:
             assessment.recommended,
         )
         execution = selected.hops[0] if selected.hops else destination
+        route_hops = tuple(selected.hops) or (destination,)
         acknowledgement_required = (
             assessment.acknowledgement_recommended
             if selected.name == assessment.recommended.name
@@ -454,6 +455,16 @@ class MissionControlDataService:
             "selectedRoute": selected.name,
             "executionTarget": {"x": execution.x, "y": execution.y, "z": execution.z},
             "executionLabel": f"FCC {execution.x} / {execution.y} / {execution.z}",
+            "routeHops": [
+                {
+                    "x": hop.x,
+                    "y": hop.y,
+                    "z": hop.z,
+                    "label": f"FCC {hop.x} / {hop.y} / {hop.z}",
+                }
+                for hop in route_hops
+            ],
+            "hopCount": len(route_hops),
             "hazards": [asdict(hazard) for hazard in assessment.hazards],
             "options": [{
                 "name": option.name,
@@ -1107,6 +1118,10 @@ class MissionControlController(QObject):
 
     @Slot("QVariantMap", bool)
     def saveFleetNamingPolicy(self, policy, apply_existing=False):
+        default_probe_id = self._dashboard.get("defaultProbeId")
+        if default_probe_id is None or int(self._focused_probe_id) != int(default_probe_id):
+            self._set_error("Fleet auto-naming can only be configured while the main/default probe is focused.")
+            return
         if self._naming_worker is not None:
             return
         worker = _FleetNamingWorker(self._qt_safe(policy), apply_existing)
@@ -1738,6 +1753,8 @@ class MissionControlController(QObject):
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
         if (
             naming_policy.get("enabled")
+            and payload.get("defaultProbeId") is not None
+            and int(payload.get("focusedProbeId", self._focused_probe_id)) == int(payload["defaultProbeId"])
             and self._naming_worker is None
             and time.monotonic() - self._naming_last_audit >= 300
         ):

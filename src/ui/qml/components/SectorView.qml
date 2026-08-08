@@ -150,7 +150,7 @@ Rectangle {
         x: root.centerX - 58; y: root.centerY - 58; width: 116; height: 116
         Image {
             anchors.fill: parent; anchors.margins: 5
-            source: AssetCatalog.icon("star")
+            source: AssetCatalog.icon("star-v2")
             fillMode: Image.PreserveAspectFit
         }
         Label {

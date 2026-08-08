@@ -16,6 +16,13 @@ Item {
     signal jettisonRequested(string itemId, real amount, string containerId)
     signal inventoryMannyActionRequested(string action, string mannyId, var payload)
 
+    function selectedIntegerId(combo) {
+        if (!combo || combo.currentIndex < 0 || !combo.model || !combo.model[combo.currentIndex])
+            return -1;
+        const value = Number(combo.model[combo.currentIndex].id);
+        return Number.isInteger(value) && value > 0 ? value : -1;
+    }
+
     readonly property var preferredContentOptions: [
         {"text": "ANY CONTENTS", "value": "any"},
         {"text": "METALS", "value": "metals"},
@@ -138,7 +145,7 @@ Item {
                     Label { text: "RESOURCE"; color: Constants.textColor }
                     ComboBox { id: miningResource; model: miningTarget.currentIndex >= 0 ? miningTarget.model[miningTarget.currentIndex].resourceTypes : []; Layout.fillWidth: true }
                     Label { text: "TOTAL ORDER"; color: Constants.textColor }
-                    RowLayout { SpinBox { id: miningAmount; from: 1; to: 55; value: 5 } Label { text: "× 0.01 ECE"; color: Constants.mutedTextColor } }
+                    RowLayout { SpinBox { id: miningAmount; from: 1; to: 55; value: 5; editable: true } Label { text: "× 0.01 ECE"; color: Constants.mutedTextColor } }
                     Label { text: "DELIVER TO"; color: Constants.textColor }
                     ComboBox { id: miningDestination; textRole: "name"; valueRole: "id"; model: [{"id":"", "name":"PROBE · USE CONTAINER ROUTING RULES"}].concat(root.inventoryData.detachedContainers || []); Layout.fillWidth: true }
                     Label { Layout.columnSpan: 1; Layout.fillWidth: true; text: miningDestination.currentValue ? "Detached containers cannot accept deuterium." : "Resource-specific attached containers are preferred by their saved routing rules; otherwise an unassigned container is used."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
@@ -155,13 +162,13 @@ Item {
                     Label { text: "ACTION MANNY"; color: Constants.cyanColor; font.bold: true }
                     ComboBox { id: transferManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
                     Label { text: "DEUTERIUM AMOUNT"; color: Constants.textColor }
-                    RowLayout { SpinBox { id: deuteriumAmount; from: 1; to: Math.max(1, Math.floor(Number(root.inventoryData.deuterium || 0) * 100) - 1); value: 1 } Label { text: "× 0.01"; color: Constants.mutedTextColor } }
+                    RowLayout { SpinBox { id: deuteriumAmount; from: 1; to: Math.max(1, Math.floor(Number(root.inventoryData.deuterium || 0) * 100) - 1); value: 1; editable: true } Label { text: "× 0.01"; color: Constants.mutedTextColor } }
                     Label { Layout.columnSpan: 1; Layout.fillWidth: true; text: "SOURCE RESERVE · " + Number(root.inventoryData.deuterium || 0).toFixed(2); color: Constants.warningColor; wrapMode: Text.Wrap }
-                    Button { text: "REVIEW FUEL TRANSFER"; enabled: targetProbe.count > 0 && transferManny.count > 0 && Number(root.inventoryData.deuterium || 0) > 0.01; onClicked: { root.pendingOperation = {"kind":"manny", "action":"transfer-deuterium-to-probe", "mannyId":String(transferManny.currentValue), "payload":{"targetProbeId":Number(targetProbe.currentValue), "amount":Number(deuteriumAmount.value) / 100}}; operationConfirmation.open(); } }
+                    Button { text: "REVIEW FUEL TRANSFER"; enabled: root.selectedIntegerId(targetProbe) > 0 && transferManny.count > 0 && Number(root.inventoryData.deuterium || 0) > 0.01; onClicked: { root.pendingOperation = {"kind":"manny", "action":"transfer-deuterium-to-probe", "mannyId":String(transferManny.currentValue), "payload":{"targetProbeId":root.selectedIntegerId(targetProbe), "amount":Number(deuteriumAmount.value) / 100}}; operationConfirmation.open(); } }
                     Label { text: "TRANSFER MANNY"; color: Constants.textColor }
                     ComboBox { id: reassignManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.mannies || []; Layout.fillWidth: true }
                     Label { Layout.fillWidth: true; text: "Transferring a busy Manny cancels its current task."; color: Constants.warningColor; wrapMode: Text.Wrap }
-                    Button { text: "REVIEW MANNY TRANSFER"; enabled: targetProbe.count > 0 && reassignManny.count > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"transfer-to-probe", "mannyId":String(reassignManny.currentValue), "payload":{"targetProbeId":Number(targetProbe.currentValue)}}; operationConfirmation.open(); } }
+                    Button { text: "REVIEW MANNY TRANSFER"; enabled: root.selectedIntegerId(targetProbe) > 0 && reassignManny.count > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"transfer-to-probe", "mannyId":String(reassignManny.currentValue), "payload":{"targetProbeId":root.selectedIntegerId(targetProbe)}}; operationConfirmation.open(); } }
                     Label { Layout.columnSpan: 4; Layout.fillWidth: true; text: targetProbe.count ? "Only probes in the focused probe's current sector are listed. Whole containers can be transferred directly with Container Deployment above; individual stored items use jettison and salvage." : "No other owned probe is currently observed in this sector."; color: Constants.mutedTextColor; font.pixelSize: 14; wrapMode: Text.Wrap }
                 }
             }
