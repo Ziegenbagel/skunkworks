@@ -440,7 +440,9 @@ Rectangle {
                         spacing: 10
                         PanelFrame {
                             objectName: "hullIntegrityPanel"
-                            Layout.preferredWidth: 280
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
                             Layout.fillHeight: true
                             title: "Focused Probe Hull Integrity"
                             contentItem: Column {
@@ -461,7 +463,9 @@ Rectangle {
                         }
                         PanelFrame {
                             objectName: "safetyOverviewPanel"
-                            Layout.preferredWidth: 280
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
                             Layout.fillHeight: true
                             title: "Safety Overview"
                             contentItem: Column {
@@ -482,6 +486,8 @@ Rectangle {
                         SummaryListPanel {
                             objectName: "productionSummaryPanel"
                             Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
                             Layout.fillHeight: true
                             title: "Production Queue"
                             detailTitle: "Production & Active Work · Full Details"

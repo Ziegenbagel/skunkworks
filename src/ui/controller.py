@@ -1056,6 +1056,37 @@ class _FleetAutomationWorker(QRunnable):
         self.signals.succeeded.emit(results)
 
 
+class _AutomationCycleWorker(QRunnable):
+    """Execute an operator-requested cycle without blocking the Qt UI thread."""
+
+    def __init__(
+        self, probe_id, fingerprint=None, risk_acknowledged=False,
+        service_factory=MissionControlDataService,
+    ):
+        super().__init__()
+        self.probe_id = int(probe_id)
+        self.fingerprint = fingerprint
+        self.risk_acknowledged = bool(risk_acknowledged)
+        self.service_factory = service_factory
+        self.signals = _WorkerSignals()
+
+    def run(self):
+        try:
+            service = self.service_factory()
+            try:
+                service.load(self.probe_id, include_archival=False)
+            except TypeError:
+                service.load(self.probe_id)
+            result = service.run_automation_cycle(
+                self.fingerprint, self.risk_acknowledged,
+            )
+        except Exception as error:
+            traceback.print_exc()
+            self.signals.failed.emit(str(error) or type(error).__name__)
+            return
+        self.signals.succeeded.emit(result)
+
+
 class MissionControlController(QObject):
     """Asynchronous QObject consumed by App.qml."""
 
@@ -1100,6 +1131,7 @@ class MissionControlController(QObject):
         # authoritative dashboard has loaded.
         self._initial_automation_cycle_pending = True
         self._fleet_automation_worker = None
+        self._automation_cycle_worker = None
         self._compatibility_timer = QTimer(self)
         self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
         self._compatibility_timer.timeout.connect(self._start_compatibility_check)
@@ -1305,11 +1337,40 @@ class MissionControlController(QObject):
 
     @Slot()
     def runAutomationCycle(self):
-        self._run_automation(None, False)
+        self._start_automation_cycle(None, False)
 
     @Slot(str, bool)
     def approveAutomationCommand(self, fingerprint, risk_acknowledged=False):
-        self._run_automation(fingerprint, risk_acknowledged)
+        self._start_automation_cycle(fingerprint, risk_acknowledged)
+
+    def _start_automation_cycle(self, fingerprint, risk_acknowledged):
+        if (
+            self._focused_probe_id < 0 or self._refreshing
+            or self._automation_cycle_worker is not None
+            or not self._api_compatible
+        ):
+            return
+        worker = _AutomationCycleWorker(
+            self._focused_probe_id, fingerprint, risk_acknowledged,
+        )
+        worker.signals.succeeded.connect(self._accept_automation_cycle)
+        worker.signals.failed.connect(self._reject_automation_cycle)
+        self._automation_cycle_worker = worker
+        self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_automation_cycle(self, result):
+        self._automation_cycle_worker = None
+        runtime = dict(self._dashboard.get("automationRuntime", {}))
+        runtime["lastResult"] = self._qt_safe(result)
+        self._dashboard["automationRuntime"] = runtime
+        self.dashboardChanged.emit()
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot(str)
+    def _reject_automation_cycle(self, message):
+        self._automation_cycle_worker = None
+        self._set_error("Automation cycle failed: " + message)
 
     def _run_automation(self, fingerprint, risk_acknowledged):
         if self.service is None or self._refreshing or not self._api_compatible:

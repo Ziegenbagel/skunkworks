@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from time import sleep
 from uuid import uuid4
 
+from .commands import CommandType
 from .policy import ExecutionMode
 from .preflight import PreflightValidator
 
@@ -62,7 +63,17 @@ class AutomationRuntime:
             return self._finish(command, "cancelled", prepared.blockers)
         if self.data_engine.emergency_stop_active():
             return self._finish(command, "cancelled", ("emergency_stop",))
-        if self.data_engine.action_was_successful(command.fingerprint):
+        # Crafting and mining are repeatable goals. Once the previous task has
+        # completed, an identical order from the same stable inventory state is
+        # legitimate; the authoritative refresh and preflight below still stop
+        # a duplicate while its Manny/printer is busy. Keep durable fingerprint
+        # idempotency for one-time mutations such as movement and assembly.
+        repeatable = command.type in {
+            CommandType.MANNY_CRAFT,
+            CommandType.ATOMIC_PRINTER_CRAFT,
+            CommandType.MANNY_MINE,
+        }
+        if not repeatable and self.data_engine.action_was_successful(command.fingerprint):
             return self._finish(command, "cancelled", ("already_completed",))
         if not self.policy.live_execution_enabled:
             return self._finish(command, "cancelled", ("live_execution_disabled",))

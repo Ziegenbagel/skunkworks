@@ -150,6 +150,22 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(started[0].probe_ids, (7,))
         self.assertIs(controller._fleet_automation_worker, started[0])
 
+    def test_manual_automation_cycle_is_dispatched_off_the_ui_thread(self):
+        started = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                started.append(worker)
+
+        controller = MissionControlController(None, DeferredPool())
+        controller._focused_probe_id = 7
+        controller.runAutomationCycle()
+
+        self.assertEqual(len(started), 1)
+        self.assertEqual(started[0].probe_id, 7)
+        self.assertIs(controller._automation_cycle_worker, started[0])
+
     def test_periodic_check_pauses_automation_for_unreviewed_api(self):
         controller = MissionControlController()
         controller._dashboard = {"connection": "connected"}

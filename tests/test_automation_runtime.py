@@ -82,6 +82,14 @@ class AutomationRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(self.replans, ["succeeded"])
 
+    def test_completed_repeatable_command_can_run_again_after_fresh_preflight(self):
+        first = self.runtime.execute(self.prepared, approved=True)
+        second = self.runtime.execute(self.prepared, approved=True)
+
+        self.assertEqual(first.status, "succeeded")
+        self.assertEqual(second.status, "succeeded")
+        self.assertEqual(len(self.mannies.calls), 2)
+
     def test_emergency_stop_cancels_without_dispatch(self):
         self.runtime.emergency_stop()
 
