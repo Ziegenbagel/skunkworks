@@ -382,8 +382,10 @@ class MissionControlDataService:
                     "status": "idle",
                     "message": "No allowlisted, unblocked command is ready for automatic execution.",
                 }
-        else:
-            candidates = candidates[:1]
+            return self._run_replanning_automatic_cycle(
+                policy, risk_acknowledged,
+            )
+        candidates = candidates[:1]
         runtime = AutomationRuntime(
             capabilities=self.capabilities,
             data_engine=self.data_engine,
@@ -410,6 +412,67 @@ class MissionControlDataService:
             }
         prepared, result = results[0]
         return self._execution_result(prepared, result)
+
+    def _run_replanning_automatic_cycle(self, policy, risk_acknowledged=False):
+        """Dispatch one fresh proposal at a time and replan after each order.
+
+        Crafting and mining mutate the same resource and Manny availability
+        ledger. Executing a queue prepared from one snapshot allows later
+        commands to spend inputs already consumed by the first command and
+        postpones newly-required mining until the next timer tick.
+        """
+        runtime = AutomationRuntime(
+            capabilities=self.capabilities,
+            data_engine=self.data_engine,
+            policy=policy,
+            dispatcher=CapabilityDispatcher(self.capabilities),
+            refresh=self._refresh_operations,
+        )
+        attempted = set()
+        results = []
+        for _ in range(policy.max_commands_per_cycle):
+            # The previous execution's preflight already refreshed the world.
+            # Rebuild the queue from that authoritative post-order state.
+            self.automation_view(probe_id=self._selected_probe_id)
+            prepared = next((
+                item for item in self._prepared_commands
+                if item.command.probe_id == self._selected_probe_id
+                and item.disposition == "ready"
+                and item.command.fingerprint not in attempted
+            ), None)
+            if prepared is None:
+                break
+            attempted.add(prepared.command.fingerprint)
+            result = runtime.execute(
+                prepared,
+                risk_acknowledged=risk_acknowledged,
+            )
+            results.append((prepared, result))
+            if result.status != "succeeded":
+                # A failed/cancelled fresh preflight means the snapshot or API
+                # rejected the plan. Stop rather than cascading more orders.
+                break
+            self._refresh_operations(self._selected_probe_id)
+        if not results:
+            return {
+                "status": "idle",
+                "message": "No fresh allowlisted command remained ready after replanning.",
+            }
+        succeeded = sum(result.status == "succeeded" for _, result in results)
+        if len(results) == 1:
+            return self._execution_result(*results[0])
+        last_status = results[-1][1].status
+        return {
+            "status": "succeeded" if succeeded and last_status == "succeeded" else last_status,
+            "message": (
+                f"{succeeded} of {len(results)} freshly replanned automation "
+                "commands succeeded this cycle."
+            ),
+            "results": [
+                self._execution_result(prepared, result)
+                for prepared, result in results
+            ],
+        }
 
     def _execution_result(self, prepared, result):
         return {
