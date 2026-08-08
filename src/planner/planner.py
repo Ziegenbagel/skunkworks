@@ -47,13 +47,16 @@ class Planner:
                 self.desired_state,
             )
         )
+        # At the same explicit priority, fleet assembly is the primary goal.
+        # Its component work and dependency mining should be considered before
+        # ordinary production quantities and general reserve floors.
+        tasks.extend(fleet.plan(self.operations, self.desired_state))
         tasks.extend(
             manufacturing.plan(
                 self.operations,
                 self.desired_state,
             )
         )
-        tasks.extend(fleet.plan(self.operations, self.desired_state))
         tasks.extend(
             mining.plan(
                 self.operations,

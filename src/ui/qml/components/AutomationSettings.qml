@@ -225,7 +225,7 @@ Item {
                     anchors.fill: parent; spacing: 10
                     Label {
                         Layout.fillWidth: true
-                        text: "AUTOMATION SETTINGS FOR FOCUSED PROBE · " + root.probeName(root.runtimeData.probeId).toUpperCase() + "\nExecution policy, targets, priorities, reserves, and safety floors apply only to this probe. Targets are persistent planner goals; Priority 1 is highest. Goals never bypass safety review or the emergency stop. Observe Only previews commands; Approval requires a click; Automatic evaluates this probe every 60 seconds."
+                        text: "AUTOMATION SETTINGS FOR FOCUSED PROBE · " + root.probeName(root.runtimeData.probeId).toUpperCase() + "\nExecution policy, targets, priorities, reserves, and safety floors apply only to this probe. Targets are persistent planner goals; Priority 1 is highest. Goals never bypass safety review or the emergency stop. Observe Only previews commands; Approval requires a click; Automatic walks goals from highest priority to lowest, then pauses five minutes before another bounded cycle."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     GridLayout {
@@ -243,7 +243,7 @@ Item {
                         }
                         CheckBox { id: liveExecution; text: "ALLOW SKUNKWORKS TO SEND GAME ORDERS"; checked: Boolean(root.runtimeData.liveExecutionEnabled); ToolTip.visible: hovered; ToolTip.text: "Required for Approval and Automatic modes. When off, Skunkworks only plans and displays commands; it sends no POST requests to the game." }
                         RowLayout {
-                            Label { text: "MAX ORDERS PER 60-SECOND CYCLE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                            Label { text: "MAX ORDERS PER 5-MINUTE CYCLE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                             SpinBox { id: commandsPerCycle; from: 1; to: 10; editable: true; value: Number(root.runtimeData.maxCommandsPerCycle || 1); ToolTip.visible: hovered; ToolTip.text: "Safety and rate limit: the most separate Manny, crafting, or travel orders Skunkworks may send in one automatic cycle." }
                         }
                         Label { text: "COMMAND ALLOWLIST"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }

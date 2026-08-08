@@ -47,3 +47,54 @@ def test_automatic_cycle_replans_after_each_successful_order():
     assert len(result["results"]) == 2
     assert refreshes == [7, 7]
     assert "freshly replanned" in result["message"]
+
+
+def test_failed_craft_mines_reported_dependency_and_continues_cycle():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+    craft = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "manny"}, "craft", 1,
+        target_id="manny-a",
+    ), "ready")
+    mine = PreparedCommand(Command(
+        CommandType.MANNY_MINE, 7,
+        {"objectId": "ice-1", "resources": ["deuterium"], "targetAmount": 0.55},
+        "mine rejected dependency", 1, target_id="manny-b",
+    ), "ready")
+    queues = iter(((craft,), (craft,), ()))
+    service.automation_view = lambda probe_id=None: setattr(
+        service, "_prepared_commands", next(queues)
+    ) or {}
+    service._refresh_operations = lambda probe_id: None
+    service._prepare_dependency_mining = lambda resource, policy: mine
+
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, prepared, **kwargs):
+            if prepared.command.type == CommandType.MANNY_CRAFT:
+                return ExecutionResult("failed", prepared.command, response={
+                    "detail": {"error": {"code": "insufficient_deuterium"}}
+                })
+            return ExecutionResult("succeeded", prepared.command, response={"accepted": True})
+
+    policy = ExecutionPolicy(
+        mode=ExecutionMode.AUTOMATIC,
+        live_execution_enabled=True,
+        allowed_command_types=frozenset({CommandType.MANNY_CRAFT, CommandType.MANNY_MINE}),
+        max_commands_per_cycle=10,
+    )
+    with patch("src.ui.controller.AutomationRuntime", Runtime):
+        result = service._run_replanning_automatic_cycle(policy)
+
+    assert len(result["results"]) == 2
+    assert result["results"][0]["status"] == "failed"
+    assert result["results"][1]["status"] == "succeeded"
+    assert service._missing_resource_from_failure(
+        ExecutionResult("failed", craft.command, response={
+            "detail": {"error": {"code": "insufficient_deuterium"}}
+        })
+    ) == "deuterium"

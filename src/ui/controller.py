@@ -36,6 +36,7 @@ from src.models.galaxy import SectorCoordinates
 from src.snapshot.manager import SnapshotManager
 from src.security import CredentialStore
 from src.planner.planner import Planner
+from src.planner.task import Task
 from src.execution import (
     AutomationRuntime, CapabilityDispatcher, CommandPreparer,
     ExecutionMode, ExecutionPolicy,
@@ -430,16 +431,20 @@ class MissionControlDataService:
         )
         attempted = set()
         results = []
+        dependency_command = None
         for _ in range(policy.max_commands_per_cycle):
             # The previous execution's preflight already refreshed the world.
             # Rebuild the queue from that authoritative post-order state.
             self.automation_view(probe_id=self._selected_probe_id)
-            prepared = next((
-                item for item in self._prepared_commands
-                if item.command.probe_id == self._selected_probe_id
-                and item.disposition == "ready"
-                and item.command.fingerprint not in attempted
-            ), None)
+            prepared = dependency_command
+            dependency_command = None
+            if prepared is None:
+                prepared = next((
+                    item for item in self._prepared_commands
+                    if item.command.probe_id == self._selected_probe_id
+                    and item.disposition == "ready"
+                    and item.command.fingerprint not in attempted
+                ), None)
             if prepared is None:
                 break
             attempted.add(prepared.command.fingerprint)
@@ -449,9 +454,15 @@ class MissionControlDataService:
             )
             results.append((prepared, result))
             if result.status != "succeeded":
-                # A failed/cancelled fresh preflight means the snapshot or API
-                # rejected the plan. Stop rather than cascading more orders.
-                break
+                resource_type = self._missing_resource_from_failure(result)
+                if resource_type:
+                    dependency_command = self._prepare_dependency_mining(
+                        resource_type, policy,
+                    )
+                # A rejected goal cannot freeze the priority walk. Mine its
+                # dependency when possible; otherwise continue to the next
+                # ready goal in this bounded cycle.
+                continue
             self._refresh_operations(self._selected_probe_id)
         if not results:
             return {
@@ -473,6 +484,47 @@ class MissionControlDataService:
                 for prepared, result in results
             ],
         }
+
+    @staticmethod
+    def _missing_resource_from_failure(result):
+        if result.status != "failed" or not isinstance(result.response, dict):
+            return None
+        detail = result.response.get("detail")
+        error = detail.get("error", detail) if isinstance(detail, dict) else {}
+        code = str(error.get("code", "")).casefold() if isinstance(error, dict) else ""
+        if code == "insufficient_deuterium":
+            return "deuterium"
+        missing = error.get("missingResources", error.get("missing_resources")) if isinstance(error, dict) else None
+        if isinstance(missing, dict) and missing:
+            return next(iter(missing))
+        return None
+
+    def _prepare_dependency_mining(self, resource_type, policy):
+        operations = self._operations
+        target = operations.mining.best_target(resource_type) if operations else None
+        if (
+            target is None or not operations.mining.idle_mannies()
+            or operations.world.probe.get("status") != "idle"
+        ):
+            return None
+        desired = DesiredStateStore(self.data_engine).load(self._selected_probe_id)
+        task = Task(
+            action="Mine Deuterium" if resource_type == "deuterium" else "Mine Resource",
+            reason=(
+                f"The game rejected the preceding recipe because {resource_type.replace('_', ' ')} "
+                "is insufficient. Mine the missing dependency before retrying that goal."
+            ),
+            category="mining",
+            target=target["id"],
+            quantity=min(float(target.get("available_amount", 0.55) or 0.55), 0.55),
+            maximum_order_amount=desired.maximum_mining_order_amount,
+            resource_type=resource_type,
+            priority=1,
+        )
+        prepared = CommandPreparer(
+            operations, self._selected_probe_id, policy,
+        ).prepare((task,))
+        return next((item for item in prepared if item.disposition == "ready"), None)
 
     def _execution_result(self, prepared, result):
         return {
@@ -1040,7 +1092,7 @@ class MissionControlController(QObject):
         self._loading_progress = 0
         self._loading_status = "Preparing secure connection"
         self._automation_timer = QTimer(self)
-        self._automation_timer.setInterval(60_000)
+        self._automation_timer.setInterval(5 * 60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
         self._automation_after_refresh = False
         # Automatic mode should not sit visibly READY for a full timer interval

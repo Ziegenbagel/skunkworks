@@ -306,7 +306,7 @@ def test_settings_exposes_policy_gated_automation_queue_and_approval():
 
     assert "AUTOMATION EXECUTION" in settings
     assert "ALLOW SKUNKWORKS TO SEND GAME ORDERS" in settings
-    assert "MAX ORDERS PER 60-SECOND CYCLE" in settings
+    assert "MAX ORDERS PER 5-MINUTE CYCLE" in settings
     assert "COMMAND ALLOWLIST" in settings
     assert "PROPOSED COMMAND QUEUE" in settings
     assert "function hasUnblockedCommand()" in settings
