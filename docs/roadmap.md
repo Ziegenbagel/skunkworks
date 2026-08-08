@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the canonical Skunkworks roadmap as of 2026-08-01.
+This is the canonical Skunkworks roadmap as of 2026-08-08.
 
 Missions 1–23 are complete. Mission 24's application interface is implemented
 and undergoing acceptance testing; its cross-platform packaging gate remains
@@ -302,7 +302,20 @@ Goal: make the release reproducible, supportable, and trustworthy.
 - Database migration and backup/restore tests.
 - Performance tests with large fleets and galaxy histories.
 - Secrets, privacy, log-redaction, and dependency audit.
-- Installation, upgrade, first-run setup, and clean-machine verification.
+- Native desktop distribution for all supported platforms:
+  - A signed Windows installer with the complete application runtime.
+  - A signed and notarized macOS application and installer image.
+  - Packaged Linux applications in broadly usable distribution formats.
+  - No Python installation, source checkout, terminal, virtual environment,
+    or code command required to install, launch, configure, or update.
+- A first-run experience that opens directly into the existing secure API-key
+  onboarding, validates the key, and then enters Mission Control.
+- Platform-correct application icons, Start menu/Application folder entries,
+  uninstall behavior, per-user data locations, and diagnostic-log locations.
+- Installation, upgrade, rollback, first-run setup, and clean-machine
+  verification on Windows, macOS, and Linux.
+- Reproducible CI release builds with checksums, version metadata, signed
+  artifacts, and a documented release channel exposed by Check for Updates.
 - User guide, troubleshooting guide, architecture, API, safety, and automation
   documentation.
 - Changelog, license, packaging, and release artifacts.
@@ -310,6 +323,15 @@ Goal: make the release reproducible, supportable, and trustworthy.
 
 Release gate: no critical defects, no unexplained mutations, successful
 recovery tests, complete documentation, and reproducible installation.
+
+#### Pre-release desktop distribution gate
+
+Before a public release candidate is published, a non-developer must be able
+to download the correct package from the release page, install Skunkworks,
+launch it from the operating system's normal application interface, enter a
+Von Neumann API key through first-run onboarding, and reach Mission Control.
+This clean-machine acceptance test must pass on supported Windows, macOS, and
+Linux versions without opening a terminal or installing development tools.
 
 ## 1.0 Definition of Done
 
@@ -323,6 +345,11 @@ Skunkworks 1.0 must:
 - Warn clearly without silently forbidding player-authorized risk.
 - Recover safely from restarts and uncertain API outcomes.
 - Provide routine game controls through Mission Control.
+- Install and launch as a self-contained desktop application on Windows,
+  macOS, and Linux without requiring terminal commands or a separate Python
+  environment.
+- Guide a first-time user from launch through secure API-key setup entirely in
+  the graphical application.
 - Keep the core independent from the UI.
 - Pass the Mission 26 release gates.
 
