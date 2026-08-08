@@ -32,9 +32,32 @@ Item {
         if (["PREPARING", "ACCELERATING", "CRUISING", "DECELERATING", "TRAVELING"].indexOf(status) < 0)
             return "";
         return "TRANSIT · " + status
-            + " · DESTINATION " + String(movement.destinationLabel || movement.destination || "UNKNOWN")
-            + " · VELOCITY " + String(movement.velocity || probe.velocity || "—")
-            + " · ARRIVAL " + String(movement.estimatedArrival || movement.eta || "AWAITING TELEMETRY");
+            + "\nORIGIN " + String(movement.originLabel || "UNKNOWN")
+            + "  ·  ARRIVAL SECTOR " + String(movement.destinationLabel || "UNKNOWN")
+            + "\nREMAINING " + remainingLabel(movement)
+            + "  ·  VELOCITY C " + String(movement.velocity || probe.velocity || "—")
+            + "  ·  HEADING " + headingLabel(movement.heading);
+    }
+
+    function remainingLabel(movement) {
+        const raw = movement.remainingTime;
+        if (raw !== undefined && raw !== null) {
+            if (typeof raw === "number") {
+                const seconds = Math.max(0, Math.floor(raw));
+                return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S";
+            }
+            return String(raw);
+        }
+        if (movement.estimatedArrival) {
+            const seconds = Math.max(0, Math.floor((Date.parse(movement.estimatedArrival) - Date.now()) / 1000));
+            if (!isNaN(seconds)) return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S";
+        }
+        return "AWAITING TELEMETRY";
+    }
+    function headingLabel(heading) {
+        if (!heading) return "—";
+        if (typeof heading === "object") return [heading.x || 0, heading.y || 0, heading.z || 0].join(":");
+        return String(heading);
     }
 
     ColumnLayout {
@@ -186,7 +209,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 300
                         Layout.preferredWidth: Math.max(300, (fleetGrid.width - (fleetGrid.columns - 1) * fleetGrid.columnSpacing) / fleetGrid.columns)
-                        Layout.minimumHeight: root.movementSummary(probeCard.modelData) ? 152 : 120
+                        Layout.minimumHeight: root.movementSummary(probeCard.modelData) ? 185 : 120
                         Layout.preferredHeight: Layout.minimumHeight
                         color: probeCard.modelData.id === root.focusedProbeId ? Constants.selectedColor : Constants.raisedColor; border.color: probeCard.modelData.id === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor; radius: 4
                         ColumnLayout { anchors.fill: parent; anchors.margins: 18

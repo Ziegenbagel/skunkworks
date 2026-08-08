@@ -34,13 +34,14 @@ class MissionControlViewModelBuilder:
                 "probeId": probe["id"],
                 "name": probe.get("name", world.snapshot.get("probe", f"Probe {probe['id']}")),
                 "model": probe.get("model", "generic"),
-                "status": probe["status"],
+                "status": (probe.get("movement") or {}).get("phase") or (probe.get("movement") or {}).get("status") or probe["status"],
                 "isReachable": probe.get("telemetry_available", True),
                 "sector": coordinates,
                 "sectorLabel": self._sector_label(coordinates),
-                "movement": dict(probe.get("movement") or {}),
+                "movement": self._movement_view(probe),
                 "sensorMode": probe.get("sensor_mode", probe.get("sensorMode", "unknown")),
                 "velocity": probe.get("velocity", (probe.get("movement") or {}).get("velocity")),
+                "fuelPercent": self.operations.travel.fuel_percentage(),
                 "canCancelMovement": (
                     (probe.get("movement") or {}).get("phase") == "preparing"
                     or (probe.get("movement") or {}).get("status") == "preparing"
@@ -81,6 +82,7 @@ class MissionControlViewModelBuilder:
             "operations": self._operation_records(),
             "actions": self._action_records(),
             "archive": self._archive_records(),
+            "communications": self._communications(probe),
         }
         result["navigation"] = self.navigation_view()
         result["sectorResources"] = self._sector_resource_totals(result["resourceLedger"])
@@ -364,10 +366,10 @@ class MissionControlViewModelBuilder:
             is_focused = coordinate.x == focus_coordinates.get("x") and coordinate.y == focus_coordinates.get("y") and coordinate.z == focus_coordinates.get("z")
             if is_focused:
                 map_state = "current"
-            elif knowledge in {"detailed", "scanned", "full"}:
-                map_state = "scanned"
             elif record.visit_count:
                 map_state = "visited"
+            elif knowledge in {"neighbor_scan", "detailed", "scanned", "full"}:
+                map_state = "scanned"
             elif record.observed:
                 map_state = "observed"
             else:
@@ -394,9 +396,35 @@ class MissionControlViewModelBuilder:
                 "isFocused": is_focused,
                 "mapState": map_state,
             })
+        # The game only persists sectors once they have been observed.  Add the
+        # focused sector's immediate, unrecorded neighborhood so UNKNOWN is a
+        # real map state rather than an always-empty filter.
+        known_ids = {node["id"] for node in nodes}
+        fx, fy, fz = (int(focus_coordinates.get(axis, 0) or 0) for axis in ("x", "y", "z"))
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    if dx == dy == dz == 0:
+                        continue
+                    x, y, z = fx + dx, fy + dy, fz + dz
+                    identifier = f"{x}:{y}:{z}"
+                    if identifier in known_ids:
+                        continue
+                    nodes.append({
+                        "id": identifier, "x": x, "y": y, "z": z,
+                        "label": self._sector_label({"x": x, "y": y, "z": z}),
+                        "visitCount": 0, "lastVisitedAt": "", "probeIds": [],
+                        "objectCount": 0, "objectTypes": [], "objects": (),
+                        "resourceTypes": (), "hasKnownResources": False,
+                        "hasHazard": False, "hazardTypes": (),
+                        "hasDetachedContainers": False, "knowledgeLevel": "unknown",
+                        "confidence": 0.0, "isFocused": False, "mapState": "unknown",
+                    })
         edges = []
         for index, source in enumerate(nodes):
             for target in nodes[index + 1:]:
+                if "unknown" in {source["mapState"], target["mapState"]}:
+                    continue
                 if max(abs(source[axis] - target[axis]) for axis in ("x", "y", "z")) == 1:
                     edges.append({"from": source["id"], "to": target["id"]})
         recent_route = self._recent_galaxy_route(world, nodes)
@@ -404,12 +432,52 @@ class MissionControlViewModelBuilder:
         return {
             "nodes": tuple(nodes),
             "edges": tuple(edges),
-            "sectorCount": len(nodes),
+            "sectorCount": sum(node["mapState"] != "unknown" for node in nodes),
+            "unknownNeighborCount": sum(node["mapState"] == "unknown" for node in nodes),
             "recentTrail": recent_route,
             "recentTrailNodes": recent_nodes,
             "recentTrailCount": len(recent_route),
             "recentTrailProbeId": world.probe.get("id"),
         }
+
+    def _communications(self, probe):
+        if not self.operations.messaging:
+            return {"inbox": (), "outbox": (), "unreadCount": 0}
+        inbox = tuple(self.operations.messaging.inbox(probe.get("id")))
+        outbox = tuple(self.operations.messaging.outbox())
+        unread = sum(
+            not bool(message.get("read", message.get("isRead", message.get("status") == "read")))
+            for message in inbox
+        )
+        return {"inbox": inbox, "outbox": outbox, "unreadCount": unread}
+
+    @classmethod
+    def _movement_view(cls, probe):
+        movement = dict(probe.get("movement") or probe.get("travel") or {})
+        def first(*keys):
+            for key in keys:
+                value = movement.get(key)
+                if value not in (None, "", {}):
+                    return value
+            return None
+        def coordinate_label(value):
+            if not isinstance(value, dict):
+                return value
+            value = value.get("relative") or value.get("relativeCoordinates") or value
+            if all(axis in value for axis in ("x", "y", "z")):
+                return f"{value['x']}:{value['y']}:{value['z']}"
+            return None
+        origin = first("originSector", "origin", "from", "departureSector")
+        destination = first("arrivalSector", "destinationSector", "destination", "target", "to")
+        movement.update({
+            "originLabel": coordinate_label(origin) or first("originLabel") or "UNKNOWN",
+            "destinationLabel": coordinate_label(destination) or first("destinationLabel") or "UNKNOWN",
+            "estimatedArrival": first("estimatedArrival", "arrivalAt", "arrivalTime", "eta"),
+            "remainingTime": first("remainingTime", "timeRemaining", "remainingSeconds", "secondsRemaining"),
+            "velocity": first("velocity", "velocityC") or probe.get("velocity", probe.get("velocityC")),
+            "heading": first("heading", "vector", "direction"),
+        })
+        return movement
 
     @staticmethod
     def _normalized_resource_type(value):

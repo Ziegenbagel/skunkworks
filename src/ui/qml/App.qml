@@ -455,6 +455,16 @@ ApplicationWindow {
             if (window.backend) window.backend.createLogbookPage(title, content);
         }
 
+        function onMessageSendRequested(payload) {
+            AudioManager.play("confirm");
+            if (window.backend) window.backend.sendMessage(payload);
+        }
+
+        function onMessageReadRequested(messageId) {
+            AudioManager.play("select");
+            if (window.backend) window.backend.markMessageRead(messageId);
+        }
+
         function onLogbookUpdateRequested(pageId, title, content) {
             AudioManager.play("save");
             if (window.backend) window.backend.updateLogbookPage(pageId, title, content);

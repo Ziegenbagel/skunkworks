@@ -21,6 +21,16 @@ Rectangle {
     readonly property real orbitAspect: 0.62
     property string sectorLabel: "FCC 0 / 0 / 0"
     readonly property bool probeInTransit: ["preparing", "accelerating", "cruising", "decelerating", "traveling"].indexOf(String(focusProbe.status || "").toLowerCase()) >= 0
+    function headingLabel(value) { return value && typeof value === "object" ? [value.x || 0, value.y || 0, value.z || 0].join(":") : String(value || "—"); }
+    function remainingLabel(movement) {
+        const raw = movement.remainingTime;
+        if (raw !== undefined && raw !== null) {
+            if (typeof raw === "number") { const seconds = Math.max(0, Math.floor(raw)); return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S"; }
+            return String(raw);
+        }
+        if (movement.estimatedArrival) { const seconds = Math.max(0, Math.floor((Date.parse(movement.estimatedArrival) - Date.now()) / 1000)); if (!isNaN(seconds)) return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S"; }
+        return "AWAITING TELEMETRY";
+    }
 
     function orbitRadius(index) {
         const minimumRadius = 170;
@@ -109,9 +119,9 @@ Rectangle {
             anchors.margins: 15
             spacing: 7
             Label { text: "PROBE IN TRANSIT · " + String(root.focusProbe.status || "traveling").toUpperCase(); color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 22; font.bold: true }
-            Label { width: parent.width; text: "DESTINATION · " + String((root.focusProbe.movement || {}).destinationLabel || (root.focusProbe.movement || {}).destination || "UNKNOWN / UNSCANNED"); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 16; wrapMode: Text.Wrap }
-            Label { width: parent.width; text: "SENSORS · " + String(root.focusProbe.sensorMode || "UNKNOWN").toUpperCase() + "    VELOCITY · " + String((root.focusProbe.movement || {}).velocity || root.focusProbe.velocity || "—") + "    SEGMENTS · " + String((root.focusProbe.movement || {}).segmentsRemaining || (root.focusProbe.movement || {}).segmentCount || "—"); color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 14; wrapMode: Text.Wrap }
-            Label { width: parent.width; text: "ARRIVAL · " + String((root.focusProbe.movement || {}).estimatedArrival || (root.focusProbe.movement || {}).eta || "AWAITING TELEMETRY"); color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap }
+            Label { width: parent.width; text: "ORIGIN SECTOR · " + String((root.focusProbe.movement || {}).originLabel || "UNKNOWN") + "    ARRIVAL SECTOR · " + String((root.focusProbe.movement || {}).destinationLabel || "UNKNOWN"); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 16; wrapMode: Text.Wrap }
+            Label { width: parent.width; text: "SENSORS · " + String(root.focusProbe.sensorMode || "UNKNOWN").toUpperCase() + "    DEUTERIUM · " + Number(root.focusProbe.fuelPercent || 0).toFixed(2) + "%    VELOCITY C · " + String((root.focusProbe.movement || {}).velocity || root.focusProbe.velocity || "—") + "    HEADING · " + root.headingLabel((root.focusProbe.movement || {}).heading); color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 14; wrapMode: Text.Wrap }
+            Label { width: parent.width; text: "REMAINING TIME · " + root.remainingLabel(root.focusProbe.movement || ({})); color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap }
         }
     }
 

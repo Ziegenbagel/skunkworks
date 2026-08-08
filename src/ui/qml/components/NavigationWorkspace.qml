@@ -41,6 +41,8 @@ PanelFrame {
     signal logbookDeleteRequested(int pageId)
     signal autoLogbookChanged(bool enabled)
     signal logbookPageOpenRequested(int pageId)
+    signal messageSendRequested(var payload)
+    signal messageReadRequested(string messageId)
     signal operatorManualRequested()
     signal changeLogRequested()
     signal updateCheckRequested()
@@ -104,7 +106,7 @@ PanelFrame {
                         "title": item.codeLabel,
                         "detail": item.summary
                     }));
-        if (section === "LOGBOOK")
+        if (section === "COMMUNICATIONS")
             return (dashboardData.events || []).map(item => ({
                         "title": String(item.domain || "EVENT").toUpperCase(),
                         "detail": item.observedAt || "Recorded event"
@@ -209,19 +211,24 @@ PanelFrame {
             onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
         }
 
-        LogbookWorkspace {
+        CommunicationsWorkspace {
             anchors.fill: parent
-            visible: root.section === "LOGBOOK"
+            visible: root.section === "COMMUNICATIONS"
+            communicationsData: root.dashboardData.communications || ({})
             logbookData: root.dashboardData.logbook || ({})
-            onCreateRequested: (title, content) => root.logbookCreateRequested(title, content)
-            onUpdateRequested: (pageId, title, content) => root.logbookUpdateRequested(pageId, title, content)
-            onDeleteRequested: pageId => root.logbookDeleteRequested(pageId)
-            onAutoLoggingChanged: enabled => root.autoLogbookChanged(enabled)
-            onPageOpenRequested: pageId => root.logbookPageOpenRequested(pageId)
+            probes: root.availableProbes
+            focusedProbeId: root.focusedProbeId
+            onMessageSendRequested: payload => root.messageSendRequested(payload)
+            onMessageReadRequested: messageId => root.messageReadRequested(messageId)
+            onLogbookCreateRequested: (title, content) => root.logbookCreateRequested(title, content)
+            onLogbookUpdateRequested: (pageId, title, content) => root.logbookUpdateRequested(pageId, title, content)
+            onLogbookDeleteRequested: pageId => root.logbookDeleteRequested(pageId)
+            onAutoLogbookChanged: enabled => root.autoLogbookChanged(enabled)
+            onLogbookPageOpenRequested: pageId => root.logbookPageOpenRequested(pageId)
         }
 
         Column {
-            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES" && root.section !== "FLEET" && root.section !== "LOGBOOK" && root.section !== "MANUAL CONTROL"
+            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES" && root.section !== "FLEET" && root.section !== "COMMUNICATIONS" && root.section !== "MANUAL CONTROL"
             anchors.fill: parent
             spacing: 12
 

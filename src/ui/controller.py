@@ -289,6 +289,16 @@ class MissionControlDataService:
         owner = self._logbook_page_probes.get(int(page_id), self._selected_probe_id)
         return self.capabilities.probes.delete_logbook_page(owner, page_id)
 
+    def send_message(self, payload):
+        if self._selected_probe_id is None:
+            raise RuntimeError("Select a probe before sending a message.")
+        return self.capabilities.messaging.send(self._selected_probe_id, payload)
+
+    def mark_message_read(self, message_id):
+        if self._selected_probe_id is None:
+            raise RuntimeError("Select a probe before updating a message.")
+        return self.capabilities.messaging.mark_read(self._selected_probe_id, message_id)
+
     def automation_view(self, operations=None, probe_id=None):
         operations = operations or self._operations
         if probe_id is None:
@@ -751,11 +761,11 @@ class MissionControlDataService:
             "id": int(probe["id"]),
             "name": probe.get("name", f"Probe {probe['id']}"),
             "model": probe.get("model", "generic"),
-            "status": probe.get("status", "unknown"),
+            "status": (probe.get("movement") or probe.get("travel") or {}).get("phase") or (probe.get("movement") or probe.get("travel") or {}).get("status") or probe.get("status", "unknown"),
             "sectorLabel": label,
             "isReachable": probe.get("isReachable", True),
             "isDefault": probe.get("isDefault", False),
-            "movement": probe.get("movement") or probe.get("travel") or {},
+            "movement": MissionControlViewModelBuilder._movement_view(probe),
             "velocity": probe.get("velocity", probe.get("velocityC", 0)),
             "sensorMode": probe.get("sensorMode") or probe.get("sensors") or "unknown",
             "deuterium": probe.get("deuterium", probe.get("fuel", 0)),
@@ -1684,6 +1694,26 @@ class MissionControlController(QObject):
         self._inventory_mutation(lambda: self.service.inventory_manny_action(
             action, manny_id, self._qt_safe(payload),
         ))
+
+    @Slot("QVariantMap")
+    def sendMessage(self, payload):
+        self._message_mutation(lambda: self.service.send_message(self._qt_safe(payload)))
+
+    @Slot(str)
+    def markMessageRead(self, message_id):
+        self._message_mutation(lambda: self.service.mark_message_read(message_id))
+
+    def _message_mutation(self, callback):
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Refresh a focused probe before using communications.")
+            return
+        try:
+            callback()
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._set_error("")
+        self._start_refresh(self._focused_probe_id)
 
     @Slot(str, str)
     def createLogbookPage(self, title, content):
