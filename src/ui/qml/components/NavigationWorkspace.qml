@@ -240,15 +240,15 @@ PanelFrame {
                 height: parent.height - 42
                 clip: true
 
-                GridLayout {
+                Grid {
                     id: sectionGrid
-                    // Use the stable viewport width. Feeding root.width into both
-                    // the grid and wrapped delegates caused an endless polish loop.
+                    // These cards have content-dependent heights. A GridLayout
+                    // repeatedly polished wrapped labels when several long task
+                    // cards were present; a fixed-width Grid has no size solver
+                    // and therefore cannot enter that feedback cycle.
                     width: sectionScroll.availableWidth
                     columns: sectionScroll.availableWidth >= 1050 ? 2 : 1
-                    uniformCellWidths: true
-                    columnSpacing: 18
-                    rowSpacing: 18
+                    spacing: 18
 
                     Repeater {
                         model: root.sectionRows()
@@ -256,9 +256,8 @@ PanelFrame {
                             id: sectionRow
                             required property var modelData
                             required property int index
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 0
-                            implicitHeight: detailsColumn.implicitHeight + 40
+                            width: (sectionGrid.width - (sectionGrid.columns - 1) * sectionGrid.spacing) / sectionGrid.columns
+                            height: detailsColumn.implicitHeight + 40
                             color: rowMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
                             border.color: modelData.probeId === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor
                             radius: 4
@@ -320,8 +319,8 @@ PanelFrame {
 
                     Label {
                         visible: root.sectionRows().length === 0
-                        Layout.columnSpan: sectionGrid.columns
-                        Layout.alignment: Qt.AlignHCenter
+                        width: sectionGrid.width
+                        horizontalAlignment: Text.AlignHCenter
                         text: "No live " + root.section.toLowerCase() + " records are currently available."
                         color: Constants.mutedTextColor
                         font.family: Constants.technicalFont

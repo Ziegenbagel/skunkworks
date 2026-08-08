@@ -404,5 +404,6 @@ def test_live_section_grid_uses_stable_scroll_view_width():
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
 
     assert "width: sectionScroll.availableWidth" in workspace
-    assert "uniformCellWidths: true" in workspace
+    assert "Grid {\n                    id: sectionGrid" in workspace
+    assert "GridLayout {\n                    id: sectionGrid" not in workspace
     assert "Layout.preferredWidth: (root.width" not in workspace
