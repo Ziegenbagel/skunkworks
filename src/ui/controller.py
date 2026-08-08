@@ -39,7 +39,7 @@ from src.planner.planner import Planner
 from src.planner.task import Task
 from src.execution import (
     AutomationRuntime, CapabilityDispatcher, CommandPreparer,
-    ExecutionMode, ExecutionPolicy,
+    CommandType, ExecutionMode, ExecutionPolicy,
 )
 from src.execution.policy import ExecutionPolicyStore
 from src.diagnostics import diagnostic_log_directory, log_handled_error
@@ -443,11 +443,18 @@ class MissionControlDataService:
                     item for item in self._prepared_commands
                     if item.command.probe_id == self._selected_probe_id
                     and item.disposition == "ready"
-                    and item.command.fingerprint not in attempted
+                    and self._cycle_attempt_key(item.command) not in attempted
                 ), None)
             if prepared is None:
+                # Manufacturing proposals are prepared before mining and claim
+                # idle Mannys while the queue is built. Once each distinct
+                # fabrication goal has had its chance this cycle, prepare the
+                # remaining mining work alone so those stale planning claims do
+                # not hide useful orders for otherwise-idle Mannys.
+                prepared = self._prepare_next_cycle_mining(policy, attempted)
+            if prepared is None:
                 break
-            attempted.add(prepared.command.fingerprint)
+            attempted.add(self._cycle_attempt_key(prepared.command))
             result = runtime.execute(
                 prepared,
                 risk_acknowledged=risk_acknowledged,
@@ -484,6 +491,37 @@ class MissionControlDataService:
                 for prepared, result in results
             ],
         }
+
+    @staticmethod
+    def _cycle_attempt_key(command):
+        """Identify one logical goal attempt while allowing parallel mining."""
+
+        if command.type in {
+            CommandType.MANNY_CRAFT,
+            CommandType.ATOMIC_PRINTER_CRAFT,
+        }:
+            return (command.type.value, command.payload.get("recipe"))
+        if command.type == CommandType.MANNY_MINE:
+            resources = tuple(command.payload.get("resources") or ())
+            return (command.type.value, resources, command.target_id)
+        return (command.type.value, command.fingerprint)
+
+    def _prepare_next_cycle_mining(self, policy, attempted):
+        if getattr(self, "_operations", None) is None:
+            return None
+        desired = DesiredStateStore(self.data_engine).load(self._selected_probe_id)
+        mining_tasks = tuple(
+            task for task in Planner(self._operations, desired).tasks()
+            if task.action in {"Mine Resource", "Mine Deuterium"}
+        )
+        prepared = CommandPreparer(
+            self._operations, self._selected_probe_id, policy,
+        ).prepare(mining_tasks)
+        return next((
+            item for item in prepared
+            if item.disposition == "ready"
+            and self._cycle_attempt_key(item.command) not in attempted
+        ), None)
 
     @staticmethod
     def _missing_resource_from_failure(result):
