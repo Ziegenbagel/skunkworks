@@ -8,7 +8,8 @@ Item {
     property real value: 0.5
     property string reading: "50%"
     property color accentColor: Constants.cyanColor
-    implicitHeight: 45
+    implicitHeight: 54
+    height: implicitHeight
 
     Label {
         id: metricLabel
@@ -33,7 +34,8 @@ Item {
     Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
+        anchors.top: metricLabel.bottom
+        anchors.topMargin: 8
         height: 14
         color: Constants.voidColor
         border.color: Constants.lineColor

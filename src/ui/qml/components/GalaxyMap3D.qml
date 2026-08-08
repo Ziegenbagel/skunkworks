@@ -122,18 +122,18 @@ Item {
     }
     function colorFor(node) {
         if (showRecentTrail && recentTrailNodes[String(node.id)])
-            return Constants.warningColor;
+            return "#ff9f1c";
         if (resourceMode === "has" && resourceFilter !== "all"
                 && (node.resourceTypes || []).indexOf(resourceFilter) >= 0) {
-            const resourceColors = {"deuterium":"#c76dff", "metals":"#d7dce5", "ice":"#69bfff", "carbon_compounds":"#69d391"};
+            const resourceColors = {"deuterium":"#e45cff", "metals":"#ffffff", "ice":"#32c5ff", "carbon_compounds":"#34f59a"};
             return resourceColors[resourceFilter] || Constants.cyanColor;
         }
         const state = String(node.mapState || "unknown");
-        if (state === "current") return Constants.nominalColor;
-        if (state === "scanned") return Constants.cyanColor;
-        if (state === "visited") return "#0e6cff";
-        if (state === "observed") return Constants.warningColor;
-        return "#657384";
+        if (state === "current") return "#39ff9a";
+        if (state === "scanned") return "#36d9ff";
+        if (state === "visited") return "#347dff";
+        if (state === "observed") return "#ffbd3d";
+        return "#8496a8";
     }
 
     Rectangle { anchors.fill: parent; color: Constants.voidColor }
@@ -217,10 +217,9 @@ Item {
                 pickable: true
                 position: root.positionFor(modelData)
                 scale: modelData.isFocused ? Qt.vector3d(0.34, 0.34, 0.34) : Qt.vector3d(0.24, 0.24, 0.24)
-                materials: PrincipledMaterial {
-                    baseColor: root.colorFor(sectorModel.modelData)
-                    emissiveFactor: sectorModel.modelData.isFocused ? Qt.vector3d(0.1, 0.8, 0.35) : Qt.vector3d(0.04, 0.30, 0.46)
-                    roughness: 0.28; metalness: 0.35
+                materials: DefaultMaterial {
+                    lighting: DefaultMaterial.NoLighting
+                    diffuseColor: root.colorFor(sectorModel.modelData)
                 }
             }
         }

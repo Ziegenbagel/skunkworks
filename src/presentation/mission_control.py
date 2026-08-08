@@ -83,7 +83,20 @@ class MissionControlViewModelBuilder:
             "archive": self._archive_records(),
         }
         result["navigation"] = self.navigation_view()
+        result["sectorResources"] = self._sector_resource_totals(result["resourceLedger"])
         return result
+
+    @staticmethod
+    def _sector_resource_totals(ledger):
+        totals = {"deuterium": 0.0, "metals": 0.0, "ice": 0.0, "carbon_compounds": 0.0}
+        for row in ledger.get("rows", ()):
+            if row.get("scope") != "natural_deposit":
+                continue
+            for resource_type, amount in (row.get("resources") or {}).items():
+                key = MissionControlViewModelBuilder._normalized_resource_type(resource_type)
+                if key in totals:
+                    totals[key] += float(amount or 0)
+        return tuple({"type": key, "label": key.replace("_", " ").upper(), "amount": amount} for key, amount in totals.items())
 
     @staticmethod
     def _inventory_management(world):
@@ -640,12 +653,33 @@ class MissionControlViewModelBuilder:
         estimates = sector.get("estimatedObjects", {}) or {}
         danger = sector.get("dangerEstimate", sector.get("navigationalRisk"))
         if objects:
-            types = [str(item.get("name") or item.get("type") or "object").replace("_", " ") for item in objects]
-            return "Known: " + ", ".join(types)
+            system = next((item for item in objects if item.get("type") == "solar_system"), None)
+            if system:
+                orbitals = system.get("bookmarkTargets", ()) or system.get("objects", ()) or ()
+                planets = sum("planet" in str(item.get("type", "")).lower() for item in orbitals)
+                stars = sum(item.get("type") == "star" for item in orbitals) or 1
+                return f"Solar system: {planets} planets among {len(orbitals)} orbital objects, around {stars} star{'s' if stars != 1 else ''}."
+            types = {str(item.get("type") or "object").replace("_", " ") for item in objects}
+            if "black hole" in types:
+                return "Hazardous sector: black hole detected."
+            if "dust cloud" in types:
+                return "Possible dust cloud in the sector."
+            return "Known sector objects: " + ", ".join(sorted(types)) + "."
         if possible:
             return "Possible: " + ", ".join(str(item).replace("_", " ") for item in possible)
         if estimates:
-            return "Estimate: " + ", ".join(f"{key.replace('_', ' ')} {value}" for key, value in estimates.items())
+            black_hole = float(estimates.get("blackHoleProbability", 0) or 0)
+            dust = float(estimates.get("dustCloudProbability", 0) or 0)
+            minimum = int(estimates.get("planetCountMin", 0) or 0)
+            maximum = int(estimates.get("planetCountMax", 0) or 0)
+            has_star = bool(estimates.get("star", estimates.get("hasStar", False)))
+            if black_hole >= 0.5:
+                return "Hazardous sector: possible black hole detected."
+            if dust >= 0.5:
+                return "Possible dust cloud in the sector."
+            if has_star or minimum > 0 or maximum > 1:
+                return f"Probable stellar system: {minimum} to {maximum} planets estimated."
+            return "No major nearby object estimated."
         if danger and str(danger).lower() not in {"unknown", "none", "safe"}:
             return "Hazard estimate: " + str(danger).replace("_", " ")
         knowledge = str(sector.get("knowledgeLevel", "unscanned"))

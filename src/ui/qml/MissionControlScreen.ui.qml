@@ -336,30 +336,22 @@ Rectangle {
                     PanelFrame {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        title: "Safety Overview"
+                        title: "Sector Resource Reserves"
                         contentItem: Column {
                             width: parent.width
-                            spacing: 14
-                            Image {
-                                width: 60
-                                height: 60
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                source: "../assets/icons/status-shield.png"
-                                fillMode: Image.PreserveAspectFit
-                            }
-                            Label {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: root.healthData.stateLabel || "SYSTEMS NOMINAL"
-                                color: root.healthData.state === "critical" ? Constants.criticalColor : root.healthData.state === "degraded" ? Constants.warningColor : Constants.nominalColor
-                                font.family: Constants.technicalFont
-                                font.pixelSize: 11
-                                font.bold: true
-                            }
-                            Label {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: root.healthData.summary || "No active threats detected"
-                                color: Constants.mutedTextColor
-                                font.pixelSize: 10
+                            spacing: 12
+                            Repeater {
+                                model: root.dashboardData.sectorResources || []
+                                delegate: Row {
+                                    required property var modelData
+                                    width: parent.width; spacing: 8
+                                    Label { width: parent.width * 0.62; text: modelData.label; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 11 }
+                                    Label {
+                                        text: Number(modelData.amount || 0).toFixed(Number(modelData.amount || 0) < 100 ? 2 : 0) + " ECE"
+                                        color: Number(modelData.amount || 0) < 25 ? Constants.criticalColor : Number(modelData.amount || 0) < 100 ? Constants.warningColor : Constants.nominalColor
+                                        font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true
+                                    }
+                                }
                             }
                         }
                     }
@@ -448,7 +440,7 @@ Rectangle {
                         spacing: 10
                         PanelFrame {
                             objectName: "hullIntegrityPanel"
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: parent.width * 0.29
                             Layout.fillHeight: true
                             title: "Focused Probe Hull Integrity"
                             contentItem: Column {
@@ -464,6 +456,26 @@ Rectangle {
                                     value: Number((root.dashboardData.probe || {}).integrityPercent || 0) / 100
                                     reading: Number((root.dashboardData.probe || {}).integrityPercent === undefined ? 100 : root.dashboardData.probe.integrityPercent).toFixed(1) + "%"
                                     accentColor: value < 0.5 ? Constants.criticalColor : value < 0.8 ? Constants.warningColor : Constants.nominalColor
+                                }
+                            }
+                        }
+                        PanelFrame {
+                            objectName: "safetyOverviewPanel"
+                            Layout.preferredWidth: parent.width * 0.29
+                            Layout.fillHeight: true
+                            title: "Safety Overview"
+                            contentItem: Column {
+                                width: parent.width; spacing: 8
+                                Label {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: root.healthData.stateLabel || "SYSTEMS NOMINAL"
+                                    color: root.healthData.state === "critical" ? Constants.criticalColor : root.healthData.state === "degraded" ? Constants.warningColor : Constants.nominalColor
+                                    font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true
+                                }
+                                Label {
+                                    width: parent.width; horizontalAlignment: Text.AlignHCenter
+                                    text: root.healthData.summary || "No active threats detected"
+                                    color: Constants.mutedTextColor; font.pixelSize: 10; wrapMode: Text.Wrap
                                 }
                             }
                         }
