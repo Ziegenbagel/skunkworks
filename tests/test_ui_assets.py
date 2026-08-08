@@ -322,7 +322,7 @@ def test_resource_workspace_groups_locations_and_uses_responsive_cards():
         "ASTEROID CONTENTS", "PLANETARY RESOURCES",
     ):
         assert heading in workspace
-    assert "GridLayout" in workspace
+    assert "Grid {" in workspace
     assert "font.pixelSize: 15" in workspace
     assert "ResourceWorkspace" in navigation
 
@@ -407,3 +407,11 @@ def test_live_section_grid_uses_stable_scroll_view_width():
     assert "Grid {\n                    id: sectionGrid" in workspace
     assert "GridLayout {\n                    id: sectionGrid" not in workspace
     assert "Layout.preferredWidth: (root.width" not in workspace
+
+
+def test_resource_ledger_avoids_content_dependent_quick_layouts():
+    workspace = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text()
+
+    assert "width: resourceScroll.availableWidth" in workspace
+    assert "GridLayout {\n                        id: resourceGrid" not in workspace
+    assert "ColumnLayout {\n                    width: root.width - 20" not in workspace

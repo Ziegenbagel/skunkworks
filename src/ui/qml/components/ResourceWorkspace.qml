@@ -49,10 +49,11 @@ Item {
             currentIndex: resourceTabs.currentIndex
 
             ScrollView {
+                id: resourceScroll
                 clip: true
 
-                ColumnLayout {
-                    width: root.width - 20
+                Column {
+                    width: resourceScroll.availableWidth
                     spacing: 20
 
             Label {
@@ -64,7 +65,7 @@ Item {
                 font.letterSpacing: 1.2
             }
             Label {
-                Layout.fillWidth: true
+                width: parent.width
                 text: "Storage and remaining natural reserves visible to the selected probe. Amounts are in equivalent Earth containers unless marked as a percentage."
                 color: Constants.mutedTextColor
                 font.family: Constants.bodyFont
@@ -74,12 +75,13 @@ Item {
 
             Repeater {
                 model: root.categories
-                delegate: ColumnLayout {
+                delegate: Column {
                     id: categorySection
                     required property var modelData
                     readonly property var rows: root.rowsFor(modelData.key)
                     visible: rows.length > 0
-                    Layout.fillWidth: true
+                    width: parent.width
+                    height: visible ? implicitHeight : 0
                     spacing: 8
 
                     Label {
@@ -90,39 +92,39 @@ Item {
                         font.bold: true
                     }
                     Label {
-                        Layout.fillWidth: true
+                        width: parent.width
                         text: categorySection.modelData.description
                         color: Constants.mutedTextColor
                         font.family: Constants.bodyFont
                         font.pixelSize: 13
                         wrapMode: Text.Wrap
                     }
-                    GridLayout {
+                    Grid {
                         id: resourceGrid
-                        Layout.fillWidth: true
+                        width: parent.width
                         columns: width >= 1400 ? 3 : width >= 850 ? 2 : 1
-                        columnSpacing: 18
-                        rowSpacing: 18
+                        spacing: 18
 
                         Repeater {
                             model: categorySection.rows
                             delegate: Rectangle {
                                 id: resourceCard
                                 required property var modelData
-                                Layout.preferredWidth: (categorySection.width - (resourceGrid.columns - 1) * resourceGrid.columnSpacing) / resourceGrid.columns
-                                Layout.minimumWidth: 420
-                                implicitHeight: resourceText.implicitHeight + 38
+                                width: (resourceGrid.width - (resourceGrid.columns - 1) * resourceGrid.spacing) / resourceGrid.columns
+                                height: resourceText.implicitHeight + 38
                                 color: Constants.raisedColor
                                 border.color: Constants.lineColor
                                 radius: 4
 
-                                ColumnLayout {
+                                Column {
                                     id: resourceText
-                                    anchors.fill: parent
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
                                     anchors.margins: 18
                                     spacing: 10
                                     Label {
-                                        Layout.fillWidth: true
+                                        width: parent.width
                                         text: resourceCard.modelData.title || "Unknown resource"
                                         color: Constants.textColor
                                         font.family: Constants.technicalFont
@@ -131,7 +133,7 @@ Item {
                                         wrapMode: Text.Wrap
                                     }
                                     Label {
-                                        Layout.fillWidth: true
+                                        width: parent.width
                                         text: resourceCard.modelData.detail || ""
                                         color: Constants.mutedTextColor
                                         font.family: Constants.bodyFont
@@ -146,13 +148,13 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Constants.lineColor; visible: (root.ledgerData.notes || []).length > 0 }
+            Rectangle { width: parent.width; height: 1; color: Constants.lineColor; visible: (root.ledgerData.notes || []).length > 0 }
             Label { text: "DATA COVERAGE"; visible: (root.ledgerData.notes || []).length > 0; color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true }
             Repeater {
                 model: root.ledgerData.notes || []
                 delegate: Label {
                     required property var modelData
-                    Layout.fillWidth: true
+                    width: parent.width
                     text: "• " + modelData
                     color: Constants.mutedTextColor
                     font.family: Constants.bodyFont
