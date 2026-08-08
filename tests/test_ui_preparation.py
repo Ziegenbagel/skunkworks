@@ -113,47 +113,42 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.dashboard["connectionLabel"], "LIVE LINK INTERRUPTED")
         self.assertIn("temporarily unavailable", controller.error)
 
-    def test_automatic_tick_refreshes_before_replanning_and_execution(self):
-        events = []
+    def test_automatic_tick_dispatches_replanning_off_the_ui_thread(self):
+        started = []
 
-        class Service:
-            def load(self, probe_id):
-                events.append(("refresh", probe_id))
-                return {
-                    "focus": {"probeId": probe_id},
-                    "probeOptions": ({"id": probe_id, "name": "Explorer"},),
-                    "connection": "connected",
-                    "automationRuntime": {
-                        "mode": "automatic",
-                        "liveExecutionEnabled": True,
-                    },
-                }
-
-        class ImmediatePool:
+        class DeferredPool:
             @staticmethod
             def start(worker):
-                worker.run()
+                started.append(worker)
 
-        controller = MissionControlController(Service(), ImmediatePool())
+        class SignalStub:
+            def connect(self, _callback):
+                pass
+
+        class Worker:
+            def __init__(self, probe_ids):
+                self.probe_ids = tuple(probe_ids)
+                self.signals = type(
+                    "Signals",
+                    (),
+                    {"succeeded": SignalStub(), "failed": SignalStub()},
+                )()
+
+        automatic_policy = type(
+            "Policy",
+            (),
+            {"mode": "automatic", "live_execution_enabled": True},
+        )()
+        controller = MissionControlController(None, DeferredPool())
         controller._focused_probe_id = 7
-        controller._dashboard = {
-            "automationRuntime": {
-                "mode": "automatic",
-                "liveExecutionEnabled": True,
-            },
-        }
-        controller._run_automation = lambda fingerprint, acknowledged: events.append(
-            ("automation", fingerprint, acknowledged)
-        )
-
-        with patch(
-            "src.ui.controller.QTimer.singleShot",
-            side_effect=lambda _delay, callback: callback(),
+        with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=automatic_policy), patch(
+            "src.ui.controller._FleetAutomationWorker", Worker
         ):
             controller._automation_tick()
 
-        self.assertEqual(events[0], ("refresh", 7))
-        self.assertEqual(events[1], ("automation", None, False))
+        self.assertEqual(len(started), 1)
+        self.assertEqual(started[0].probe_ids, (7,))
+        self.assertIs(controller._fleet_automation_worker, started[0])
 
     def test_periodic_check_pauses_automation_for_unreviewed_api(self):
         controller = MissionControlController()

@@ -1331,19 +1331,6 @@ class MissionControlController(QObject):
     def _automation_tick(self):
         if self._emergency_stop or self._refreshing or self._fleet_automation_worker is not None:
             return
-        # Keep the original refresh-then-plan path for bootstrap/single-probe
-        # sessions where the account probe roster has not been synchronized yet.
-        # Besides avoiding a second API client, this guarantees that automation
-        # never plans against the concept/last-known dashboard.
-        if not self._available_probes and self._focused_probe_id >= 0:
-            runtime = self._dashboard.get("automationRuntime", {})
-            if (
-                runtime.get("mode") == ExecutionMode.AUTOMATIC.value
-                and runtime.get("liveExecutionEnabled")
-            ):
-                self._automation_after_refresh = True
-                self._start_refresh(self._focused_probe_id)
-            return
         probe_ids = [item.get("id") for item in self._available_probes if item.get("id")]
         if not probe_ids and self._focused_probe_id >= 0:
             probe_ids = [self._focused_probe_id]
@@ -2115,7 +2102,7 @@ class MissionControlController(QObject):
             self._automation_after_refresh = False
             QTimer.singleShot(
                 0,
-                lambda: self._run_automation(None, False),
+                self._automation_tick,
             )
 
     def _set_refreshing(self, value):

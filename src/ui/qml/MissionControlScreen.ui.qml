@@ -440,7 +440,7 @@ Rectangle {
                         spacing: 10
                         PanelFrame {
                             objectName: "hullIntegrityPanel"
-                            Layout.preferredWidth: parent.width * 0.29
+                            Layout.preferredWidth: 280
                             Layout.fillHeight: true
                             title: "Focused Probe Hull Integrity"
                             contentItem: Column {
@@ -461,7 +461,7 @@ Rectangle {
                         }
                         PanelFrame {
                             objectName: "safetyOverviewPanel"
-                            Layout.preferredWidth: parent.width * 0.29
+                            Layout.preferredWidth: 280
                             Layout.fillHeight: true
                             title: "Safety Overview"
                             contentItem: Column {

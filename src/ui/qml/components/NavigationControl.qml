@@ -6,6 +6,7 @@ import ".."
 
 Item {
     id: root
+    readonly property var activeTravelTarget: (root.automationData || {}).travelTarget || ({})
     property var navigationData: ({})
     property var travelPreview: ({})
     property var automationData: ({})
@@ -153,9 +154,9 @@ Item {
                                 color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 13
                             }
                             Label {
-                                visible: Boolean((root.automationData || {}).travelTarget)
+                                visible: Object.keys(root.activeTravelTarget).length > 0
                                 Layout.fillWidth: true
-                                text: "ACTIVE AUTO-TRAVEL TARGET · FCC " + root.automationData.travelTarget.x + " / " + root.automationData.travelTarget.y + " / " + root.automationData.travelTarget.z
+                                text: "ACTIVE AUTO-TRAVEL TARGET · FCC " + String(root.activeTravelTarget.x === undefined ? "—" : root.activeTravelTarget.x) + " / " + String(root.activeTravelTarget.y === undefined ? "—" : root.activeTravelTarget.y) + " / " + String(root.activeTravelTarget.z === undefined ? "—" : root.activeTravelTarget.z)
                                 color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true
                             }
                         }
