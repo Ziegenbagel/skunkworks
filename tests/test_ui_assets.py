@@ -397,3 +397,12 @@ def test_settings_exposes_operator_manual_and_change_log_links():
     assert "onOperatorManualRequested" in app
     assert "def openOperatorManual" in controller
     assert "def openChangeLog" in controller
+
+
+def test_live_section_grid_uses_stable_scroll_view_width():
+    """Wrapped task cards must not feed their measured size back into the grid."""
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+
+    assert "width: sectionScroll.availableWidth" in workspace
+    assert "uniformCellWidths: true" in workspace
+    assert "Layout.preferredWidth: (root.width" not in workspace

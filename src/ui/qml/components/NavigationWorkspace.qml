@@ -235,14 +235,18 @@ PanelFrame {
             }
 
             ScrollView {
+                id: sectionScroll
                 width: parent.width
                 height: parent.height - 42
                 clip: true
 
                 GridLayout {
                     id: sectionGrid
-                    width: root.width
-                    columns: root.width >= 1050 ? 2 : 1
+                    // Use the stable viewport width. Feeding root.width into both
+                    // the grid and wrapped delegates caused an endless polish loop.
+                    width: sectionScroll.availableWidth
+                    columns: sectionScroll.availableWidth >= 1050 ? 2 : 1
+                    uniformCellWidths: true
                     columnSpacing: 18
                     rowSpacing: 18
 
@@ -252,8 +256,8 @@ PanelFrame {
                             id: sectionRow
                             required property var modelData
                             required property int index
-                            Layout.preferredWidth: (root.width - (sectionGrid.columns - 1) * sectionGrid.columnSpacing) / sectionGrid.columns
-                            Layout.minimumWidth: 420
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             implicitHeight: detailsColumn.implicitHeight + 40
                             color: rowMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
                             border.color: modelData.probeId === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor
