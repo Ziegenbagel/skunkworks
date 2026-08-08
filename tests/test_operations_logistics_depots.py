@@ -112,6 +112,23 @@ class OperationsLogisticsDepotTests(unittest.TestCase):
         self.assertEqual(sequence.legs[0].amount, 30)
         self.assertEqual(sequence.undelivered_amount, 170)
 
+    def test_reserve_role_tanker_is_a_protected_deuterium_source(self):
+        roles = FleetRoleService(self.engine)
+        roles.assign(
+            "probe", 9, "deuterium_reserve",
+            metadata={"protectedDeuterium": 100},
+        )
+        sources = roles.deuterium_sources(({
+            "id": 9, "name": "Reserve One", "model": "deuterium_tanker",
+            "isReachable": True,
+            "sector": {"relative": {"x": 1, "y": 2, "z": 3}},
+            "fuel": {"deuterium": 350, "maxDeuterium": 800},
+        },))
+
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(sources[0]["availableAmount"], 250)
+        self.assertEqual(sources[0]["coordinates"], {"x": 1, "y": 2, "z": 3})
+
     def test_cargo_delivery_reports_capacity_and_trip_count(self):
         plan = CargoLogisticsService().plan_delivery(
             "metals", 12, source_available=20,

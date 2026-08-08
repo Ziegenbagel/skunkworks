@@ -374,6 +374,12 @@ ApplicationWindow {
                 window.backend.setAutonomousTravelTarget(x, y, z);
         }
 
+        function onAutonomousTravelTargetCancelRequested() {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.cancelAutonomousTravelTarget();
+        }
+
         function onApiKeySaveRequested(apiKey) {
             AudioManager.play("save");
             if (window.backend) window.backend.saveApiKey(apiKey);

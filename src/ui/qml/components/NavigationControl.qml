@@ -18,6 +18,7 @@ Item {
     signal scanRequested(int x, int y, int z)
     signal neighborScanRequested()
     signal autonomousTargetRequested(int x, int y, int z)
+    signal autonomousTargetCancelRequested()
     signal transportCycleRequested(var plan)
 
     readonly property string focusedRole: String((automationData.probeRoles || {})[String(focusedProbe.probeId)] || "unassigned")
@@ -158,6 +159,11 @@ Item {
                                 Layout.fillWidth: true
                                 text: "ACTIVE AUTO-TRAVEL TARGET · FCC " + String(root.activeTravelTarget.x === undefined ? "—" : root.activeTravelTarget.x) + " / " + String(root.activeTravelTarget.y === undefined ? "—" : root.activeTravelTarget.y) + " / " + String(root.activeTravelTarget.z === undefined ? "—" : root.activeTravelTarget.z)
                                 color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true
+                            }
+                            Button {
+                                visible: Object.keys(root.activeTravelTarget).length > 0
+                                text: "CANCEL AUTO-TRAVEL TARGET"
+                                onClicked: root.autonomousTargetCancelRequested()
                             }
                         }
                     }

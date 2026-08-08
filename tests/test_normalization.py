@@ -7,6 +7,17 @@ from src.operations.travel import TravelService
 
 
 class NormalizationTests(unittest.TestCase):
+    def test_probe_preserves_top_level_transit_telemetry(self):
+        probe = ProbeAnalyzer().analyze({
+            "id": 7, "name": "Traveler", "model": "generic", "status": "cruising",
+            "velocityC": 0.24,
+            "heading": {"x": 0.7071, "y": -0.7071, "z": 0},
+            "movement": {"phase": "cruising"},
+        })
+
+        self.assertEqual(probe["movement"]["velocity"], 0.24)
+        self.assertEqual(probe["movement"]["heading"]["x"], 0.7071)
+
     def test_limited_probe_telemetry_is_safe(self):
         probe = ProbeAnalyzer().analyze(
             {

@@ -6,6 +6,26 @@ class ProbeAnalyzer:
 
     def analyze(self, probe):
         limited = probe.get("status") == "out_of_scut_range"
+        navigation = probe.get("navigation") or {}
+        movement = (
+            probe.get("movement")
+            or probe.get("travel")
+            or navigation.get("movement")
+            or navigation.get("travel")
+            or {}
+        )
+        movement = dict(movement)
+        for stable_key, aliases in {
+            "velocity": ("velocity", "velocityC", "speedC"),
+            "heading": ("heading", "vector", "direction", "headingVector"),
+        }.items():
+            if movement.get(stable_key) not in (None, "", {}):
+                continue
+            for source in (probe, navigation):
+                value = next((source.get(key) for key in aliases if source.get(key) not in (None, "", {})), None)
+                if value is not None:
+                    movement[stable_key] = value
+                    break
 
         return {
             "id": probe["id"],
@@ -22,8 +42,10 @@ class ProbeAnalyzer:
                     "maxDeuterium": 0,
                 },
             ),
-            "movement": probe.get("movement"),
-            "navigation": probe.get("navigation", {}),
+            "movement": movement,
+            "velocity": movement.get("velocity"),
+            "heading": movement.get("heading"),
+            "navigation": navigation,
             "systems": probe.get("systems", {}),
             "inventory": probe.get(
                 "inventory",

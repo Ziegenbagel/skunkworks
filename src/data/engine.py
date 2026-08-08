@@ -323,6 +323,35 @@ class DataEngine:
             (scope,),
         )
 
+    def probe_route(self, probe_id, limit=10):
+        """Return the probe's true chronological sector path.
+
+        Unlike the visited-sector summary, state history retains revisits and
+        therefore cannot accidentally draw another apparent route when a probe
+        returns through a previously visited sector.
+        """
+        rows = self._rows(
+            """
+            SELECT observed_at, sector_x, sector_y, sector_z
+            FROM probe_state_history
+            WHERE probe_id = ?
+              AND sector_x IS NOT NULL
+              AND sector_y IS NOT NULL
+              AND sector_z IS NOT NULL
+            ORDER BY observed_at DESC, id DESC
+            """,
+            (probe_id,),
+        )
+        route = []
+        for row in rows:
+            point = (row["sector_x"], row["sector_y"], row["sector_z"])
+            if route and route[-1]["point"] == point:
+                continue
+            route.append({"point": point, "observed_at": row["observed_at"]})
+            if len(route) >= int(limit):
+                break
+        return tuple(route)
+
     def records(self, domain, probe_id=None):
         if probe_id is None:
             return self._rows(

@@ -401,24 +401,32 @@ Rectangle {
                                         "codeLabel": "SYSTEM"
                                     }
                                 ]
-                                delegate: Column {
+                                delegate: Rectangle {
                                     id: alertItem
                                     required property var modelData
                                     required property int index
                                     visible: alertItem.index < 3
-                                    Layout.preferredWidth: visible ? 230 : 0
-                                    Label {
-                                        text: alertItem.modelData.codeLabel
-                                        color: Constants.textColor
-                                        font.family: Constants.technicalFont
-                                        font.pixelSize: 9
-                                    }
-                                    Label {
-                                        width: 220
-                                        text: alertItem.modelData.summary || "Unknown condition"
-                                        color: alertItem.modelData.severity === "critical" ? Constants.criticalColor : alertItem.modelData.severity === "nominal" ? Constants.nominalColor : Constants.warningColor
-                                        elide: Text.ElideRight
-                                        font.bold: true
+                                    Layout.fillWidth: visible
+                                    Layout.fillHeight: true
+                                    color: alertItem.index % 2 ? "#1d1011" : "#150b0c"
+                                    border.color: "#5b2529"
+                                    border.width: 1
+                                    Column {
+                                        anchors.fill: parent; anchors.margins: 9; spacing: 3
+                                        Label {
+                                            width: parent.width
+                                            text: (alertItem.index + 1) + " · " + alertItem.modelData.codeLabel
+                                            color: Constants.textColor
+                                            font.family: Constants.technicalFont
+                                            font.pixelSize: 9
+                                        }
+                                        Label {
+                                            width: parent.width
+                                            text: alertItem.modelData.summary || "Unknown condition"
+                                            color: alertItem.modelData.severity === "critical" ? Constants.criticalColor : alertItem.modelData.severity === "nominal" ? Constants.nominalColor : Constants.warningColor
+                                            elide: Text.ElideRight
+                                            font.bold: true
+                                        }
                                     }
                                 }
                             }

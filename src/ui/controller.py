@@ -196,6 +196,15 @@ class MissionControlDataService:
             str(row["asset_id"]): row["role"]
             for row in FleetRoleService(self.data_engine).all("probe")
         }
+        reserve_sources = FleetRoleService(self.data_engine).deuterium_sources(probes)
+        automation["deuteriumSources"] = reserve_sources
+        automation["availableReserveDeuterium"] = sum(
+            source["availableAmount"] for source in reserve_sources if source["fresh"]
+        )
+        dashboard["deuteriumSupply"] = {
+            "sources": reserve_sources,
+            "availableAmount": automation["availableReserveDeuterium"],
+        }
         automation["transportCycles"] = [
             json.loads(row["payload_json"])
             for row in self.data_engine.operation_records()
@@ -1780,6 +1789,7 @@ class MissionControlController(QObject):
                 resources=current.resources,
                 fuel=current.fuel,
                 inventory=current.inventory,
+                repair=current.repair,
                 maximum_mining_order_amount=current.maximum_mining_order_amount,
                 travel=TravelGoal(SectorCoordinates(x, y, z)),
                 fleet=current.fleet,
@@ -1802,6 +1812,34 @@ class MissionControlController(QObject):
             # A new travel goal is actionable immediately; do not require the
             # operator to wait for the next minute boundary or change focus.
             QTimer.singleShot(0, self._automation_tick)
+
+    @Slot()
+    def cancelAutonomousTravelTarget(self):
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Refresh live account data before changing automation.")
+            return
+        try:
+            store = DesiredStateStore(self.service.data_engine)
+            current = store.load(self._focused_probe_id)
+            state = DesiredState(
+                production=current.production,
+                resources=current.resources,
+                fuel=current.fuel,
+                inventory=current.inventory,
+                repair=current.repair,
+                maximum_mining_order_amount=current.maximum_mining_order_amount,
+                travel=None,
+                fleet=current.fleet,
+            )
+            store.save(state, self._focused_probe_id)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        automation = dict(self._dashboard.get("automation", {}))
+        automation["travelTarget"] = None
+        self._dashboard["automation"] = automation
+        self._set_error("")
+        self.dashboardChanged.emit()
 
     @Slot("QVariantMap")
     def saveTransportCycle(self, value):

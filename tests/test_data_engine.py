@@ -171,6 +171,24 @@ class DataEngineTests(unittest.TestCase):
             2,
         )
 
+    def test_probe_route_retains_ordered_revisits(self):
+        def world(x, observed_at):
+            value = SimpleNamespace(
+                probe={"id": 762, "name": "Beta", "model": "generic", "status": "idle",
+                       "sector": {"relative": {"x": x, "y": 0, "z": 0}}},
+                sector={"snapshot": None, "resources": []},
+            )
+            self.engine.record_world(value, observed_at=observed_at)
+
+        world(0, "2026-01-01T00:00:00+00:00")
+        world(1, "2026-01-01T00:01:00+00:00")
+        world(0, "2026-01-01T00:02:00+00:00")
+
+        self.assertEqual(
+            [item["point"] for item in self.engine.probe_route(762)],
+            [(0, 0, 0), (1, 0, 0), (0, 0, 0)],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

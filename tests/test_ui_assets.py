@@ -345,6 +345,7 @@ def test_navigation_separates_manual_transport_and_scanning_workflows():
     assert 'focusedRole === "transport"' in navigation
     assert "SAVE AUTO-TRAVEL DESTINATION" in navigation
     assert "ACTIVE AUTO-TRAVEL TARGET" in navigation
+    assert "CANCEL AUTO-TRAVEL TARGET" in navigation
     assert "scanSummary" in navigation
 
 

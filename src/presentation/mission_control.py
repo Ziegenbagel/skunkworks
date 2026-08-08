@@ -65,7 +65,7 @@ class MissionControlViewModelBuilder:
             },
             "depots": tuple(asdict(depot) for depot in self.operations.depots.all()),
             "health": health_view,
-            "alerts": self._alert_views(findings + self._event_alerts()),
+            "alerts": self._dashboard_alerts(findings),
             "resources": self._resources(probe),
             "resourceLedger": self._resource_ledger(world),
             "inventoryManagement": self._inventory_management(world),
@@ -453,7 +453,11 @@ class MissionControlViewModelBuilder:
 
     @classmethod
     def _movement_view(cls, probe):
-        movement = dict(probe.get("movement") or probe.get("travel") or {})
+        navigation = probe.get("navigation") or {}
+        movement = dict(
+            probe.get("movement") or probe.get("travel")
+            or navigation.get("movement") or navigation.get("travel") or {}
+        )
         def first(*keys):
             for key in keys:
                 value = movement.get(key)
@@ -478,8 +482,8 @@ class MissionControlViewModelBuilder:
             "estimatedArrival": estimated_arrival,
             "remainingTime": remaining_time,
             "arrivalEpochMs": arrival_epoch_ms,
-            "velocity": first("velocity", "velocityC") or probe.get("velocity", probe.get("velocityC")),
-            "heading": first("heading", "vector", "direction"),
+            "velocity": first("velocity", "velocityC", "speedC") or probe.get("velocity", probe.get("velocityC", probe.get("speedC"))) or navigation.get("velocity", navigation.get("velocityC", navigation.get("speedC"))),
+            "heading": first("heading", "vector", "direction", "headingVector") or probe.get("heading", probe.get("headingVector")) or navigation.get("heading", navigation.get("headingVector")),
         })
         return movement
 
@@ -567,13 +571,21 @@ class MissionControlViewModelBuilder:
     def _recent_galaxy_route(self, world, nodes, limit=10):
         if self.data_engine is None or world.probe.get("id") is None:
             return ()
-        visits = list(self.data_engine.visits(world.probe["id"]))[:limit]
         known_ids = {node["id"] for node in nodes}
         points = []
-        for visit in reversed(visits):
-            identifier = f"{visit['sector_x']}:{visit['sector_y']}:{visit['sector_z']}"
-            if identifier in known_ids and (not points or points[-1]["id"] != identifier):
-                points.append({"id": identifier, "visitedAt": visit["last_visited_at"] or ""})
+        route_loader = getattr(self.data_engine, "probe_route", None)
+        if route_loader is not None:
+            history = reversed(route_loader(world.probe["id"], limit))
+            for item in history:
+                identifier = ":".join(str(value) for value in item["point"])
+                if identifier in known_ids:
+                    points.append({"id": identifier, "visitedAt": item["observed_at"] or ""})
+        else:
+            visits = list(self.data_engine.visits(world.probe["id"]))[:limit]
+            for visit in reversed(visits):
+                identifier = f"{visit['sector_x']}:{visit['sector_y']}:{visit['sector_z']}"
+                if identifier in known_ids and (not points or points[-1]["id"] != identifier):
+                    points.append({"id": identifier, "visitedAt": visit["last_visited_at"] or ""})
         return tuple(
             {
                 "from": source["id"], "to": target["id"], "sequence": index + 1,
@@ -586,11 +598,14 @@ class MissionControlViewModelBuilder:
         if self.data_engine is None or world.probe.get("id") is None:
             return ()
         known_ids = {node["id"] for node in nodes}
-        return tuple(
-            identifier
-            for visit in self.data_engine.visits(world.probe["id"])[:limit]
-            if (identifier := f"{visit['sector_x']}:{visit['sector_y']}:{visit['sector_z']}") in known_ids
-        )
+        route_loader = getattr(self.data_engine, "probe_route", None)
+        if route_loader is not None:
+            return tuple(
+                identifier for item in route_loader(world.probe["id"], limit)
+                if (identifier := ":".join(str(value) for value in item["point"])) in known_ids
+            )
+        return tuple(identifier for visit in self.data_engine.visits(world.probe["id"])[:limit]
+                     if (identifier := f"{visit['sector_x']}:{visit['sector_y']}:{visit['sector_z']}") in known_ids)
 
     @staticmethod
     def _coordinates(probe):
@@ -812,8 +827,18 @@ class MissionControlViewModelBuilder:
                 "severity": payload.get("severity", event.get("priority", "warning")),
                 "summary": payload.get("title") or payload.get("message") or payload.get("summary") or event["domain"].replace("_", " ").title(),
                 "entity_id": payload.get("probeId"),
+                "observedAt": event.get("observedAt", ""),
             })
         return tuple(alerts)
+
+    def _dashboard_alerts(self, findings):
+        received = sorted(
+            self._event_alerts(),
+            key=lambda item: item.get("observedAt", ""),
+            reverse=True,
+        )
+        source = received if received else findings
+        return self._alert_views(tuple(source)[:3])
 
     @staticmethod
     def _alert_views(alerts):

@@ -1,6 +1,7 @@
 """Fleet roles, delivery cycles, and tanker rendezvous planning."""
 
 from dataclasses import dataclass
+import json
 
 
 @dataclass(frozen=True)
@@ -85,6 +86,40 @@ class FleetRoleService:
 
     def all(self, asset_type=None):
         return self.data_engine.fleet_roles(asset_type)
+
+    def deuterium_sources(self, probes):
+        """Expose reserve-role tankers as protected fleet fuel sources."""
+        role_rows = {
+            str(row["asset_id"]): row
+            for row in self.all("probe")
+            if row["role"] == "deuterium_reserve"
+        }
+        sources = []
+        for probe in probes:
+            row = role_rows.get(str(probe.get("id")))
+            if row is None or probe.get("model") != "deuterium_tanker":
+                continue
+            row = dict(row)
+            try:
+                metadata = json.loads(row.get("metadata_json") or "{}")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                metadata = {}
+            fuel = probe.get("fuel") or {}
+            amount = float(fuel.get("deuterium", probe.get("deuterium", 0)) or 0)
+            protected = float(metadata.get("protectedDeuterium", metadata.get("reserve", 0)) or 0)
+            sector = probe.get("sector") or {}
+            coordinates = sector.get("relative") or sector.get("relativeCoordinates")
+            sources.append({
+                "probeId": int(probe["id"]),
+                "name": probe.get("name", f"Probe {probe['id']}"),
+                "coordinates": coordinates,
+                "amount": amount,
+                "protectedDeuterium": protected,
+                "availableAmount": max(0.0, amount - protected),
+                "fresh": bool(probe.get("isReachable", probe.get("telemetry_available", True))),
+                "role": "deuterium_reserve",
+            })
+        return tuple(sources)
 
 
 class TankerLogisticsService:

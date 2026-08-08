@@ -25,6 +25,7 @@ PanelFrame {
     signal sectorScanRequested(int x, int y, int z)
     signal neighboringSectorsScanRequested()
     signal autonomousTravelTargetRequested(int x, int y, int z)
+    signal autonomousTravelTargetCancelRequested()
     signal apiKeySaveRequested(string apiKey)
     signal apiKeyTestRequested()
     signal apiKeyRemoveRequested()
@@ -168,6 +169,7 @@ PanelFrame {
             onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
             onNeighborScanRequested: root.neighboringSectorsScanRequested()
             onAutonomousTargetRequested: (x, y, z) => root.autonomousTravelTargetRequested(x, y, z)
+            onAutonomousTargetCancelRequested: root.autonomousTravelTargetCancelRequested()
             onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
         }
 
