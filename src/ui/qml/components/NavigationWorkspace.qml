@@ -12,7 +12,10 @@ PanelFrame {
     property var availableProbes: []
     property int focusedProbeId: -1
     property double currentEpochMs: Date.now()
-    readonly property int standardProductionCardHeight: 330
+    // Mining is the longest normal production record. Keep enough fixed room
+    // for its full telemetry, countdown, and recall control without nested
+    // card scrolling or content-driven layout calculations.
+    readonly property int standardProductionCardHeight: 500
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)

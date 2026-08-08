@@ -1043,6 +1043,10 @@ class MissionControlController(QObject):
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
         self._automation_after_refresh = False
+        # Automatic mode should not sit visibly READY for a full timer interval
+        # after application startup. Consume this once after the first
+        # authoritative dashboard has loaded.
+        self._initial_automation_cycle_pending = True
         self._fleet_automation_worker = None
         self._compatibility_timer = QTimer(self)
         self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
@@ -1310,6 +1314,12 @@ class MissionControlController(QObject):
         runtime = dict(self._dashboard.get("automationRuntime", {}))
         runtime["fleetResults"] = self._qt_safe(results)
         runtime["lastFleetCycleProbeCount"] = len(results)
+        focused_result = next((
+            item.get("result") for item in results
+            if int(item.get("probeId", -1)) == int(self._focused_probe_id)
+        ), None)
+        if focused_result is not None:
+            runtime["lastResult"] = self._qt_safe(focused_result)
         self._dashboard["automationRuntime"] = runtime
         self.dashboardChanged.emit()
         self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
@@ -1884,6 +1894,14 @@ class MissionControlController(QObject):
         if not self._compatibility_timer.isActive():
             self._compatibility_timer.start()
         self._configure_automation_timer(payload.get("automationRuntime", {}))
+        focused_runtime = payload.get("automationRuntime", {})
+        if (
+            self._initial_automation_cycle_pending
+            and focused_runtime.get("mode") == ExecutionMode.AUTOMATIC.value
+            and focused_runtime.get("liveExecutionEnabled")
+        ):
+            self._initial_automation_cycle_pending = False
+            self._automation_after_refresh = True
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
         if (
             naming_policy.get("enabled")
