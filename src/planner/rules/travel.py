@@ -34,9 +34,7 @@ def plan(operations, desired_state) -> list[Task]:
         blockers.append("manny_tasks_in_progress")
     if operations.mannies.deployed():
         blockers.append("mannies_not_aboard")
-    blockers = tuple(dict.fromkeys(blockers))
-
-    if blockers == ("already_at_destination",):
+    if blockers == ["already_at_destination"]:
         return []
 
     assessment = operations.travel_safety.assess(target)
@@ -51,6 +49,14 @@ def plan(operations, desired_state) -> list[Task]:
         if assessment is not None
         else "unavailable"
     )
+    if assessment is not None and (
+        operations.travel_safety.scut_route_covered(
+            assessment.origin,
+            route,
+        ) is False
+    ):
+        blockers.append("route_leaves_scut_coverage")
+    blockers = tuple(dict.fromkeys(blockers))
 
     return [
         Task(
@@ -75,6 +81,7 @@ def plan(operations, desired_state) -> list[Task]:
                 if assessment is not None
                 else ()
             ),
+            require_scut_coverage=True,
             priority=NORMAL,
         )
     ]

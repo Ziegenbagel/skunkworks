@@ -216,6 +216,7 @@ class TaskCommandTranslator:
                     "z": task.destination.z,
                 },
                 "remainingHops": len(route),
+                "requireScutCoverage": task.require_scut_coverage,
                 "hazards": [
                     {
                         "code": hazard.code,

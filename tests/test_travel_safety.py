@@ -111,6 +111,34 @@ class TravelSafetyTests(unittest.TestCase):
             assessment.recommended.scut_protected
         )
 
+    def test_scut_route_requires_every_hop_to_remain_covered(self):
+        operations = build_operations()
+        operations.world.hazard_context = {
+            "scutNetworks": [
+                {
+                    "network": {
+                        "id": "home",
+                        "relays": [
+                            {
+                                "status": "on",
+                                "coverageRadiusSectors": 1,
+                                "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+                            }
+                        ],
+                    }
+                }
+            ]
+        }
+
+        self.assertTrue(operations.travel_safety.scut_route_covered(
+            SectorCoordinates(0, 0, 0),
+            (SectorCoordinates(1, 1, 0),),
+        ))
+        self.assertFalse(operations.travel_safety.scut_route_covered(
+            SectorCoordinates(0, 0, 0),
+            (SectorCoordinates(1, 1, 0), SectorCoordinates(2, 2, 0)),
+        ))
+
     def test_known_black_hole_and_mannies_are_warned(self):
         operations = build_operations()
         destination = SectorCoordinates(1, 1, 0)

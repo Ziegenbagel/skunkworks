@@ -27,6 +27,8 @@ class Task:
     destination: SectorCoordinates | None = None
     route: tuple[SectorCoordinates, ...] = ()
     hazards: tuple[object, ...] = ()
+    # Automatic travel may only dispatch along a fully verified SCUT route.
+    require_scut_coverage: bool = False
     # Completed inventory committed to this goal.  The execution preparer uses
     # these claims to keep lower-priority recipes from consuming assembly parts.
     reserved_items: tuple[tuple[str, int], ...] = ()

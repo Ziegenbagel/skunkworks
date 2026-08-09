@@ -90,6 +90,32 @@ class DesiredStateTests(unittest.TestCase):
         self.assertEqual(travel.action, "Move Probe")
         self.assertEqual(travel.constraints, ())
 
+    def test_auto_travel_waits_before_leaving_scut_coverage(self):
+        destination = SectorCoordinates(2, 2, 0)
+        state = DesiredState(travel=TravelGoal(destination))
+        operations = build_operations()
+        operations.world.hazard_context = {
+            "scutNetworks": [{
+                "network": {
+                    "id": "home",
+                    "relays": [{
+                        "status": "on",
+                        "coverageRadiusSectors": 1,
+                        "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+                    }],
+                }
+            }]
+        }
+
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+
+        self.assertEqual(travel.action, "Prepare Probe Travel")
+        self.assertIn("route_leaves_scut_coverage", travel.constraints)
+        self.assertEqual(travel.destination, destination)
+
     def test_negative_goal_is_invalid(self):
         with self.assertRaises(ValueError):
             ProductionGoal(

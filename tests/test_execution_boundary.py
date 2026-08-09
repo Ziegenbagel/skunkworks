@@ -12,6 +12,8 @@ from src.execution import (
 from src.execution.journal import ActionJournal
 from src.execution.policy import ExecutionPolicyStore
 from src.execution.translator import TaskCommandTranslator
+from src.execution.commands import Command
+from src.execution.preflight import PreflightValidator
 from src.models.galaxy import SectorCoordinates
 from src.planner.desired_state import (
     DesiredState,
@@ -799,6 +801,36 @@ class ExecutionBoundaryTests(unittest.TestCase):
             sum(command.payload["target"].values()) % 2,
             0,
         )
+
+    def test_auto_travel_preflight_rechecks_scut_coverage(self):
+        self.operations.world.hazard_context = {
+            "scutNetworks": [{
+                "network": {
+                    "id": "home",
+                    "relays": [{
+                        "status": "on",
+                        "coverageRadiusSectors": 1,
+                        "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+                    }],
+                }
+            }]
+        }
+        command = Command(
+            type=CommandType.MOVE_PROBE,
+            probe_id=1,
+            payload={"target": {"x": 2, "y": 2, "z": 0}},
+            reason="Automatic route",
+            priority=1,
+            source_action="Move Probe",
+            metadata={"requireScutCoverage": True},
+        )
+
+        blockers = PreflightValidator(
+            self.operations,
+            probe_id=1,
+        ).blockers(command)
+
+        self.assertIn("route_leaves_scut_coverage", blockers)
 
     def test_constrained_tasks_never_become_commands(self):
         self.operations = build_operations(status="cruising")

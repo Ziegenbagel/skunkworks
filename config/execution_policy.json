@@ -27,6 +27,7 @@
       "mode": "automatic",
       "liveExecutionEnabled": true,
       "allowedCommandTypes": [
+        "manny_mine",
         "manny_repair",
         "move_probe"
       ],

@@ -98,10 +98,20 @@ class PreflightValidator:
         except (KeyError, TypeError, ValueError):
             return ("invalid_target",)
 
-        return tuple(
+        blockers = list(
             blocker
             for blocker in self.operations.travel.travel_blockers(
                 coordinates
             )
             if blocker != "already_at_destination"
         )
+        if command.metadata.get("requireScutCoverage"):
+            origin = self.operations.travel.current_sector()
+            if origin is not None and (
+                self.operations.travel_safety.scut_route_covered(
+                    origin,
+                    (coordinates,),
+                ) is False
+            ):
+                blockers.append("route_leaves_scut_coverage")
+        return tuple(dict.fromkeys(blockers))

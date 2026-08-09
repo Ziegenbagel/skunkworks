@@ -191,31 +191,48 @@ class TravelSafetyService:
         )
 
     def scut_corridor(self, origin, destination):
-        for response in getattr(
-            self.world,
-            "hazard_context",
-            {},
-        ).get(
-            "scutNetworks",
-            [],
-        ):
-            relays = response.get("network", {}).get(
-                "relays",
-                [],
-            )
-            endpoints = {
-                SectorCoordinates.from_api(
-                    relay["sector"]["relative"]
-                )
-                for relay in relays
-                if relay.get("status") == "on"
-                and relay.get("isTransitBeacon", False)
-            }
+        return bool(
+            self.scut_networks_covering(origin)
+            & self.scut_networks_covering(destination)
+        )
 
-            if origin in endpoints and destination in endpoints:
-                return True
+    def scut_networks_covering(self, sector):
+        """Return the known active SCUT networks covering one sector."""
+        covered_by = set()
+        context = getattr(self.world, "hazard_context", {})
 
-        return False
+        for index, response in enumerate(context.get("scutNetworks", [])):
+            network = response.get("network", {})
+            network_id = network.get("id", network.get("name", index))
+            for relay in network.get("relays", []):
+                relative = (relay.get("sector") or {}).get("relative")
+                if not relative or relay.get("status") != "on":
+                    continue
+                relay_sector = SectorCoordinates.from_api(relative)
+                radius = int(relay.get("coverageRadiusSectors", 0) or 0)
+                if relay_sector.distance_to(sector) <= radius:
+                    covered_by.add(str(network_id))
+                    break
+
+        return frozenset(covered_by)
+
+    def scut_route_covered(self, origin, hops):
+        """Return True/False for known coverage, or None when not loaded.
+
+        Every leg must remain within the same active SCUT network.  The
+        tri-state result lets lightweight/offline callers that did not load
+        hazard context avoid mistaking missing data for confirmed exposure.
+        """
+        context = getattr(self.world, "hazard_context", {})
+        if "scutNetworks" not in context:
+            return None
+
+        current = origin
+        for target in hops:
+            if not self.scut_corridor(current, target):
+                return False
+            current = target
+        return True
 
     def _route_option(self, name, origin, hops):
         if not hops:
@@ -234,12 +251,12 @@ class TravelSafetyService:
 
         legs = []
         current = origin
-        any_scut = False
+        all_scut = True
 
         for target in hops:
             distance = current.distance_to(target)
             protected = self.scut_corridor(current, target)
-            any_scut = any_scut or protected
+            all_scut = all_scut and protected
             legs.append(
                 (
                     distance,
@@ -279,7 +296,7 @@ class TravelSafetyService:
             score += 10000
 
         if (
-            any_scut
+            all_scut
             and self.policy.prefer_scut_corridors
         ):
             score -= 5
@@ -293,7 +310,7 @@ class TravelSafetyService:
             maximum_integrity_loss_percent=maximum_integrity,
             fuel_cost=fuel_cost,
             fuel_sufficient=fuel_sufficient,
-            scut_protected=any_scut,
+            scut_protected=all_scut,
             score=round(score, 2),
         )
 
