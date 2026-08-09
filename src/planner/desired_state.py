@@ -100,6 +100,7 @@ class RepairGoal:
 class TravelGoal:
     target: SectorCoordinates
     route_mode: str = "recommended"
+    risk_acknowledged: bool = False
 
     def __post_init__(self):
         if self.route_mode not in {"recommended", "segmented", "direct"}:
@@ -230,6 +231,9 @@ class DesiredState:
                     route_mode=(
                         value.get("travelRouteMode") or "recommended"
                     ),
+                    risk_acknowledged=bool(
+                        value.get("travelRiskAcknowledged", False)
+                    ),
                 )
                 if travel_target is not None
                 else None
@@ -286,6 +290,11 @@ class DesiredState:
                 self.travel.route_mode
                 if self.travel is not None
                 else None
+            ),
+            "travelRiskAcknowledged": (
+                self.travel.risk_acknowledged
+                if self.travel is not None
+                else False
             ),
             "fleetTargets": {
                 goal.model: goal.quantity for goal in self.fleet

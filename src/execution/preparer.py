@@ -204,7 +204,7 @@ class CommandPreparer:
         if any(
             warning.acknowledgement_recommended
             for warning in warnings
-        ):
+        ) and not command.metadata.get("routeRiskAcknowledged", False):
             return "awaiting_risk_acknowledgement"
 
         if (

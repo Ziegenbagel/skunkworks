@@ -17,7 +17,7 @@ Item {
     signal cancelMovementRequested()
     signal scanRequested(int x, int y, int z)
     signal neighborScanRequested()
-    signal autonomousTargetRequested(int x, int y, int z, string routeMode)
+    signal autonomousTargetRequested(int x, int y, int z, string routeMode, bool riskAcknowledged)
     signal autonomousTargetCancelRequested()
     signal transportCycleRequested(var plan)
     signal transportCycleStartRequested(string operationId)
@@ -155,10 +155,14 @@ Item {
                             Button { text: "CONFIRM ONE-TIME TRAVEL COMMAND"; enabled: Boolean(root.travelPreview.canExecute) && (!root.travelPreview.acknowledgementRequired || acknowledgeRisk.checked); onClicked: root.executeRequested(acknowledgeRisk.checked) }
                             Button {
                                 text: "SAVE AUTO-TRAVEL DESTINATION"
-                                enabled: root.validManualCoordinates && Boolean(root.travelPreview.targetLabel)
+                                enabled: root.validManualCoordinates
+                                         && Boolean(root.travelPreview.targetLabel)
+                                         && (!root.travelPreview.acknowledgementRequired
+                                             || acknowledgeRisk.checked)
                                 onClicked: root.autonomousTargetRequested(
                                     manualX.value, manualY.value, manualZ.value,
-                                    String(routeMode.currentValue))
+                                    String(routeMode.currentValue),
+                                    acknowledgeRisk.checked)
                             }
                             Label {
                                 Layout.fillWidth: true; wrapMode: Text.Wrap

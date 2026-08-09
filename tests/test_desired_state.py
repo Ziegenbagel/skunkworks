@@ -22,13 +22,18 @@ from tests.test_planner_missions import build_operations
 class DesiredStateTests(unittest.TestCase):
     def test_segmented_travel_mode_round_trips(self):
         state = DesiredState(
-            travel=TravelGoal(SectorCoordinates(3, 3, 0), "segmented"),
+            travel=TravelGoal(
+                SectorCoordinates(3, 3, 0),
+                "segmented",
+                risk_acknowledged=True,
+            ),
             maximum_safe_hop_distance=2,
         )
 
         restored = DesiredState.from_dict(state.to_dict())
 
         self.assertEqual(restored.travel, state.travel)
+        self.assertTrue(restored.travel.risk_acknowledged)
         self.assertEqual(restored.maximum_safe_hop_distance, 2)
 
     def test_planner_defaults_to_empty_desired_state(self):

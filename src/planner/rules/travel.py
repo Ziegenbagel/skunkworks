@@ -95,6 +95,7 @@ def plan(operations, desired_state) -> list[Task]:
                 else ()
             ),
             require_scut_coverage=True,
+            risk_acknowledged=desired_state.travel.risk_acknowledged,
             priority=NORMAL,
         )
     ]

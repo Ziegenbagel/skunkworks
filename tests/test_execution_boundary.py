@@ -952,6 +952,54 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(prepared.blockers, ())
         self.assertTrue(prepared.warnings)
 
+    def test_acknowledged_auto_route_does_not_pause_each_segment(self):
+        self.operations.world.probe["inventory"]["containers"] = [
+            {"kind": "probe"},
+            *({"kind": "container"} for _ in range(5)),
+        ]
+        policy = ExecutionPolicy(
+            mode=ExecutionMode.AUTOMATIC,
+            live_execution_enabled=True,
+            allowed_command_types=frozenset({CommandType.MOVE_PROBE}),
+        )
+        tasks = Planner(
+            self.operations,
+            DesiredState(travel=TravelGoal(
+                SectorCoordinates(3, 3, 0),
+                "segmented",
+                risk_acknowledged=True,
+            )),
+        ).tasks()
+
+        prepared = CommandPreparer(
+            self.operations, 1, policy,
+        ).prepare(tasks)[0]
+
+        self.assertTrue(prepared.warnings)
+        self.assertEqual(prepared.disposition, "ready")
+        self.assertTrue(prepared.command.metadata["routeRiskAcknowledged"])
+
+    def test_route_consent_does_not_change_hop_command_identity(self):
+        command = Command(
+            CommandType.MOVE_PROBE,
+            1,
+            {"target": {"x": 1, "y": 0, "z": 0}},
+            "move",
+            5,
+            metadata={"routeRiskAcknowledged": False},
+        )
+
+        acknowledged = Command(
+            command.type,
+            command.probe_id,
+            command.payload,
+            command.reason,
+            command.priority,
+            metadata={"routeRiskAcknowledged": True},
+        )
+
+        self.assertEqual(command.fingerprint, acknowledged.fingerprint)
+
     def test_journal_blocks_completed_command(self):
         with tempfile.TemporaryDirectory() as directory:
             journal = ActionJournal(

@@ -30,13 +30,19 @@ class Command:
 
     @property
     def fingerprint(self):
+        identity_metadata = dict(self.metadata)
+        # Route-level consent changes execution authorization, not the game
+        # mutation itself. Keeping it out of the identity lets the exact hop
+        # acknowledged by the operator remain selectable after consent is
+        # persisted on the durable route goal.
+        identity_metadata.pop("routeRiskAcknowledged", None)
         canonical = json.dumps(
             {
                 "type": self.type.value,
                 "probeId": self.probe_id,
                 "targetId": self.target_id,
                 "payload": self.payload,
-                "metadata": self.metadata,
+                "metadata": identity_metadata,
             },
             sort_keys=True,
             separators=(",", ":"),

@@ -90,7 +90,10 @@ class AutomationRuntime:
                 warning.acknowledgement_recommended
                 for warning in prepared.warnings
             )
-            and not risk_acknowledged
+            and not (
+                risk_acknowledged
+                or command.metadata.get("routeRiskAcknowledged", False)
+            )
         ):
             return self._finish(command, "awaiting_risk_acknowledgement")
 
@@ -102,7 +105,10 @@ class AutomationRuntime:
             return self._finish(command, "cancelled", blockers)
         if (
             any(w.acknowledgement_recommended for w in warnings)
-            and not risk_acknowledged
+            and not (
+                risk_acknowledged
+                or command.metadata.get("routeRiskAcknowledged", False)
+            )
         ):
             return self._finish(command, "awaiting_risk_acknowledgement")
 

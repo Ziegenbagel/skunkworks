@@ -568,10 +568,9 @@ class MissionControlDataService:
                 # operator acknowledged instead of filtering it back out as
                 # awaiting_risk_acknowledgement.
                 prepared = candidates[0]
-                if (
-                    prepared.disposition != "awaiting_risk_acknowledgement"
-                    or not risk_acknowledged
-                ):
+                if prepared.disposition not in {
+                    "ready", "awaiting_risk_acknowledgement"
+                } or not risk_acknowledged:
                     return {
                         "status": "idle",
                         "message": "The selected automatic command still requires risk acknowledgement.",
@@ -1717,7 +1716,37 @@ class MissionControlController(QObject):
 
     @Slot(str, bool)
     def approveAutomationCommand(self, fingerprint, risk_acknowledged=False):
+        if risk_acknowledged and self._is_queued_travel_command(fingerprint):
+            try:
+                store = DesiredStateStore(self.service.data_engine)
+                current = store.load(self._focused_probe_id)
+                if current.travel is not None:
+                    store.save(
+                        replace(
+                            current,
+                            travel=replace(
+                                current.travel,
+                                risk_acknowledged=True,
+                            ),
+                        ),
+                        self._focused_probe_id,
+                    )
+                    automation = dict(self._dashboard.get("automation", {}))
+                    target = dict(automation.get("travelTarget", {}))
+                    target["riskAcknowledged"] = True
+                    automation["travelTarget"] = target
+                    self._dashboard["automation"] = automation
+            except Exception as error:
+                self._set_error(str(error) or type(error).__name__)
+                return
         self._start_automation_cycle(fingerprint, risk_acknowledged)
+
+    def _is_queued_travel_command(self, fingerprint):
+        return any(
+            str(item.get("fingerprint", "")) == str(fingerprint)
+            and str(item.get("type", "")) == CommandType.MOVE_PROBE.value
+            for item in self._dashboard.get("automationRuntime", {}).get("queue", ())
+        )
 
     def _start_automation_cycle(self, fingerprint, risk_acknowledged):
         if (
@@ -2114,8 +2143,8 @@ class MissionControlController(QObject):
             return
         self.settings_engine.set_preference(preference_key, "true")
 
-    @Slot(int, int, int, str)
-    def setAutonomousTravelTarget(self, x, y, z, route_mode):
+    @Slot(int, int, int, str, bool)
+    def setAutonomousTravelTarget(self, x, y, z, route_mode, risk_acknowledged=False):
         if self.service is None:
             self._set_error("Refresh live account data before setting automation.")
             return
@@ -2133,6 +2162,7 @@ class MissionControlController(QObject):
                 travel=TravelGoal(
                     SectorCoordinates(x, y, z),
                     route_mode=str(route_mode or "segmented").strip().lower(),
+                    risk_acknowledged=bool(risk_acknowledged),
                 ),
                 fleet=current.fleet,
             )
@@ -2146,6 +2176,7 @@ class MissionControlController(QObject):
             "y": y,
             "z": z,
             "routeMode": str(route_mode or "segmented").strip().lower(),
+            "riskAcknowledged": bool(risk_acknowledged),
         }
         self._dashboard["automation"] = automation
         self._set_error("")

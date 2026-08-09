@@ -238,6 +238,7 @@ class TaskCommandTranslator:
                 },
                 "remainingHops": len(route),
                 "requireScutCoverage": task.require_scut_coverage,
+                "routeRiskAcknowledged": task.risk_acknowledged,
                 "hazards": [
                     {
                         "code": hazard.code,

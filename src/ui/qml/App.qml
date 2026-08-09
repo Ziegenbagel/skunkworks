@@ -368,10 +368,10 @@ ApplicationWindow {
                 window.backend.scanNeighboringSectors();
         }
 
-        function onAutonomousTravelTargetRequested(x, y, z, routeMode) {
+        function onAutonomousTravelTargetRequested(x, y, z, routeMode, riskAcknowledged) {
             AudioManager.play("save");
             if (window.backend)
-                window.backend.setAutonomousTravelTarget(x, y, z, routeMode);
+                window.backend.setAutonomousTravelTarget(x, y, z, routeMode, riskAcknowledged);
         }
 
         function onAutonomousTravelTargetCancelRequested() {
