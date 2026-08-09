@@ -107,7 +107,9 @@ PanelFrame {
                         "detail": item.detailText,
                         "etaEpochMs": item.etaEpochMs || 0,
                         "mannyId": item.id || "",
-                        "cancellable": item.taskType !== "idle" && String(item.asset || "").toLowerCase().indexOf("printer") < 0
+                        "cancellable": item.taskType !== "idle"
+                            && String(item.asset || "").toLowerCase().indexOf("printer") < 0
+                            && String(item.taskType || "").toLowerCase().indexOf("transfer") < 0
                     }));
         if (section === "SAFETY")
             return (dashboardData.alerts || []).map(item => ({
@@ -325,7 +327,7 @@ PanelFrame {
                             }
                             Button {
                                 visible: Boolean(sectionRow.modelData.cancellable)
-                                text: "CANCEL / RECALL TASK"
+                                text: "RECALL MANNY"
                                 z: 2
                                 onClicked: root.mannyCancelRequested(String(sectionRow.modelData.mannyId))
                             }

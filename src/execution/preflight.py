@@ -61,6 +61,19 @@ class PreflightValidator:
             ):
                 blockers.append("manny_unavailable")
 
+        if command.metadata.get("transportTransfer") and any(
+            "transfer" in task_type
+            and "deuterium" in task_type
+            and "probe" in task_type
+            for manny in self.operations.world.mannies.get("mannies", [])
+            if (
+                task_type := str(
+                    self.operations.mannies._task_type(manny) or ""
+                ).lower().replace("-", "_").replace(" ", "_")
+            )
+        ):
+            blockers.append("transport_transfer_already_active")
+
         return tuple(dict.fromkeys(blockers))
 
     def warnings(self, command):

@@ -157,6 +157,28 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual({first.target_id, second.target_id}, {101, 202})
 
+    def test_preflight_blocks_a_second_active_transport_transfer(self):
+        self.operations.world.mannies["mannies"].append({
+            "id": 202,
+            "currentTask": "transferring_deuterium_to_probe",
+            "canReceiveOrders": False,
+            "location": {"type": "probe"},
+        })
+        command = Command(
+            type=CommandType.MANNY_MINE,
+            probe_id=1,
+            target_id=101,
+            payload={"targetProbeId": 9, "amount": 20},
+            reason="Transport fuel delivery",
+            priority=1,
+            source_action="Transfer Deuterium",
+            metadata={"transportTransfer": True},
+        )
+
+        blockers = PreflightValidator(self.operations, 1).blockers(command)
+
+        self.assertIn("transport_transfer_already_active", blockers)
+
     def test_reserve_floor_mining_cannot_saturate_manny_workforce(self):
         for manny_id in range(102, 110):
             self.operations.world.mannies["mannies"].append({

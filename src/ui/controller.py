@@ -442,6 +442,24 @@ class MissionControlDataService:
 
             if phase == "unloading":
                 save_desired(replace(desired, travel=None))
+                # A deuterium transfer is a five-minute game task. Do not
+                # calculate another delivery from the same pre-transfer fuel
+                # snapshot while one is still active; wait for it to finish,
+                # then refresh source and destination capacity before
+                # deciding whether another trip is needed.
+                active_transfer = any(
+                    "transfer" in task_type
+                    and "deuterium" in task_type
+                    and "probe" in task_type
+                    for manny in operations.mannies.all()
+                    if (
+                        task_type := str(
+                            operations.mannies._task_type(manny) or ""
+                        ).lower().replace("-", "_").replace(" ", "_")
+                    )
+                )
+                if active_transfer:
+                    return desired, []
                 transferable = max(0.0, fuel_amount - protected)
                 if transferable < 0.01:
                     save_phase("to_return")
