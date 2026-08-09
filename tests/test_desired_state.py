@@ -62,6 +62,34 @@ class DesiredStateTests(unittest.TestCase):
         self.assertEqual(repair.quantity, 30)
         self.assertEqual(repair.priority, 2)
 
+    def test_auto_travel_waits_for_repair_completion_and_manny_return(self):
+        state = DesiredState(
+            repair=RepairGoal(70, 95, 2),
+            travel=TravelGoal(SectorCoordinates(1, 1, 0)),
+        )
+        operations = build_operations()
+        operations.world.probe["systems"] = {"integrityPercent": 65}
+
+        travel = next(task for task in Planner(operations, state).tasks() if task.category == "travel")
+        self.assertIn("repair_required_before_travel", travel.constraints)
+
+        operations.world.probe["systems"]["integrityPercent"] = 80
+        operations.world.mannies["mannies"][0]["currentTask"] = {"type": "repairing"}
+        travel = next(task for task in Planner(operations, state).tasks() if task.category == "travel")
+        self.assertIn("repair_required_before_travel", travel.constraints)
+        self.assertIn("manny_tasks_in_progress", travel.constraints)
+
+        operations.world.probe["systems"]["integrityPercent"] = 95
+        operations.world.mannies["mannies"][0]["currentTask"] = None
+        operations.world.mannies["mannies"][0]["location"] = {"type": "sector"}
+        travel = next(task for task in Planner(operations, state).tasks() if task.category == "travel")
+        self.assertIn("mannies_not_aboard", travel.constraints)
+
+        operations.world.mannies["mannies"][0]["location"] = {"type": "probe"}
+        travel = next(task for task in Planner(operations, state).tasks() if task.category == "travel")
+        self.assertEqual(travel.action, "Move Probe")
+        self.assertEqual(travel.constraints, ())
+
     def test_negative_goal_is_invalid(self):
         with self.assertRaises(ValueError):
             ProductionGoal(

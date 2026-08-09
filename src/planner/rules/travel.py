@@ -9,7 +9,32 @@ def plan(operations, desired_state) -> list[Task]:
         return []
 
     target = desired_state.travel.target
-    blockers = operations.travel.travel_blockers(target)
+    blockers = list(operations.travel.travel_blockers(target))
+
+    # Auto-travel is a durable destination, not permission to leave during a
+    # safety intervention. Hold the route between hops while repair is needed
+    # or active, and until every Manny task has completed and any deployed
+    # Manny has returned aboard the probe. The unchanged desired destination
+    # makes the next planning cycle resume automatically once these clear.
+    repair = desired_state.repair
+    integrity = float(
+        operations.world.probe.get("systems", {}).get("integrityPercent", 100)
+    )
+    mannies = operations.mannies.all()
+    repair_active = any(
+        operations.mannies._task_type(manny) == "repairing"
+        or operations.mannies._task_type(manny) == "repair"
+        for manny in mannies
+    )
+    if repair.trigger_percent > 0 and (
+        integrity <= repair.trigger_percent or repair_active
+    ) and integrity < repair.target_percent:
+        blockers.append("repair_required_before_travel")
+    if any(manny.get("currentTask") is not None for manny in mannies):
+        blockers.append("manny_tasks_in_progress")
+    if operations.mannies.deployed():
+        blockers.append("mannies_not_aboard")
+    blockers = tuple(dict.fromkeys(blockers))
 
     if blockers == ("already_at_destination",):
         return []
