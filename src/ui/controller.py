@@ -2087,8 +2087,8 @@ class MissionControlController(QObject):
             return
         self.settings_engine.set_preference(preference_key, "true")
 
-    @Slot(int, int, int)
-    def setAutonomousTravelTarget(self, x, y, z):
+    @Slot(int, int, int, str)
+    def setAutonomousTravelTarget(self, x, y, z, route_mode):
         if self.service is None:
             self._set_error("Refresh live account data before setting automation.")
             return
@@ -2103,7 +2103,10 @@ class MissionControlController(QObject):
                 repair=current.repair,
                 maximum_mining_order_amount=current.maximum_mining_order_amount,
                 maximum_safe_hop_distance=current.maximum_safe_hop_distance,
-                travel=TravelGoal(SectorCoordinates(x, y, z)),
+                travel=TravelGoal(
+                    SectorCoordinates(x, y, z),
+                    route_mode=str(route_mode or "segmented").strip().lower(),
+                ),
                 fleet=current.fleet,
             )
             store.save(state, self._focused_probe_id)
@@ -2111,7 +2114,12 @@ class MissionControlController(QObject):
             self._set_error(str(error) or type(error).__name__)
             return
         automation = dict(self._dashboard.get("automation", {}))
-        automation["travelTarget"] = {"x": x, "y": y, "z": z}
+        automation["travelTarget"] = {
+            "x": x,
+            "y": y,
+            "z": z,
+            "routeMode": str(route_mode or "segmented").strip().lower(),
+        }
         self._dashboard["automation"] = automation
         self._set_error("")
         self.dashboardChanged.emit()

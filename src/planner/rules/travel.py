@@ -47,6 +47,15 @@ def plan(operations, desired_state) -> list[Task]:
         if assessment is not None
         else ()
     )
+    next_hop_assessment = (
+        operations.travel_safety.assess(
+            route[0],
+            route_mode=desired_state.travel.route_mode,
+            maximum_segment_distance=desired_state.maximum_safe_hop_distance,
+        )
+        if route
+        else None
+    )
     distance = len(route)
     route_name = (
         assessment.recommended.name
@@ -81,8 +90,8 @@ def plan(operations, desired_state) -> list[Task]:
             destination=target,
             route=route,
             hazards=(
-                assessment.hazards
-                if assessment is not None
+                next_hop_assessment.hazards
+                if next_hop_assessment is not None
                 else ()
             ),
             require_scut_coverage=True,

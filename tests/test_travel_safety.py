@@ -79,6 +79,20 @@ class TravelSafetyTests(unittest.TestCase):
             (SectorCoordinates(1, 1, 0),),
         )
 
+    def test_direct_mode_does_not_silently_select_segmented_route(self):
+        operations = build_operations()
+
+        assessment = operations.travel_safety.assess(
+            SectorCoordinates(3, 3, 0),
+            route_mode="direct",
+        )
+
+        self.assertEqual(assessment.recommended.name, "direct")
+        self.assertEqual(
+            assessment.recommended.hops,
+            (SectorCoordinates(3, 3, 0),),
+        )
+
     def test_scut_corridor_makes_direct_route_preferred(self):
         operations = build_operations()
         operations.world.hazard_context = {

@@ -102,8 +102,10 @@ class TravelGoal:
     route_mode: str = "recommended"
 
     def __post_init__(self):
-        if self.route_mode not in {"recommended", "segmented"}:
-            raise ValueError("Travel route mode must be recommended or segmented.")
+        if self.route_mode not in {"recommended", "segmented", "direct"}:
+            raise ValueError(
+                "Travel route mode must be recommended, segmented, or direct."
+            )
 
 
 @dataclass(frozen=True)

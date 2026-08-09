@@ -17,7 +17,7 @@ Item {
     signal cancelMovementRequested()
     signal scanRequested(int x, int y, int z)
     signal neighborScanRequested()
-    signal autonomousTargetRequested(int x, int y, int z)
+    signal autonomousTargetRequested(int x, int y, int z, string routeMode)
     signal autonomousTargetCancelRequested()
     signal transportCycleRequested(var plan)
     signal transportCycleStartRequested(string operationId)
@@ -156,7 +156,9 @@ Item {
                             Button {
                                 text: "SAVE AUTO-TRAVEL DESTINATION"
                                 enabled: root.validManualCoordinates && Boolean(root.travelPreview.targetLabel)
-                                onClicked: root.autonomousTargetRequested(manualX.value, manualY.value, manualZ.value)
+                                onClicked: root.autonomousTargetRequested(
+                                    manualX.value, manualY.value, manualZ.value,
+                                    String(routeMode.currentValue))
                             }
                             Label {
                                 Layout.fillWidth: true; wrapMode: Text.Wrap

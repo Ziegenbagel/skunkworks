@@ -108,6 +108,9 @@ class TravelSafetyService:
             # option to select.
             options = self._unique_options(segmented, direct)
             recommended = options[0]
+        elif route_mode == "direct":
+            options = self._unique_options(direct, segmented)
+            recommended = direct
         else:
             options = self._unique_options(direct, segmented)
             recommended = min(options, key=lambda option: option.score)

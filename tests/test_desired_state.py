@@ -193,21 +193,25 @@ class DesiredStateTests(unittest.TestCase):
                 operations,
                 DesiredState(
                     travel=TravelGoal(destination, "segmented"),
-                    maximum_safe_hop_distance=2,
+                    maximum_safe_hop_distance=1,
                 ),
             ).tasks()
             if task.category == "travel"
         )
 
-        self.assertEqual(len(travel.route), 11)
+        self.assertEqual(len(travel.route), 21)
         self.assertEqual(travel.route[-1], destination)
         self.assertTrue(all(
-            origin.distance_to(target) <= 2
+            origin.distance_to(target) <= 1
             for origin, target in zip(
                 (SectorCoordinates(3, 2, -3), *travel.route),
                 travel.route,
             )
         ))
+        self.assertNotIn(
+            "probe_collision_risk",
+            {hazard.code for hazard in travel.hazards},
+        )
 
     def test_negative_goal_is_invalid(self):
         with self.assertRaises(ValueError):
