@@ -42,6 +42,26 @@ class TransportCycleTests(unittest.TestCase):
         self.assertFalse(assessment.ready)
         self.assertIn("waiting_for_load_threshold", assessment.warnings)
 
+    def test_mine_in_sector_selects_planner_loading_action(self):
+        from dataclasses import replace
+        from src.operations import OperationFactory
+        plan = replace(self.plan, load_source_mode="mine_in_sector")
+
+        self.assertEqual(plan.loading_action, "mine_resource_to_threshold")
+        self.assertEqual(plan.to_dict()["loadSourceMode"], "mine_in_sector")
+        operation = OperationFactory.create(
+            "round_trip_transport",
+            probe_id=plan.probe_id,
+            metadata={
+                "cycle": plan.to_dict(),
+                "loadingAction": plan.loading_action,
+            },
+        )
+        self.assertIn(
+            "mine_resource_to_threshold",
+            tuple(step.action for step in operation.steps),
+        )
+
     def test_unloading_waits_until_selected_remaining_percentage(self):
         service = RoundTripTransportService()
         waiting = service.assess(

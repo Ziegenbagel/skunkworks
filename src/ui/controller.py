@@ -688,11 +688,15 @@ class MissionControlDataService:
             destination_probe_id=int(value["destinationProbeId"]) if value.get("destinationProbeId") not in {None, ""} else None,
             load_amount=float(value["loadAmount"]) if value.get("loadAmount") is not None else None,
             unload_amount=float(value["unloadAmount"]) if value.get("unloadAmount") is not None else None,
+            load_source_mode=str(value.get("loadSourceMode", "probe")),
         )
         operation = OperationFactory.create(
             "round_trip_transport",
             probe_id=plan.probe_id,
-            metadata={"cycle": plan.to_dict()},
+            metadata={
+                "cycle": plan.to_dict(),
+                "loadingAction": plan.loading_action,
+            },
         )
         OperationStore(self.data_engine).save(operation)
         return operation.to_dict()

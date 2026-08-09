@@ -222,8 +222,12 @@ Item {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 300
                         Layout.preferredWidth: Math.max(300, (fleetGrid.width - (fleetGrid.columns - 1) * fleetGrid.columnSpacing) / fleetGrid.columns)
-                        Layout.minimumHeight: root.movementSummary(probeCard.modelData) ? 185 : 120
-                        Layout.preferredHeight: Layout.minimumHeight
+                        // Keep the grid stable as probes enter and leave transit.
+                        // This is the traveling-card height plus buffer for wrapped
+                        // telemetry on narrower windows.
+                        Layout.minimumHeight: 210
+                        Layout.preferredHeight: 210
+                        Layout.maximumHeight: 210
                         color: probeCard.modelData.id === root.focusedProbeId ? Constants.selectedColor : Constants.raisedColor; border.color: probeCard.modelData.id === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor; radius: 4
                         ColumnLayout { anchors.fill: parent; anchors.margins: 18
                             Label { Layout.fillWidth: true; text: probeCard.modelData.name + (probeCard.modelData.id === root.focusedProbeId ? " · FOCUSED" : ""); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true }

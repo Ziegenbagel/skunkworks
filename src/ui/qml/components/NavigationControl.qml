@@ -36,6 +36,7 @@ Item {
         return {
             "probeId": Number(focusedProbe.probeId),
             "resourceType": String(resourceType.currentValue),
+            "loadSourceMode": String(loadSourceMode.currentValue),
             "source": coordinates(sourceCoordinates.xControl.value, sourceCoordinates.yControl.value, sourceCoordinates.zControl.value),
             "destination": coordinates(deliveryCoordinates.xControl.value, deliveryCoordinates.yControl.value, deliveryCoordinates.zControl.value),
             "returnPoint": coordinates(returnCoordinates.xControl.value, returnCoordinates.yControl.value, returnCoordinates.zControl.value),
@@ -47,7 +48,7 @@ Item {
             "refuelEnabled": refuelEnabled.checked,
             "refuelSector": coordinates(refuelCoordinates.xControl.value, refuelCoordinates.yControl.value, refuelCoordinates.zControl.value),
             "minimumRefuelSourceAmount": minimumRefuelAmount.value
-            ,"sourceProbeId": sourceProbe.currentValue || null
+            ,"sourceProbeId": loadSourceMode.currentValue === "probe" ? (sourceProbe.currentValue || null) : null
             ,"destinationProbeId": destinationProbe.currentValue || null
             ,"loadAmount": root.tankerEligible && resourceType.currentValue === "deuterium" ? loadAmount.value : null
             ,"unloadAmount": root.tankerEligible && resourceType.currentValue === "deuterium" ? unloadAmount.value : null
@@ -195,8 +196,22 @@ Item {
                             Label { text: "RETURN POINT"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                             CoordinateEditor { id: returnCoordinates; Layout.columnSpan: 3 }
 
-                            Label { text: "LOAD FROM PROBE"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
-                            ComboBox { id: sourceProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
+                            Label { text: "LOAD SOURCE"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox {
+                                id: loadSourceMode; Layout.columnSpan: 3; Layout.fillWidth: true
+                                textRole: "text"; valueRole: "value"
+                                model: [
+                                    {"text":"LOAD FROM PROBE", "value":"probe"},
+                                    {"text":"MINE IN SECTOR", "value":"mine_in_sector"}
+                                ]
+                            }
+                            Label { visible: loadSourceMode.currentValue === "probe"; text: "LOAD FROM PROBE"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox { visible: loadSourceMode.currentValue === "probe"; id: sourceProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
+                            Label {
+                                visible: loadSourceMode.currentValue === "mine_in_sector"; Layout.columnSpan: 4; Layout.fillWidth: true
+                                text: "At the loading sector, the resource planner assigns available Mannys to the selected resource until the load threshold is reached or the observed source is depleted. The delivery leg then resumes automatically."
+                                color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap
+                            }
                             Label { text: "UNLOAD INTO PROBE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                             ComboBox { id: destinationProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
 

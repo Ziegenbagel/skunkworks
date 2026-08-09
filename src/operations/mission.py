@@ -161,6 +161,13 @@ class OperationFactory:
             actions = cls.TEMPLATES[template]
         except KeyError as error:
             raise ValueError(f"Unknown operation template: {template}") from error
+        metadata = metadata or {}
+        if template == "round_trip_transport":
+            loading_action = metadata.get("loadingAction", "load_to_threshold")
+            actions = tuple(
+                loading_action if action == "load_to_threshold" else action
+                for action in actions
+            )
         title = template.replace("_", " ").title()
         return Operation(
             name=title,
@@ -169,7 +176,7 @@ class OperationFactory:
             steps=tuple(OperationStep(action) for action in actions),
             completion_conditions=("all_steps_succeeded",),
             failure_conditions=("operator_cancelled",),
-            metadata={"template": template, **(metadata or {})},
+            metadata={"template": template, **metadata},
         )
 
     @staticmethod

@@ -36,6 +36,7 @@ class RoundTripTransportPlan:
     destination_probe_id: int | None = None
     load_amount: float | None = None
     unload_amount: float | None = None
+    load_source_mode: str = "probe"
 
     def __post_init__(self):
         for name, value in (
@@ -53,6 +54,8 @@ class RoundTripTransportPlan:
         for name, value in (("load_amount", self.load_amount), ("unload_amount", self.unload_amount)):
             if value is not None and not 0 <= value <= 800:
                 raise ValueError(f"{name} must be between 0 and 800 ECE.")
+        if self.load_source_mode not in {"probe", "mine_in_sector"}:
+            raise ValueError("Load source mode must be probe or mine_in_sector.")
 
     @property
     def cycle_hops(self):
@@ -92,7 +95,16 @@ class RoundTripTransportPlan:
             "destinationProbeId": self.destination_probe_id,
             "loadAmount": self.load_amount,
             "unloadAmount": self.unload_amount,
+            "loadSourceMode": self.load_source_mode,
         }
+
+    @property
+    def loading_action(self):
+        return (
+            "mine_resource_to_threshold"
+            if self.load_source_mode == "mine_in_sector"
+            else "load_from_probe_to_threshold"
+        )
 
 
 @dataclass(frozen=True)
