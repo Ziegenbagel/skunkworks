@@ -42,6 +42,7 @@ from src.execution import (
 )
 from src.execution.policy import ExecutionPolicyStore
 from src.diagnostics import diagnostic_log_directory, log_handled_error
+from src.reporting import DailyProbeReportService
 
 
 class MissionControlDataService:
@@ -238,12 +239,24 @@ class MissionControlDataService:
         } for improvement in improvements_response.get("improvements", ())
           if improvement.get("available", False) and not improvement.get("done", False))
         if include_archival and bool(selected.get("isDefault")):
+            daily_result = {"created": [], "failures": []}
+            if self.data_engine.get_preference("auto_game_logbook", "false") == "true":
+                daily_result = DailyProbeReportService(self.data_engine).generate_due(
+                    probe_data.get("probes", ()),
+                    automation["probeRoles"],
+                    lambda candidate_id, payload: self.capabilities.probes.create_logbook_page(
+                        candidate_id, payload
+                    ),
+                )
+                if daily_result["created"]:
+                    self._logbook_cache = None
             if self._logbook_cache is None or now - self._logbook_cache[0] >= 300:
                 self._logbook_cache = (
                     now,
                     self.logbook_view(selected_id, probe_data.get("probes", ())),
                 )
             dashboard["logbook"] = self._logbook_cache[1]
+            dashboard["logbook"]["dailyReportFailures"] = daily_result["failures"]
         else:
             dashboard["logbook"] = {
                 "pages": [], "focusedProbeId": selected_id, "failures": [],
@@ -268,8 +281,9 @@ class MissionControlDataService:
             except requests.RequestException as error:
                 failures.append({"probeId": candidate_id, "message": str(error)})
                 continue
+            reporter = DailyProbeReportService(self.data_engine)
             for page in response.get("pages", ()):
-                item = dict(page)
+                item = reporter.annotate_page(page, candidate_id)
                 item["sourceProbeId"] = candidate_id
                 item["sourceProbeName"] = probe.get("name") or f"Probe {candidate_id}"
                 summaries.append(item)
@@ -280,12 +294,15 @@ class MissionControlDataService:
             "focusedProbeId": probe_id,
             "failures": failures,
             "autoLoggingEnabled": self.data_engine.get_preference("auto_game_logbook", "false") == "true",
+            "newDailyReportCount": sum(1 for item in summaries if item.get("isNewDailyReport")),
         }
 
     def get_logbook_page(self, page_id):
         owner = self._logbook_page_probes.get(int(page_id), self._selected_probe_id)
         response = self.capabilities.probes.get_logbook_page(owner, page_id)
-        return response.get("page", response)
+        page = response.get("page", response)
+        DailyProbeReportService(self.data_engine).mark_read(owner, page.get("title", ""))
+        return page
 
     def create_logbook_page(self, payload):
         return self.capabilities.probes.create_logbook_page(self._selected_probe_id, payload)
@@ -2438,10 +2455,14 @@ class MissionControlController(QObject):
             return
         logbook = dict(self._dashboard.get("logbook", {}))
         pages = [
-            {**item, **self._qt_safe(page)} if int(item.get("id", -1)) == page_id else item
+            {**item, **self._qt_safe(page), "isNewDailyReport": False}
+            if int(item.get("id", -1)) == page_id else item
             for item in logbook.get("pages", ())
         ]
         logbook["pages"] = pages
+        logbook["newDailyReportCount"] = sum(
+            1 for item in pages if item.get("isNewDailyReport")
+        )
         self._dashboard["logbook"] = logbook
         self._set_error("")
         self.dashboardChanged.emit()

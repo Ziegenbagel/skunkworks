@@ -42,9 +42,9 @@ Item {
                 id: pageList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.logbookData.pages || []
                 delegate: Rectangle {
                     id: pageCard; required property var modelData; required property int index
-                    width: pageList.width; height: 92; color: Number(modelData.id) === root.selectedPageId ? Constants.selectedColor : Constants.raisedColor; border.color: Number(modelData.id) === root.selectedPageId ? Constants.cyanColor : Constants.lineColor; radius: 4
+                    width: pageList.width; height: 92; color: Number(modelData.id) === root.selectedPageId ? Constants.selectedColor : Constants.raisedColor; border.color: Number(modelData.id) === root.selectedPageId || Boolean(modelData.isNewDailyReport) ? Constants.cyanColor : Constants.lineColor; border.width: Boolean(modelData.isNewDailyReport) ? 2 : 1; radius: 4
                     Column { anchors.fill: parent; anchors.margins: 13; spacing: 6
-                        Label { width: parent.width; text: pageCard.modelData.title || "Untitled"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; elide: Text.ElideRight }
+                        Label { width: parent.width; text: (Boolean(pageCard.modelData.isNewDailyReport) ? "NEW · " : "") + (pageCard.modelData.title || "Untitled"); color: Boolean(pageCard.modelData.isNewDailyReport) ? Constants.cyanColor : Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; elide: Text.ElideRight }
                         Label { width: parent.width; text: "PROBE · " + String(pageCard.modelData.sourceProbeName || pageCard.modelData.probeId || "Unknown").toUpperCase(); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 11; elide: Text.ElideRight }
                         Label { width: parent.width; text: "UPDATED · " + (pageCard.modelData.updatedAt || "Unknown"); color: Constants.mutedTextColor; font.pixelSize: 12; elide: Text.ElideRight }
                     }
@@ -59,9 +59,9 @@ Item {
                 Layout.fillWidth: true
                 Label { text: root.selectedPageId >= 0 ? "EDIT LOGBOOK PAGE" : "NEW LOGBOOK PAGE"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
                 Item { Layout.fillWidth: true }
-                CheckBox { text: "AUTO-LOG MAJOR SKUNKWORKS REPORTS & DISCOVERIES"; checked: Boolean(root.logbookData.autoLoggingEnabled); onToggled: root.autoLoggingChanged(checked) }
+                CheckBox { text: "AUTO-LOG DAILY ROLE REPORTS & MAJOR DISCOVERIES"; checked: Boolean(root.logbookData.autoLoggingEnabled); onToggled: root.autoLoggingChanged(checked) }
             }
-            Label { Layout.fillWidth: true; text: "Auto-logging is opt-in. It creates game logbook pages only for significant completed work or discoveries, never routine refreshes or alerts."; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: "Auto-logging is opt-in. At the first refresh after 17:00 local time, Skunkworks creates one role-specific daily game-logbook report per probe, plus pages for major discoveries."; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
             TextField { id: titleEditor; Layout.fillWidth: true; placeholderText: "Page title"; maximumLength: 120; font.pixelSize: 16 }
             TextArea { id: contentEditor; Layout.fillWidth: true; Layout.fillHeight: true; placeholderText: "Write a probe logbook note…"; wrapMode: TextEdit.Wrap; font.pixelSize: 15; padding: 16; background: Rectangle { color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4 } }
             RowLayout {

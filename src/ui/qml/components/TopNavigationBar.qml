@@ -9,6 +9,7 @@ RowLayout {
 
     property var sections: ["MISSION CONTROL", "FLEET", "GALAXY MAP", "NAVIGATION", "RESOURCES", "MISSIONS", "PRODUCTION", "SAFETY", "COMMUNICATIONS", "MANUAL CONTROL", "SETTINGS"]
     property string currentSection: "MISSION CONTROL"
+    property int newDailyReportCount: 0
     signal sectionSelected(string section)
 
     spacing: 3
@@ -21,13 +22,20 @@ RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             color: navigationItem.modelData === root.currentSection ? Constants.selectedColor : navigationMouse.containsMouse ? Constants.raisedColor : "transparent"
-            border.color: navigationItem.modelData === root.currentSection ? Constants.cyanColor : "transparent"
+            border.color: navigationItem.modelData === root.currentSection
+                          || (navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0)
+                          ? Constants.cyanColor : "transparent"
+            border.width: navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0 ? 2 : 1
 
             Label {
                 anchors.centerIn: parent
                 width: parent.width - 4
-                text: navigationItem.modelData
-                color: navigationItem.modelData === root.currentSection ? Constants.cyanColor : Constants.mutedTextColor
+                text: navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0
+                      ? navigationItem.modelData + " · " + root.newDailyReportCount
+                      : navigationItem.modelData
+                color: navigationItem.modelData === root.currentSection
+                       || (navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0)
+                       ? Constants.cyanColor : Constants.mutedTextColor
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 font.family: Constants.technicalFont

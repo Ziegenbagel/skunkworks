@@ -400,7 +400,9 @@ def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     assert "+ NEW PAGE" in logbook
     assert "SAVE CHANGES" in logbook
     assert "DELETE LOGBOOK PAGE?" in logbook
-    assert "AUTO-LOG MAJOR SKUNKWORKS REPORTS & DISCOVERIES" in logbook
+    assert "AUTO-LOG DAILY ROLE REPORTS & MAJOR DISCOVERIES" in logbook
+    assert "newDailyReportCount" in Path("src/ui/qml/components/CommunicationsWorkspace.qml").read_text()
+    assert "newDailyReportCount" in Path("src/ui/qml/components/TopNavigationBar.qml").read_text()
     assert "loadLogbookPage" in app
 
 

@@ -217,6 +217,7 @@ Rectangle {
                         Layout.leftMargin: Math.round(14 * root.uiScale)
                         Layout.rightMargin: Math.round(14 * root.uiScale)
                         currentSection: root.currentNavigation
+                        newDailyReportCount: Number((root.dashboardData.logbook || {}).newDailyReportCount || 0)
                     }
                 }
             }

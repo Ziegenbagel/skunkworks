@@ -22,7 +22,13 @@ Item {
         id: tabs
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         TabButton { text: "MESSAGING · " + Number(root.communicationsData.unreadCount || 0) + " UNREAD" }
-        TabButton { text: "LOGBOOK" }
+        TabButton {
+            text: Number(root.logbookData.newDailyReportCount || 0) > 0
+                  ? "LOGBOOK · " + Number(root.logbookData.newDailyReportCount) + " NEW"
+                  : "LOGBOOK"
+            palette.buttonText: Number(root.logbookData.newDailyReportCount || 0) > 0
+                                ? Constants.cyanColor : Constants.textColor
+        }
     }
     StackLayout {
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: tabs.bottom; anchors.bottom: parent.bottom
