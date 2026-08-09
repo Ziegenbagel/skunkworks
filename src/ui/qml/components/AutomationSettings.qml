@@ -117,6 +117,7 @@ Item {
         freeCapacity.value = Number(settingsData.minimumFreeCapacity || 1);
         capacityPriority.value = Number(settingsData.inventoryPriority || 3);
         miningOrderSteps.value = Math.max(1, Math.min(11, Math.round(Number(settingsData.maximumMiningOrderAmount || 0.55) / 0.05)));
+        safeHopDistance.value = Math.max(1, Math.min(2, Number(settingsData.maximumSafeHopDistance || 1)));
         repairTrigger.value = Number(settingsData.repairTriggerPercent || 0);
         repairTarget.value = Number(settingsData.repairTargetPercent || 100);
         repairPriority.value = Number(settingsData.repairPriority || 2);
@@ -165,10 +166,12 @@ Item {
             "minimumFreeCapacity": freeCapacity.value,
             "inventoryPriority": capacityPriority.value,
             "maximumMiningOrderAmount": Number((miningOrderSteps.value * 0.05).toFixed(2)),
+            "maximumSafeHopDistance": safeHopDistance.value,
             "repairTriggerPercent": repairTrigger.value,
             "repairTargetPercent": repairTarget.value,
             "repairPriority": repairPriority.value,
-            "travelTarget": settingsData.travelTarget || null
+            "travelTarget": settingsData.travelTarget || null,
+            "travelRouteMode": settingsData.travelRouteMode || "recommended"
         };
     }
 
@@ -418,6 +421,9 @@ Item {
                         HoverHandler { id: miningOrderHover }
                     }
                     Label { text: "0.05–0.55 ECE · PER PROBE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                    Label { text: "SAFE SEGMENT LENGTH"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    SpinBox { id: safeHopDistance; from: 1; to: 2; editable: false; value: 1 }
+                    Label { text: safeHopDistance.value + " SECTOR" + (safeHopDistance.value === 1 ? "" : "S") + " PER JUMP · BOTH ARE COLLISION-SAFE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                     Label { text: "DEUTERIUM"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: deuteriumReserve; from: 0; to: 100000; editable: true; value: root.reserve("deuterium") }
                     SpinBox { id: deuteriumPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).deuterium || 5) }

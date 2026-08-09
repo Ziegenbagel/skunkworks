@@ -125,6 +125,63 @@ class TravelSafetyTests(unittest.TestCase):
             assessment.recommended.scut_protected
         )
 
+    def test_forced_segmented_mode_allows_direct_beacon_to_beacon_travel(self):
+        operations = build_operations()
+        operations.world.hazard_context = {
+            "scutNetworks": [{"network": {
+                "id": "home",
+                "relays": [
+                    {
+                        "status": "on",
+                        "isTransitBeacon": True,
+                        "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+                    },
+                    {
+                        "status": "on",
+                        "isTransitBeacon": True,
+                        "sector": {"relative": {"x": 3, "y": 3, "z": 0}},
+                    },
+                ],
+            }}],
+        }
+
+        assessment = operations.travel_safety.assess(
+            SectorCoordinates(3, 3, 0),
+            route_mode="segmented",
+            maximum_segment_distance=1,
+        )
+
+        self.assertEqual(assessment.recommended.name, "direct")
+        self.assertEqual(
+            assessment.recommended.hops,
+            (SectorCoordinates(3, 3, 0),),
+        )
+
+    def test_beacons_on_different_networks_do_not_enable_direct_exception(self):
+        operations = build_operations()
+        operations.world.hazard_context = {
+            "scutNetworks": [
+                {"network": {"id": "a", "relays": [{
+                    "status": "on",
+                    "isTransitBeacon": True,
+                    "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+                }]}},
+                {"network": {"id": "b", "relays": [{
+                    "status": "on",
+                    "isTransitBeacon": True,
+                    "sector": {"relative": {"x": 3, "y": 3, "z": 0}},
+                }]}},
+            ],
+        }
+
+        assessment = operations.travel_safety.assess(
+            SectorCoordinates(3, 3, 0),
+            route_mode="segmented",
+        )
+
+        self.assertEqual(assessment.recommended.name, "segmented")
+        self.assertEqual(len(assessment.recommended.hops), 3)
+
     def test_scut_route_requires_every_hop_to_remain_covered(self):
         operations = build_operations()
         operations.world.hazard_context = {

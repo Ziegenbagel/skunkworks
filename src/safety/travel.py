@@ -68,7 +68,12 @@ class TravelSafetyService:
         self.travel = travel
         self.policy = policy
 
-    def assess(self, destination, route_mode="recommended"):
+    def assess(
+        self,
+        destination,
+        route_mode="recommended",
+        maximum_segment_distance=1,
+    ):
         origin = self.travel.current_sector()
 
         if origin is None:
@@ -79,13 +84,24 @@ class TravelSafetyService:
             origin,
             (destination,),
         )
-        segmented_hops = self.travel.route_to(destination) or ()
+        segmented_hops = self.travel.route_to(
+            destination,
+            maximum_hop_distance=maximum_segment_distance,
+        ) or ()
         segmented = self._route_option(
             "segmented",
             origin,
             segmented_hops,
         )
-        if route_mode == "segmented":
+        if (
+            route_mode == "segmented"
+            and self.scut_beacon_corridor(origin, destination)
+        ):
+            # Transit beacons at both endpoints make the direct SCUT jump the
+            # safe exception to ordinary segmented travel.
+            options = self._unique_options(direct, segmented)
+            recommended = direct
+        elif route_mode == "segmented":
             # Adjacent destinations make direct and segmented routes
             # identical. Put the required mode first so de-duplication keeps
             # its identity instead of dropping it and leaving no segmented
@@ -203,6 +219,29 @@ class TravelSafetyService:
             self.scut_networks_covering(origin)
             & self.scut_networks_covering(destination)
         )
+
+    def scut_beacon_corridor(self, origin, destination):
+        """Return whether both endpoints are active beacons on one network."""
+
+        context = getattr(self.world, "hazard_context", {})
+        endpoint_networks = []
+        for endpoint in (origin, destination):
+            networks = set()
+            for index, response in enumerate(context.get("scutNetworks", [])):
+                network = response.get("network", {})
+                network_id = network.get("id", network.get("name", index))
+                for relay in network.get("relays", []):
+                    relative = (relay.get("sector") or {}).get("relative")
+                    if (
+                        relative
+                        and relay.get("status") == "on"
+                        and relay.get("isTransitBeacon") is True
+                        and SectorCoordinates.from_api(relative) == endpoint
+                    ):
+                        networks.add(str(network_id))
+                        break
+            endpoint_networks.append(networks)
+        return bool(endpoint_networks[0] & endpoint_networks[1])
 
     def scut_networks_covering(self, sector):
         """Return the known active SCUT networks covering one sector."""

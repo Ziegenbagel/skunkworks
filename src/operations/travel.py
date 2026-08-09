@@ -43,8 +43,11 @@ class TravelService:
             else None
         )
 
-    def route_to(self, target):
-        """Return a shortest FCC route, excluding the origin."""
+    def route_to(self, target, maximum_hop_distance=1):
+        """Return a shortest FCC route using one- or two-sector legs."""
+
+        if maximum_hop_distance not in {1, 2}:
+            raise ValueError("Maximum hop distance must be 1 or 2 sectors.")
 
         current = self.current_sector()
 
@@ -75,7 +78,13 @@ class TravelService:
             )
             route.append(current)
 
-        return tuple(route)
+        if maximum_hop_distance == 1 or len(route) <= 1:
+            return tuple(route)
+
+        segmented = route[maximum_hop_distance - 1::maximum_hop_distance]
+        if not segmented or segmented[-1] != target:
+            segmented.append(target)
+        return tuple(segmented)
 
     def travel_blockers(self, target):
         blockers = []

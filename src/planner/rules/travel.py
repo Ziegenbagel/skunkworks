@@ -40,6 +40,7 @@ def plan(operations, desired_state) -> list[Task]:
     assessment = operations.travel_safety.assess(
         target,
         route_mode=desired_state.travel.route_mode,
+        maximum_segment_distance=desired_state.maximum_safe_hop_distance,
     )
     route = (
         assessment.recommended.hops

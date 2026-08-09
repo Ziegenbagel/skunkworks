@@ -139,6 +139,7 @@ class DesiredState:
     )
     repair: RepairGoal = field(default_factory=RepairGoal)
     maximum_mining_order_amount: float = 0.55
+    maximum_safe_hop_distance: int = 1
     travel: TravelGoal | None = None
     fleet: tuple[FleetGoal, ...] = field(default_factory=tuple)
 
@@ -153,6 +154,8 @@ class DesiredState:
             raise ValueError(
                 "Maximum mining order must use 0.05 ECE increments."
             )
+        if self.maximum_safe_hop_distance not in {1, 2}:
+            raise ValueError("Maximum safe hop distance must be 1 or 2 sectors.")
 
     @classmethod
     def empty(cls):
@@ -214,6 +217,9 @@ class DesiredState:
             maximum_mining_order_amount=float(
                 value.get("maximumMiningOrderAmount", 0.55)
             ),
+            maximum_safe_hop_distance=int(
+                value.get("maximumSafeHopDistance", 1)
+            ),
             travel=(
                 TravelGoal(
                     target=SectorCoordinates.from_api(
@@ -264,6 +270,7 @@ class DesiredState:
             "repairTargetPercent": self.repair.target_percent,
             "repairPriority": self.repair.priority,
             "maximumMiningOrderAmount": self.maximum_mining_order_amount,
+            "maximumSafeHopDistance": self.maximum_safe_hop_distance,
             "travelTarget": (
                 {
                     "x": self.travel.target.x,

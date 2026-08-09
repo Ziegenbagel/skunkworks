@@ -23,11 +23,13 @@ class DesiredStateTests(unittest.TestCase):
     def test_segmented_travel_mode_round_trips(self):
         state = DesiredState(
             travel=TravelGoal(SectorCoordinates(3, 3, 0), "segmented"),
+            maximum_safe_hop_distance=2,
         )
 
         restored = DesiredState.from_dict(state.to_dict())
 
         self.assertEqual(restored.travel, state.travel)
+        self.assertEqual(restored.maximum_safe_hop_distance, 2)
 
     def test_planner_defaults_to_empty_desired_state(self):
         planner = Planner(operations=object())
@@ -132,12 +134,12 @@ class DesiredStateTests(unittest.TestCase):
             "scutNetworks": [{"network": {"relays": [
                 {
                     "status": "on",
-                    "isTransitBeacon": True,
+                    "isTransitBeacon": False,
                     "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
                 },
                 {
                     "status": "on",
-                    "isTransitBeacon": True,
+                    "isTransitBeacon": False,
                     "sector": {"relative": {"x": 3, "y": 3, "z": 0}},
                 },
             ]}}],
@@ -154,6 +156,30 @@ class DesiredStateTests(unittest.TestCase):
         self.assertEqual(len(travel.route), 3)
         self.assertEqual(travel.route[0], SectorCoordinates(1, 1, 0))
         self.assertNotEqual(travel.route[0], destination)
+
+    def test_two_sector_safe_segment_setting_reduces_route_hops(self):
+        destination = SectorCoordinates(3, 3, 0)
+        operations = build_operations()
+
+        travel = next(
+            task for task in Planner(
+                operations,
+                DesiredState(
+                    travel=TravelGoal(destination, "segmented"),
+                    maximum_safe_hop_distance=2,
+                ),
+            ).tasks()
+            if task.category == "travel"
+        )
+
+        self.assertEqual(len(travel.route), 2)
+        self.assertTrue(all(
+            origin.distance_to(target) <= 2
+            for origin, target in zip(
+                (SectorCoordinates(0, 0, 0), *travel.route),
+                travel.route,
+            )
+        ))
 
     def test_negative_goal_is_invalid(self):
         with self.assertRaises(ValueError):

@@ -787,7 +787,11 @@ class MissionControlDataService:
             raise RuntimeError("Refresh the selected probe before planning travel.")
         destination = SectorCoordinates.from_api(target)
         blockers = self._operations.travel.travel_blockers(destination)
-        assessment = self._operations.travel_safety.assess(destination)
+        desired = DesiredStateStore(self.data_engine).load(probe_id)
+        assessment = self._operations.travel_safety.assess(
+            destination,
+            maximum_segment_distance=desired.maximum_safe_hop_distance,
+        )
         if assessment is None:
             raise RuntimeError("Current sector is unavailable.")
         selected = next(
@@ -2098,6 +2102,7 @@ class MissionControlController(QObject):
                 inventory=current.inventory,
                 repair=current.repair,
                 maximum_mining_order_amount=current.maximum_mining_order_amount,
+                maximum_safe_hop_distance=current.maximum_safe_hop_distance,
                 travel=TravelGoal(SectorCoordinates(x, y, z)),
                 fleet=current.fleet,
             )
@@ -2135,6 +2140,7 @@ class MissionControlController(QObject):
                 inventory=current.inventory,
                 repair=current.repair,
                 maximum_mining_order_amount=current.maximum_mining_order_amount,
+                maximum_safe_hop_distance=current.maximum_safe_hop_distance,
                 travel=None,
                 fleet=current.fleet,
             )
