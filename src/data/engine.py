@@ -540,6 +540,14 @@ class DataEngine:
             (str(state),),
         )
 
+    def delete_operation(self, operation_id):
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM operations WHERE id = ?",
+                (str(operation_id),),
+            )
+            return cursor.rowcount > 0
+
     def assign_fleet_role(
         self,
         asset_type,

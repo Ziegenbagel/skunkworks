@@ -7,7 +7,7 @@ import json
 import re
 import sys
 import time
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 import requests
@@ -700,6 +700,56 @@ class MissionControlDataService:
         )
         OperationStore(self.data_engine).save(operation)
         return operation.to_dict()
+
+    def start_transport_cycle(self, operation_id):
+        store = OperationStore(self.data_engine)
+        operation = store.get(operation_id)
+        if operation is None or operation.metadata.get("template") != "round_trip_transport":
+            raise ValueError("Saved transport operation was not found.")
+        if int(operation.probe_id or -1) != int(self._selected_probe_id):
+            raise ValueError("Focus the transport probe assigned to this route before starting it.")
+        if operation.state.value not in {"planned", "paused"}:
+            raise ValueError(f"This transport route is already {operation.state.value}.")
+        competing = next((
+            item for item in store.all()
+            if item.id != operation.id
+            and item.metadata.get("template") == "round_trip_transport"
+            and int(item.probe_id or -1) == int(operation.probe_id)
+            and item.state.value == "active"
+        ), None)
+        if competing is not None:
+            raise ValueError("This probe already has an active transport route. Remove it before starting another.")
+        cycle = operation.metadata.get("cycle") or {}
+        source = SectorCoordinates.from_api(cycle["source"])
+        current = DesiredStateStore(self.data_engine).load(operation.probe_id)
+        DesiredStateStore(self.data_engine).save(
+            replace(current, travel=TravelGoal(source)),
+            operation.probe_id,
+        )
+        operation = operation.activate()
+        store.save(operation)
+        return operation.to_dict()
+
+    def delete_transport_cycle(self, operation_id):
+        store = OperationStore(self.data_engine)
+        operation = store.get(operation_id)
+        if operation is None or operation.metadata.get("template") != "round_trip_transport":
+            raise ValueError("Saved transport operation was not found.")
+        if operation.state.value == "active":
+            current = DesiredStateStore(self.data_engine).load(operation.probe_id)
+            route_points = {
+                SectorCoordinates.from_api(value)
+                for key in ("source", "destination", "returnPoint")
+                if (value := (operation.metadata.get("cycle") or {}).get(key))
+            }
+            if current.travel is not None and current.travel.target in route_points:
+                DesiredStateStore(self.data_engine).save(
+                    replace(current, travel=None),
+                    operation.probe_id,
+                )
+        if not store.delete(operation_id):
+            raise RuntimeError("Transport operation could not be removed.")
+        return str(operation_id)
 
     def rename_probe(self, name):
         return self.capabilities.probes.update(self._selected_probe_id, name=name.strip())
@@ -1859,6 +1909,56 @@ class MissionControlController(QObject):
         cycles = list(automation.get("transportCycles", ()))
         cycles.append(self._qt_safe(operation))
         automation["transportCycles"] = cycles
+        self._dashboard["automation"] = automation
+        self._set_error("")
+        self.dashboardChanged.emit()
+
+    @Slot(str)
+    def startTransportCycle(self, operation_id):
+        if self.service is None:
+            self._set_error("Refresh live account data before starting a transport cycle.")
+            return
+        try:
+            operation = self.service.start_transport_cycle(operation_id)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        automation = dict(self._dashboard.get("automation", {}))
+        automation["transportCycles"] = [
+            self._qt_safe(operation) if item.get("id") == operation_id else item
+            for item in automation.get("transportCycles", ())
+        ]
+        automation["travelTarget"] = operation["metadata"]["cycle"]["source"]
+        self._dashboard["automation"] = automation
+        self._set_error("")
+        self.dashboardChanged.emit()
+        runtime = self._dashboard.get("automationRuntime", {})
+        if (
+            runtime.get("mode") == ExecutionMode.AUTOMATIC.value
+            and runtime.get("liveExecutionEnabled")
+            and "move_probe" in runtime.get("allowedCommandTypes", ())
+        ):
+            self._automation_after_refresh = True
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot(str)
+    def deleteTransportCycle(self, operation_id):
+        if self.service is None:
+            self._set_error("Refresh live account data before removing a transport cycle.")
+            return
+        try:
+            self.service.delete_transport_cycle(operation_id)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        automation = dict(self._dashboard.get("automation", {}))
+        automation["transportCycles"] = [
+            item for item in automation.get("transportCycles", ())
+            if item.get("id") != operation_id
+        ]
+        automation["travelTarget"] = DesiredStateStore(
+            self.service.data_engine,
+        ).load(self._focused_probe_id).to_dict().get("travelTarget")
         self._dashboard["automation"] = automation
         self._set_error("")
         self.dashboardChanged.emit()

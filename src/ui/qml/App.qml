@@ -420,6 +420,16 @@ ApplicationWindow {
             if (window.backend) window.backend.saveTransportCycle(plan);
         }
 
+        function onTransportCycleStartRequested(operationId) {
+            AudioManager.play("confirm");
+            if (window.backend) window.backend.startTransportCycle(operationId);
+        }
+
+        function onTransportCycleDeleteRequested(operationId) {
+            AudioManager.play("cancel");
+            if (window.backend) window.backend.deleteTransportCycle(operationId);
+        }
+
         function onProbeRenameRequested(name) {
             AudioManager.play("save");
             if (window.backend) window.backend.renameFocusedProbe(name);

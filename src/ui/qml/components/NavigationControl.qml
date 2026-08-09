@@ -20,6 +20,9 @@ Item {
     signal autonomousTargetRequested(int x, int y, int z)
     signal autonomousTargetCancelRequested()
     signal transportCycleRequested(var plan)
+    signal transportCycleStartRequested(string operationId)
+    signal transportCycleDeleteRequested(string operationId)
+    property var selectedTransportCycle: ({})
 
     readonly property string focusedRole: String((automationData.probeRoles || {})[String(focusedProbe.probeId)] || "unassigned")
     readonly property bool transportEligible: focusedRole === "transport" || focusedRole === "deuterium_tanker"
@@ -28,6 +31,10 @@ Item {
     readonly property bool validTransportCoordinates: sourceCoordinates.valid && deliveryCoordinates.valid && returnCoordinates.valid && (!refuelEnabled.checked || refuelCoordinates.valid)
     function validCoordinates(x, y, z) { return (Number(x) + Number(y) + Number(z)) % 2 === 0; }
     function coordinates(x, y, z) { return {"x": Number(x), "y": Number(y), "z": Number(z)}; }
+    function coordinateLabel(value) {
+        value = value || {};
+        return "FCC " + Number(value.x || 0) + " / " + Number(value.y || 0) + " / " + Number(value.z || 0);
+    }
     function chooseSector(sector) {
         manualX.value = Number(sector.x); manualY.value = Number(sector.y); manualZ.value = Number(sector.z);
         navigationTabs.currentIndex = 0;
@@ -215,13 +222,13 @@ Item {
                             Label { text: "UNLOAD INTO PROBE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                             ComboBox { id: destinationProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
 
-                            Label { text: "LOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
-                            RowLayout { SpinBox { id: loadThreshold; from: 1; to: 100; value: 90; editable: true } Label { text: "% FULL" } }
-                            Label { text: "UNLOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
-                            RowLayout { SpinBox { id: unloadThreshold; from: 0; to: 99; value: 10; editable: true } Label { text: "% REMAINS" } }
+                            Label { visible: !(root.tankerEligible && resourceType.currentValue === "deuterium"); text: "LOAD CARGO UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
+                            RowLayout { visible: !(root.tankerEligible && resourceType.currentValue === "deuterium"); SpinBox { id: loadThreshold; from: 1; to: 100; value: 90; editable: true } Label { text: "% FULL" } }
+                            Label { visible: !(root.tankerEligible && resourceType.currentValue === "deuterium"); text: "UNLOAD CARGO UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
+                            RowLayout { visible: !(root.tankerEligible && resourceType.currentValue === "deuterium"); SpinBox { id: unloadThreshold; from: 0; to: 99; value: 10; editable: true } Label { text: "% REMAINS" } }
                             Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "LOAD TANK TO"; color: Constants.textColor; font.family: Constants.technicalFont }
                             RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: loadAmount; from: 0; to: 800; value: 400; editable: true } Label { text: "ECE (MAX 800)" } }
-                            Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "UNLOAD UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
+                            Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "LEAVE IN TANK"; color: Constants.textColor; font.family: Constants.technicalFont }
                             RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: unloadAmount; from: 0; to: 800; value: 0; editable: true } Label { text: "ECE REMAINS" } }
                             Label { text: "PROTECTED DEUTERIUM"; color: Constants.warningColor; font.family: Constants.technicalFont }
                             RowLayout { SpinBox { id: protectedFuel; from: 0; to: 100; value: 20; editable: true } Label { text: "% FLOOR" } }
@@ -248,7 +255,17 @@ Item {
                             id: cycleRow; required property var modelData
                             Layout.fillWidth: true; implicitHeight: cycleLabel.implicitHeight + 28
                             color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
-                            Label { id: cycleLabel; anchors.fill: parent; anchors.margins: 14; text: String(cycleRow.modelData.name || "Round Trip Transport").toUpperCase() + " · " + String(cycleRow.modelData.state || "planned").toUpperCase(); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
+                            RowLayout {
+                                anchors.fill: parent; anchors.margins: 10
+                                Label { id: cycleLabel; Layout.fillWidth: true; text: String(cycleRow.modelData.name || "Round Trip Transport").toUpperCase() + " · " + String(cycleRow.modelData.state || "planned").toUpperCase(); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
+                                Button {
+                                    text: "REVIEW"
+                                    onClicked: {
+                                        root.selectedTransportCycle = cycleRow.modelData;
+                                        transportReview.open();
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -292,6 +309,31 @@ Item {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Dialog {
+        id: transportReview
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(root.width - 80, 780)
+        title: "REVIEW ROUND-TRIP TRANSPORT"
+        property var cycle: (root.selectedTransportCycle.metadata || {}).cycle || ({})
+        ColumnLayout {
+            width: parent.width; spacing: 12
+            Label { Layout.fillWidth: true; text: String(transportReview.cycle.resourceType || "resource").replace("_", " ").toUpperCase() + " · " + (String(transportReview.cycle.loadSourceMode || "probe") === "mine_in_sector" ? "MINE IN SECTOR" : "LOAD FROM PROBE"); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: "1 · TRAVEL TO " + root.coordinateLabel(transportReview.cycle.source); color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: "2 · " + (String(transportReview.cycle.loadSourceMode || "probe") === "mine_in_sector" ? "MINE " + String(transportReview.cycle.resourceType || "resource").replace("_", " ").toUpperCase() : "LOAD FROM PROBE " + String(transportReview.cycle.sourceProbeId || "UNSELECTED")) + (transportReview.cycle.loadAmount !== null && transportReview.cycle.loadAmount !== undefined ? " UNTIL " + Number(transportReview.cycle.loadAmount) + " ECE" : " UNTIL " + Number(transportReview.cycle.loadUntilPercent || 0) + "% FULL"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: "3 · TRAVEL TO " + root.coordinateLabel(transportReview.cycle.destination) + " AND UNLOAD INTO PROBE " + String(transportReview.cycle.destinationProbeId || "UNSELECTED") + (transportReview.cycle.unloadAmount !== null && transportReview.cycle.unloadAmount !== undefined ? " UNTIL " + Number(transportReview.cycle.unloadAmount) + " ECE REMAINS" : " UNTIL " + Number(transportReview.cycle.unloadUntilPercent || 0) + "% REMAINS"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: "4 · RETURN TO " + root.coordinateLabel(transportReview.cycle.returnPoint) + (transportReview.cycle.repeat ? " AND REPEAT" : " AND COMPLETE"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: "SAFETY · PROTECT " + Number(transportReview.cycle.protectedDeuterium || 0) + "% DEUTERIUM PLUS " + Number(transportReview.cycle.reserveHops || 0) + " RESERVE HOPS"; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+            RowLayout {
+                Layout.fillWidth: true
+                Button { text: "REMOVE ROUTE"; onClicked: { root.transportCycleDeleteRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
+                Item { Layout.fillWidth: true }
+                Button { text: "CLOSE"; onClicked: transportReview.close() }
+                Button { text: String(root.selectedTransportCycle.state || "planned") === "active" ? "ACTIVE" : "CONFIRM & START"; enabled: String(root.selectedTransportCycle.state || "planned") !== "active"; onClicked: { root.transportCycleStartRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
             }
         }
     }

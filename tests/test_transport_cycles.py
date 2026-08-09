@@ -165,6 +165,34 @@ class TransportCycleTests(unittest.TestCase):
             self.assertEqual(cycle["returnPoint"], {"x": 0, "y": 2, "z": 0})
             self.assertEqual(engine.operation_records()[0]["state"], "planned")
 
+    def test_saved_transport_can_be_started_and_removed(self):
+        from src.data import DataEngine
+        from src.planner.desired_state_store import DesiredStateStore
+        from src.ui.controller import MissionControlDataService
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "transport.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            service._selected_probe_id = 7
+            operation = service.save_transport_cycle({
+                "probeId": 7,
+                "resourceType": "deuterium",
+                "source": {"x": 2, "y": 0, "z": 0},
+                "destination": {"x": 4, "y": 0, "z": 0},
+                "returnPoint": {"x": 0, "y": 0, "z": 0},
+                "loadSourceMode": "mine_in_sector",
+            })
+
+            active = service.start_transport_cycle(operation["id"])
+
+            self.assertEqual(active["state"], "active")
+            self.assertEqual(
+                DesiredStateStore(engine).load(7).travel.target,
+                SectorCoordinates(2, 0, 0),
+            )
+            self.assertTrue(service.delete_transport_cycle(operation["id"]))
+            self.assertEqual(engine.operation_records(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

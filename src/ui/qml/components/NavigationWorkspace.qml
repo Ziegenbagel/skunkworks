@@ -34,6 +34,8 @@ PanelFrame {
     signal automationCycleRequested()
     signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
     signal transportCycleSaveRequested(var plan)
+    signal transportCycleStartRequested(string operationId)
+    signal transportCycleDeleteRequested(string operationId)
     signal probeRenameRequested(string name)
     signal mannyRenameRequested(string mannyId, string name)
     signal containerRenameRequested(string containerId, string label)
@@ -171,6 +173,8 @@ PanelFrame {
             onAutonomousTargetRequested: (x, y, z) => root.autonomousTravelTargetRequested(x, y, z)
             onAutonomousTargetCancelRequested: root.autonomousTravelTargetCancelRequested()
             onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
+            onTransportCycleStartRequested: operationId => root.transportCycleStartRequested(operationId)
+            onTransportCycleDeleteRequested: operationId => root.transportCycleDeleteRequested(operationId)
         }
 
         ResourceWorkspace {

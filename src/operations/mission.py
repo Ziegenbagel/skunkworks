@@ -105,6 +105,15 @@ class OperationStore:
             for record in self.records(state)
         )
 
+    def get(self, operation_id):
+        return next(
+            (item for item in self.all() if item.id == str(operation_id)),
+            None,
+        )
+
+    def delete(self, operation_id):
+        return self.data_engine.delete_operation(operation_id)
+
 
 class OperationFactory:
     """Build the initial repeatable operation templates."""
