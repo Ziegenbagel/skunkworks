@@ -33,8 +33,6 @@ Item {
     property bool showCurrent: true
     property bool showScanned: true
     property bool showVisited: true
-    property bool showObserved: true
-    property bool showUnknown: true
     property bool hazardsOnly: false
     property bool salvageOnly: false
     property bool showRecentTrail: true
@@ -42,7 +40,7 @@ Item {
     property string resourceFilter: "all"
     property string resourceMode: "all"
     readonly property var visibleNodes: {
-        const dependency = [showCurrent, showScanned, showVisited, showObserved, showUnknown,
+        const dependency = [showCurrent, showScanned, showVisited,
                             hazardsOnly, salvageOnly, resourceFilter, resourceMode];
         return nodes.filter(function(node) { return root.matchesFilters(node); });
     }
@@ -55,9 +53,9 @@ Item {
     signal scanRequested(int x, int y, int z)
 
     function stateEnabled(state) {
-        return (state === "current" && showCurrent) || (state === "scanned" && showScanned)
-            || (state === "visited" && showVisited) || (state === "observed" && showObserved)
-            || (state === "unknown" && showUnknown);
+        return (state === "current" && showCurrent)
+            || (state === "scanned" && showScanned)
+            || (state === "visited" && showVisited);
     }
     function matchesFilters(node) {
         if (!stateEnabled(String(node.mapState || "unknown"))) return false;
@@ -75,12 +73,10 @@ Item {
     }
     function showOnlyState(state) {
         showCurrent = state === "current"; showScanned = state === "scanned";
-        showVisited = state === "visited"; showObserved = state === "observed";
-        showUnknown = state === "unknown";
+        showVisited = state === "visited";
     }
     function showAllStates() {
         showCurrent = true; showScanned = true; showVisited = true;
-        showObserved = true; showUnknown = true;
     }
 
     function nodeById(identifier) {
@@ -132,7 +128,6 @@ Item {
         if (state === "current") return "#39ff9a";
         if (state === "scanned") return "#36d9ff";
         if (state === "visited") return "#347dff";
-        if (state === "observed") return "#ffbd3d";
         return "#8496a8";
     }
 
@@ -287,13 +282,10 @@ Item {
                 CheckBox { text: "CURRENT"; checked: root.showCurrent; onToggled: root.showCurrent = checked }
                 CheckBox { text: "SCANNED"; checked: root.showScanned; onToggled: root.showScanned = checked }
                 CheckBox { text: "VISITED"; checked: root.showVisited; onToggled: root.showVisited = checked }
-                CheckBox { text: "OBSERVED"; checked: root.showObserved; onToggled: root.showObserved = checked }
-                CheckBox { text: "UNKNOWN"; checked: root.showUnknown; onToggled: root.showUnknown = checked }
                 Button { text: "SHOW ALL"; onClicked: root.showAllStates() }
             }
             RowLayout {
                 visible: root.filtersExpanded; Layout.fillWidth: true
-                Button { text: "ONLY UNEXPLORED"; onClicked: root.showOnlyState("unknown") }
                 Button { text: "ONLY VISITED"; onClicked: root.showOnlyState("visited") }
                 Button { text: "ONLY SCANNED"; onClicked: root.showOnlyState("scanned") }
             }

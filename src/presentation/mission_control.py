@@ -368,12 +368,15 @@ class MissionControlViewModelBuilder:
                 map_state = "current"
             elif record.visit_count:
                 map_state = "visited"
-            elif knowledge in {"neighbor_scan", "detailed", "scanned", "full"}:
-                map_state = "scanned"
             elif record.observed:
-                map_state = "observed"
+                # Every persisted observation originates from sector scanning.
+                # The API's varying knowledgeLevel values describe scan detail,
+                # not a separate player-facing discovery state.
+                map_state = "scanned"
             else:
-                map_state = "unknown"
+                # GalaxyMap records without either a visit or observation do
+                # not represent discovered sectors and are not rendered.
+                continue
             nodes.append({
                 "id": f"{coordinate.x}:{coordinate.y}:{coordinate.z}",
                 "x": coordinate.x,
@@ -396,35 +399,9 @@ class MissionControlViewModelBuilder:
                 "isFocused": is_focused,
                 "mapState": map_state,
             })
-        # The game only persists sectors once they have been observed.  Add the
-        # focused sector's immediate, unrecorded neighborhood so UNKNOWN is a
-        # real map state rather than an always-empty filter.
-        known_ids = {node["id"] for node in nodes}
-        fx, fy, fz = (int(focus_coordinates.get(axis, 0) or 0) for axis in ("x", "y", "z"))
-        for dx in (-1, 0, 1):
-            for dy in (-1, 0, 1):
-                for dz in (-1, 0, 1):
-                    if dx == dy == dz == 0:
-                        continue
-                    x, y, z = fx + dx, fy + dy, fz + dz
-                    identifier = f"{x}:{y}:{z}"
-                    if identifier in known_ids:
-                        continue
-                    nodes.append({
-                        "id": identifier, "x": x, "y": y, "z": z,
-                        "label": self._sector_label({"x": x, "y": y, "z": z}),
-                        "visitCount": 0, "lastVisitedAt": "", "probeIds": [],
-                        "objectCount": 0, "objectTypes": [], "objects": (),
-                        "resourceTypes": (), "hasKnownResources": False,
-                        "hasHazard": False, "hazardTypes": (),
-                        "hasDetachedContainers": False, "knowledgeLevel": "unknown",
-                        "confidence": 0.0, "isFocused": False, "mapState": "unknown",
-                    })
         edges = []
         for index, source in enumerate(nodes):
             for target in nodes[index + 1:]:
-                if "unknown" in {source["mapState"], target["mapState"]}:
-                    continue
                 if max(abs(source[axis] - target[axis]) for axis in ("x", "y", "z")) == 1:
                     edges.append({"from": source["id"], "to": target["id"]})
         recent_route = self._recent_galaxy_route(world, nodes)
@@ -432,8 +409,8 @@ class MissionControlViewModelBuilder:
         return {
             "nodes": tuple(nodes),
             "edges": tuple(edges),
-            "sectorCount": sum(node["mapState"] != "unknown" for node in nodes),
-            "unknownNeighborCount": sum(node["mapState"] == "unknown" for node in nodes),
+            "sectorCount": len(nodes),
+            "unknownNeighborCount": 0,
             "recentTrail": recent_route,
             "recentTrailNodes": recent_nodes,
             "recentTrailCount": len(recent_route),

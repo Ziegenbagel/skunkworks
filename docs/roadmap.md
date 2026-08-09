@@ -241,8 +241,31 @@ visual verification are part of the mission rather than post-release ports.
 - Resource, route, SCUT, hazard, discovery, infrastructure, mission, and stale
   data overlays.
 - Messaging, missions, alerts, game logbook, and Skunkworks archive views.
-- Preserve the game logbook as player-authored notes while keeping generated
-  operational reports in the separate Skunkworks archive.
+- Preserve player-authored game-logbook pages and keep every page scoped to
+  its owning probe.
+- Add opt-in, per-probe Skunkworks daily reports as game-logbook entries. A
+  report is generated once per local calendar day at 17:00 user time (or on
+  the next refresh after 17:00 if Skunkworks was not running), with duplicate
+  prevention and the covered time window recorded in the page.
+- Make daily report content role-specific:
+  - hubs summarize mined and transported resource inflow, resource outflow,
+    net inventory change, crafted items, assembled probes, storage pressure,
+    idle capacity, failed orders, and safety interruptions;
+  - transports summarize resource loaded, delivered, retained, and lost,
+    completed legs and cycles, time waiting at each endpoint, fuel consumed,
+    route interruptions, and discoveries made in transit;
+  - explorers summarize sectors visited and scanned, new systems, planets,
+    hazards, infrastructure, messages or mission events, distance traveled,
+    fuel use, repairs, and time without SCUT coverage. Each explored sector
+    receives a detailed survey subsection listing known objects and asteroids,
+    the resource quantities on each asteroid, sector-wide totals for every
+    resource, and—when historical observations permit it—original observed
+    totals versus currently remaining reserves and measured depletion;
+  - unassigned probes receive a concise general operations summary.
+- Store the source activity and generated-report marker locally so reports can
+  be rebuilt and audited without confusing them with player-authored notes.
+- Give Communications a new-report indicator until the generated page has
+  been opened, scoped to the probe that owns the report.
 - Upcoming-events timeline and away/command briefing.
 - Human-friendly durations, local-time completion estimates, and consistent
   resource precision.
