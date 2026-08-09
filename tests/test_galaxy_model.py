@@ -8,6 +8,12 @@ from src.intelligence.galaxy import GalaxyMapBuilder
 
 
 class GalaxyModelTests(unittest.TestCase):
+    def test_asymmetric_fcc_distance_uses_graph_metric(self):
+        origin = SectorCoordinates(3, 2, -3)
+        destination = SectorCoordinates(-12, -9, 13)
+
+        self.assertEqual(origin.distance_to(destination), 21)
+
     def test_fcc_sector_has_twelve_neighbors(self):
         origin = SectorCoordinates(0, 0, 0)
 

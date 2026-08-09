@@ -24,11 +24,16 @@ class SectorCoordinates:
         )
 
     def distance_to(self, other):
-        return max(
+        differences = (
             abs(self.x - other.x),
             abs(self.y - other.y),
             abs(self.z - other.z),
         )
+        # Each FCC edge changes exactly two coordinates by one. A route must
+        # therefore satisfy both the largest single-axis displacement and
+        # half of the total displacement. The parity constraint guarantees
+        # the latter is integral.
+        return max(max(differences), sum(differences) // 2)
 
     def neighbors(self):
         offsets = (
