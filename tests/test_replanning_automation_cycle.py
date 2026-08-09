@@ -144,3 +144,54 @@ def test_failed_recipe_is_not_retried_on_another_manny_before_mining_fallback():
         result = service._run_replanning_automatic_cycle(policy)
 
     assert [item["status"] for item in result["results"]] == ["failed", "succeeded"]
+
+
+def test_automatic_risk_acknowledgement_executes_the_selected_command():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+    service._refresh_operations = lambda probe_id: None
+    move = PreparedCommand(Command(
+        CommandType.MOVE_PROBE,
+        7,
+        {"target": {"x": 1, "y": 0, "z": 0}},
+        "next safe segmented hop",
+        5,
+    ), "awaiting_risk_acknowledgement", warnings=(SimpleNamespace(
+        acknowledgement_recommended=True,
+    ),))
+    service.automation_view = lambda probe_id=None: setattr(
+        service, "_prepared_commands", (move,)
+    ) or {}
+    executions = []
+
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, prepared, **kwargs):
+            executions.append((prepared.command.fingerprint, kwargs))
+            return ExecutionResult(
+                "succeeded", prepared.command, response={"accepted": True}
+            )
+
+    policy = ExecutionPolicy(
+        mode=ExecutionMode.AUTOMATIC,
+        live_execution_enabled=True,
+        allowed_command_types=frozenset({CommandType.MOVE_PROBE}),
+    )
+    with (
+        patch("src.ui.controller.ExecutionPolicyStore.load", return_value=policy),
+        patch("src.ui.controller.AutomationRuntime", Runtime),
+    ):
+        result = service.run_automation_cycle(
+            move.command.fingerprint,
+            risk_acknowledged=True,
+        )
+
+    assert result["status"] == "succeeded"
+    assert executions == [(
+        move.command.fingerprint,
+        {"risk_acknowledged": True},
+    )]

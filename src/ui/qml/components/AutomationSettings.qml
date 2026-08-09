@@ -291,7 +291,19 @@ Item {
                                     Label { visible: String(commandRow.modelData.type) === "manny_mine"; Layout.fillWidth: true; text: "ORDER " + Number((commandRow.modelData.metadata || {}).orderAmount || 0).toFixed(3) + " ECE · " + Number((commandRow.modelData.metadata || {}).estimatedTrips || 0) + " AUTOMATIC MANNY TRIPS · " + Number((commandRow.modelData.metadata || {}).remainingAmount || 0).toFixed(3) + " ECE STILL NEEDED"; color: Constants.cyanColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                                     Label { visible: (commandRow.modelData.blockers || []).length > 0; Layout.fillWidth: true; text: "BLOCKED · " + (commandRow.modelData.blockers || []).join(", "); color: Constants.criticalColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                                 }
-                                CheckBox { id: riskAcknowledgement; visible: (commandRow.modelData.warnings || []).length > 0; text: "ACKNOWLEDGE RISK" }
+                                CheckBox {
+                                    id: riskAcknowledgement
+                                    visible: (commandRow.modelData.warnings || []).length > 0
+                                    text: "ACKNOWLEDGE RISK"
+                                    onClicked: {
+                                        if (checked
+                                                && String(root.runtimeData.mode) === "automatic"
+                                                && String(commandRow.modelData.disposition) === "awaiting_risk_acknowledgement") {
+                                            root.automationApprovalRequested(
+                                                String(commandRow.modelData.fingerprint), true)
+                                        }
+                                    }
+                                }
                                 Button {
                                     text: "APPROVE"
                                     visible: String(root.runtimeData.mode) === "approve"

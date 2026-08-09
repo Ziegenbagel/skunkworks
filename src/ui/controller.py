@@ -561,6 +561,33 @@ class MissionControlDataService:
         if policy.mode == ExecutionMode.APPROVE and fingerprint is None:
             return {"status": "awaiting_approval", "message": "Select and approve a queued command."}
         if policy.mode == ExecutionMode.AUTOMATIC:
+            if fingerprint is not None:
+                # Automatic commands normally execute only when their
+                # disposition is ready. A risk acknowledgement is the one
+                # operator-gated exception: execute the exact fingerprint the
+                # operator acknowledged instead of filtering it back out as
+                # awaiting_risk_acknowledgement.
+                prepared = candidates[0]
+                if (
+                    prepared.disposition != "awaiting_risk_acknowledgement"
+                    or not risk_acknowledged
+                ):
+                    return {
+                        "status": "idle",
+                        "message": "The selected automatic command still requires risk acknowledgement.",
+                    }
+                runtime = AutomationRuntime(
+                    capabilities=self.capabilities,
+                    data_engine=self.data_engine,
+                    policy=policy,
+                    dispatcher=CapabilityDispatcher(self.capabilities),
+                    refresh=self._refresh_operations,
+                )
+                result = runtime.execute(
+                    prepared,
+                    risk_acknowledged=True,
+                )
+                return self._execution_result(prepared, result)
             candidates = [item for item in candidates if item.disposition == "ready"]
             if not candidates:
                 return {
