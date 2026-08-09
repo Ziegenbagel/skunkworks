@@ -85,12 +85,15 @@ class TravelSafetyService:
             origin,
             segmented_hops,
         )
-        options = self._unique_options(direct, segmented)
         if route_mode == "segmented":
-            recommended = next(
-                option for option in options if option.name == "segmented"
-            )
+            # Adjacent destinations make direct and segmented routes
+            # identical. Put the required mode first so de-duplication keeps
+            # its identity instead of dropping it and leaving no segmented
+            # option to select.
+            options = self._unique_options(segmented, direct)
+            recommended = options[0]
         else:
+            options = self._unique_options(direct, segmented)
             recommended = min(options, key=lambda option: option.score)
         current_integrity = self._integrity()
         hazard_knowledge = tuple(

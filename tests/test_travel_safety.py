@@ -65,6 +65,20 @@ class TravelSafetyTests(unittest.TestCase):
             3,
         )
 
+    def test_segmented_mode_handles_an_adjacent_one_hop_destination(self):
+        operations = build_operations()
+
+        assessment = operations.travel_safety.assess(
+            SectorCoordinates(1, 1, 0),
+            route_mode="segmented",
+        )
+
+        self.assertEqual(assessment.recommended.name, "segmented")
+        self.assertEqual(
+            assessment.recommended.hops,
+            (SectorCoordinates(1, 1, 0),),
+        )
+
     def test_scut_corridor_makes_direct_route_preferred(self):
         operations = build_operations()
         operations.world.hazard_context = {
