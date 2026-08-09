@@ -99,6 +99,11 @@ class RepairGoal:
 @dataclass(frozen=True)
 class TravelGoal:
     target: SectorCoordinates
+    route_mode: str = "recommended"
+
+    def __post_init__(self):
+        if self.route_mode not in {"recommended", "segmented"}:
+            raise ValueError("Travel route mode must be recommended or segmented.")
 
 
 @dataclass(frozen=True)
@@ -213,7 +218,10 @@ class DesiredState:
                 TravelGoal(
                     target=SectorCoordinates.from_api(
                         travel_target
-                    )
+                    ),
+                    route_mode=(
+                        value.get("travelRouteMode") or "recommended"
+                    ),
                 )
                 if travel_target is not None
                 else None
@@ -262,6 +270,11 @@ class DesiredState:
                     "y": self.travel.target.y,
                     "z": self.travel.target.z,
                 }
+                if self.travel is not None
+                else None
+            ),
+            "travelRouteMode": (
+                self.travel.route_mode
                 if self.travel is not None
                 else None
             ),

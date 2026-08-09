@@ -190,6 +190,10 @@ class TransportCycleTests(unittest.TestCase):
                 DesiredStateStore(engine).load(7).travel.target,
                 SectorCoordinates(2, 0, 0),
             )
+            self.assertEqual(
+                DesiredStateStore(engine).load(7).travel.route_mode,
+                "segmented",
+            )
             self.assertTrue(service.delete_transport_cycle(operation["id"]))
             self.assertEqual(engine.operation_records(), [])
 
@@ -225,6 +229,15 @@ class TransportCycleTests(unittest.TestCase):
                 DesiredStateStore(engine).load(7).travel.target,
                 SectorCoordinates(2, 0, 0),
             )
+            self.assertEqual(
+                DesiredStateStore(engine).load(7).travel.route_mode,
+                "segmented",
+            )
+
+            paused = service.pause_transport_cycle(operation["id"])
+
+            self.assertEqual(paused["state"], "paused")
+            self.assertIsNone(DesiredStateStore(engine).load(7).travel)
 
     def test_unloading_uses_target_free_space_and_protects_return_fuel(self):
         from src.data import DataEngine

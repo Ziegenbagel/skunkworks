@@ -407,7 +407,10 @@ class MissionControlDataService:
         for _ in range(6):
             if phase == "to_source":
                 if current_sector != source:
-                    save_desired(replace(desired, travel=TravelGoal(source)))
+                    save_desired(replace(
+                        desired,
+                        travel=TravelGoal(source, "segmented"),
+                    ))
                     return desired, []
                 save_phase("loading")
                 continue
@@ -429,7 +432,10 @@ class MissionControlDataService:
 
             if phase == "to_destination":
                 if current_sector != destination:
-                    save_desired(replace(desired, travel=TravelGoal(destination)))
+                    save_desired(replace(
+                        desired,
+                        travel=TravelGoal(destination, "segmented"),
+                    ))
                     return desired, []
                 save_phase("unloading")
                 continue
@@ -479,7 +485,10 @@ class MissionControlDataService:
 
             if phase == "to_return":
                 if current_sector != return_point:
-                    save_desired(replace(desired, travel=TravelGoal(return_point)))
+                    save_desired(replace(
+                        desired,
+                        travel=TravelGoal(return_point, "segmented"),
+                    ))
                     return desired, []
                 if cycle.get("repeat", True):
                     save_phase("to_source")
@@ -852,7 +861,10 @@ class MissionControlDataService:
     def start_transport_cycle(self, operation_id):
         store = OperationStore(self.data_engine)
         operation = store.get(operation_id)
-        if operation is None or operation.metadata.get("template") != "round_trip_transport":
+        if (
+            operation is None
+            or operation.metadata.get("template") != "round_trip_transport"
+        ):
             raise ValueError("Saved transport operation was not found.")
         if int(operation.probe_id or -1) != int(self._selected_probe_id):
             raise ValueError("Focus the transport probe assigned to this route before starting it.")
@@ -909,7 +921,11 @@ class MissionControlDataService:
         DesiredStateStore(self.data_engine).save(
             replace(
                 current,
-                travel=TravelGoal(next_target) if next_target is not None else None,
+                travel=(
+                    TravelGoal(next_target, "segmented")
+                    if next_target is not None
+                    else None
+                ),
             ),
             operation.probe_id,
         )
@@ -923,7 +939,10 @@ class MissionControlDataService:
     def delete_transport_cycle(self, operation_id):
         store = OperationStore(self.data_engine)
         operation = store.get(operation_id)
-        if operation is None or operation.metadata.get("template") != "round_trip_transport":
+        if (
+            operation is None
+            or operation.metadata.get("template") != "round_trip_transport"
+        ):
             raise ValueError("Saved transport operation was not found.")
         if operation.state.value == "active":
             current = DesiredStateStore(self.data_engine).load(operation.probe_id)
@@ -940,6 +959,23 @@ class MissionControlDataService:
         if not store.delete(operation_id):
             raise RuntimeError("Transport operation could not be removed.")
         return str(operation_id)
+
+    def pause_transport_cycle(self, operation_id):
+        store = OperationStore(self.data_engine)
+        operation = store.get(operation_id)
+        if (
+            operation is None
+            or operation.metadata.get("template") != "round_trip_transport"
+        ):
+            raise ValueError("Saved transport operation was not found.")
+        if operation.state.value != "active":
+            raise ValueError("Only an active transport route can be paused.")
+        current = DesiredStateStore(self.data_engine).load(operation.probe_id)
+        DesiredStateStore(self.data_engine).save(
+            replace(current, travel=None),
+            operation.probe_id,
+        )
+        return store.save(operation.pause("Paused by operator.")).to_dict()
 
     def rename_probe(self, name):
         return self.capabilities.probes.update(self._selected_probe_id, name=name.strip())
@@ -2158,6 +2194,28 @@ class MissionControlController(QObject):
         automation["travelTarget"] = DesiredStateStore(
             self.service.data_engine,
         ).load(self._focused_probe_id).to_dict().get("travelTarget")
+        self._dashboard["automation"] = automation
+        self._set_error("")
+        self.dashboardChanged.emit()
+
+    @Slot(str)
+    def pauseTransportCycle(self, operation_id):
+        if self.service is None:
+            self._set_error(
+                "Refresh live account data before pausing a transport route."
+            )
+            return
+        try:
+            operation = self.service.pause_transport_cycle(operation_id)
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        automation = dict(self._dashboard.get("automation", {}))
+        automation["transportCycles"] = [
+            self._qt_safe(operation) if item.get("id") == operation_id else item
+            for item in automation.get("transportCycles", ())
+        ]
+        automation["travelTarget"] = None
         self._dashboard["automation"] = automation
         self._set_error("")
         self.dashboardChanged.emit()

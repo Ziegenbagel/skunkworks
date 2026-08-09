@@ -37,7 +37,10 @@ def plan(operations, desired_state) -> list[Task]:
     if blockers == ["already_at_destination"]:
         return []
 
-    assessment = operations.travel_safety.assess(target)
+    assessment = operations.travel_safety.assess(
+        target,
+        route_mode=desired_state.travel.route_mode,
+    )
     route = (
         assessment.recommended.hops
         if assessment is not None
@@ -68,7 +71,7 @@ def plan(operations, desired_state) -> list[Task]:
             reason=(
                 f"Desired destination is "
                 f"{target.x}:{target.y}:{target.z}; "
-                f"recommended route is {route_name} "
+                f"selected route is {route_name} "
                 f"with {distance} hop(s)."
             ),
             category="travel",

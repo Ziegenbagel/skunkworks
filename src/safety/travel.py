@@ -68,7 +68,7 @@ class TravelSafetyService:
         self.travel = travel
         self.policy = policy
 
-    def assess(self, destination):
+    def assess(self, destination, route_mode="recommended"):
         origin = self.travel.current_sector()
 
         if origin is None:
@@ -86,7 +86,12 @@ class TravelSafetyService:
             segmented_hops,
         )
         options = self._unique_options(direct, segmented)
-        recommended = min(options, key=lambda option: option.score)
+        if route_mode == "segmented":
+            recommended = next(
+                option for option in options if option.name == "segmented"
+            )
+        else:
+            recommended = min(options, key=lambda option: option.score)
         current_integrity = self._integrity()
         hazard_knowledge = tuple(
             (

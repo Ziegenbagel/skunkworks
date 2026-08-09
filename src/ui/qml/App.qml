@@ -425,6 +425,11 @@ ApplicationWindow {
             if (window.backend) window.backend.startTransportCycle(operationId);
         }
 
+        function onTransportCyclePauseRequested(operationId) {
+            AudioManager.play("cancel");
+            if (window.backend) window.backend.pauseTransportCycle(operationId);
+        }
+
         function onTransportCycleDeleteRequested(operationId) {
             AudioManager.play("cancel");
             if (window.backend) window.backend.deleteTransportCycle(operationId);

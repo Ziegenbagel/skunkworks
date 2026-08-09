@@ -20,6 +20,15 @@ from tests.test_planner_missions import build_operations
 
 
 class DesiredStateTests(unittest.TestCase):
+    def test_segmented_travel_mode_round_trips(self):
+        state = DesiredState(
+            travel=TravelGoal(SectorCoordinates(3, 3, 0), "segmented"),
+        )
+
+        restored = DesiredState.from_dict(state.to_dict())
+
+        self.assertEqual(restored.travel, state.travel)
+
     def test_planner_defaults_to_empty_desired_state(self):
         planner = Planner(operations=object())
 
@@ -115,6 +124,36 @@ class DesiredStateTests(unittest.TestCase):
         self.assertEqual(travel.action, "Prepare Probe Travel")
         self.assertIn("route_leaves_scut_coverage", travel.constraints)
         self.assertEqual(travel.destination, destination)
+
+    def test_segmented_travel_goal_never_collapses_to_direct_route(self):
+        destination = SectorCoordinates(3, 3, 0)
+        operations = build_operations()
+        operations.world.hazard_context = {
+            "scutNetworks": [{"network": {"relays": [
+                {
+                    "status": "on",
+                    "isTransitBeacon": True,
+                    "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+                },
+                {
+                    "status": "on",
+                    "isTransitBeacon": True,
+                    "sector": {"relative": {"x": 3, "y": 3, "z": 0}},
+                },
+            ]}}],
+        }
+
+        travel = next(
+            task for task in Planner(
+                operations,
+                DesiredState(travel=TravelGoal(destination, "segmented")),
+            ).tasks()
+            if task.category == "travel"
+        )
+
+        self.assertEqual(len(travel.route), 3)
+        self.assertEqual(travel.route[0], SectorCoordinates(1, 1, 0))
+        self.assertNotEqual(travel.route[0], destination)
 
     def test_negative_goal_is_invalid(self):
         with self.assertRaises(ValueError):

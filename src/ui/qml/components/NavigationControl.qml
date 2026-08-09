@@ -21,6 +21,7 @@ Item {
     signal autonomousTargetCancelRequested()
     signal transportCycleRequested(var plan)
     signal transportCycleStartRequested(string operationId)
+    signal transportCyclePauseRequested(string operationId)
     signal transportCycleDeleteRequested(string operationId)
     property var selectedTransportCycle: ({})
 
@@ -263,6 +264,11 @@ Item {
                                         transportReview.open();
                                     }
                                 }
+                                Button {
+                                    visible: String(cycleRow.modelData.state || "planned") === "active"
+                                    text: "PAUSE ROUTE"
+                                    onClicked: root.transportCyclePauseRequested(String(cycleRow.modelData.id))
+                                }
                             }
                         }
                     }
@@ -331,7 +337,8 @@ Item {
                 Button { text: "REMOVE ROUTE"; onClicked: { root.transportCycleDeleteRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
                 Item { Layout.fillWidth: true }
                 Button { text: "CLOSE"; onClicked: transportReview.close() }
-                Button { text: String(root.selectedTransportCycle.state || "planned") === "active" ? "ACTIVE" : "CONFIRM & START"; enabled: String(root.selectedTransportCycle.state || "planned") !== "active"; onClicked: { root.transportCycleStartRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
+                Button { visible: String(root.selectedTransportCycle.state || "planned") === "active"; text: "PAUSE ACTIVE ROUTE"; onClicked: { root.transportCyclePauseRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
+                Button { visible: String(root.selectedTransportCycle.state || "planned") !== "active"; text: "CONFIRM & START"; onClicked: { root.transportCycleStartRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
             }
         }
     }
