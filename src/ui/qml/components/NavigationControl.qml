@@ -58,7 +58,7 @@ Item {
             ,"sourceProbeId": loadSourceMode.currentValue === "probe" ? (sourceProbe.currentValue || null) : null
             ,"destinationProbeId": destinationProbe.currentValue || null
             ,"loadAmount": root.tankerEligible && resourceType.currentValue === "deuterium" ? loadAmount.value : null
-            ,"unloadAmount": root.tankerEligible && resourceType.currentValue === "deuterium" ? unloadAmount.value : null
+            ,"unloadAmount": null
         };
     }
 
@@ -228,8 +228,6 @@ Item {
                             RowLayout { visible: !(root.tankerEligible && resourceType.currentValue === "deuterium"); SpinBox { id: unloadThreshold; from: 0; to: 99; value: 10; editable: true } Label { text: "% REMAINS" } }
                             Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "LOAD TANK TO"; color: Constants.textColor; font.family: Constants.technicalFont }
                             RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: loadAmount; from: 0; to: 800; value: 400; editable: true } Label { text: "ECE (MAX 800)" } }
-                            Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "LEAVE IN TANK"; color: Constants.textColor; font.family: Constants.technicalFont }
-                            RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: unloadAmount; from: 0; to: 800; value: 0; editable: true } Label { text: "ECE REMAINS" } }
                             Label { text: "PROTECTED DEUTERIUM"; color: Constants.warningColor; font.family: Constants.technicalFont }
                             RowLayout { SpinBox { id: protectedFuel; from: 0; to: 100; value: 20; editable: true } Label { text: "% FLOOR" } }
                             Label { text: "CONTINGENCY"; color: Constants.textColor; font.family: Constants.technicalFont }
@@ -325,7 +323,7 @@ Item {
             Label { Layout.fillWidth: true; text: String(transportReview.cycle.resourceType || "resource").replace("_", " ").toUpperCase() + " · " + (String(transportReview.cycle.loadSourceMode || "probe") === "mine_in_sector" ? "MINE IN SECTOR" : "LOAD FROM PROBE"); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; text: "1 · TRAVEL TO " + root.coordinateLabel(transportReview.cycle.source); color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; text: "2 · " + (String(transportReview.cycle.loadSourceMode || "probe") === "mine_in_sector" ? "MINE " + String(transportReview.cycle.resourceType || "resource").replace("_", " ").toUpperCase() : "LOAD FROM PROBE " + String(transportReview.cycle.sourceProbeId || "UNSELECTED")) + (transportReview.cycle.loadAmount !== null && transportReview.cycle.loadAmount !== undefined ? " UNTIL " + Number(transportReview.cycle.loadAmount) + " ECE" : " UNTIL " + Number(transportReview.cycle.loadUntilPercent || 0) + "% FULL"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-            Label { Layout.fillWidth: true; text: "3 · TRAVEL TO " + root.coordinateLabel(transportReview.cycle.destination) + " AND UNLOAD INTO PROBE " + String(transportReview.cycle.destinationProbeId || "UNSELECTED") + (transportReview.cycle.unloadAmount !== null && transportReview.cycle.unloadAmount !== undefined ? " UNTIL " + Number(transportReview.cycle.unloadAmount) + " ECE REMAINS" : " UNTIL " + Number(transportReview.cycle.unloadUntilPercent || 0) + "% REMAINS"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: "3 · TRAVEL TO " + root.coordinateLabel(transportReview.cycle.destination) + " AND KEEP FILLING PROBE " + String(transportReview.cycle.destinationProbeId || "UNSELECTED") + " AS SPACE OPENS, UNTIL THE TANKER REACHES ITS PROTECTED RETURN RESERVE"; color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; text: "4 · RETURN TO " + root.coordinateLabel(transportReview.cycle.returnPoint) + (transportReview.cycle.repeat ? " AND REPEAT" : " AND COMPLETE"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; text: "SAFETY · PROTECT " + Number(transportReview.cycle.protectedDeuterium || 0) + "% DEUTERIUM PLUS " + Number(transportReview.cycle.reserveHops || 0) + " RESERVE HOPS"; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
             RowLayout {

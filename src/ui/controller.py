@@ -29,8 +29,7 @@ from src.presentation import MissionControlViewModelBuilder
 from src.recipes.manager import RecipeManager
 from src.safety.policy import TravelSafetyPolicyStore
 from src.safety.resources import ResourceSafetyPolicyStore
-from src.planner.desired_state import DesiredState
-from src.planner.desired_state import TravelGoal
+from src.planner.desired_state import DesiredState, FuelGoal, TravelGoal
 from src.planner.desired_state_store import DesiredStateStore
 from src.models.galaxy import SectorCoordinates
 from src.snapshot.manager import SnapshotManager
@@ -318,10 +317,18 @@ class MissionControlDataService:
             self._prepared_commands = ()
             tasks = ()
         else:
+            desired = DesiredStateStore(self.data_engine).load(probe_id)
+            desired, transport_tasks = self._reconcile_transport_operation(
+                operations,
+                probe_id,
+                desired,
+            )
             tasks = Planner(
                 operations,
-                DesiredStateStore(self.data_engine).load(probe_id),
+                desired,
             ).tasks()
+            tasks.extend(transport_tasks)
+            tasks.sort(key=lambda task: task.priority)
             self._prepared_commands = CommandPreparer(
                 operations, probe_id, policy,
             ).prepare(tasks)
@@ -341,6 +348,147 @@ class MissionControlDataService:
             } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
         }
+
+    def _reconcile_transport_operation(self, operations, probe_id, desired):
+        """Advance one active route from authoritative live telemetry."""
+        store = OperationStore(self.data_engine)
+        operation = next((
+            item for item in store.all()
+            if item.metadata.get("template") == "round_trip_transport"
+            and int(item.probe_id or -1) == int(probe_id)
+            and item.state.value == "active"
+        ), None)
+        if operation is None:
+            return desired, []
+
+        cycle = operation.metadata.get("cycle") or {}
+        source = SectorCoordinates.from_api(cycle["source"])
+        destination = SectorCoordinates.from_api(cycle["destination"])
+        return_point = SectorCoordinates.from_api(cycle["returnPoint"])
+        current_sector = operations.travel.current_sector()
+        probe = operations.world.probe
+        fuel = probe.get("fuel") or {}
+        fuel_amount = float(fuel.get("deuterium", 0) or 0)
+        fuel_maximum = float(fuel.get("maxDeuterium", 0) or 0)
+        load_amount = cycle.get("loadAmount")
+        load_target = (
+            float(load_amount)
+            if load_amount is not None
+            else fuel_maximum * float(cycle.get("loadUntilPercent", 100)) / 100
+        )
+        protected = (
+            fuel_maximum * float(cycle.get("protectedDeuterium", 0)) / 100
+            + (
+                destination.distance_to(return_point)
+                + int(cycle.get("reserveHops", 0) or 0)
+            ) * operations.travel.fuel_cost()
+        )
+        phase = operation.metadata.get("transportPhase", "to_source")
+
+        def save_phase(value):
+            nonlocal operation, phase
+            if value == phase:
+                return
+            phase = value
+            operation = replace(
+                operation,
+                metadata={**operation.metadata, "transportPhase": value},
+            )
+            store.save(operation)
+
+        def save_desired(value):
+            nonlocal desired
+            if value != desired:
+                desired = value
+                DesiredStateStore(self.data_engine).save(desired, probe_id)
+
+        # Bound the reconciliation loop so already-completed phases collapse
+        # in one refresh without permitting an accidental busy loop.
+        for _ in range(6):
+            if phase == "to_source":
+                if current_sector != source:
+                    save_desired(replace(desired, travel=TravelGoal(source)))
+                    return desired, []
+                save_phase("loading")
+                continue
+
+            if phase == "loading":
+                if fuel_amount + 0.0001 < load_target:
+                    target_percent = min(
+                        100,
+                        load_target / fuel_maximum * 100 if fuel_maximum else 100,
+                    )
+                    save_desired(replace(
+                        desired,
+                        travel=None,
+                        fuel=FuelGoal(target_percent, desired.fuel.priority),
+                    ))
+                    return desired, []
+                save_phase("to_destination")
+                continue
+
+            if phase == "to_destination":
+                if current_sector != destination:
+                    save_desired(replace(desired, travel=TravelGoal(destination)))
+                    return desired, []
+                save_phase("unloading")
+                continue
+
+            if phase == "unloading":
+                save_desired(replace(desired, travel=None))
+                transferable = max(0.0, fuel_amount - protected)
+                if transferable < 0.01:
+                    save_phase("to_return")
+                    continue
+                target_id = cycle.get("destinationProbeId")
+                blockers = []
+                target = None
+                if target_id in {None, ""}:
+                    blockers.append("destination_probe_not_selected")
+                else:
+                    try:
+                        response = self.client.get_probe(int(target_id))
+                        target = response.get("probe", response)
+                    except Exception:
+                        blockers.append("destination_probe_unavailable")
+                target_fuel = (target or {}).get("fuel") or {}
+                target_free = max(
+                    0.0,
+                    float(target_fuel.get("maxDeuterium", 0) or 0)
+                    - float(target_fuel.get("deuterium", 0) or 0),
+                )
+                if target is not None and target.get("status") != "idle":
+                    blockers.append("destination_probe_unavailable")
+                if target is not None and target_free < 0.01:
+                    # Remain docked and check again on the next transport tick.
+                    return desired, []
+                amount = min(transferable, target_free)
+                return desired, [Task(
+                    action="Transfer Deuterium",
+                    reason=(
+                        f"Fill probe {target_id} by up to {amount:.2f} ECE; "
+                        f"preserve {protected:.2f} ECE for return and contingency."
+                    ),
+                    category="transport",
+                    target=str(target_id or ""),
+                    quantity=amount,
+                    constraints=tuple(dict.fromkeys(blockers)),
+                    resource_type="deuterium",
+                    priority=1,
+                )]
+
+            if phase == "to_return":
+                if current_sector != return_point:
+                    save_desired(replace(desired, travel=TravelGoal(return_point)))
+                    return desired, []
+                if cycle.get("repeat", True):
+                    save_phase("to_source")
+                    continue
+                save_desired(replace(desired, travel=None))
+                store.save(operation.advance())
+                return desired, []
+
+        return desired, []
 
     @staticmethod
     def _prepared_view(prepared):
@@ -721,12 +869,54 @@ class MissionControlDataService:
             raise ValueError("This probe already has an active transport route. Remove it before starting another.")
         cycle = operation.metadata.get("cycle") or {}
         source = SectorCoordinates.from_api(cycle["source"])
+        destination = SectorCoordinates.from_api(cycle["destination"])
+        current_sector = (
+            self._operations.travel.current_sector()
+            if self._operations is not None
+            else None
+        )
+        fuel = (
+            self._operations.world.probe.get("fuel", {})
+            if self._operations is not None
+            else {}
+        )
+        fuel_amount = float(fuel.get("deuterium", 0) or 0)
+        fuel_maximum = float(fuel.get("maxDeuterium", 0) or 0)
+        load_amount = cycle.get("loadAmount")
+        load_ready = (
+            fuel_amount >= float(load_amount)
+            if load_amount is not None
+            else fuel_maximum > 0
+            and fuel_amount / fuel_maximum * 100
+            >= float(cycle.get("loadUntilPercent", 100))
+        )
+        # Reconcile the saved itinerary with live state at activation. A
+        # tanker already at its source and above the load threshold must not
+        # wait forever on two steps that are already complete.
+        if current_sector == source and load_ready:
+            next_target = destination
+            phase = "to_destination"
+        elif current_sector == source:
+            next_target = None
+            phase = "loading"
+        elif current_sector == destination:
+            next_target = None
+            phase = "unloading"
+        else:
+            next_target = source
+            phase = "to_source"
         current = DesiredStateStore(self.data_engine).load(operation.probe_id)
         DesiredStateStore(self.data_engine).save(
-            replace(current, travel=TravelGoal(source)),
+            replace(
+                current,
+                travel=TravelGoal(next_target) if next_target is not None else None,
+            ),
             operation.probe_id,
         )
-        operation = operation.activate()
+        operation = replace(
+            operation.activate(),
+            metadata={**operation.metadata, "transportPhase": phase},
+        )
         store.save(operation)
         return operation.to_dict()
 
@@ -1583,6 +1773,15 @@ class MissionControlController(QObject):
 
     def _configure_automation_timer(self, runtime):
         enabled = runtime.get("mode") == "automatic" and runtime.get("liveExecutionEnabled")
+        active_transport = any(
+            item.get("state") == "active"
+            for item in self._dashboard.get("automation", {}).get(
+                "transportCycles", ()
+            )
+        )
+        self._automation_timer.setInterval(
+            60_000 if active_transport else 5 * 60_000
+        )
         if not enabled:
             for probe in self._available_probes:
                 policy = ExecutionPolicyStore().load(int(probe["id"]))

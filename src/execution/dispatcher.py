@@ -39,6 +39,13 @@ class CapabilityDispatcher:
         )
 
     def _manny_mine(self, command):
+        if command.metadata.get("transportTransfer"):
+            return self.capabilities.mannies.start_task(
+                command.probe_id,
+                command.target_id,
+                "transfer-deuterium-to-probe",
+                command.payload,
+            )
         return self.capabilities.mannies.start_task(
             command.probe_id,
             command.target_id,

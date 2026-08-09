@@ -20,9 +20,30 @@ class TaskCommandTranslator:
             "Move Probe": self._move,
             "Assemble Probe": self._assemble_probe,
             "Repair Probe": self._repair,
+            "Transfer Deuterium": self._transfer_deuterium,
         }.get(task.action)
 
         return handler(task) if handler is not None else None
+
+    def _transfer_deuterium(self, task):
+        manny = self._claim_idle_manny()
+        if manny is None:
+            return None
+        return Command(
+            # Transport loading/unloading is an automatic Manny resource
+            # operation and intentionally follows the Mining allowlist.
+            type=CommandType.MANNY_MINE,
+            probe_id=self.probe_id,
+            target_id=manny["id"],
+            payload={
+                "targetProbeId": int(task.target),
+                "amount": round(float(task.quantity), 2),
+            },
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+            metadata={"resource": "deuterium", "transportTransfer": True},
+        )
 
     def _repair(self, task):
         manny = self._claim_idle_manny()

@@ -193,6 +193,82 @@ class TransportCycleTests(unittest.TestCase):
             self.assertTrue(service.delete_transport_cycle(operation["id"]))
             self.assertEqual(engine.operation_records(), [])
 
+    def test_start_skips_source_and_loading_when_tanker_is_already_full(self):
+        from src.data import DataEngine
+        from src.planner.desired_state_store import DesiredStateStore
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "transport.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            service._selected_probe_id = 7
+            service._operations = build_operations(fuel=100)
+            service._operations.world.probe["id"] = 7
+            service._operations.world.probe["model"] = "deuterium_tanker"
+            service._operations.world.probe["fuel"]["maxDeuterium"] = 100
+            operation = service.save_transport_cycle({
+                "probeId": 7,
+                "resourceType": "deuterium",
+                "source": {"x": 0, "y": 0, "z": 0},
+                "destination": {"x": 2, "y": 0, "z": 0},
+                "returnPoint": {"x": 0, "y": 0, "z": 0},
+                "loadAmount": 100,
+                "unloadAmount": 20,
+                "loadSourceMode": "mine_in_sector",
+            })
+
+            active = service.start_transport_cycle(operation["id"])
+
+            self.assertEqual(active["metadata"]["transportPhase"], "to_destination")
+            self.assertEqual(
+                DesiredStateStore(engine).load(7).travel.target,
+                SectorCoordinates(2, 0, 0),
+            )
+
+    def test_unloading_uses_target_free_space_and_protects_return_fuel(self):
+        from src.data import DataEngine
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        class Client:
+            def get_probe(self, probe_id):
+                return {"probe": {
+                    "id": probe_id,
+                    "status": "idle",
+                    "fuel": {"deuterium": 4, "maxDeuterium": 100},
+                }}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "transport.sqlite3")
+            service = MissionControlDataService(client=Client(), data_engine=engine)
+            service._selected_probe_id = 7
+            service._operations = build_operations(fuel=100)
+            service._operations.world.probe.update({"id": 7, "model": "deuterium_tanker"})
+            operation = service.save_transport_cycle({
+                "probeId": 7,
+                "resourceType": "deuterium",
+                "source": {"x": 2, "y": 0, "z": 0},
+                "destination": {"x": 0, "y": 0, "z": 0},
+                "returnPoint": {"x": 2, "y": 0, "z": 0},
+                "destinationProbeId": 9,
+                "loadAmount": 100,
+                "protectedDeuterium": 20,
+                "reserveHops": 1,
+            })
+            service.start_transport_cycle(operation["id"])
+
+            runtime = service.automation_view(service._operations, 7)
+            transfer = next(
+                item for item in runtime["queue"]
+                if item["metadata"].get("transportTransfer")
+            )
+
+            # 100 source - 20 protected - three 2-ECE travel hops leaves
+            # 74 ECE, less than the target's 96 ECE free capacity.
+            self.assertEqual(transfer["payload"]["amount"], 74)
+            self.assertEqual(transfer["payload"]["targetProbeId"], 9)
+
 
 if __name__ == "__main__":
     unittest.main()
