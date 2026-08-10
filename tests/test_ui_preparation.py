@@ -541,6 +541,42 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(view["recentTrailNodes"], ("1:1:0", "0:0:0"))
         self.assertEqual(history.probe_id, base.world.probe["id"])
 
+    def test_galaxy_view_exposes_active_scut_coverage_volumes(self):
+        base = build_operations()
+        base.world.hazard_context = {"scutNetworks": [{"network": {
+            "name": "Home Grid",
+            "relays": [{
+                "id": 17, "status": "on", "coverageRadiusSectors": 2,
+                "sector": {"relative": {"x": 4, "y": -1, "z": 3}},
+            }],
+        }}]}
+
+        view = MissionControlViewModelBuilder(base)._galaxy_view(
+            base.world, {"x": 0, "y": 0, "z": 0}
+        )
+
+        self.assertEqual(view["scutRanges"], ({
+            "id": "17", "x": 4, "y": -1, "z": 3, "radius": 2,
+            "networkName": "Home Grid",
+        },))
+
+    def test_sector_view_exposes_black_hole_destruction_deadline(self):
+        base = build_operations()
+        base.world.sector["snapshot"] = {"sector": {
+            "knowledgeLevel": "detailed", "confidence": 1,
+            "objects": [{
+                "id": "singularity", "type": "black_hole",
+                "destructionAt": "2030-01-02T03:04:05+00:00",
+            }],
+        }}
+
+        view = MissionControlViewModelBuilder(base)._sector_view(
+            base.world, {"x": 0, "y": 0, "z": 0}
+        )
+
+        self.assertTrue(view["blackHoleDanger"])
+        self.assertGreater(view["destructionEpochMs"], 0)
+
     def test_galaxy_resource_filter_unifies_game_and_api_compound_names(self):
         normalize = MissionControlViewModelBuilder._normalized_resource_type
 

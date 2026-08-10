@@ -22,6 +22,7 @@ Rectangle {
     property string sectorLabel: "FCC 0 / 0 / 0"
     property double currentEpochMs: Date.now()
     readonly property bool probeInTransit: ["preparing", "accelerating", "cruising", "decelerating", "traveling"].indexOf(String(focusProbe.status || "").toLowerCase()) >= 0
+    readonly property bool blackHoleDanger: Boolean(sectorData.blackHoleDanger)
     function headingLabel(value) { return value && typeof value === "object" ? [value.x || 0, value.y || 0, value.z || 0].join(":") : String(value || "—"); }
     function remainingLabel(movement) {
         if (Number(movement.arrivalEpochMs || 0) > 0) {
@@ -36,10 +37,19 @@ Rectangle {
         if (movement.estimatedArrival) { const seconds = Math.max(0, Math.floor((Date.parse(movement.estimatedArrival) - Date.now()) / 1000)); if (!isNaN(seconds)) return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S"; }
         return "AWAITING TELEMETRY";
     }
+    function destructionCountdown() {
+        const deadline = Number(root.sectorData.destructionEpochMs || 0);
+        if (deadline <= 0) return "COUNTDOWN TELEMETRY UNAVAILABLE";
+        const seconds = Math.max(0, Math.floor((deadline - root.currentEpochMs) / 1000));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        return (hours > 0 ? hours + " HR " : "") + minutes + " MIN " + remainder + " S";
+    }
 
     Timer {
         interval: 1000
-        running: root.visible && root.probeInTransit
+        running: root.visible && (root.probeInTransit || root.blackHoleDanger)
         repeat: true
         triggeredOnStart: true
         onTriggered: root.currentEpochMs = Date.now()
@@ -114,6 +124,34 @@ Rectangle {
     color: "#09141c"
     border.color: Constants.lineColor
     clip: true
+
+    onBlackHoleDangerChanged: if (blackHoleDanger) AudioManager.play("warning")
+    Component.onCompleted: if (blackHoleDanger) AudioManager.play("warning")
+
+    Rectangle {
+        id: blackHoleAlert
+        visible: root.blackHoleDanger
+        z: 1100
+        anchors.top: parent.top
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: 22
+        width: Math.min(parent.width - 44, 820)
+        height: 112
+        color: Qt.rgba(0.24, 0.01, 0.02, 0.94)
+        border.color: Constants.criticalColor
+        border.width: 3
+        radius: 4
+        Column {
+            anchors.centerIn: parent; spacing: 8
+            Label { anchors.horizontalCenter: parent.horizontalCenter; text: "⚠  BLACK HOLE RED ALERT  ⚠"; color: Constants.criticalColor; font.family: Constants.displayFont; font.pixelSize: 26; font.bold: true }
+            Label { anchors.horizontalCenter: parent.horizontalCenter; text: "PROBE DESTRUCTION · " + root.destructionCountdown(); color: "#ffb0b0"; font.family: Constants.technicalFont; font.pixelSize: 18; font.bold: true }
+        }
+        SequentialAnimation on opacity {
+            running: blackHoleAlert.visible; loops: Animation.Infinite
+            NumberAnimation { to: 0.42; duration: 1300; easing.type: Easing.InOutSine }
+            NumberAnimation { to: 1.0; duration: 1300; easing.type: Easing.InOutSine }
+        }
+    }
 
     Rectangle {
         visible: root.probeInTransit

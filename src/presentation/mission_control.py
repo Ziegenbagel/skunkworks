@@ -406,6 +406,24 @@ class MissionControlViewModelBuilder:
                     edges.append({"from": source["id"], "to": target["id"]})
         recent_route = self._recent_galaxy_route(world, nodes)
         recent_nodes = self._recent_galaxy_nodes(world, nodes)
+        scut_ranges = []
+        seen_relays = set()
+        for response in getattr(world, "hazard_context", {}).get("scutNetworks", ()):
+            network = response.get("network", {})
+            for relay in network.get("relays", ()):
+                relative = (relay.get("sector") or {}).get("relative")
+                relay_id = str(relay.get("id") or "")
+                if not relative or relay.get("status") != "on" or relay_id in seen_relays:
+                    continue
+                seen_relays.add(relay_id)
+                scut_ranges.append({
+                    "id": relay_id,
+                    "x": int(relative.get("x", 0)),
+                    "y": int(relative.get("y", 0)),
+                    "z": int(relative.get("z", 0)),
+                    "radius": max(0, int(relay.get("coverageRadiusSectors", 0) or 0)),
+                    "networkName": network.get("name", "SCUT network"),
+                })
         return {
             "nodes": tuple(nodes),
             "edges": tuple(edges),
@@ -415,6 +433,7 @@ class MissionControlViewModelBuilder:
             "recentTrailNodes": recent_nodes,
             "recentTrailCount": len(recent_route),
             "recentTrailProbeId": world.probe.get("id"),
+            "scutRanges": tuple(scut_ranges),
         }
 
     def _communications(self, probe):
@@ -644,8 +663,12 @@ class MissionControlViewModelBuilder:
         sector = snapshot.get("sector", snapshot)
         objects = []
         system = None
-        for item in sector.get("objects", ()) or ():
+        sector_objects = sector.get("objects", ()) or ()
+        black_holes = []
+        for item in sector_objects:
             view = self._sector_object(item)
+            if str(item.get("type", "")).casefold() == "black_hole":
+                black_holes.append(item)
             if item.get("type") == "solar_system":
                 system = {
                     **view,
@@ -679,6 +702,9 @@ class MissionControlViewModelBuilder:
                 "targetObjectId": str(target) if target is not None else "",
                 "progress": float(manny.get("taskProgressPercent", 0) or 0),
             })
+        destruction_epoch_ms = self._black_hole_destruction_epoch_ms(
+            sector, snapshot, black_holes
+        ) if black_holes else 0
         return {
             "label": self._sector_label(coordinates),
             "knowledgeLevel": sector.get("knowledgeLevel", "unknown"),
@@ -686,12 +712,44 @@ class MissionControlViewModelBuilder:
             "objects": tuple(objects),
             "system": system or {},
             "activeMannies": tuple(active_mannies),
+            "blackHoleDanger": bool(black_holes),
+            "destructionEpochMs": destruction_epoch_ms,
             "emptyReason": (
                 "Detailed scan reports no celestial or artificial objects in this sector."
                 if not objects and system is None and sector.get("knowledgeLevel") == "detailed"
                 else ""
             ),
         }
+
+    @classmethod
+    def _black_hole_destruction_epoch_ms(cls, sector, snapshot, black_holes):
+        """Extract a real destruction deadline without assuming one API shape."""
+        deadline_keys = (
+            "destructionAt", "destructionDeadline", "destroyAt", "destroyedAt",
+            "hazardDeadline", "deadline", "expiresAt", "expirationTime",
+        )
+        remaining_keys = (
+            "destructionRemainingSeconds", "secondsUntilDestruction",
+            "timeToDestruction", "remainingSeconds",
+        )
+        sources = [sector, snapshot, *black_holes]
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            for key in deadline_keys:
+                value = source.get(key)
+                epoch_ms = cls._completion_view(value)["epochMs"] if value else 0
+                if epoch_ms:
+                    return epoch_ms
+            for key in remaining_keys:
+                value = source.get(key)
+                try:
+                    seconds = float(value)
+                except (TypeError, ValueError):
+                    continue
+                if seconds >= 0:
+                    return int(datetime.now().timestamp() * 1000 + seconds * 1000)
+        return 0
 
     def navigation_view(self):
         world = self.operations.world

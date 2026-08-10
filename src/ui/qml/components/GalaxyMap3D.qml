@@ -36,6 +36,7 @@ Item {
     property bool hazardsOnly: false
     property bool salvageOnly: false
     property bool showRecentTrail: true
+    property bool showScutCoverage: false
     property bool filtersExpanded: true
     property bool showDeuterium: false
     property bool showMetals: false
@@ -54,6 +55,15 @@ Item {
     }
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
+
+    component CoverageEdge: Model {
+        source: "#Cube"
+        materials: DefaultMaterial {
+            lighting: DefaultMaterial.NoLighting
+            diffuseColor: "#176b45"
+            opacity: 0.72
+        }
+    }
 
     function stateEnabled(state) {
         return (state === "current" && showCurrent)
@@ -174,6 +184,30 @@ Item {
         }
 
         Repeater3D {
+            model: root.showScutCoverage ? (root.galaxyData.scutRanges || []) : []
+            delegate: Node {
+                id: coverageVolume
+                required property var modelData
+                readonly property real side: (Number(modelData.radius || 0) * 2 + 1) * root.spacing3D
+                readonly property real halfSide: side / 2
+                position: root.positionFor(modelData)
+
+                CoverageEdge { position: Qt.vector3d(0, coverageVolume.halfSide, coverageVolume.halfSide); scale: Qt.vector3d(coverageVolume.side / 100, 0.025, 0.025) }
+                CoverageEdge { position: Qt.vector3d(0, coverageVolume.halfSide, -coverageVolume.halfSide); scale: Qt.vector3d(coverageVolume.side / 100, 0.025, 0.025) }
+                CoverageEdge { position: Qt.vector3d(0, -coverageVolume.halfSide, coverageVolume.halfSide); scale: Qt.vector3d(coverageVolume.side / 100, 0.025, 0.025) }
+                CoverageEdge { position: Qt.vector3d(0, -coverageVolume.halfSide, -coverageVolume.halfSide); scale: Qt.vector3d(coverageVolume.side / 100, 0.025, 0.025) }
+                CoverageEdge { position: Qt.vector3d(coverageVolume.halfSide, 0, coverageVolume.halfSide); scale: Qt.vector3d(0.025, coverageVolume.side / 100, 0.025) }
+                CoverageEdge { position: Qt.vector3d(coverageVolume.halfSide, 0, -coverageVolume.halfSide); scale: Qt.vector3d(0.025, coverageVolume.side / 100, 0.025) }
+                CoverageEdge { position: Qt.vector3d(-coverageVolume.halfSide, 0, coverageVolume.halfSide); scale: Qt.vector3d(0.025, coverageVolume.side / 100, 0.025) }
+                CoverageEdge { position: Qt.vector3d(-coverageVolume.halfSide, 0, -coverageVolume.halfSide); scale: Qt.vector3d(0.025, coverageVolume.side / 100, 0.025) }
+                CoverageEdge { position: Qt.vector3d(coverageVolume.halfSide, coverageVolume.halfSide, 0); scale: Qt.vector3d(0.025, 0.025, coverageVolume.side / 100) }
+                CoverageEdge { position: Qt.vector3d(coverageVolume.halfSide, -coverageVolume.halfSide, 0); scale: Qt.vector3d(0.025, 0.025, coverageVolume.side / 100) }
+                CoverageEdge { position: Qt.vector3d(-coverageVolume.halfSide, coverageVolume.halfSide, 0); scale: Qt.vector3d(0.025, 0.025, coverageVolume.side / 100) }
+                CoverageEdge { position: Qt.vector3d(-coverageVolume.halfSide, -coverageVolume.halfSide, 0); scale: Qt.vector3d(0.025, 0.025, coverageVolume.side / 100) }
+            }
+        }
+
+        Repeater3D {
             model: root.visibleEdges
             delegate: Model {
                 id: linkModel
@@ -256,19 +290,19 @@ Item {
 
     Rectangle {
         anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 12
-        width: 350; height: 72; color: Qt.rgba(0.03, 0.08, 0.12, 0.90); border.color: Constants.lineColor
+        width: 500; height: 90; color: Qt.rgba(0.03, 0.08, 0.12, 0.90); border.color: Constants.lineColor
         Column {
             anchors.fill: parent; anchors.margins: 9; spacing: 4
             Label { text: "ROTATABLE FCC GALAXY SPACE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-            Label { text: "LEFT DRAG · ORBIT    RIGHT/MIDDLE DRAG · PAN    WHEEL · ZOOM"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
-            Label { text: root.nodes.length + " SECTORS · " + (root.galaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+            Label { text: "LEFT DRAG · ORBIT    RIGHT/MIDDLE DRAG · PAN    WHEEL · ZOOM"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+            Label { text: root.nodes.length + " SECTORS · " + (root.galaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
         }
     }
 
     Rectangle {
         anchors.left: parent.left; anchors.top: parent.top
-        anchors.leftMargin: 12; anchors.topMargin: 354
-        width: 520; height: root.filtersExpanded ? 405 : 42
+        anchors.leftMargin: 12; anchors.topMargin: 384
+        width: 560; height: root.filtersExpanded ? 455 : 48
         color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.lineColor
         clip: true
         Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -281,7 +315,7 @@ Item {
                 Label {
                     visible: !root.filtersExpanded
                     text: root.visibleNodes.length + " / " + root.nodes.length + " VISIBLE"
-                    color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 9
+                    color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12
                 }
                 Button {
                     text: root.filtersExpanded ? "▲" : "▼"
@@ -289,7 +323,7 @@ Item {
                     onClicked: root.filtersExpanded = !root.filtersExpanded
                 }
             }
-            Label { visible: root.filtersExpanded; text: "DISCOVERY STATE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+            Label { visible: root.filtersExpanded; text: "DISCOVERY STATE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
             GridLayout {
                 visible: root.filtersExpanded; Layout.fillWidth: true
                 columns: 3; columnSpacing: 4; rowSpacing: 2
@@ -303,7 +337,7 @@ Item {
                 Button { text: "ONLY VISITED"; onClicked: root.showOnlyState("visited") }
                 Button { text: "ONLY SCANNED"; onClicked: root.showOnlyState("scanned") }
             }
-            Label { visible: root.filtersExpanded; text: "HAS ANY SELECTED RESOURCE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+            Label { visible: root.filtersExpanded; text: "HAS ANY SELECTED RESOURCE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
             GridLayout {
                 visible: root.filtersExpanded; Layout.fillWidth: true
                 columns: 2; columnSpacing: 5; rowSpacing: 2
@@ -314,7 +348,7 @@ Item {
                 Label {
                     Layout.columnSpan: 2; Layout.fillWidth: true
                     text: "MULTIPLE SELECTED RESOURCES · LAVENDER"
-                    color: "#9d7cff"; font.family: Constants.technicalFont; font.pixelSize: 8
+                    color: "#9d7cff"; font.family: Constants.technicalFont; font.pixelSize: 12
                 }
             }
             GridLayout {
@@ -327,12 +361,17 @@ Item {
                     text: "FOCUSED PROBE · RECENT 10 TRAIL"
                     checked: root.showRecentTrail; onToggled: root.showRecentTrail = checked
                 }
+                CheckBox {
+                    Layout.columnSpan: 2
+                    text: "SHOW FULL SCUT COVERAGE VOLUMES"
+                    checked: root.showScutCoverage; onToggled: root.showScutCoverage = checked
+                }
             }
             Label {
                 visible: root.filtersExpanded; Layout.fillWidth: true
                 text: root.visibleNodes.length + " OF " + root.nodes.length + " SECTORS VISIBLE · "
                     + Number(root.galaxyData.recentTrailCount || 0) + " RECENT ROUTE SEGMENTS"
-                color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 9
+                color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12
             }
         }
     }
@@ -358,13 +397,13 @@ Item {
 
     Rectangle {
         anchors.left: parent.left; anchors.top: parent.top; anchors.leftMargin: 12; anchors.topMargin: 94
-        width: 470; height: 250; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
+        width: 520; height: 280; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 10; spacing: 5
             ComboBox { Layout.fillWidth: true; model: root.visibleNodes; textRole: "label"; onActivated: root.selectedNode = root.visibleNodes[currentIndex] }
             Label { text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-            Label { Layout.fillWidth: true; text: root.selectedNode ? "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 9; font.bold: true }
-            Label { Layout.fillWidth: true; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: root.selectedNode ? "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true }
+            Label { Layout.fillWidth: true; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
             ScrollView {
                 visible: root.selectedNode && (root.selectedNode.objects || []).length > 0
                 Layout.fillWidth: true; Layout.preferredHeight: 62; clip: true
@@ -376,33 +415,49 @@ Item {
                             id: objectDetail
                             required property var modelData; spacing: 4
                             Image { width: 28; height: 28; source: objectDetail.modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(objectDetail.modelData.type, objectDetail.modelData); fillMode: Image.PreserveAspectFit }
-                            Label { anchors.verticalCenter: parent.verticalCenter; text: (objectDetail.modelData.estimated ? "EST. " : "") + String(objectDetail.modelData.name || objectDetail.modelData.type).toUpperCase(); color: objectDetail.modelData.estimated ? Constants.warningColor : Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 9 }
+                            Label { anchors.verticalCenter: parent.verticalCenter; text: (objectDetail.modelData.estimated ? "EST. " : "") + String(objectDetail.modelData.name || objectDetail.modelData.type).toUpperCase(); color: objectDetail.modelData.estimated ? Constants.warningColor : Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
                         }
                     }
                 }
             }
-            Label { Layout.fillWidth: true; text: root.selectedNode ? "OBSERVED BY PROBES · " + ((root.selectedNode.probeIds || []).join(", ") || "NONE") + (root.selectedNode.lastVisitedAt ? "    LAST VISIT · " + root.selectedNode.lastVisitedAt : "") : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: root.selectedNode ? "OBSERVED BY PROBES · " + ((root.selectedNode.probeIds || []).join(", ") || "NONE") + (root.selectedNode.lastVisitedAt ? "    LAST VISIT · " + root.selectedNode.lastVisitedAt : "") : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {
-                Label { Layout.fillWidth: true; text: root.selectedNode ? "KNOWLEDGE " + String(root.selectedNode.knowledgeLevel).toUpperCase() + " · " + Math.round(root.selectedNode.confidence * 100) + "% CONFIDENCE" : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+                Label { Layout.fillWidth: true; text: root.selectedNode ? "KNOWLEDGE " + String(root.selectedNode.knowledgeLevel).toUpperCase() + " · " + Math.round(root.selectedNode.confidence * 100) + "% CONFIDENCE" : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
                 Button { text: "SCAN / REFRESH"; enabled: root.selectedNode !== null; onClicked: if (root.selectedNode) root.scanRequested(root.selectedNode.x, root.selectedNode.y, root.selectedNode.z) }
             }
         }
     }
 
-    Row {
-        anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12; spacing: 14
+    Column {
+        anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12; spacing: 8
+        Row {
+            spacing: 18
         Repeater {
-            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}]
+            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}]
             delegate: Row {
-                required property var modelData; spacing: 5
-                Rectangle { width: 10; height: 10; radius: 5; color: parent.modelData.color }
-                Label { text: parent.modelData.label; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+                required property var modelData; spacing: 8
+                Rectangle { width: 18; height: 18; radius: 9; color: parent.modelData.color }
+                Label { text: parent.modelData.label; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14 }
             }
         }
         Row {
-            spacing: 5
-            Rectangle { width: 18; height: 4; anchors.verticalCenter: parent.verticalCenter; color: Constants.warningColor }
-            Label { text: "FOCUSED PROBE RECENT TRAIL"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+            spacing: 8
+            Rectangle { width: 30; height: 7; anchors.verticalCenter: parent.verticalCenter; color: Constants.warningColor }
+            Label { text: "RECENT TRAIL"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14 }
+            Rectangle { width: 30; height: 4; anchors.verticalCenter: parent.verticalCenter; color: "#176b45" }
+            Label { text: "SCUT COVERAGE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14 }
+        }
+        }
+        Row {
+            spacing: 18
+            Repeater {
+                model: [{"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}]
+                delegate: Row {
+                    required property var modelData; spacing: 8
+                    Rectangle { width: 18; height: 18; radius: 9; color: parent.modelData.color }
+                    Label { text: parent.modelData.label; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14 }
+                }
+            }
         }
     }
 

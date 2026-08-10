@@ -16,6 +16,9 @@ Rectangle {
     readonly property var fleetData: dashboardData.fleet || ({})
     readonly property var probeData: dashboardData.probe || ({})
     readonly property var healthData: dashboardData.health || ({})
+    readonly property real focusedHullPercent: Number(probeData.integrityPercent === undefined ? 100 : probeData.integrityPercent)
+    readonly property bool criticalHull: focusedHullPercent < 10
+    onCriticalHullChanged: if (criticalHull) AudioManager.play("warning")
     readonly property var resourceRows: dashboardData.resources && dashboardData.resources.length ? dashboardData.resources : liveMode ? [] : [
         {
             "name": "Deuterium",
@@ -443,7 +446,7 @@ Rectangle {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: Math.round(155 * root.uiScale)
+                        Layout.preferredHeight: Math.round(190 * root.uiScale)
                         Layout.minimumHeight: Layout.preferredHeight
                         Layout.maximumHeight: Layout.preferredHeight
                         spacing: 10
@@ -455,11 +458,23 @@ Rectangle {
                             Layout.fillHeight: true
                             title: "Focused Probe Hull Integrity"
                             contentItem: Column {
-                                width: parent.width; spacing: 12
+                                width: parent.width; spacing: 10
+                                Label {
+                                    visible: root.criticalHull
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    text: "⚠ RED ALERT · CRITICAL HULL ⚠"
+                                    color: Constants.criticalColor
+                                    font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true
+                                    SequentialAnimation on opacity {
+                                        running: root.criticalHull; loops: Animation.Infinite
+                                        NumberAnimation { to: 0.35; duration: 1300; easing.type: Easing.InOutSine }
+                                        NumberAnimation { to: 1.0; duration: 1300; easing.type: Easing.InOutSine }
+                                    }
+                                }
                                 Label {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: Number((root.dashboardData.probe || {}).integrityPercent === undefined ? 100 : root.dashboardData.probe.integrityPercent).toFixed(1) + "%"
-                                    color: Number((root.dashboardData.probe || {}).integrityPercent || 0) < 50 ? Constants.criticalColor : Constants.nominalColor
+                                    color: root.focusedHullPercent < 50 ? Constants.criticalColor : Constants.nominalColor
                                     font.family: Constants.technicalFont; font.pixelSize: 28; font.bold: true
                                 }
                                 TelemetryBar {
