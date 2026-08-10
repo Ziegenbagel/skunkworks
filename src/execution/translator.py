@@ -1,5 +1,7 @@
 """Translate actionable planner tasks into typed commands."""
 
+import math
+
 from .commands import Command, CommandType
 
 
@@ -118,6 +120,7 @@ class TaskCommandTranslator:
         )
 
     def _mine(self, task):
+        idle_count = len(self.operations.mining.idle_mannies())
         manny = self._claim_idle_manny()
         resource_type = task.resource_type
 
@@ -126,10 +129,19 @@ class TaskCommandTranslator:
 
         cargo = manny.get("cargo") or {}
         trip_capacity = float(cargo.get("capacity", 0.05) or 0.05)
+        uncovered = float(task.quantity)
+        per_order_maximum = min(float(task.maximum_order_amount), 0.55)
+        # Use only as many Mannys as the deficit requires at the configured
+        # per-order maximum, then divide the work evenly among them. This
+        # avoids several long, identical trips whose combined deliveries
+        # exceed the actual reserve or fuel shortfall.
+        planned_workers = max(1, min(
+            idle_count,
+            math.ceil(uncovered / per_order_maximum),
+        ))
         target_amount = round(min(
-            float(task.quantity),
-            float(task.maximum_order_amount),
-            0.55,
+            uncovered / planned_workers,
+            per_order_maximum,
         ), 3)
         trips = max(1, int((target_amount / trip_capacity) + 0.999999))
         target_container = self._preferred_mining_container(task.target, resource_type)
@@ -155,6 +167,7 @@ class TaskCommandTranslator:
                 "orderAmount": target_amount,
                 "mannyCargoPerTrip": trip_capacity,
                 "estimatedTrips": trips,
+                "plannedMiningWorkers": planned_workers,
                 "remainingAmount": max(0, round(float(task.quantity) - target_amount, 3)),
             },
         )

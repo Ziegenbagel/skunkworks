@@ -230,6 +230,68 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertEqual(command.payload["targetAmount"], 0.25)
         self.assertEqual(command.metadata["remainingAmount"], 3.75)
 
+    def test_mining_deficit_is_evenly_split_across_only_needed_mannies(self):
+        operations = build_operations(metals=0)
+        operations.world.mannies["mannies"].extend([
+            {
+                "id": manny_id, "currentTask": None, "canReceiveOrders": True,
+                "location": {"type": "probe"},
+            }
+            for manny_id in (102, 103, 104)
+        ])
+        task = next(task for task in Planner(
+            operations,
+            DesiredState(
+                resources=(ResourceGoal("metals", 0.88, priority=2),),
+                maximum_mining_order_amount=0.25,
+            ),
+        ).tasks() if task.category == "mining")
+
+        from src.execution.translator import TaskCommandTranslator
+        command = TaskCommandTranslator(operations, 1).translate(task)
+
+        self.assertEqual(command.payload["targetAmount"], 0.22)
+        self.assertEqual(command.metadata["plannedMiningWorkers"], 4)
+
+    def test_small_mining_deficit_uses_one_manny(self):
+        operations = build_operations(metals=0)
+        operations.world.mannies["mannies"].extend([
+            {
+                "id": manny_id, "currentTask": None, "canReceiveOrders": True,
+                "location": {"type": "probe"},
+            }
+            for manny_id in (102, 103, 104)
+        ])
+        task = next(task for task in Planner(
+            operations,
+            DesiredState(
+                resources=(ResourceGoal("metals", 0.20, priority=2),),
+                maximum_mining_order_amount=0.25,
+            ),
+        ).tasks() if task.category == "mining")
+
+        from src.execution.translator import TaskCommandTranslator
+        command = TaskCommandTranslator(operations, 1).translate(task)
+
+        self.assertEqual(command.payload["targetAmount"], 0.20)
+        self.assertEqual(command.metadata["plannedMiningWorkers"], 1)
+
+    def test_fuel_refill_uses_exact_uncovered_deficit_and_probe_maximum(self):
+        operations = build_operations(fuel=78)
+        operations.world.probe["fuel"]["maxDeuterium"] = 400
+        operations.world.probe["fuel"]["deuterium"] = 312
+        tasks = Planner(
+            operations,
+            DesiredState(
+                fuel=FuelGoal(78.22),
+                maximum_mining_order_amount=0.25,
+            ),
+        ).tasks()
+
+        fuel_task = next(task for task in tasks if task.category == "fuel")
+        self.assertAlmostEqual(fuel_task.quantity, 0.88)
+        self.assertEqual(fuel_task.maximum_order_amount, 0.25)
+
     def test_mission_13_plans_capacity_and_travel(self):
         operations = build_operations(free_capacity=0.5)
         target = SectorCoordinates(2, 0, 0)
