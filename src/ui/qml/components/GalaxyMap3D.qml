@@ -428,12 +428,11 @@ Item {
         }
     }
 
-    Column {
-        anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12; spacing: 8
-        Row {
-            spacing: 18
+    Row {
+        anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12
+        spacing: 18
         Repeater {
-            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}]
+            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}]
             delegate: Row {
                 required property var modelData; spacing: 8
                 Rectangle { width: 18; height: 18; radius: 9; color: parent.modelData.color }
@@ -446,18 +445,6 @@ Item {
             Label { text: "RECENT TRAIL"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14 }
             Rectangle { width: 30; height: 4; anchors.verticalCenter: parent.verticalCenter; color: "#176b45" }
             Label { text: "SCUT COVERAGE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14 }
-        }
-        }
-        Row {
-            spacing: 18
-            Repeater {
-                model: [{"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}]
-                delegate: Row {
-                    required property var modelData; spacing: 8
-                    Rectangle { width: 18; height: 18; radius: 9; color: parent.modelData.color }
-                    Label { text: parent.modelData.label; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14 }
-                }
-            }
         }
     }
 
