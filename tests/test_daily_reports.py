@@ -85,6 +85,48 @@ class DailyProbeReportTests(unittest.TestCase):
         annotated = self.reporter.annotate_page(page, 762)
         self.assertFalse(annotated["isNewDailyReport"])
 
+    def test_explorer_report_omits_resource_rows_without_coordinates(self):
+        with self.engine._connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO resource_history (
+                    probe_id, observed_at, sector_x, sector_y, sector_z,
+                    object_id, classification, resource_type, amount, composition
+                ) VALUES (?, ?, NULL, NULL, NULL, ?, ?, ?, ?, NULL)
+                """,
+                (762, "2026-08-09T20:00:00+00:00", "unknown-rock", "asteroid", "metals", 4.0),
+            )
+
+        content = self.reporter.build(
+            {"id": 762, "name": "Explorer One"},
+            "explorer",
+            datetime(2026, 8, 8, 17, 0, tzinfo=self.now.tzinfo),
+            datetime(2026, 8, 9, 17, 0, tzinfo=self.now.tzinfo),
+        )
+
+        self.assertIn("Telemetry records without sector coordinates omitted: 1", content)
+        self.assertNotIn("Sector None:None:None", content)
+
+    def test_one_broken_report_does_not_break_refresh_or_other_probes(self):
+        created = []
+        original_build = self.reporter.build
+
+        def selectively_broken(probe, role, start, end):
+            if int(probe["id"]) == 1:
+                raise TypeError("bad historical telemetry")
+            return original_build(probe, role, start, end)
+
+        self.reporter.build = selectively_broken
+        result = self.reporter.generate_due(
+            ({"id": 1, "name": "Broken"}, {"id": 2, "name": "Healthy"}),
+            {"1": "explorer", "2": "hub"},
+            lambda probe_id, payload: created.append(probe_id) or {"page": {"id": 10}},
+        )
+
+        self.assertEqual(created, [2])
+        self.assertEqual(result["created"][0]["probeId"], 2)
+        self.assertEqual(result["failures"], [{"probeId": 1, "message": "bad historical telemetry"}])
+
 
 if __name__ == "__main__":
     unittest.main()

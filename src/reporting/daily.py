@@ -31,8 +31,8 @@ class DailyProbeReportService:
                 continue
             role = role_map.get(str(probe_id), "unassigned")
             title = f"{TITLE_PREFIX} · {cutoff.date().isoformat()}"
-            content = self.build(probe, role, start, cutoff)
             try:
+                content = self.build(probe, role, start, cutoff)
                 response = create_page(
                     probe_id,
                     {"title": title[:120], "content": content[:20000]},
@@ -169,8 +169,12 @@ class DailyProbeReportService:
             (probe_id, self._storage_stamp(start), self._storage_stamp(end)),
         )
         latest_sectors = {}
+        incomplete_observations = 0
         for row in observations:
             point = (row["sector_x"], row["sector_y"], row["sector_z"])
+            if not self._complete_point(point):
+                incomplete_observations += 1
+                continue
             latest_sectors.setdefault(point, row)
         resources = self.data_engine._rows(
             """
@@ -183,7 +187,12 @@ class DailyProbeReportService:
             (probe_id, self._storage_stamp(start), self._storage_stamp(end)),
         )
         latest_resources = {}
+        incomplete_resources = 0
         for row in resources:
+            point = (row["sector_x"], row["sector_y"], row["sector_z"])
+            if not self._complete_point(point):
+                incomplete_resources += 1
+                continue
             key = (row["sector_x"], row["sector_y"], row["sector_z"], row["object_id"], row["resource_type"])
             latest_resources.setdefault(key, row)
         by_sector = defaultdict(list)
@@ -191,6 +200,11 @@ class DailyProbeReportService:
             by_sector[(row["sector_x"], row["sector_y"], row["sector_z"])].append(row)
         points = sorted(set(latest_sectors) | set(by_sector))
         lines = ["EXPLORATION SURVEY", f"- Sectors scanned or surveyed: {len(points)}"]
+        incomplete = incomplete_observations + incomplete_resources
+        if incomplete:
+            lines.append(
+                f"- Telemetry records without sector coordinates omitted: {incomplete}"
+            )
         if not points:
             return lines + ["- No sector survey telemetry was retained in this window.", ""]
         for point in points:
@@ -260,6 +274,10 @@ class DailyProbeReportService:
     @staticmethod
     def _stamp(value):
         return value.strftime("%Y-%m-%d %H:%M %Z")
+
+    @staticmethod
+    def _complete_point(point):
+        return all(isinstance(value, int) and not isinstance(value, bool) for value in point)
 
     @staticmethod
     def _storage_stamp(value):
