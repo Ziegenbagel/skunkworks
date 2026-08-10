@@ -330,6 +330,28 @@ class TransportCycleTests(unittest.TestCase):
                 for item in runtime["queue"]
             ))
 
+    def test_completed_one_time_travel_is_retired_at_safe_destination(self):
+        from dataclasses import replace
+        from src.data import DataEngine
+        from src.planner.desired_state import TravelGoal
+        from src.planner.desired_state_store import DesiredStateStore
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "travel.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            operations = build_operations()
+            goal = replace(
+                DesiredStateStore(engine).load(7),
+                travel=TravelGoal(SectorCoordinates(0, 0, 0), "segmented"),
+            )
+            DesiredStateStore(engine).save(goal, 7)
+
+            service.automation_view(operations, 7)
+
+            self.assertIsNone(DesiredStateStore(engine).load(7).travel)
+
 
 if __name__ == "__main__":
     unittest.main()

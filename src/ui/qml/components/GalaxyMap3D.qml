@@ -274,6 +274,50 @@ Item {
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     }
 
+    // Project the FCC origin and positive axis markers over the 3D scene so
+    // their labels remain readable while the user orbits, pans, and zooms.
+    Repeater {
+        model: [
+            { "label": "0, 0, 0", "x": 0, "y": 0, "z": 0, "color": "#36d9ff" },
+            { "label": "X", "x": 1.15, "y": 0, "z": 0, "color": "#ff5d68" },
+            { "label": "Y", "x": 0, "y": 1.15, "z": 0, "color": "#39ff9a" },
+            { "label": "Z", "x": 0, "y": 0, "z": 1.15, "color": "#4f8cff" }
+        ]
+        delegate: Rectangle {
+            id: axisMarker
+            required property var modelData
+            readonly property vector3d projected: {
+                // Explicit camera dependencies keep mapFrom3DScene current.
+                const orbit = cameraOrigin.eulerRotation;
+                const center = cameraOrigin.position;
+                const zoom = camera.z;
+                return galaxyView.mapFrom3DScene(Qt.vector3d(
+                    Number(modelData.x) * root.spacing3D,
+                    Number(modelData.y) * root.spacing3D,
+                    Number(modelData.z) * root.spacing3D
+                ));
+            }
+            x: projected.x - width / 2
+            y: projected.y - height / 2
+            width: axisMarkerLabel.implicitWidth + 12
+            height: axisMarkerLabel.implicitHeight + 6
+            radius: 2
+            color: Qt.rgba(0.01, 0.04, 0.06, 0.86)
+            border.color: modelData.color
+            z: 2
+
+            Label {
+                id: axisMarkerLabel
+                anchors.centerIn: parent
+                text: axisMarker.modelData.label
+                color: axisMarker.modelData.color
+                font.family: Constants.technicalFont
+                font.pixelSize: 14
+                font.bold: true
+            }
+        }
+    }
+
     Component.onCompleted: Qt.callLater(root.resetCamera)
     onGalaxyDataChanged: Qt.callLater(root.resetCamera)
     onFocusedProbeIdChanged: Qt.callLater(root.resetCamera)

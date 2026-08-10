@@ -335,6 +335,11 @@ class MissionControlDataService:
             tasks = ()
         else:
             desired = DesiredStateStore(self.data_engine).load(probe_id)
+            desired = self._reconcile_completed_autonomous_travel(
+                operations,
+                probe_id,
+                desired,
+            )
             desired, transport_tasks, transport_scope = self._reconcile_transport_operation(
                 operations,
                 probe_id,
@@ -371,6 +376,37 @@ class MissionControlDataService:
             } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
         }
+
+    def _reconcile_completed_autonomous_travel(self, operations, probe_id, desired):
+        """Retire a one-time destination once its safe endpoint is reached."""
+        if desired.travel is None:
+            return desired
+
+        # A transport operation owns and continually advances its travel goal.
+        # Its endpoint is a phase boundary, not completion of the durable loop.
+        has_active_transport = any(
+            item.metadata.get("template") == "round_trip_transport"
+            and int(item.probe_id or -1) == int(probe_id)
+            and item.state.value == "active"
+            for item in OperationStore(self.data_engine).all()
+        )
+        if has_active_transport:
+            return desired
+
+        endpoint = desired.travel.target
+        if operations.travel_safety.is_black_hole_sector(endpoint):
+            endpoint = operations.travel_safety.nearest_safe_scut_sector(endpoint)
+        current = operations.travel.current_sector()
+        if (
+            endpoint is None
+            or current != endpoint
+            or operations.travel_safety.is_black_hole_sector(current)
+        ):
+            return desired
+
+        completed = replace(desired, travel=None)
+        DesiredStateStore(self.data_engine).save(completed, probe_id)
+        return completed
 
     def _reconcile_transport_operation(self, operations, probe_id, desired):
         """Advance one active route from authoritative live telemetry."""

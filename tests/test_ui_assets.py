@@ -198,6 +198,15 @@ def test_dashboard_density_controls_scale_summaries_and_bound_sector_labels():
     assert "readonly property bool above" in sector
 
 
+def test_hull_panel_uses_release_thresholds_without_duplicate_reading():
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    telemetry = Path("src/ui/qml/components/TelemetryBar.qml").read_text()
+    assert "focusedHullPercent <= 10" in screen
+    assert "focusedHullPercent <= 25" in screen
+    assert "showReading: false" in screen
+    assert "property bool showReading: true" in telemetry
+
+
 def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
     galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()
@@ -210,6 +219,11 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "RIGHT/MIDDLE DRAG · PAN" in galaxy
     assert "import QtQuick3D" in galaxy
     assert "View3D" in galaxy
+    assert "mapFrom3DScene" in galaxy
+    assert '\"label\": \"0, 0, 0\"' in galaxy
+    assert '\"label\": \"X\"' in galaxy
+    assert '\"label\": \"Y\"' in galaxy
+    assert '\"label\": \"Z\"' in galaxy
     assert "OrbitCameraController" in galaxy
     assert "Repeater3D" in galaxy
     assert "pickable: true" in galaxy

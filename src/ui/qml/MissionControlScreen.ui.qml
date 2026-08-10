@@ -17,7 +17,7 @@ Rectangle {
     readonly property var probeData: dashboardData.probe || ({})
     readonly property var healthData: dashboardData.health || ({})
     readonly property real focusedHullPercent: Number(probeData.integrityPercent === undefined ? 100 : probeData.integrityPercent)
-    readonly property bool criticalHull: focusedHullPercent < 10
+    readonly property bool criticalHull: focusedHullPercent <= 10
     onCriticalHullChanged: if (criticalHull) AudioManager.play("warning")
     readonly property var resourceRows: dashboardData.resources && dashboardData.resources.length ? dashboardData.resources : liveMode ? [] : [
         {
@@ -474,14 +474,19 @@ Rectangle {
                                 Label {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: Number((root.dashboardData.probe || {}).integrityPercent === undefined ? 100 : root.dashboardData.probe.integrityPercent).toFixed(1) + "%"
-                                    color: root.focusedHullPercent < 50 ? Constants.criticalColor : Constants.nominalColor
+                                    color: root.focusedHullPercent <= 10 ? Constants.criticalColor
+                                          : root.focusedHullPercent <= 25 ? Constants.warningColor
+                                          : Constants.nominalColor
                                     font.family: Constants.technicalFont; font.pixelSize: 28; font.bold: true
                                 }
                                 TelemetryBar {
                                     width: parent.width; label: "HULL"
                                     value: Number((root.dashboardData.probe || {}).integrityPercent || 0) / 100
                                     reading: Number((root.dashboardData.probe || {}).integrityPercent === undefined ? 100 : root.dashboardData.probe.integrityPercent).toFixed(1) + "%"
-                                    accentColor: value < 0.5 ? Constants.criticalColor : value < 0.8 ? Constants.warningColor : Constants.nominalColor
+                                    showReading: false
+                                    accentColor: root.focusedHullPercent <= 10 ? Constants.criticalColor
+                                                 : root.focusedHullPercent <= 25 ? Constants.warningColor
+                                                 : Constants.nominalColor
                                 }
                             }
                         }

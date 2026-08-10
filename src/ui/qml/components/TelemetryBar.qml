@@ -7,6 +7,7 @@ Item {
     property string label: "SYSTEM"
     property real value: 0.5
     property string reading: "50%"
+    property bool showReading: true
     property color accentColor: Constants.cyanColor
     implicitHeight: 54
     height: implicitHeight
@@ -22,6 +23,7 @@ Item {
     }
 
     Label {
+        visible: root.showReading
         anchors.right: parent.right
         anchors.top: parent.top
         text: root.reading
