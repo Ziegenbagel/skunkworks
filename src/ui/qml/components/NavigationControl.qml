@@ -24,6 +24,7 @@ Item {
     signal transportCyclePauseRequested(string operationId)
     signal transportCycleDeleteRequested(string operationId)
     property var selectedTransportCycle: ({})
+    property var selectedSectorDetails: ({})
 
     readonly property string focusedRole: String((automationData.probeRoles || {})[String(focusedProbe.probeId)] || "unassigned")
     readonly property bool transportEligible: focusedRole === "transport" || focusedRole === "deuterium_tanker"
@@ -313,12 +314,37 @@ Item {
                                     Label { Layout.fillWidth: true; text: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? "SCUT · " + neighborRow.modelData.scutCoverage.networkName : "OUTSIDE KNOWN SCUT"; color: neighborRow.modelData.scutCoverage && neighborRow.modelData.scutCoverage.covered ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
                                 }
                                 Button { text: "USE FOR MANUAL TRAVEL"; onClicked: root.chooseSector(neighborRow.modelData) }
+                                Button { text: "DETAILS"; onClicked: { root.selectedSectorDetails = neighborRow.modelData; sectorDetails.open(); } }
                                 Button { text: "SCAN"; onClicked: root.scanRequested(neighborRow.modelData.x, neighborRow.modelData.y, neighborRow.modelData.z) }
                             }
                             MouseArea { id: neighborMouse; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Dialog {
+        id: sectorDetails
+        anchors.centerIn: parent
+        modal: true
+        width: Math.min(root.width - 80, 900)
+        height: Math.min(root.height - 80, 650)
+        title: "SECTOR & PLANET DETAILS"
+        ColumnLayout {
+            anchors.fill: parent; spacing: 12
+            Label { Layout.fillWidth: true; text: String(root.selectedSectorDetails.label || "SECTOR"); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 18; font.bold: true }
+            Label { Layout.fillWidth: true; text: String(root.selectedSectorDetails.knowledgeLevel || "unknown").replace("_", " ").toUpperCase() + " · " + Math.round(Number(root.selectedSectorDetails.confidence || 0) * 100) + "% CONFIDENCE"; color: Constants.warningColor; font.family: Constants.technicalFont }
+            ScrollView {
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                TextArea { width: parent.width; text: String(root.selectedSectorDetails.detailText || "No detailed system telemetry is available. Scan this sector to update it."); readOnly: true; wrapMode: Text.Wrap; color: Constants.textColor; font.family: Constants.bodyFont; font.pixelSize: 16 }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button { text: "USE FOR MANUAL TRAVEL"; onClicked: { root.chooseSector(root.selectedSectorDetails); sectorDetails.close(); } }
+                Button { text: "CLOSE"; onClicked: sectorDetails.close() }
             }
         }
     }

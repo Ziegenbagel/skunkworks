@@ -101,6 +101,11 @@ def plan(operations, desired_state) -> list[Task]:
 
     tasks = []
     active_commitments = operations.mining.active_commitments()
+    current_sector = operations.travel.current_sector()
+    hazardous_stop = (
+        current_sector is not None
+        and operations.travel_safety.is_black_hole_sector(current_sector)
+    )
 
     for resource_type, amount in shortages.items():
         committed = float(active_commitments.get(resource_type, 0))
@@ -109,6 +114,9 @@ def plan(operations, desired_state) -> list[Task]:
             continue
         target = operations.mining.best_target(resource_type)
         constraints = []
+
+        if hazardous_stop:
+            constraints.append("black_hole_sector_unsafe_for_mining")
 
         if target is None:
             constraints.append("resource_not_in_current_sector")

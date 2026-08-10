@@ -713,6 +713,7 @@ class MissionControlViewModelBuilder:
                 "confidence": float(sector.get("confidence", 0) or 0),
                 "objectCount": len(sector.get("objects", ()) or ()),
                 "scanSummary": self._scan_summary(sector),
+                "detailText": self._sector_detail_text(sector),
                 "scutCoverage": self._scut_coverage(world, coordinates),
             })
         return {
@@ -764,6 +765,37 @@ class MissionControlViewModelBuilder:
             return "Hazard estimate: " + str(danger).replace("_", " ")
         knowledge = str(sector.get("knowledgeLevel", "unscanned"))
         return "Empty sector" if knowledge in {"detailed", "scanned", "full"} else "Long-range details unavailable"
+
+    @staticmethod
+    def _sector_detail_text(sector):
+        """Keep precise planet telemetry available to the scanning UI."""
+        objects = sector.get("objects", ()) or ()
+        orbitals = []
+        for system in (item for item in objects if item.get("type") == "solar_system"):
+            orbitals.extend(system.get("bookmarkTargets", ()) or system.get("objects", ()) or ())
+        if not orbitals:
+            orbitals = list(objects)
+        planets = [item for item in orbitals if "planet" in str(item.get("type", "")).lower()]
+        lines = [MissionControlViewModelBuilder._scan_summary(sector)]
+        if not planets:
+            lines.append("No detailed planet composition is available for this sector.")
+        for index, planet in enumerate(planets, 1):
+            name = planet.get("name") or f"Planet {index}"
+            category = str(planet.get("category") or "unknown").replace("_", " ").title()
+            habitability = planet.get("habitabilityScore")
+            score = "unknown" if habitability is None else f"{float(habitability):.6f}"
+            physical = []
+            if planet.get("mass") is not None:
+                physical.append(f"mass {float(planet['mass']):g} Earth masses")
+            if planet.get("radius") is not None:
+                physical.append(f"radius {float(planet['radius']):g} Earth radii")
+            life = "yes" if planet.get("intelligentLife") is True else "no" if planet.get("intelligentLife") is False else "unknown"
+            lines.append(
+                f"{name} · composition/category: {category} · habitability: {score} · "
+                + (" · ".join(physical) + " · " if physical else "")
+                + f"intelligent life: {life}"
+            )
+        return "\n\n".join(lines)
 
     @staticmethod
     def _scut_coverage(world, coordinates):
@@ -978,6 +1010,12 @@ class MissionControlViewModelBuilder:
             action = f"Craft one {recipe}"
         else:
             return raw_reason
+
+        if command_type == "manny_craft" and (
+            "tanker component" in raw_reason.lower()
+            or "tanker goal" in raw_reason.lower()
+        ):
+            return f"{action}. Required for Tanker Assembly. Dispatched by Skunkworks."
 
         purpose_text = raw_reason
         marker = "This mining order unlocks "

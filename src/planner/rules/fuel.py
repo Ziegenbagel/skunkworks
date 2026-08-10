@@ -22,6 +22,13 @@ def plan(operations, desired_state) -> list[Task]:
         return []
     constraints = []
 
+    current_sector = operations.travel.current_sector()
+    if (
+        current_sector is not None
+        and operations.travel_safety.is_black_hole_sector(current_sector)
+    ):
+        constraints.append("black_hole_sector_unsafe_for_refueling")
+
     if target is None:
         constraints.append("deuterium_not_in_current_sector")
 

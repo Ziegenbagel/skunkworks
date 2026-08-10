@@ -306,6 +306,35 @@ class UiPreparationTests(unittest.TestCase):
         self.assertNotIn("76.480", reason)
         self.assertNotIn("reserve target", reason)
 
+    def test_crafting_reason_names_tanker_assembly_purpose(self):
+        reason = MissionControlViewModelBuilder._concise_automation_reason({
+            "type": "manny_craft",
+            "payload": {"recipe": "scut_relay"},
+            "reason": "Tanker component 2/8: scut relay — 1 required. Priority 1 tanker goal reserves this work.",
+        })
+
+        self.assertEqual(
+            reason,
+            "Craft one Scut Relay. Required for Tanker Assembly. Dispatched by Skunkworks.",
+        )
+
+    def test_sector_details_include_exact_planet_habitability_and_composition(self):
+        detail = MissionControlViewModelBuilder._sector_detail_text({
+            "knowledgeLevel": "detailed",
+            "objects": [{
+                "type": "solar_system",
+                "bookmarkTargets": [{
+                    "type": "planet", "category": "terrestrial",
+                    "habitabilityScore": 0.5, "mass": 1.2,
+                    "radius": 0.9, "intelligentLife": False,
+                }],
+            }],
+        })
+
+        self.assertIn("composition/category: Terrestrial", detail)
+        self.assertIn("habitability: 0.500000", detail)
+        self.assertIn("mass 1.2 Earth masses", detail)
+
     def test_controller_persists_probe_role_and_updates_live_settings(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")

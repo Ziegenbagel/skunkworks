@@ -8,7 +8,23 @@ def plan(operations, desired_state) -> list[Task]:
     if desired_state.travel is None:
         return []
 
-    target = desired_state.travel.target
+    requested_target = desired_state.travel.target
+    target = requested_target
+    redirected = False
+    if operations.travel_safety.is_black_hole_sector(requested_target):
+        safe_target = operations.travel_safety.nearest_safe_scut_sector(requested_target)
+        if safe_target is None:
+            return [Task(
+                action="Prepare Probe Travel",
+                reason="Requested destination contains a confirmed black hole and no verified safe SCUT-covered fallback sector is available.",
+                category="travel",
+                target=f"{requested_target.x}:{requested_target.y}:{requested_target.z}",
+                constraints=("black_hole_destination_without_safe_fallback",),
+                destination=requested_target,
+                priority=NORMAL,
+            )]
+        target = safe_target
+        redirected = True
     blockers = list(operations.travel.travel_blockers(target))
 
     # Auto-travel is a durable destination, not permission to leave during a
@@ -79,9 +95,11 @@ def plan(operations, desired_state) -> list[Task]:
                 else "Prepare Probe Travel"
             ),
             reason=(
-                f"Desired destination is "
-                f"{target.x}:{target.y}:{target.z}; "
-                f"selected route is {route_name} "
+                (
+                    f"Requested destination {requested_target.x}:{requested_target.y}:{requested_target.z} contains a confirmed black hole; redirecting to nearest verified safe SCUT sector {target.x}:{target.y}:{target.z}. "
+                    if redirected else f"Desired destination is {target.x}:{target.y}:{target.z}; "
+                )
+                + f"selected route is {route_name} "
                 f"with {distance} hop(s)."
             ),
             category="travel",

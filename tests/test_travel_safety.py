@@ -259,6 +259,29 @@ class TravelSafetyTests(unittest.TestCase):
             assessment.acknowledgement_recommended
         )
 
+    def test_segmented_route_detours_around_known_black_hole_stop(self):
+        operations = build_operations()
+        galaxy = GalaxyMap()
+        galaxy.record_observation({"sector": {
+            "relativeCoordinates": {"x": 1, "y": 1, "z": 0},
+            "objects": [{"type": "black_hole"}],
+        }})
+        operations.world.galaxy = galaxy
+
+        assessment = operations.travel_safety.assess(
+            SectorCoordinates(2, 2, 0),
+            route_mode="segmented",
+        )
+
+        self.assertNotIn(
+            SectorCoordinates(1, 1, 0),
+            assessment.recommended.hops,
+        )
+        self.assertEqual(
+            assessment.recommended.hops[-1],
+            SectorCoordinates(2, 2, 0),
+        )
+
     def test_segmented_route_accounts_for_per_hop_fuel(self):
         operations = build_operations(fuel=5)
         assessment = operations.travel_safety.assess(

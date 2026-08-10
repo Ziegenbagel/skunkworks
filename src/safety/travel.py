@@ -1,6 +1,7 @@
 """Mission 15–16 travel hazard intelligence and route comparison."""
 
 from dataclasses import dataclass
+from heapq import heappop, heappush
 from math import prod
 
 from src.models.galaxy import SectorCoordinates
@@ -88,6 +89,8 @@ class TravelSafetyService:
             destination,
             maximum_hop_distance=maximum_segment_distance,
         ) or ()
+        if any(self.is_black_hole_sector(sector) for sector in segmented_hops):
+            segmented_hops = self.safe_segmented_route(origin, destination) or segmented_hops
         segmented = self._route_option(
             "segmented",
             origin,
@@ -546,6 +549,65 @@ class TravelSafetyService:
             object_.get("type") == "black_hole"
             for object_ in objects
         )
+
+    def is_black_hole_sector(self, destination):
+        """Return True only when retained telemetry confirms a black hole."""
+        return self._destination_black_hole(destination) is True
+
+    def safe_segmented_route(self, origin, destination, expansion_limit=8000):
+        """Find a SCUT-covered FCC route that never stops in a known black hole."""
+        if self.is_black_hole_sector(destination):
+            return None
+        frontier = []
+        heappush(frontier, (origin.distance_to(destination), 0, origin))
+        previous = {origin: None}
+        costs = {origin: 0}
+        expansions = 0
+        while frontier and expansions < expansion_limit:
+            _, cost, current = heappop(frontier)
+            if current == destination:
+                route = []
+                while current != origin:
+                    route.append(current)
+                    current = previous[current]
+                return tuple(reversed(route))
+            expansions += 1
+            for neighbor in current.neighbors():
+                if self.is_black_hole_sector(neighbor):
+                    continue
+                if self.scut_route_covered(origin, (neighbor,)) is False:
+                    continue
+                new_cost = cost + 1
+                if new_cost >= costs.get(neighbor, 10**9):
+                    continue
+                costs[neighbor] = new_cost
+                previous[neighbor] = current
+                heappush(frontier, (new_cost + neighbor.distance_to(destination), new_cost, neighbor))
+        return None
+
+    def nearest_safe_scut_sector(self, destination, origin=None):
+        """Choose the closest confirmed-safe mapped system inside SCUT coverage."""
+        origin = origin or self.travel.current_sector()
+        galaxy = getattr(self.world, "galaxy", None)
+        if origin is None or galaxy is None:
+            return None
+        candidates = []
+        for record in galaxy.sectors():
+            coordinates = record.coordinates
+            observed = (record.observed or {}).get("sector", {})
+            if not observed or self.is_black_hole_sector(coordinates):
+                continue
+            if self.scut_route_covered(origin, (coordinates,)) is False:
+                continue
+            objects = observed.get("objects", ()) or ()
+            has_system = any(item.get("type") == "solar_system" for item in objects)
+            candidates.append((
+                0 if has_system else 1,
+                coordinates.distance_to(destination),
+                coordinates.distance_to(origin),
+                coordinates,
+            ))
+        return min(candidates)[-1] if candidates else None
 
     def _integrity(self):
         return float(

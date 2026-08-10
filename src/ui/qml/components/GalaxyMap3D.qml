@@ -134,9 +134,9 @@ Item {
         });
         if (matches.length > 0) {
             const resourceColors = {"deuterium":"#e45cff", "metals":"#ffffff", "ice":"#32c5ff", "carbon_compounds":"#34f59a"};
-            // Orange is deliberately reserved for a sector matching multiple
-            // selected resources; single-resource matches retain their legend color.
-            return matches.length > 1 ? "#ffb12b" : resourceColors[matches[0]];
+            // Orange is reserved for the focused probe's recent trail. A
+            // multi-resource match uses its own unallocated lavender color.
+            return matches.length > 1 ? "#9d7cff" : resourceColors[matches[0]];
         }
         const state = String(node.mapState || "unknown");
         if (state === "current") return "#39ff9a";
@@ -268,7 +268,7 @@ Item {
     Rectangle {
         anchors.left: parent.left; anchors.top: parent.top
         anchors.leftMargin: 12; anchors.topMargin: 354
-        width: 470; height: root.filtersExpanded ? 330 : 42
+        width: 520; height: root.filtersExpanded ? 405 : 42
         color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.lineColor
         clip: true
         Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -313,8 +313,8 @@ Item {
                 CheckBox { text: "ORGANIC / CARBON COMPOUNDS"; checked: root.showCarbonCompounds; onToggled: root.showCarbonCompounds = checked }
                 Label {
                     Layout.columnSpan: 2; Layout.fillWidth: true
-                    text: "MULTIPLE SELECTED RESOURCES · ORANGE"
-                    color: "#ffb12b"; font.family: Constants.technicalFont; font.pixelSize: 8
+                    text: "MULTIPLE SELECTED RESOURCES · LAVENDER"
+                    color: "#9d7cff"; font.family: Constants.technicalFont; font.pixelSize: 8
                 }
             }
             GridLayout {
@@ -392,7 +392,7 @@ Item {
     Row {
         anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12; spacing: 14
         Repeater {
-            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"OBSERVED", "color":Constants.warningColor}, {"label":"UNKNOWN", "color":"#657384"}]
+            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}]
             delegate: Row {
                 required property var modelData; spacing: 5
                 Rectangle { width: 10; height: 10; radius: 5; color: parent.modelData.color }
