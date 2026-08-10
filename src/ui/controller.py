@@ -72,7 +72,7 @@ class MissionControlDataService:
         self._logbook_page_probes = {}
         self._history_sync_at = {}
         self._hazard_cache = {}
-        self._logbook_cache = None
+        self._logbook_cache = {}
 
     def load(self, probe_id=None, include_archival=True, progress=None):
         report = progress or (lambda percent, label: None)
@@ -249,22 +249,22 @@ class MissionControlDataService:
                     ),
                 )
                 if daily_result["created"]:
-                    self._logbook_cache = None
-            if self._logbook_cache is None or now - self._logbook_cache[0] >= 300:
-                self._logbook_cache = (
+                    self._logbook_cache.clear()
+            cached_logbook = self._logbook_cache.get(selected_id)
+            if cached_logbook is None or now - cached_logbook[0] >= 300:
+                cached_logbook = (
                     now,
-                    self.logbook_view(selected_id, probe_data.get("probes", ())),
+                    self.logbook_view(selected_id, (selected,)),
                 )
-            dashboard["logbook"] = self._logbook_cache[1]
+                self._logbook_cache[selected_id] = cached_logbook
+            dashboard["logbook"] = cached_logbook[1]
             dashboard["logbook"]["dailyReportFailures"] = daily_result["failures"]
         else:
-            dashboard["logbook"] = {
-                "pages": [], "focusedProbeId": selected_id, "failures": [],
-                "autoLoggingEnabled": self.data_engine.get_preference(
-                    "auto_game_logbook", "false"
-                ) == "true",
-                "deferred": True,
-            }
+            cached_logbook = self._logbook_cache.get(selected_id)
+            if cached_logbook is None or now - cached_logbook[0] >= 300:
+                cached_logbook = (now, self.logbook_view(selected_id, (selected,)))
+                self._logbook_cache[selected_id] = cached_logbook
+            dashboard["logbook"] = cached_logbook[1]
         report(100, "Mission control ready")
         return dashboard
 
@@ -2434,15 +2434,30 @@ class MissionControlController(QObject):
 
     @Slot(str, str)
     def createLogbookPage(self, title, content):
-        self._logbook_mutation(lambda: self.service.create_logbook_page({"title": title, "content": content}))
+        payload = {"title": title, "content": content}
+        self._logbook_mutation(
+            lambda: self.service.create_logbook_page(payload),
+            "create",
+            payload=payload,
+        )
 
     @Slot(int, str, str)
     def updateLogbookPage(self, page_id, title, content):
-        self._logbook_mutation(lambda: self.service.update_logbook_page(page_id, {"title": title, "content": content}))
+        payload = {"title": title, "content": content}
+        self._logbook_mutation(
+            lambda: self.service.update_logbook_page(page_id, payload),
+            "update",
+            page_id=page_id,
+            payload=payload,
+        )
 
     @Slot(int)
     def deleteLogbookPage(self, page_id):
-        self._logbook_mutation(lambda: self.service.delete_logbook_page(page_id))
+        self._logbook_mutation(
+            lambda: self.service.delete_logbook_page(page_id),
+            "delete",
+            page_id=page_id,
+        )
 
     @Slot(int)
     def loadLogbookPage(self, page_id):
@@ -2467,17 +2482,43 @@ class MissionControlController(QObject):
         self._set_error("")
         self.dashboardChanged.emit()
 
-    def _logbook_mutation(self, callback):
+    def _logbook_mutation(self, callback, action, page_id=None, payload=None):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Refresh a focused probe before editing its logbook.")
             return
         try:
-            callback()
+            response = callback()
         except Exception as error:
             self._set_error(str(error) or type(error).__name__)
             return
         self._set_error("")
-        self._start_refresh(self._focused_probe_id)
+        logbook = dict(self._dashboard.get("logbook", {}))
+        pages = list(logbook.get("pages", ()))
+        if action == "delete":
+            pages = [item for item in pages if int(item.get("id", -1)) != int(page_id)]
+        elif action == "update":
+            pages = [
+                {**item, **(payload or {})}
+                if int(item.get("id", -1)) == int(page_id) else item
+                for item in pages
+            ]
+        elif action == "create":
+            page = response.get("page", response) if isinstance(response, dict) else {}
+            if isinstance(page, dict) and page.get("id") is not None:
+                item = {**(payload or {}), **page}
+                item["sourceProbeId"] = self._focused_probe_id
+                item["sourceProbeName"] = self._dashboard.get("focus", {}).get(
+                    "name", f"Probe {self._focused_probe_id}"
+                )
+                pages.insert(0, item)
+        logbook["pages"] = pages
+        logbook["newDailyReportCount"] = sum(
+            1 for item in pages if item.get("isNewDailyReport")
+        )
+        self._dashboard["logbook"] = logbook
+        if hasattr(self.service, "_logbook_cache"):
+            self.service._logbook_cache.pop(self._focused_probe_id, None)
+        self.dashboardChanged.emit()
 
     @Slot(bool)
     def setAutoLogbookEnabled(self, enabled):

@@ -23,20 +23,23 @@ Item {
     onLogbookDataChanged: {
         if (selectedPageId < 0) return;
         const pages = logbookData.pages || [];
+        let found = false;
         for (let i = 0; i < pages.length; ++i) {
             if (Number(pages[i].id) === selectedPageId && pages[i].content !== undefined) {
+                found = true;
                 titleEditor.text = pages[i].title || "";
                 contentEditor.text = pages[i].content || "";
                 break;
             }
         }
+        if (!found) clearEditor();
     }
 
     RowLayout {
         anchors.fill: parent; spacing: 18
         ColumnLayout {
             Layout.preferredWidth: Math.max(360, root.width * 0.32); Layout.fillHeight: true; spacing: 10
-            Label { text: "FLEET LOGBOOK PAGES"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+            Label { text: "FOCUSED PROBE LOGBOOK"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
             Button { text: "+ NEW PAGE"; onClicked: root.clearEditor() }
             ListView {
                 id: pageList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.logbookData.pages || []

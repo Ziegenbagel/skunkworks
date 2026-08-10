@@ -104,8 +104,30 @@ class DailyProbeReportTests(unittest.TestCase):
             datetime(2026, 8, 9, 17, 0, tzinfo=self.now.tzinfo),
         )
 
-        self.assertIn("Telemetry records without sector coordinates omitted: 1", content)
+        self.assertNotIn("unknown-rock", content)
         self.assertNotIn("Sector None:None:None", content)
+
+    def test_explorer_report_excludes_remotely_scanned_unvisited_sector(self):
+        world = SimpleNamespace(
+            probe={
+                "id": 762, "name": "Explorer One", "model": "generic", "status": "idle",
+                "sector": {"relative": {"x": 2, "y": 1, "z": -3}},
+            },
+            sector={"snapshot": {"sector": {
+                "relativeCoordinates": {"x": 9, "y": 9, "z": 9},
+                "knowledgeLevel": "detailed", "confidence": 100,
+            }}, "resources": []},
+        )
+        self.engine.record_world(world, observed_at="2026-08-09T20:00:00+00:00")
+
+        content = self.reporter.build(
+            {"id": 762, "name": "Explorer One"}, "explorer",
+            datetime(2026, 8, 8, 17, 0, tzinfo=self.now.tzinfo),
+            datetime(2026, 8, 9, 17, 0, tzinfo=self.now.tzinfo),
+        )
+
+        self.assertIn("Sector 2:1:-3", content)
+        self.assertNotIn("Sector 9:9:9", content)
 
     def test_one_broken_report_does_not_break_refresh_or_other_probes(self):
         created = []

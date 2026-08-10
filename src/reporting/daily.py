@@ -124,56 +124,75 @@ class DailyProbeReportService:
                 command = json.loads(row["command_json"])
             except (TypeError, ValueError, json.JSONDecodeError):
                 command = {}
-            actions.append({"type": row["command_type"], "command": command})
+            actions.append({
+                "type": row["command_type"],
+                "command": command,
+                "observedAt": row["observed_at"],
+            })
         return actions
 
     def _role_summary(self, role, actions):
         types = Counter(item["type"] for item in actions)
-        mined = self._amounts(actions, "manny_mine", "orderAmount", "targetAmount")
-        transferred = self._amounts(
-            [item for item in actions if (item["command"].get("metadata") or {}).get("transportTransfer")],
-            "manny_mine", "orderAmount", "targetAmount",
-        )
-        lines = ["ROLE SUMMARY"]
+        mining = [item for item in actions if item["type"] == "manny_mine" and not self._is_transfer(item)]
+        transfers = [item for item in actions if self._is_transfer(item)]
+        craft_actions = [item for item in actions if item["type"] in {
+            "manny_craft", "atomic_printer_craft", "manny_assemble_probe"
+        }]
+        lines = ["ROLE ACTIVITY"]
         if role == "hub":
-            lines += [
-                f"- Crafting/assembly orders accepted: {types['manny_craft'] + types['atomic_printer_craft'] + types['manny_assemble_probe']}",
-                f"- Transport transfer orders received/dispatched: {len(transferred)}",
-            ]
+            lines.extend(self._craft_breakdown(craft_actions))
+            lines.extend(self._mining_breakdown(mining))
+            lines.extend(self._transfer_breakdown(transfers))
         elif role in {"transport", "deuterium_tanker", "deuterium_reserve"}:
-            lines += [
-                f"- Transfer orders accepted: {len(transferred)}",
-                f"- Transfer amount requested: {sum(transferred):.3f} ECE",
-                f"- Travel legs accepted: {types['move_probe']}",
-            ]
+            lines.extend(self._transfer_breakdown(transfers))
+            lines.extend(self._mining_breakdown(mining))
+            lines.extend(self._travel_breakdown(actions))
         elif role in {"miner", "builder_support"}:
-            lines += [
-                f"- Mining orders accepted: {len(mined)}",
-                f"- Mining amount requested: {sum(mined):.3f} ECE",
-                f"- Crafting/assembly orders accepted: {types['manny_craft'] + types['atomic_printer_craft'] + types['manny_assemble_probe']}",
-            ]
+            lines.extend(self._mining_breakdown(mining))
+            lines.extend(self._craft_breakdown(craft_actions))
         elif role == "explorer":
-            lines += [f"- Travel legs accepted: {types['move_probe']}"]
+            lines.extend(self._travel_breakdown(actions))
         else:
-            lines += [f"- Accepted Skunkworks commands: {len(actions)}"]
+            lines += [f"- Skunkworks orders dispatched: {len(actions)}"]
+        repairs = types["manny_repair"]
+        if repairs:
+            lines.append(f"- Repair orders dispatched: {repairs}")
         return lines + [""]
 
     def _explorer_summary(self, probe_id, start, end):
+        history = self.data_engine._rows(
+            """
+            SELECT sector_x, sector_y, sector_z, observed_at
+            FROM probe_state_history
+            WHERE probe_id = ? AND observed_at > ? AND observed_at <= ?
+              AND sector_x IS NOT NULL AND sector_y IS NOT NULL AND sector_z IS NOT NULL
+            ORDER BY observed_at, id
+            """,
+            (probe_id, self._storage_stamp(start), self._storage_stamp(end)),
+        )
+        route = []
+        for row in history:
+            point = (row["sector_x"], row["sector_y"], row["sector_z"])
+            if self._complete_point(point) and (not route or route[-1] != point):
+                route.append(point)
+        visited = set(route)
         observations = self.data_engine._rows(
             """
-            SELECT sector_x, sector_y, sector_z, knowledge_level, confidence, observed_at
+            SELECT sector_x, sector_y, sector_z, knowledge_level, confidence,
+                   payload_json, observed_at
             FROM sector_observations
             WHERE probe_id = ? AND observed_at > ? AND observed_at <= ?
+              AND knowledge_level = 'detailed'
             ORDER BY observed_at DESC, id DESC
             """,
             (probe_id, self._storage_stamp(start), self._storage_stamp(end)),
         )
         latest_sectors = {}
-        incomplete_observations = 0
         for row in observations:
             point = (row["sector_x"], row["sector_y"], row["sector_z"])
             if not self._complete_point(point):
-                incomplete_observations += 1
+                continue
+            if point not in visited:
                 continue
             latest_sectors.setdefault(point, row)
         resources = self.data_engine._rows(
@@ -187,35 +206,41 @@ class DailyProbeReportService:
             (probe_id, self._storage_stamp(start), self._storage_stamp(end)),
         )
         latest_resources = {}
-        incomplete_resources = 0
         for row in resources:
             point = (row["sector_x"], row["sector_y"], row["sector_z"])
             if not self._complete_point(point):
-                incomplete_resources += 1
+                continue
+            if point not in visited:
                 continue
             key = (row["sector_x"], row["sector_y"], row["sector_z"], row["object_id"], row["resource_type"])
             latest_resources.setdefault(key, row)
         by_sector = defaultdict(list)
         for row in latest_resources.values():
             by_sector[(row["sector_x"], row["sector_y"], row["sector_z"])].append(row)
-        points = sorted(set(latest_sectors) | set(by_sector))
-        lines = ["EXPLORATION SURVEY", f"- Sectors scanned or surveyed: {len(points)}"]
-        incomplete = incomplete_observations + incomplete_resources
-        if incomplete:
-            lines.append(
-                f"- Telemetry records without sector coordinates omitted: {incomplete}"
-            )
+        points = list(dict.fromkeys(route))
+        lines = ["EXPLORATION SURVEY", f"- Sectors occupied or visited: {len(points)}"]
+        if route:
+            lines.append("- Recorded route: " + " → ".join(
+                f"{point[0]}:{point[1]}:{point[2]}" for point in route
+            ))
         if not points:
-            return lines + ["- No sector survey telemetry was retained in this window.", ""]
+            return lines + ["- No visited-sector telemetry was retained in this window.", ""]
         for point in points:
             obs = latest_sectors.get(point)
             knowledge = (obs["knowledge_level"] if obs else None) or "recorded"
             confidence = obs["confidence"] if obs else None
-            confidence_text = f", {float(confidence):.0f}% confidence" if confidence is not None else ""
+            confidence_value = float(confidence) if confidence is not None else None
+            if confidence_value is not None and confidence_value <= 1:
+                confidence_value *= 100
+            confidence_text = f", {confidence_value:.0f}% confidence" if confidence_value is not None else ""
             lines.append(f"\nSector {point[0]}:{point[1]}:{point[2]} — {knowledge}{confidence_text}")
+            lines.extend(self._sector_details(obs))
             objects = defaultdict(list)
             for row in by_sector.get(point, ()):
-                objects[(row["object_id"], row["classification"] or "object")].append(row)
+                classification = row["classification"] or "resource object"
+                if str(classification).lower() in {"persistent", "unknown", "object"}:
+                    classification = "resource object"
+                objects[(row["object_id"], classification)].append(row)
             totals = defaultdict(float)
             if not objects:
                 lines.append("- No asteroid/resource quantities recorded.")
@@ -223,14 +248,53 @@ class DailyProbeReportService:
                 values = []
                 for row in sorted(rows, key=lambda item: item["resource_type"]):
                     amount = float(row["amount"] or 0)
+                    if amount <= 0:
+                        continue
                     totals[row["resource_type"]] += amount
                     values.append(f"{row['resource_type']}: {amount:.3f} ECE")
-                lines.append(f"- {classification.title()} {object_id}: " + ", ".join(values))
+                if values:
+                    lines.append(f"- {classification.title()} {object_id}: " + ", ".join(values))
             if totals:
                 lines.append("- Sector resource total: " + ", ".join(
                     f"{resource}: {amount:.3f} ECE" for resource, amount in sorted(totals.items())
                 ))
         return lines + [""]
+
+    @staticmethod
+    def _sector_details(observation):
+        if not observation:
+            return ["- Detailed sector telemetry unavailable."]
+        try:
+            payload = json.loads(observation["payload_json"] or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return ["- Detailed sector telemetry could not be decoded."]
+        sector = payload.get("sector", payload) if isinstance(payload, dict) else {}
+        objects = sector.get("objects") or ()
+        summaries = []
+        for item in objects:
+            if not isinstance(item, dict):
+                continue
+            kind = str(item.get("type") or item.get("classification") or "object").replace("_", " ")
+            if kind.lower() in {"solar system", "solar_system"}:
+                stars = item.get("starCount")
+                planets = item.get("planetCount")
+                orbitals = item.get("orbitalBodyCount")
+                values = []
+                if stars is not None:
+                    values.append(f"{stars} star(s)")
+                if planets is not None:
+                    values.append(f"{planets} planet(s)")
+                if orbitals is not None:
+                    values.append(f"{orbitals} orbital object(s)")
+                summaries.append("Solar system: " + (", ".join(values) or "details recorded"))
+            else:
+                summaries.append(str(item.get("summary") or item.get("name") or kind.title()))
+        summary = sector.get("summary") if isinstance(sector, dict) else None
+        if summary and summary not in summaries:
+            summaries.insert(0, str(summary))
+        if not summaries:
+            return ["- Detailed scan recorded; no celestial objects reported."]
+        return [f"- {value}" for value in summaries]
 
     @staticmethod
     def _common_summary(actions):
@@ -243,13 +307,103 @@ class DailyProbeReportService:
             "manny_repair": "Repair",
             "move_probe": "Travel",
         }
-        lines = ["ACTIVITY LEDGER"]
+        lines = ["ORDER AUDIT"]
         if not counts:
-            lines.append("- No accepted Skunkworks commands recorded in this window.")
+            lines.append("- No Skunkworks orders were accepted by the game in this window.")
         else:
             for command_type, count in sorted(counts.items()):
-                lines.append(f"- {labels.get(command_type, command_type)}: {count}")
+                lines.append(f"- {labels.get(command_type, command_type)} orders accepted: {count}")
         return lines
+
+    @staticmethod
+    def _is_transfer(item):
+        return bool((item["command"].get("metadata") or {}).get("transportTransfer"))
+
+    @staticmethod
+    def _craft_breakdown(actions):
+        recipes = Counter()
+        for item in actions:
+            command = item["command"]
+            recipe = (command.get("payload") or {}).get("recipe")
+            if item["type"] == "manny_assemble_probe":
+                recipe = recipe or "probe assembly"
+            recipes[str(recipe or "unknown recipe").replace("_", " ").title()] += 1
+        if not recipes:
+            return ["- Crafting/assembly: no orders dispatched."]
+        return ["- Crafting/assembly orders dispatched:"] + [
+            f"  - {recipe}: {count}" for recipe, count in sorted(recipes.items())
+        ]
+
+    @staticmethod
+    def _mining_breakdown(actions):
+        resources = defaultdict(lambda: {"orders": 0, "amount": 0.0, "objects": set()})
+        for item in actions:
+            command = item["command"]
+            payload = command.get("payload") or {}
+            metadata = command.get("metadata") or {}
+            names = payload.get("resources") or (metadata.get("resource") or "unknown",)
+            if isinstance(names, str):
+                names = (names,)
+            amount = metadata.get("orderAmount", payload.get("targetAmount", 0))
+            for name in names:
+                record = resources[str(name).replace("_", " ").title()]
+                record["orders"] += 1
+                record["amount"] += DailyProbeReportService._number(amount)
+                if payload.get("objectId"):
+                    record["objects"].add(str(payload["objectId"]))
+        if not resources:
+            return ["- Mining: no orders dispatched."]
+        lines = ["- Mining orders dispatched:"]
+        for resource, record in sorted(resources.items()):
+            source = f" across {len(record['objects'])} source object(s)" if record["objects"] else ""
+            lines.append(
+                f"  - {resource}: {record['orders']} order(s), {record['amount']:.3f} ECE requested{source}"
+            )
+        return lines
+
+    @staticmethod
+    def _transfer_breakdown(actions):
+        targets = defaultdict(lambda: {"orders": 0, "amount": 0.0})
+        for item in actions:
+            payload = item["command"].get("payload") or {}
+            target = str(payload.get("targetProbeId") or "unknown probe")
+            targets[target]["orders"] += 1
+            targets[target]["amount"] += DailyProbeReportService._number(payload.get("amount"))
+        if not targets:
+            return ["- Deuterium transfers: no orders dispatched."]
+        return ["- Deuterium transfer orders dispatched:"] + [
+            f"  - To probe {target}: {record['orders']} order(s), {record['amount']:.3f} ECE requested"
+            for target, record in sorted(targets.items())
+        ]
+
+    @staticmethod
+    def _travel_breakdown(actions):
+        destinations = []
+        final_destination = None
+        for item in actions:
+            if item["type"] != "move_probe":
+                continue
+            command = item["command"]
+            target = (command.get("payload") or {}).get("target") or {}
+            if all(axis in target for axis in ("x", "y", "z")):
+                destinations.append(f"{target['x']}:{target['y']}:{target['z']}")
+            final = (command.get("metadata") or {}).get("finalDestination") or {}
+            if all(axis in final for axis in ("x", "y", "z")):
+                final_destination = f"{final['x']}:{final['y']}:{final['z']}"
+        if not destinations:
+            return ["- Travel: no legs dispatched."]
+        lines = [f"- Travel legs dispatched: {len(destinations)}"]
+        lines.append("  - Route: " + " → ".join(destinations))
+        if final_destination:
+            lines.append(f"  - Final destination: {final_destination}")
+        return lines
+
+    @staticmethod
+    def _number(value):
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
 
     @staticmethod
     def _amounts(actions, command_type, metadata_key, payload_key):
