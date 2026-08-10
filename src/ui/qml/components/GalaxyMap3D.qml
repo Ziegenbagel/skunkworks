@@ -37,11 +37,14 @@ Item {
     property bool salvageOnly: false
     property bool showRecentTrail: true
     property bool filtersExpanded: true
-    property string resourceFilter: "all"
-    property string resourceMode: "all"
+    property bool showDeuterium: false
+    property bool showMetals: false
+    property bool showIce: false
+    property bool showCarbonCompounds: false
     readonly property var visibleNodes: {
         const dependency = [showCurrent, showScanned, showVisited,
-                            hazardsOnly, salvageOnly, resourceFilter, resourceMode];
+                            hazardsOnly, salvageOnly, showDeuterium, showMetals,
+                            showIce, showCarbonCompounds];
         return nodes.filter(function(node) { return root.matchesFilters(node); });
     }
     readonly property var visibleEdges: {
@@ -61,15 +64,21 @@ Item {
         if (!stateEnabled(String(node.mapState || "unknown"))) return false;
         if (hazardsOnly && !node.hasHazard) return false;
         if (salvageOnly && !node.hasDetachedContainers) return false;
-        if (resourceMode !== "all" && resourceFilter !== "all") {
+        const selected = selectedResources();
+        if (selected.length > 0) {
             const types = node.resourceTypes || [];
-            const hasResource = types.indexOf(resourceFilter) >= 0;
-            if (resourceMode === "has" && !hasResource) return false;
-            // Absence is authoritative only after a sector has been scanned.
-            if (resourceMode === "without"
-                    && (String(node.knowledgeLevel || "unknown") === "unknown" || hasResource)) return false;
+            if (!selected.some(function(resource) { return types.indexOf(resource) >= 0; }))
+                return false;
         }
         return true;
+    }
+    function selectedResources() {
+        const selected = [];
+        if (showDeuterium) selected.push("deuterium");
+        if (showMetals) selected.push("metals");
+        if (showIce) selected.push("ice");
+        if (showCarbonCompounds) selected.push("carbon_compounds");
+        return selected;
     }
     function showOnlyState(state) {
         showCurrent = state === "current"; showScanned = state === "scanned";
@@ -119,10 +128,15 @@ Item {
     function colorFor(node) {
         if (showRecentTrail && recentTrailNodes[String(node.id)])
             return "#ff9f1c";
-        if (resourceMode === "has" && resourceFilter !== "all"
-                && (node.resourceTypes || []).indexOf(resourceFilter) >= 0) {
+        const selected = selectedResources();
+        const matches = selected.filter(function(resource) {
+            return (node.resourceTypes || []).indexOf(resource) >= 0;
+        });
+        if (matches.length > 0) {
             const resourceColors = {"deuterium":"#e45cff", "metals":"#ffffff", "ice":"#32c5ff", "carbon_compounds":"#34f59a"};
-            return resourceColors[resourceFilter] || Constants.cyanColor;
+            // Orange is deliberately reserved for a sector matching multiple
+            // selected resources; single-resource matches retain their legend color.
+            return matches.length > 1 ? "#ffb12b" : resourceColors[matches[0]];
         }
         const state = String(node.mapState || "unknown");
         if (state === "current") return "#39ff9a";
@@ -289,17 +303,18 @@ Item {
                 Button { text: "ONLY VISITED"; onClicked: root.showOnlyState("visited") }
                 Button { text: "ONLY SCANNED"; onClicked: root.showOnlyState("scanned") }
             }
-            RowLayout {
+            Label { visible: root.filtersExpanded; text: "HAS ANY SELECTED RESOURCE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 8 }
+            GridLayout {
                 visible: root.filtersExpanded; Layout.fillWidth: true
-                ComboBox {
-                    id: resourceModeBox; Layout.preferredWidth: 170
-                    model: [{text:"ALL SYSTEMS", value:"all"}, {text:"HAS RESOURCE", value:"has"}, {text:"CONFIRMED WITHOUT", value:"without"}]
-                    textRole: "text"; valueRole: "value"; onActivated: root.resourceMode = currentValue
-                }
-                ComboBox {
-                    id: resourceTypeBox; Layout.fillWidth: true
-                    model: [{text:"ANY RESOURCE", value:"all"}, {text:"DEUTERIUM", value:"deuterium"}, {text:"METALS", value:"metals"}, {text:"ICE", value:"ice"}, {text:"ORGANIC / CARBON COMPOUNDS", value:"carbon_compounds"}]
-                    textRole: "text"; valueRole: "value"; onActivated: root.resourceFilter = currentValue
+                columns: 2; columnSpacing: 5; rowSpacing: 2
+                CheckBox { text: "DEUTERIUM"; checked: root.showDeuterium; onToggled: root.showDeuterium = checked }
+                CheckBox { text: "METALS"; checked: root.showMetals; onToggled: root.showMetals = checked }
+                CheckBox { text: "ICE"; checked: root.showIce; onToggled: root.showIce = checked }
+                CheckBox { text: "ORGANIC / CARBON COMPOUNDS"; checked: root.showCarbonCompounds; onToggled: root.showCarbonCompounds = checked }
+                Label {
+                    Layout.columnSpan: 2; Layout.fillWidth: true
+                    text: "MULTIPLE SELECTED RESOURCES · ORANGE"
+                    color: "#ffb12b"; font.family: Constants.technicalFont; font.pixelSize: 8
                 }
             }
             GridLayout {

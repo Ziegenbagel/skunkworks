@@ -10,7 +10,7 @@ def higher_priority_item_reservations(operations, desired_state, priority):
 
     reserved = defaultdict(int)
     for goal in desired_state.fleet:
-        if goal.priority >= priority or goal.model != "deuterium_tanker":
+        if goal.priority > priority or goal.model != "deuterium_tanker":
             continue
         current = sum(
             probe.get("model", "generic") == goal.model

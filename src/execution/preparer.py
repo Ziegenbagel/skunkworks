@@ -180,7 +180,7 @@ class CommandPreparer:
             claims = item_claims.setdefault(item_type, [])
             higher_claimed = sum(
                 amount for priority, amount in claims
-                if priority < task.priority
+                if priority <= task.priority
             )
             available_after_higher = max(0, available - higher_claimed)
             if task.action == "Craft Item" and available_after_higher < int(required):

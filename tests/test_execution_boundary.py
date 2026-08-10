@@ -381,6 +381,40 @@ class ExecutionBoundaryTests(unittest.TestCase):
         )
         self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
 
+    def test_equal_priority_recipe_cannot_consume_stored_tanker_components(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"].setdefault("items", []).append(
+            {"id": "relay-1", "type": "scut_relay"}
+        )
+        self.operations.manufacturing.recipes._recipes["uses_relay"] = {
+            "id": "uses_relay", "name": "Uses relay", "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [{"type": "scut_relay", "quantity": 1, "kind": "item"}],
+            "output": {"type": "uses_relay", "containerSpace": 0.1},
+        }
+        self.operations.world.mannies["mannies"].append({
+            "id": 202, "currentTask": None, "canReceiveOrders": True,
+            "location": {"type": "probe"},
+        })
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Prepare Manufacturing", reason="Protected tanker relay",
+                target="electric_motor", constraints=("fabricator_unavailable",),
+                reserved_items=(("scut_relay", 1),), priority=1,
+            ),
+            Task(
+                action="Craft Item", reason="Equal-priority consumer",
+                target="uses_relay", priority=1,
+            ),
+        ])
+
+        consumer = next(
+            item for item in prepared
+            if item.command.reason == "Equal-priority consumer"
+        )
+        self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
+
     def test_manual_craft_cannot_consume_planner_reserved_tanker_component(self):
         from src.planner.task import Task
 

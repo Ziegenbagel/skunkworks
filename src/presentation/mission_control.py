@@ -905,22 +905,28 @@ class MissionControlViewModelBuilder:
         for item in probe.get("inventory", {}).get("items", ()):
             if item.get("type") != "atomic_3d_printer" or not item.get("currentTask"):
                 continue
+            current = item.get("currentTask")
             task = item.get("task") if isinstance(item.get("task"), dict) else {}
+            if isinstance(current, dict):
+                task = {**task, **current}
+                task_type = current.get("type", "crafting")
+            else:
+                task_type = current
             progress = float(item.get("taskProgressPercent", 0) or 0)
             eta = item.get("taskEstimatedEndTime") or "—"
             eta_view = MissionControlViewModelBuilder._completion_view(eta)
-            operation = MissionControlViewModelBuilder._task_name(item["currentTask"], task)
+            operation = MissionControlViewModelBuilder._task_name(task_type, task)
             work.append({
                 "id": str(item.get("id", "atomic-printer")),
                 "asset": item.get("name", "Atomic printer"),
-                "taskType": item["currentTask"],
+                "taskType": task_type,
                 "name": operation,
                 "progress": progress,
                 "eta": eta_view["label"],
                 "etaEpochMs": eta_view["epochMs"],
                 "displayText": f"ATOMIC PRINTER · {operation.upper()}    {progress:.0f}%",
                 "detailText": MissionControlViewModelBuilder._task_details(
-                    item.get("name", "Atomic printer"), item["currentTask"], task,
+                    item.get("name", "Atomic printer"), task_type, task,
                     progress, eta_view["label"],
                 ),
             })
@@ -1038,8 +1044,9 @@ class MissionControlViewModelBuilder:
 
     @staticmethod
     def _task_name(task_type, task):
-        if task_type == "crafting":
-            return task.get("recipeName") or task.get("recipe") or "Crafting"
+        recipe = MissionControlViewModelBuilder._task_recipe_label(task)
+        if task_type == "crafting" or recipe:
+            return f"Crafting {recipe}" if recipe else "Crafting"
         if task_type == "mining":
             resources = task.get("resourceTypes") or [task.get("resourceType")]
             resources = [str(item).replace("_", " ").title() for item in resources if item]
@@ -1049,6 +1056,22 @@ class MissionControlViewModelBuilder:
         return str(task_type).replace("_", " ").title()
 
     @staticmethod
+    def _task_recipe_label(task):
+        reference = (
+            task.get("recipeName")
+            or task.get("recipe")
+            or task.get("recipeId")
+            or task.get("output")
+        )
+        if isinstance(reference, dict):
+            reference = (
+                reference.get("name")
+                or reference.get("type")
+                or reference.get("id")
+            )
+        return str(reference).replace("_", " ").title() if reference else ""
+
+    @staticmethod
     def _task_details(asset, task_type, task, progress, eta):
         lines = [
             f"Asset: {asset}",
@@ -1056,8 +1079,9 @@ class MissionControlViewModelBuilder:
             f"Progress: {progress:.1f}%",
             f"Estimated completion: {eta}",
         ]
-        if task_type == "crafting":
-            lines.append(f"Recipe: {task.get('recipeName') or task.get('recipe') or 'Unknown'}")
+        recipe = MissionControlViewModelBuilder._task_recipe_label(task)
+        if task_type == "crafting" or recipe:
+            lines.append(f"Recipe: {recipe or 'Unknown'}")
             output = task.get("output")
             if isinstance(output, dict):
                 lines.append(f"Output: {output.get('name') or output.get('type') or 'Unknown'}")

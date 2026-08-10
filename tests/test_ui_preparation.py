@@ -269,6 +269,23 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("IDLE · READY", work[0]["displayText"])
         self.assertIn("Can receive automation order: No", work[1]["detailText"])
 
+    def test_atomic_printer_names_the_recipe_it_is_crafting(self):
+        work = MissionControlViewModelBuilder._production(
+            {"inventory": {"items": [{
+                "id": "printer-1",
+                "type": "atomic_3d_printer",
+                "name": "Atomic printer",
+                "currentTask": "atomic_printing",
+                "taskProgressPercent": 42,
+                "task": {"recipeId": "integrated_circuit"},
+            }]}},
+            {"mannies": []},
+        )
+
+        self.assertEqual(len(work), 1)
+        self.assertIn("CRAFTING INTEGRATED CIRCUIT", work[0]["displayText"])
+        self.assertIn("Recipe: Integrated Circuit", work[0]["detailText"])
+
     def test_production_reason_summarizes_actual_order_and_one_purpose(self):
         reason = MissionControlViewModelBuilder._concise_automation_reason({
             "type": "manny_mine",

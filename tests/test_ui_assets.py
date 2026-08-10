@@ -215,7 +215,11 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "pickable: true" in galaxy
     assert "CLICK A SECTOR DOT FOR DETAILS" in galaxy
     assert "HAZARDS ONLY" in galaxy
-    assert "CONFIRMED WITHOUT" in galaxy
+    assert "HAS ANY SELECTED RESOURCE" in galaxy
+    assert 'CheckBox { text: "DEUTERIUM"' in galaxy
+    assert 'CheckBox { text: "METALS"' in galaxy
+    assert 'CheckBox { text: "ICE"' in galaxy
+    assert 'CheckBox { text: "ORGANIC / CARBON COMPOUNDS"' in galaxy
     assert "ORGANIC / CARBON COMPOUNDS" in galaxy
     assert "DROPPED CONTAINERS" in galaxy
     assert "FOCUSED PROBE · RECENT 10 TRAIL" in galaxy
