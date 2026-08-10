@@ -429,7 +429,7 @@ Item {
     }
 
     Row {
-        anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 12
+        anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 12
         spacing: 18
         Repeater {
             model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}]
