@@ -335,7 +335,7 @@ class MissionControlDataService:
             tasks = ()
         else:
             desired = DesiredStateStore(self.data_engine).load(probe_id)
-            desired, transport_tasks = self._reconcile_transport_operation(
+            desired, transport_tasks, transport_scope = self._reconcile_transport_operation(
                 operations,
                 probe_id,
                 desired,
@@ -344,6 +344,12 @@ class MissionControlDataService:
                 operations,
                 desired,
             ).tasks()
+            if transport_scope:
+                tasks = [
+                    replace(task, idempotency_scope=transport_scope)
+                    if task.category == "travel" else task
+                    for task in tasks
+                ]
             tasks.extend(transport_tasks)
             tasks.sort(key=lambda task: task.priority)
             self._prepared_commands = CommandPreparer(
@@ -376,7 +382,7 @@ class MissionControlDataService:
             and item.state.value == "active"
         ), None)
         if operation is None:
-            return desired, []
+            return desired, [], None
 
         cycle = operation.metadata.get("cycle") or {}
         source = SectorCoordinates.from_api(cycle["source"])
@@ -401,6 +407,10 @@ class MissionControlDataService:
             ) * operations.travel.fuel_cost()
         )
         phase = operation.metadata.get("transportPhase", "to_source")
+
+        def travel_scope():
+            circuit = int(operation.metadata.get("transportCircuit", 0) or 0)
+            return f"transport:{operation.id}:circuit:{circuit}:phase:{phase}"
 
         def save_phase(value):
             nonlocal operation, phase
@@ -428,7 +438,7 @@ class MissionControlDataService:
                         desired,
                         travel=TravelGoal(source, "segmented"),
                     ))
-                    return desired, []
+                    return desired, [], travel_scope()
                 save_phase("loading")
                 continue
 
@@ -443,7 +453,7 @@ class MissionControlDataService:
                         travel=None,
                         fuel=FuelGoal(target_percent, desired.fuel.priority),
                     ))
-                    return desired, []
+                    return desired, [], None
                 save_phase("to_destination")
                 continue
 
@@ -453,7 +463,7 @@ class MissionControlDataService:
                         desired,
                         travel=TravelGoal(destination, "segmented"),
                     ))
-                    return desired, []
+                    return desired, [], travel_scope()
                 save_phase("unloading")
                 continue
 
@@ -476,7 +486,7 @@ class MissionControlDataService:
                     )
                 )
                 if active_transfer:
-                    return desired, []
+                    return desired, [], None
                 transferable = max(0.0, fuel_amount - protected)
                 if transferable < 0.01:
                     save_phase("to_return")
@@ -502,7 +512,7 @@ class MissionControlDataService:
                     blockers.append("destination_probe_unavailable")
                 if target is not None and target_free < 0.01:
                     # Remain docked and check again on the next transport tick.
-                    return desired, []
+                    return desired, [], None
                 amount = min(transferable, target_free)
                 return desired, [Task(
                     action="Transfer Deuterium",
@@ -516,7 +526,7 @@ class MissionControlDataService:
                     constraints=tuple(dict.fromkeys(blockers)),
                     resource_type="deuterium",
                     priority=1,
-                )]
+                )], None
 
             if phase == "to_return":
                 if current_sector != return_point:
@@ -524,15 +534,26 @@ class MissionControlDataService:
                         desired,
                         travel=TravelGoal(return_point, "segmented"),
                     ))
-                    return desired, []
+                    return desired, [], travel_scope()
                 if cycle.get("repeat", True):
-                    save_phase("to_source")
+                    phase = "to_source"
+                    operation = replace(
+                        operation,
+                        metadata={
+                            **operation.metadata,
+                            "transportPhase": phase,
+                            "transportCircuit": int(
+                                operation.metadata.get("transportCircuit", 0) or 0
+                            ) + 1,
+                        },
+                    )
+                    store.save(operation)
                     continue
                 save_desired(replace(desired, travel=None))
                 store.save(operation.advance())
-                return desired, []
+                return desired, [], None
 
-        return desired, []
+        return desired, [], None
 
     @staticmethod
     def _prepared_view(prepared):

@@ -157,6 +157,38 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual({first.target_id, second.target_id}, {101, 202})
 
+    def test_transport_move_scope_allows_same_hop_in_a_later_circuit(self):
+        from src.planner.task import Task
+
+        translator = TaskCommandTranslator(self.operations, 1)
+        common = {
+            "action": "Move Probe",
+            "reason": "Recurring transport leg",
+            "category": "travel",
+            "destination": SectorCoordinates(2, 0, 0),
+            "route": (SectorCoordinates(1, 1, 0), SectorCoordinates(2, 0, 0)),
+            "priority": 5,
+        }
+        first = translator.translate(Task(
+            **common,
+            idempotency_scope="transport:route-1:circuit:0:phase:to_destination",
+        ))
+        retry = translator.translate(Task(
+            **common,
+            idempotency_scope="transport:route-1:circuit:0:phase:to_destination",
+        ))
+        next_circuit = translator.translate(Task(
+            **common,
+            idempotency_scope="transport:route-1:circuit:1:phase:to_destination",
+        ))
+
+        self.assertEqual(first.fingerprint, retry.fingerprint)
+        self.assertNotEqual(first.fingerprint, next_circuit.fingerprint)
+        self.assertEqual(
+            next_circuit.metadata["idempotencyScope"],
+            "transport:route-1:circuit:1:phase:to_destination",
+        )
+
     def test_preflight_blocks_a_second_active_transport_transfer(self):
         self.operations.world.mannies["mannies"].append({
             "id": 202,

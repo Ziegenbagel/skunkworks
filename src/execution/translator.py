@@ -230,6 +230,29 @@ class TaskCommandTranslator:
             return None
 
         next_sector = route[0]
+        metadata = {
+            "finalDestination": {
+                "x": task.destination.x,
+                "y": task.destination.y,
+                "z": task.destination.z,
+            },
+            "remainingHops": len(route),
+            "requireScutCoverage": task.require_scut_coverage,
+            "routeRiskAcknowledged": task.risk_acknowledged,
+            "hazards": [
+                {
+                    "code": hazard.code,
+                    "severity": hazard.severity,
+                    "message": hazard.message,
+                    "acknowledgementRecommended": (
+                        hazard.acknowledgement_recommended
+                    ),
+                }
+                for hazard in task.hazards
+            ],
+        }
+        if task.idempotency_scope:
+            metadata["idempotencyScope"] = task.idempotency_scope
         return Command(
             type=CommandType.MOVE_PROBE,
             probe_id=self.probe_id,
@@ -243,27 +266,7 @@ class TaskCommandTranslator:
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
-            metadata={
-                "finalDestination": {
-                    "x": task.destination.x,
-                    "y": task.destination.y,
-                    "z": task.destination.z,
-                },
-                "remainingHops": len(route),
-                "requireScutCoverage": task.require_scut_coverage,
-                "routeRiskAcknowledged": task.risk_acknowledged,
-                "hazards": [
-                    {
-                        "code": hazard.code,
-                        "severity": hazard.severity,
-                        "message": hazard.message,
-                        "acknowledgementRecommended": (
-                            hazard.acknowledgement_recommended
-                        ),
-                    }
-                    for hazard in task.hazards
-                ],
-            },
+            metadata=metadata,
         )
 
     def _claim_idle_manny(self):
