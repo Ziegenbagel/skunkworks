@@ -2077,8 +2077,17 @@ class MissionControlController(QObject):
                 "transportCycles", ()
             )
         )
+        actionable_work = any(
+            item.get("disposition") == "ready"
+            for item in runtime.get("queue", ())
+        )
+        # Five minutes is the idle/backoff interval after a complete planner
+        # walk finds nothing useful to do.  It must not also delay work that is
+        # already shown as READY: that left newly-idle Mannys visibly sitting
+        # around until the next long tick.  Keep the one-minute cadence while
+        # transport is active or the current plan contains dispatchable work.
         self._automation_timer.setInterval(
-            60_000 if active_transport else 5 * 60_000
+            60_000 if active_transport or actionable_work else 5 * 60_000
         )
         if not enabled:
             for probe in self._available_probes:

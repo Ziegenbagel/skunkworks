@@ -179,6 +179,28 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.dashboard["compatibility"]["serverVersion"], 107)
         self.assertIn("paused", controller.error)
 
+    def test_ready_automation_work_uses_fast_scheduler_cadence(self):
+        controller = MissionControlController()
+
+        controller._configure_automation_timer({
+            "mode": "automatic",
+            "liveExecutionEnabled": True,
+            "queue": ({"disposition": "ready"},),
+        })
+
+        self.assertEqual(controller._automation_timer.interval(), 60_000)
+
+    def test_idle_automation_uses_five_minute_backoff(self):
+        controller = MissionControlController()
+
+        controller._configure_automation_timer({
+            "mode": "automatic",
+            "liveExecutionEnabled": True,
+            "queue": ({"disposition": "blocked"},),
+        })
+
+        self.assertEqual(controller._automation_timer.interval(), 5 * 60_000)
+
     def test_production_includes_active_manny_crafting_and_mining(self):
         probe = {
             "inventory": {

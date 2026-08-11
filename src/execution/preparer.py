@@ -190,7 +190,19 @@ class CommandPreparer:
                 if priority <= task.priority
             )
             available_after_higher = max(0, available - higher_claimed)
-            if task.action == "Craft Item" and available_after_higher < int(required):
+            # A component being built for this assembly goal may need to
+            # consume another component from the same kit.  That is not theft:
+            # the next planning snapshot will see the consumed dependency as
+            # missing and rebuild it before assembly.  Blocking it here causes
+            # a permanent component-chain deadlock (for example, a linear
+            # actuator that consumes the currently stored integrated circuit).
+            # Unrelated production and manual orders remain protected.
+            owns_assembly_chain = task.category == "fleet_assembly"
+            if (
+                task.action == "Craft Item"
+                and not owns_assembly_chain
+                and available_after_higher < int(required)
+            ):
                 conflicts.append("item_reserved_by_higher_priority_goal")
             claims.append((task.priority, min(int(required), available)))
         return list(dict.fromkeys(conflicts))

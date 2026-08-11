@@ -462,6 +462,34 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertIn("item_reserved_by_higher_priority_goal", manny.blockers)
         self.assertNotIn("resource_reserved_by_higher_priority_goal", manny.blockers)
 
+    def test_tanker_component_may_consume_and_then_replenish_kit_dependency(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"].setdefault("items", []).append(
+            {"id": "circuit-for-kit", "type": "integrated_circuit"}
+        )
+        self.operations.manufacturing.recipes._recipes["linear_actuator"] = {
+            "id": "linear_actuator", "name": "Linear actuator",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [
+                {"type": "integrated_circuit", "quantity": 1, "kind": "item"},
+            ],
+            "output": {"type": "linear_actuator", "containerSpace": 0.1},
+        }
+
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Craft Item", reason="Missing tanker actuator",
+                category="fleet_assembly", target="linear_actuator",
+                reserved_items=(("integrated_circuit", 1),), priority=1,
+            ),
+        ])
+
+        self.assertEqual(prepared[0].disposition, "dry_run")
+        self.assertNotIn(
+            "item_reserved_by_higher_priority_goal", prepared[0].blockers,
+        )
+
     def test_manual_craft_cannot_consume_planner_reserved_tanker_component(self):
         from src.planner.task import Task
 
