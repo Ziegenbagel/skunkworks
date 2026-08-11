@@ -10,6 +10,8 @@ PanelFrame {
     property string emptyText: "No active items"
     property string detailTitle: title
     property int previewLimit: 3
+    property int previewFontSize: 9
+    property int summaryFontSize: 8
     property double currentEpochMs: Date.now()
 
     function countdown(epochMs) {
@@ -52,7 +54,7 @@ PanelFrame {
                     color: root.entries.length ? Constants.textColor : Constants.mutedTextColor
                     elide: Text.ElideRight
                     font.family: Constants.technicalFont
-                    font.pixelSize: 9
+                    font.pixelSize: root.previewFontSize
                 }
             }
 
@@ -65,7 +67,7 @@ PanelFrame {
                 text: root.entries.length + (root.entries.length === 1 ? " ACTIVE ITEM" : " ACTIVE ITEMS") + "  ·  CLICK FOR FULL DETAILS ›"
                 color: Constants.cyanColor
                 font.family: Constants.technicalFont
-                font.pixelSize: 8
+                font.pixelSize: root.summaryFontSize
             }
         }
 

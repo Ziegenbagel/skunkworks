@@ -145,23 +145,25 @@ Rectangle {
                         Item {
                             Layout.fillWidth: true
                         }
-                        Column {
+                        Row {
+                            id: brandLine
+                            spacing: Math.round(14 * root.uiScale)
                             Label {
-                                anchors.horizontalCenter: parent.horizontalCenter
                                 text: "SKUNKWORKS"
                                 color: Constants.textColor
                                 font.family: Constants.displayFont
-                                font.pixelSize: Math.round(25 * root.uiScale)
+                                font.pixelSize: Math.round(30 * root.uiScale)
                                 font.bold: true
-                                font.letterSpacing: 2.4
+                                font.letterSpacing: 2.8
                             }
                             Label {
-                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.verticalCenter: parent.verticalCenter
                                 text: "AUTONOMOUS EXPLORATION & FLEET OPERATIONS"
                                 color: Constants.cyanColor
                                 font.family: Constants.technicalFont
-                                font.pixelSize: 8
-                                font.letterSpacing: 1.5
+                                font.pixelSize: Math.round(11 * root.uiScale)
+                                font.bold: true
+                                font.letterSpacing: 1.1
                             }
                         }
                         Item {
@@ -498,17 +500,17 @@ Rectangle {
                             Layout.fillHeight: true
                             title: "Safety Overview"
                             contentItem: Column {
-                                width: parent.width; spacing: 8
+                                width: parent.width; spacing: 10
                                 Label {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: root.healthData.stateLabel || "SYSTEMS NOMINAL"
                                     color: root.healthData.state === "critical" ? Constants.criticalColor : root.healthData.state === "degraded" ? Constants.warningColor : Constants.nominalColor
-                                    font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true
+                                    font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
                                 }
                                 Label {
                                     width: parent.width; horizontalAlignment: Text.AlignHCenter
                                     text: root.healthData.summary || "No active threats detected"
-                                    color: Constants.mutedTextColor; font.pixelSize: 10; wrapMode: Text.Wrap
+                                    color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap
                                 }
                             }
                         }
@@ -521,6 +523,8 @@ Rectangle {
                             title: "Production Queue"
                             detailTitle: "Production & Active Work · Full Details"
                             emptyText: "No active crafting, mining, or production work"
+                            previewFontSize: 13
+                            summaryFontSize: 11
                             entries: root.dashboardData.production || []
                         }
                     }
@@ -541,24 +545,29 @@ Rectangle {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.round(22 * root.uiScale)
+                Layout.preferredHeight: Math.round(34 * root.uiScale)
                 Layout.minimumHeight: Layout.preferredHeight
                 Layout.maximumHeight: Layout.preferredHeight
                 Label {
-                    text: "SKUNKWORKS UI CONCEPT v1.0"
+                    text: "SKUNKWORKS MISSION CONTROL"
                     color: Constants.cyanColor
                     font.family: Constants.technicalFont
-                    font.pixelSize: 9
-                    font.letterSpacing: 2
+                    font.pixelSize: Math.round(12 * root.uiScale)
+                    font.bold: true
+                    font.letterSpacing: 1.6
                 }
                 Item {
                     Layout.fillWidth: true
                 }
                 Label {
-                    text: "AEROSPACE OPERATIONS CONSOLE  ·  API v" + (root.dashboardData.apiVersion || "103–106") + "  ·  POLICY-CONTROLLED"
+                    text: "AUTONOMOUS FLEET OPERATIONS  ·  "
+                          + (root.dashboardData.apiVersion
+                             ? "GAME API v" + root.dashboardData.apiVersion
+                             : "GAME API VERSION PENDING")
+                          + "  ·  POLICY-CONTROLLED"
                     color: Constants.mutedTextColor
                     font.family: Constants.technicalFont
-                    font.pixelSize: 9
+                    font.pixelSize: Math.round(12 * root.uiScale)
                 }
             }
         }

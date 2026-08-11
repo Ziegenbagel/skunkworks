@@ -99,6 +99,20 @@ def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
     assert "onClicked: details.open()" in panel
     assert "Dialog {" in panel
     assert "ScrollView" in panel
+    assert "previewFontSize: 13" in screen
+    assert "summaryFontSize: 11" in screen
+
+
+def test_dashboard_branding_and_footer_use_readable_current_product_labels():
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+
+    assert "id: brandLine" in screen
+    assert "Math.round(30 * root.uiScale)" in screen
+    assert "SKUNKWORKS UI CONCEPT" not in screen
+    assert "SKUNKWORKS MISSION CONTROL" in screen
+    assert "GAME API v" in screen
+    assert "GAME API VERSION PENDING" in screen
+    assert 'font.pixelSize: Math.round(12 * root.uiScale)' in screen
 
 
 def test_top_navigation_is_interactive_and_has_connected_workspace():
