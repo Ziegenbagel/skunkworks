@@ -28,6 +28,41 @@ PROBE_ASSEMBLY_REQUIREMENTS = {
 }
 
 
+def active_probe_assembly_count(operations, model):
+    """Count probe assemblies accepted by the game but not yet completed.
+
+    The API removes the committed components from inventory as soon as an
+    assembly task starts.  Without crediting that in-flight probe, the next
+    planning refresh sees both an unmet fleet goal and an empty component
+    inventory and incorrectly starts building the entire kit again.
+    """
+
+    count = 0
+    for manny in operations.world.mannies.get("mannies", ()):
+        current = manny.get("currentTask")
+        details = current if isinstance(current, dict) else manny.get("task")
+        details = details if isinstance(details, dict) else {}
+        task_type = current.get("type") if isinstance(current, dict) else current
+        normalized = str(task_type or "").strip().lower().replace("-", "_")
+        if normalized not in {"assemble_probe", "assembling_probe"}:
+            continue
+        payload = details.get("payload") if isinstance(details.get("payload"), dict) else {}
+        active_model = (
+            details.get("model")
+            or details.get("probeModel")
+            or details.get("targetModel")
+            or payload.get("model")
+        )
+        # Current automated assembly only supports the tanker recipe. Some API
+        # task snapshots expose the operation but omit its payload, so an
+        # unlabelled in-flight assembly can safely satisfy that one known model.
+        if active_model is None and model == "deuterium_tanker":
+            count += 1
+        elif str(active_model).strip().lower().replace("-", "_") == model:
+            count += 1
+    return count
+
+
 def tanker_component_statuses(operations):
     """Return every tanker component's stored, active, and outstanding state."""
 

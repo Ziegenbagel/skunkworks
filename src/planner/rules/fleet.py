@@ -1,7 +1,11 @@
 """Desired assembled-fleet planning."""
 
 from src.planner.task import Task
-from src.planner.assembly import empty_assembly_containers, tanker_component_statuses
+from src.planner.assembly import (
+    active_probe_assembly_count,
+    empty_assembly_containers,
+    tanker_component_statuses,
+)
 
 
 def plan(operations, desired_state) -> list[Task]:
@@ -13,8 +17,25 @@ def plan(operations, desired_state) -> list[Task]:
 
     tasks = []
     for goal in desired_state.fleet:
-        shortage = max(0, goal.quantity - counts.get(goal.model, 0))
+        completed = counts.get(goal.model, 0)
+        active = active_probe_assembly_count(operations, goal.model)
+        shortage = max(0, goal.quantity - completed - active)
         if shortage == 0:
+            if active and completed < goal.quantity:
+                tasks.append(Task(
+                    action="Await Active Assembly",
+                    reason=(
+                        f"Desired {goal.model.replace('_', ' ')} fleet is "
+                        f"{goal.quantity}; {completed} complete and {active} assembly "
+                        "in progress. Its committed components have already been "
+                        "consumed by the game and must not be rebuilt."
+                    ),
+                    category="fleet_assembly",
+                    target=goal.model,
+                    quantity=active,
+                    constraints=("active_assembly_pending",),
+                    priority=goal.priority,
+                ))
             continue
         if goal.model != "deuterium_tanker":
             tasks.append(Task(

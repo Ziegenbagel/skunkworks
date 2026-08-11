@@ -758,6 +758,44 @@ class ExecutionBoundaryTests(unittest.TestCase):
             {101, 202},
         )
 
+    def test_active_tanker_assembly_does_not_rebuild_consumed_components(self):
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["items"] = []
+        self.operations.world.mannies["mannies"][0].update({
+            "currentTask": "assembling_probe",
+            "task": {"model": "deuterium_tanker"},
+            "canReceiveOrders": False,
+        })
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+        ).tasks()
+
+        tanker_tasks = [task for task in tasks if task.category == "fleet_assembly"]
+        self.assertEqual(len(tanker_tasks), 1)
+        self.assertEqual(tanker_tasks[0].action, "Await Active Assembly")
+        self.assertIn("must not be rebuilt", tanker_tasks[0].reason)
+        self.assertFalse(any(task.action == "Craft Item" for task in tasks))
+
+    def test_unlabelled_active_assembly_is_credited_to_supported_tanker_goal(self):
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["items"] = []
+        self.operations.world.mannies["mannies"][0].update({
+            "currentTask": {"type": "assemble-probe"},
+            "canReceiveOrders": False,
+        })
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+        ).tasks()
+
+        self.assertEqual(
+            [task.action for task in tasks if task.category == "fleet_assembly"],
+            ["Await Active Assembly"],
+        )
+
     def test_tanker_assembly_preserves_resource_assigned_containers(self):
         from src.planner.assembly import TANKER_COMPONENTS
 
