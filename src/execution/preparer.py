@@ -152,15 +152,20 @@ class CommandPreparer:
         # the next unit of a higher-priority goal, not its entire desired batch;
         # otherwise a large long-term target can strand usable surplus and idle
         # fabricators while protected work is already in progress.
-        plan = self.translator.operations.manufacturing.production_plan(
+        manufacturing = self.translator.operations.manufacturing
+        plan = manufacturing.production_plan(
             task.target,
             quantity=1,
             include_operational_constraints=False,
-            use_inventory_items=False,
+            # Match the game server, which consumes stored recursive
+            # ingredients before synthesizing missing ones.  Planning a craft
+            # as "raw resources only" made the reservation ledger blind to
+            # exactly the tanker components the live API would take.
+            use_inventory_items=True,
         )
         if plan is None:
             return []
-        resources, items = self.translator.operations.manufacturing.available_inputs()
+        resources, items = manufacturing.available_inputs()
 
         conflicts = []
         for resource, required in plan["required_resources"].items():
