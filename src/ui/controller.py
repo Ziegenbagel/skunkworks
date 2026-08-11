@@ -36,6 +36,7 @@ from src.snapshot.manager import SnapshotManager
 from src.security import CredentialStore
 from src.planner.planner import Planner
 from src.planner.task import Task
+from src.planner.assembly import PROBE_ASSEMBLY_REQUIREMENTS
 from src.execution import (
     AutomationRuntime, CapabilityDispatcher, CommandPreparer,
     CommandType, ExecutionMode, ExecutionPolicy,
@@ -226,7 +227,23 @@ class MissionControlDataService:
                 "craftableBy": tuple(recipe.get("craftableBy", ())),
                 "durationSeconds": int(recipe.get("durationSeconds", 0) or 0),
                 "ingredients": tuple(recipe.get("ingredients", ())),
-            } for recipe in self.recipes.all()),
+            } for recipe in sorted(
+                self.recipes.all(),
+                key=lambda item: str(item.get("name") or item.get("id") or "").lower(),
+            )),
+            "probeAssemblies": tuple({
+                "model": model,
+                "name": model.replace("_", " ").title(),
+                "components": tuple({
+                    "type": component,
+                    "name": (
+                        (self.recipes.get(component) or {}).get("name")
+                        or component.replace("_", " ").title()
+                    ),
+                    "quantity": quantity,
+                } for component, quantity in components),
+                "assemblyAvailable": bool(components),
+            } for model, components in PROBE_ASSEMBLY_REQUIREMENTS.items()),
             "idleMannies": dashboard.get("inventoryManagement", {}).get("idleMannies", ()),
         }
         improvements_response = world.hazard_context.get("improvements") or {}

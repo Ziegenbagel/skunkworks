@@ -17,6 +17,13 @@ TANKER_COMPONENTS = (
     ("steel_plate", 10),
 )
 
+# One registry drives both planning documentation and the operator-facing
+# assembly catalog. Adding a future game model is intentionally one entry.
+PROBE_ASSEMBLY_REQUIREMENTS = {
+    "generic": (),
+    "deuterium_tanker": TANKER_COMPONENTS,
+}
+
 
 def tanker_component_statuses(operations):
     """Return every tanker component's stored, active, and outstanding state."""

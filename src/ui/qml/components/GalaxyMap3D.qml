@@ -37,6 +37,7 @@ Item {
     property bool salvageOnly: false
     property bool showRecentTrail: true
     property bool showScutCoverage: false
+    property bool showAxisLabels: true
     property bool filtersExpanded: true
     property bool showDeuterium: false
     property bool showMetals: false
@@ -277,8 +278,8 @@ Item {
     // Project the FCC origin and positive axis markers over the 3D scene so
     // their labels remain readable while the user orbits, pans, and zooms.
     Repeater {
+        visible: root.showAxisLabels
         model: [
-            { "label": "0, 0, 0", "x": 0, "y": 0, "z": 0, "color": "#36d9ff" },
             { "label": "X", "x": 1.15, "y": 0, "z": 0, "color": "#ff5d68" },
             { "label": "Y", "x": 0, "y": 1.15, "z": 0, "color": "#39ff9a" },
             { "label": "Z", "x": 0, "y": 0, "z": 1.15, "color": "#4f8cff" }
@@ -346,7 +347,7 @@ Item {
     Rectangle {
         anchors.left: parent.left; anchors.top: parent.top
         anchors.leftMargin: 12; anchors.topMargin: 384
-        width: 560; height: root.filtersExpanded ? 455 : 48
+        width: 560; height: root.filtersExpanded ? 490 : 48
         color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.lineColor
         clip: true
         Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -409,6 +410,11 @@ Item {
                     Layout.columnSpan: 2
                     text: "SHOW FULL SCUT COVERAGE VOLUMES"
                     checked: root.showScutCoverage; onToggled: root.showScutCoverage = checked
+                }
+                CheckBox {
+                    Layout.columnSpan: 2
+                    text: "SHOW X / Y / Z AXIS LABELS"
+                    checked: root.showAxisLabels; onToggled: root.showAxisLabels = checked
                 }
             }
             Label {

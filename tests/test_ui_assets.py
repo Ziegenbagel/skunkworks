@@ -129,6 +129,18 @@ def test_fleet_workspace_exposes_live_probe_upgrade_controls():
     assert "def queueManualUpgrade" in controller
 
 
+def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+    assembly = Path("src/planner/assembly.py").read_text()
+    assert "CRAFTING REFERENCE · ALL AVAILABLE RECIPES" in manual
+    assert "RAW RESOURCE" in manual
+    assert "CRAFTED ITEM" in manual
+    assert "PROBE ASSEMBLY REQUIREMENTS" in manual
+    assert '"probeAssemblies"' in controller
+    assert "PROBE_ASSEMBLY_REQUIREMENTS" in assembly
+
+
 def test_automation_queue_names_the_actual_output_for_each_craft():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
     controller = Path("src/ui/controller.py").read_text()
@@ -220,10 +232,11 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "import QtQuick3D" in galaxy
     assert "View3D" in galaxy
     assert "mapFrom3DScene" in galaxy
-    assert '\"label\": \"0, 0, 0\"' in galaxy
+    assert '\"label\": \"0, 0, 0\"' not in galaxy
     assert '\"label\": \"X\"' in galaxy
     assert '\"label\": \"Y\"' in galaxy
     assert '\"label\": \"Z\"' in galaxy
+    assert "SHOW X / Y / Z AXIS LABELS" in galaxy
     assert "OrbitCameraController" in galaxy
     assert "Repeater3D" in galaxy
     assert "pickable: true" in galaxy
@@ -419,6 +432,8 @@ def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     assert "SAVE CHANGES" in logbook
     assert "DELETE LOGBOOK PAGE?" in logbook
     assert "AUTO-LOG DAILY ROLE REPORTS & MAJOR DISCOVERIES" in logbook
+    assert "id: contentScroller" in logbook
+    assert "ScrollBar.vertical.policy: ScrollBar.AsNeeded" in logbook
     assert "newDailyReportCount" in Path("src/ui/qml/components/CommunicationsWorkspace.qml").read_text()
     assert "newDailyReportCount" in Path("src/ui/qml/components/TopNavigationBar.qml").read_text()
     assert "loadLogbookPage" in app

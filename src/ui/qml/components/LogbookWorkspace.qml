@@ -66,7 +66,23 @@ Item {
             }
             Label { Layout.fillWidth: true; text: "Auto-logging is opt-in. At the first refresh after 17:00 local time, Skunkworks creates one role-specific daily game-logbook report per probe, plus pages for major discoveries."; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
             TextField { id: titleEditor; Layout.fillWidth: true; placeholderText: "Page title"; maximumLength: 120; font.pixelSize: 16 }
-            TextArea { id: contentEditor; Layout.fillWidth: true; Layout.fillHeight: true; placeholderText: "Write a probe logbook note…"; wrapMode: TextEdit.Wrap; font.pixelSize: 15; padding: 16; background: Rectangle { color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4 } }
+            ScrollView {
+                id: contentScroller
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                TextArea {
+                    id: contentEditor
+                    width: contentScroller.availableWidth
+                    placeholderText: "Write a probe logbook note…"
+                    wrapMode: TextEdit.Wrap
+                    font.pixelSize: 15
+                    padding: 16
+                    background: Rectangle { color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4 }
+                }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 Button { text: "DELETE PAGE"; visible: root.selectedPageId >= 0; onClicked: deleteConfirmation.open() }
