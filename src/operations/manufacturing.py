@@ -18,7 +18,7 @@ class ManufacturingService:
         if recipe is None:
             return None
 
-        order = self.production_plan(recipe_id)
+        order = self.production_plan(recipe_id, use_inventory_items=False)
 
         return {
             "recipe": recipe,
@@ -35,7 +35,7 @@ class ManufacturingService:
     def can_build(self, recipe_id):
         """Return whether one server craft order can start now."""
 
-        plan = self.production_plan(recipe_id)
+        plan = self.production_plan(recipe_id, use_inventory_items=False)
         return plan is not None and plan["achievable"]
 
     def inventory_count(self, item_type, include_active=True):
@@ -107,11 +107,12 @@ class ManufacturingService:
         return normalized or None
 
     def raw_resources(self, recipe_id):
-        """Return recursive costs after reusing current item inventory."""
+        """Return the complete recursive raw-resource cost of one order."""
 
         plan = self.production_plan(
             recipe_id,
             include_operational_constraints=False,
+            use_inventory_items=False,
         )
 
         if plan is None:
@@ -120,7 +121,7 @@ class ManufacturingService:
         return plan["required_resources"]
 
     def missing_resources(self, recipe_id):
-        plan = self.production_plan(recipe_id)
+        plan = self.production_plan(recipe_id, use_inventory_items=False)
 
         if plan is None:
             return None
@@ -128,7 +129,7 @@ class ManufacturingService:
         return plan["missing_resources"]
 
     def missing_ingredients(self, recipe_id):
-        plan = self.production_plan(recipe_id)
+        plan = self.production_plan(recipe_id, use_inventory_items=False)
 
         if plan is None:
             return None
@@ -175,6 +176,7 @@ class ManufacturingService:
         quantity=1,
         include_operational_constraints=True,
         protected_items=None,
+        use_inventory_items=False,
     ):
         """
         Analyze repeated server craft orders without inventing sub-orders.
@@ -191,6 +193,12 @@ class ManufacturingService:
             )
 
         resources, item_pool = self._inventory()
+        if not use_inventory_items:
+            # The game accepts an ordinary craft as one direct recipe and
+            # resolves all nested craftable ingredients from raw resources.
+            # Stored crafted components are physical assembly inventory; they
+            # must never be borrowed by Manny or atomic-printer recipes.
+            item_pool = {}
         for item_type, protected_count in (protected_items or {}).items():
             available = item_pool.get(item_type, [])
             if available and protected_count:
@@ -266,7 +274,7 @@ class ManufacturingService:
             "protected_inventory_items": dict(protected_items or {}),
         }
 
-    def production_bundle_plan(self, requests):
+    def production_bundle_plan(self, requests, use_inventory_items=False):
         """Resolve several recipe quantities against one shared inventory pool."""
 
         normalized = {
@@ -286,6 +294,8 @@ class ManufacturingService:
             return None
 
         resources, item_pool = self._inventory()
+        if not use_inventory_items:
+            item_pool = {}
         required_resources = {}
         consumed_items = []
         synthesized = {}

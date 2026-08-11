@@ -156,10 +156,12 @@ class CommandPreparer:
             task.target,
             quantity=1,
             include_operational_constraints=False,
+            use_inventory_items=False,
         )
         if plan is None:
             return []
         resources, items = self.translator.operations.manufacturing.available_inputs()
+
         conflicts = []
         for resource, required in plan["required_resources"].items():
             available = float(resources.get(resource, 0))

@@ -5,7 +5,6 @@ from collections import defaultdict
 from src.planner.priorities import HIGH, NORMAL
 from src.planner.task import Task
 from src.planner.assembly import tanker_component_statuses
-from src.planner.reservations import higher_priority_item_reservations
 
 
 def plan(operations, desired_state) -> list[Task]:
@@ -40,9 +39,7 @@ def plan(operations, desired_state) -> list[Task]:
             goal.recipe_id,
             quantity=1,
             include_operational_constraints=False,
-            protected_items=higher_priority_item_reservations(
-                operations, desired_state, goal.priority,
-            ),
+            use_inventory_items=False,
         )
 
         if production is None:
@@ -78,7 +75,9 @@ def plan(operations, desired_state) -> list[Task]:
             for status in tanker_component_statuses(operations)
             if status["missing"] > 0
         }
-        production = operations.manufacturing.production_bundle_plan(requests)
+        production = operations.manufacturing.production_bundle_plan(
+            requests, use_inventory_items=False,
+        )
         if production is None:
             continue
         for component, quantity in requests.items():
@@ -86,6 +85,7 @@ def plan(operations, desired_state) -> list[Task]:
                 component,
                 quantity=quantity,
                 include_operational_constraints=False,
+                use_inventory_items=False,
             )
             if component_plan is None:
                 continue

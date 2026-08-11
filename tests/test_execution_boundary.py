@@ -346,7 +346,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(prepared[1].disposition, "blocked")
         self.assertIn("resource_reserved_by_higher_priority_goal", prepared[1].blockers)
 
-    def test_lower_priority_recipe_cannot_consume_stored_tanker_components(self):
+    def test_lower_priority_recipe_ignores_stored_tanker_components(self):
         from src.planner.task import Task
 
         self.operations.world.probe["inventory"].setdefault("items", []).extend(
@@ -379,9 +379,10 @@ class ExecutionBoundaryTests(unittest.TestCase):
             item for item in prepared
             if item.command.reason == "Lower-priority consumer"
         )
-        self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
+        self.assertNotIn("item_reserved_by_higher_priority_goal", consumer.blockers)
+        self.assertEqual(consumer.disposition, "dry_run")
 
-    def test_equal_priority_recipe_cannot_consume_stored_tanker_components(self):
+    def test_equal_priority_recipe_ignores_stored_tanker_components(self):
         from src.planner.task import Task
 
         self.operations.world.probe["inventory"].setdefault("items", []).append(
@@ -413,9 +414,55 @@ class ExecutionBoundaryTests(unittest.TestCase):
             item for item in prepared
             if item.command.reason == "Equal-priority consumer"
         )
-        self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
+        self.assertNotIn("item_reserved_by_higher_priority_goal", consumer.blockers)
+        self.assertEqual(consumer.disposition, "dry_run")
 
-    def test_manual_craft_cannot_consume_planner_reserved_tanker_component(self):
+    def test_equal_priority_manny_craft_uses_fresh_inputs_without_consuming_tanker_kit(self):
+        from src.planner.task import Task
+
+        inventory = self.operations.world.probe["inventory"]
+        inventory.setdefault("items", []).append(
+            {"id": "relay-for-tanker", "type": "scut_relay"}
+        )
+        inventory["resourceStocks"][0]["amount"] = 2
+        self.operations.manufacturing.recipes._recipes["scut_relay"] = {
+            "id": "scut_relay", "name": "SCUT relay",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [
+                {"type": "metals", "quantity": 1, "kind": "resource"},
+            ],
+            "output": {"type": "scut_relay", "containerSpace": 0.1},
+        }
+        self.operations.manufacturing.recipes._recipes["manny"] = {
+            "id": "manny", "name": "Manny",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [
+                {"type": "scut_relay", "quantity": 1, "kind": "item"},
+            ],
+            "output": {"type": "manny", "containerSpace": 0.1},
+        }
+
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Await Active Production", reason="Protected tanker relay",
+                target="electric_motor", constraints=("active_production_pending",),
+                reserved_items=(("scut_relay", 1),), priority=1,
+            ),
+            Task(
+                action="Craft Item", reason="Equal-priority Manny production",
+                target="manny", priority=1,
+            ),
+        ])
+
+        manny = next(
+            item for item in prepared
+            if item.command.reason == "Equal-priority Manny production"
+        )
+        self.assertEqual(manny.disposition, "dry_run")
+        self.assertNotIn("item_reserved_by_higher_priority_goal", manny.blockers)
+        self.assertNotIn("resource_reserved_by_higher_priority_goal", manny.blockers)
+
+    def test_manual_craft_ignores_planner_reserved_tanker_component(self):
         from src.planner.task import Task
 
         self.operations.world.probe["inventory"].setdefault("items", []).append(
@@ -436,25 +483,30 @@ class ExecutionBoundaryTests(unittest.TestCase):
             ),
         ])
 
-        self.assertIn("item_reserved_by_higher_priority_goal", blockers)
+        self.assertNotIn("item_reserved_by_higher_priority_goal", blockers)
 
     def test_blocked_craft_releases_manny_for_following_mining_order(self):
         from src.planner.task import Task
 
-        self.operations.world.probe["inventory"].setdefault("items", []).append(
-            {"id": "reserved-plate", "type": "steel_plate"}
-        )
         self.operations.manufacturing.recipes._recipes["uses_plate"] = {
             "id": "uses_plate", "name": "Uses plate", "craftableBy": ["manny"],
             "durationSeconds": 60,
-            "ingredients": [{"type": "steel_plate", "quantity": 1, "kind": "item"}],
+            "ingredients": [{"type": "unavailable_part", "quantity": 1, "kind": "item"}],
             "output": {"type": "uses_plate", "containerSpace": 0.1},
+        }
+        self.operations.manufacturing.recipes._recipes["unavailable_part"] = {
+            "id": "unavailable_part", "name": "Unavailable part",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [
+                {"type": "metals", "quantity": 999, "kind": "resource"},
+            ],
+            "output": {"type": "unavailable_part", "containerSpace": 0.1},
         }
         prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
             Task(
                 action="Prepare Manufacturing", reason="Protected tanker plate",
                 target="steel_plate", constraints=("active_production_pending",),
-                reserved_items=(("steel_plate", 1),), priority=1,
+                reserved_items=(("unavailable_part", 1),), priority=1,
             ),
             Task(
                 action="Craft Item", reason="Blocked lower consumer",
@@ -662,6 +714,49 @@ class ExecutionBoundaryTests(unittest.TestCase):
             "model": "deuterium_tanker",
             "containerIds": ["container-a", "container-b"],
         })
+
+    def test_ready_tanker_assembly_does_not_stall_equal_priority_manny_production(self):
+        from src.planner.assembly import TANKER_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        inventory = self.operations.world.probe["inventory"]
+        inventory["items"] = [
+            {"id": f"{item}-{index}", "type": item}
+            for item, quantity in TANKER_COMPONENTS
+            for index in range(quantity)
+        ]
+        inventory["containers"] = [
+            {"id": "container-a", "kind": "container", "capacity": 1, "usedCapacity": 0},
+            {"id": "container-b", "kind": "container", "capacity": 1, "usedCapacity": 0},
+        ]
+        inventory["resourceStocks"][0]["amount"] = 2
+        self.operations.manufacturing.recipes._recipes["manny"] = {
+            "id": "manny", "name": "Manny",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [
+                {"type": "metals", "quantity": 1, "kind": "resource"},
+            ],
+            "output": {"type": "manny", "containerSpace": 0.1},
+        }
+        self.operations.world.mannies["mannies"].append({
+            "id": 202, "currentTask": None, "canReceiveOrders": True,
+            "location": {"type": "probe"},
+        })
+
+        prepared = self.prepare(DesiredState(
+            fleet=(FleetGoal("deuterium_tanker", 1, priority=1),),
+            production=(ProductionGoal("manny", 3, priority=1),),
+        ))
+
+        self.assertEqual(
+            [item.command.type for item in prepared],
+            [CommandType.MANNY_ASSEMBLE_PROBE, CommandType.MANNY_CRAFT],
+        )
+        self.assertTrue(all(item.disposition == "dry_run" for item in prepared))
+        self.assertEqual(
+            {item.command.target_id for item in prepared},
+            {101, 202},
+        )
 
     def test_tanker_assembly_preserves_resource_assigned_containers(self):
         from src.planner.assembly import TANKER_COMPONENTS

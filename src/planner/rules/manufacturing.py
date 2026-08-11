@@ -2,7 +2,6 @@
 
 from src.planner.priorities import NORMAL
 from src.planner.task import Task
-from src.planner.reservations import higher_priority_item_reservations
 
 
 def plan(operations, desired_state) -> list[Task]:
@@ -20,13 +19,10 @@ def plan(operations, desired_state) -> list[Task]:
         if shortage == 0:
             continue
 
-        protected_items = higher_priority_item_reservations(
-            operations, desired_state, goal.priority,
-        )
         production = operations.manufacturing.production_plan(
             goal.recipe_id,
             quantity=1,
-            protected_items=protected_items,
+            use_inventory_items=False,
         )
 
         if production is None:

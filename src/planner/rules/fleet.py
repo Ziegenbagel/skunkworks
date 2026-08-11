@@ -75,7 +75,7 @@ def plan(operations, desired_state) -> list[Task]:
                     ))
                     continue
                 production = operations.manufacturing.production_plan(
-                    component, quantity=1,
+                    component, quantity=1, use_inventory_items=False,
                 )
                 blockers = ("unknown_recipe",) if production is None else production["blockers"]
                 tasks.append(Task(

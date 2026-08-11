@@ -105,7 +105,8 @@ class ManufacturingServiceTests(unittest.TestCase):
 
     def test_recursively_synthesizes_missing_components(self):
         plan = self.service.production_plan(
-            "electric_motor"
+            "electric_motor",
+            use_inventory_items=True,
         )
 
         self.assertEqual(
@@ -127,6 +128,21 @@ class ManufacturingServiceTests(unittest.TestCase):
             {"steel_bar": 1},
         )
         self.assertEqual(plan["duration_seconds"], 1200)
+
+    def test_direct_craft_uses_recursive_raw_cost_and_preserves_stored_components(self):
+        plan = self.service.production_plan(
+            "electric_motor",
+            include_operational_constraints=False,
+            use_inventory_items=False,
+        )
+
+        self.assertEqual(plan["consumed_inventory_items"], {})
+        self.assertEqual(plan["synthesized_components"], {"steel_bar": 2})
+        self.assertEqual(plan["required_resources"]["metals"], 0.4)
+        self.assertEqual(
+            self.service.inventory_count("steel_bar", include_active=False),
+            1,
+        )
 
     def test_reports_only_terminal_shortages(self):
         self.assertEqual(
