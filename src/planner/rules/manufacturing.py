@@ -48,7 +48,7 @@ def plan(operations, desired_state) -> list[Task]:
                 ),
                 reason=(
                     f"Desired quantity is {goal.quantity}; {stored} stored, "
-                    f"{active} crafting, and {shortage} still unallocated. "
+                    f"{active} crafting, and {shortage} still required. "
                     "Dispatch readiness is evaluated one craft at a time: "
                     "only the next unit's inputs are reserved, and all goals "
                     "are reconsidered after each planning cycle."

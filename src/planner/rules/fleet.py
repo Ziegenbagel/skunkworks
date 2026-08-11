@@ -73,7 +73,7 @@ def plan(operations, desired_state) -> list[Task]:
                     f"{status['required']} required; "
                     f"{status['allocated_stored']} stored and allocated, "
                     f"{status['allocated_active']} active craft allocated, "
-                    f"{amount} still unallocated."
+                    f"{amount} still required."
                 )
                 if amount == 0:
                     surplus = status["surplus_active"]
