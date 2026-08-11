@@ -153,6 +153,9 @@ def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
     assert "PROBE ASSEMBLY REQUIREMENTS" in manual
     assert '"probeAssemblies"' in controller
     assert "PROBE_ASSEMBLY_REQUIREMENTS" in assembly
+    assert "GENERIC_COMPONENTS" in assembly
+    assert '"Generic Class Probe"' in controller
+    assert '"Tanker Class Probe"' in controller
 
 
 def test_automation_queue_names_the_actual_output_for_each_craft():
@@ -267,6 +270,8 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "recentTrail" in galaxy
     assert "filtersExpanded" in galaxy
     assert "Collapse map filters" in galaxy
+    assert "id: filterScroll" in galaxy
+    assert "visible: root.showAxisLabels" in galaxy
     assert 'text: "SCANNED"' in galaxy
     assert 'text: "OBSERVED"' not in galaxy
     assert 'text: "UNKNOWN"' not in galaxy

@@ -3,12 +3,15 @@
 from collections import Counter
 
 
-TANKER_COMPONENTS = (
+GENERIC_COMPONENTS = (
     ("deuterium_engine", 1),
     ("scut_relay", 1),
     ("electric_motor", 5),
     ("atomic_printer_part", 2),
     ("solar_panel", 4),
+)
+
+TANKER_COMPONENTS = GENERIC_COMPONENTS + (
     ("linear_actuator", 2),
     ("integrated_circuit", 1),
     # Steel plates are also ingredients of several components above. Build the
@@ -20,7 +23,7 @@ TANKER_COMPONENTS = (
 # One registry drives both planning documentation and the operator-facing
 # assembly catalog. Adding a future game model is intentionally one entry.
 PROBE_ASSEMBLY_REQUIREMENTS = {
-    "generic": (),
+    "generic": GENERIC_COMPONENTS,
     "deuterium_tanker": TANKER_COMPONENTS,
 }
 

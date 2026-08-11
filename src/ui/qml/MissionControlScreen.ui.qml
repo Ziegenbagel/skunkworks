@@ -145,10 +145,12 @@ Rectangle {
                         Item {
                             Layout.fillWidth: true
                         }
-                        Row {
+                        RowLayout {
                             id: brandLine
-                            spacing: Math.round(14 * root.uiScale)
+                            Layout.preferredWidth: Math.round(620 * root.uiScale)
+                            spacing: Math.round(18 * root.uiScale)
                             Label {
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
                                 text: "SKUNKWORKS"
                                 color: Constants.textColor
                                 font.family: Constants.displayFont
@@ -156,13 +158,15 @@ Rectangle {
                                 font.bold: true
                                 font.letterSpacing: 2.8
                             }
+                            Item { Layout.fillWidth: true }
                             Label {
-                                anchors.verticalCenter: parent.verticalCenter
+                                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                                 text: "AUTONOMOUS EXPLORATION & FLEET OPERATIONS"
                                 color: Constants.cyanColor
                                 font.family: Constants.technicalFont
                                 font.pixelSize: Math.round(11 * root.uiScale)
                                 font.bold: true
+                                font.italic: true
                                 font.letterSpacing: 1.1
                             }
                         }
@@ -505,12 +509,12 @@ Rectangle {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: root.healthData.stateLabel || "SYSTEMS NOMINAL"
                                     color: root.healthData.state === "critical" ? Constants.criticalColor : root.healthData.state === "degraded" ? Constants.warningColor : Constants.nominalColor
-                                    font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
+                                    font.family: Constants.technicalFont; font.pixelSize: 18; font.bold: true
                                 }
                                 Label {
                                     width: parent.width; horizontalAlignment: Text.AlignHCenter
                                     text: root.healthData.summary || "No active threats detected"
-                                    color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap
+                                    color: Constants.mutedTextColor; font.pixelSize: 15; wrapMode: Text.Wrap
                                 }
                             }
                         }
@@ -545,7 +549,7 @@ Rectangle {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.round(34 * root.uiScale)
+                Layout.preferredHeight: Math.round(26 * root.uiScale)
                 Layout.minimumHeight: Layout.preferredHeight
                 Layout.maximumHeight: Layout.preferredHeight
                 Label {

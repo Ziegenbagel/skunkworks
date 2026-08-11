@@ -233,7 +233,13 @@ class MissionControlDataService:
             )),
             "probeAssemblies": tuple({
                 "model": model,
-                "name": model.replace("_", " ").title(),
+                "name": (
+                    "Generic Class Probe"
+                    if model == "generic"
+                    else "Tanker Class Probe"
+                    if model == "deuterium_tanker"
+                    else model.replace("_", " ").title()
+                ),
                 "components": tuple({
                     "type": component,
                     "name": (

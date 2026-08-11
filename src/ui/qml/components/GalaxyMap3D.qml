@@ -287,6 +287,7 @@ Item {
         delegate: Rectangle {
             id: axisMarker
             required property var modelData
+            visible: root.showAxisLabels
             readonly property vector3d projected: {
                 // Explicit camera dependencies keep mapFrom3DScene current.
                 const orbit = cameraOrigin.eulerRotation;
@@ -347,12 +348,20 @@ Item {
     Rectangle {
         anchors.left: parent.left; anchors.top: parent.top
         anchors.leftMargin: 12; anchors.topMargin: 384
-        width: 560; height: root.filtersExpanded ? 490 : 48
+        width: 560; height: root.filtersExpanded ? Math.min(440, Math.max(220, parent.height - 396)) : 48
         color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.lineColor
         clip: true
         Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-        ColumnLayout {
-            anchors.fill: parent; anchors.margins: 10; spacing: 5
+        ScrollView {
+            id: filterScroll
+            anchors.fill: parent
+            anchors.margins: 10
+            clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ColumnLayout {
+            width: filterScroll.availableWidth
+            spacing: 5
             RowLayout {
                 Layout.fillWidth: true
                 Label { text: "MAP FILTERS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
@@ -375,10 +384,11 @@ Item {
                 CheckBox { text: "CURRENT"; checked: root.showCurrent; onToggled: root.showCurrent = checked }
                 CheckBox { text: "SCANNED"; checked: root.showScanned; onToggled: root.showScanned = checked }
                 CheckBox { text: "VISITED"; checked: root.showVisited; onToggled: root.showVisited = checked }
-                Button { text: "SHOW ALL"; onClicked: root.showAllStates() }
             }
             RowLayout {
                 visible: root.filtersExpanded; Layout.fillWidth: true
+                Button { text: "SHOW ALL"; onClicked: root.showAllStates() }
+                Item { Layout.fillWidth: true }
                 Button { text: "ONLY VISITED"; onClicked: root.showOnlyState("visited") }
                 Button { text: "ONLY SCANNED"; onClicked: root.showOnlyState("scanned") }
             }
@@ -422,6 +432,7 @@ Item {
                 text: root.visibleNodes.length + " OF " + root.nodes.length + " SECTORS VISIBLE · "
                     + Number(root.galaxyData.recentTrailCount || 0) + " RECENT ROUTE SEGMENTS"
                 color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12
+            }
             }
         }
     }

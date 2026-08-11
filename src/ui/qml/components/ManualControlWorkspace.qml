@@ -54,11 +54,15 @@ Item {
                     anchors.fill: parent
                     spacing: 14
                     ScrollView {
+                        id: buildControls
                         Layout.fillHeight: true
-                        Layout.preferredWidth: parent.width * 0.46
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        contentWidth: availableWidth
                         clip: true
+                        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                         ColumnLayout {
-                            width: parent.width - 20
+                            width: buildControls.availableWidth - 12
                             spacing: 14
                     GroupBox {
                         title: "ONE-TIME MANUAL BUILD ORDER"
@@ -129,6 +133,7 @@ Item {
 
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 1
                         Layout.fillHeight: true
                         spacing: 8
                         Label {
