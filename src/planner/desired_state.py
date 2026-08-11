@@ -101,6 +101,7 @@ class TravelGoal:
     target: SectorCoordinates
     route_mode: str = "recommended"
     risk_acknowledged: bool = False
+    scut_exit_acknowledged: bool = False
 
     def __post_init__(self):
         if self.route_mode not in {"recommended", "segmented", "direct"}:
@@ -234,6 +235,9 @@ class DesiredState:
                     risk_acknowledged=bool(
                         value.get("travelRiskAcknowledged", False)
                     ),
+                    scut_exit_acknowledged=bool(
+                        value.get("travelScutExitAcknowledged", False)
+                    ),
                 )
                 if travel_target is not None
                 else None
@@ -293,6 +297,11 @@ class DesiredState:
             ),
             "travelRiskAcknowledged": (
                 self.travel.risk_acknowledged
+                if self.travel is not None
+                else False
+            ),
+            "travelScutExitAcknowledged": (
+                self.travel.scut_exit_acknowledged
                 if self.travel is not None
                 else False
             ),

@@ -553,7 +553,8 @@ Rectangle {
                 Layout.minimumHeight: Layout.preferredHeight
                 Layout.maximumHeight: Layout.preferredHeight
                 Label {
-                    text: "SKUNKWORKS MISSION CONTROL"
+                    text: "SKUNKWORKS MISSION CONTROL  ·  v"
+                          + (root.dashboardData.appVersion || "DEVELOPMENT")
                     color: Constants.cyanColor
                     font.family: Constants.technicalFont
                     font.pixelSize: Math.round(12 * root.uiScale)

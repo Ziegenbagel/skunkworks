@@ -83,7 +83,7 @@ def plan(operations, desired_state) -> list[Task]:
             assessment.origin,
             route,
         ) is False
-    ):
+    ) and not desired_state.travel.scut_exit_acknowledged:
         blockers.append("route_leaves_scut_coverage")
     blockers = tuple(dict.fromkeys(blockers))
 
@@ -112,7 +112,9 @@ def plan(operations, desired_state) -> list[Task]:
                 if next_hop_assessment is not None
                 else ()
             ),
-            require_scut_coverage=True,
+            require_scut_coverage=(
+                not desired_state.travel.scut_exit_acknowledged
+            ),
             risk_acknowledged=desired_state.travel.risk_acknowledged,
             priority=NORMAL,
         )

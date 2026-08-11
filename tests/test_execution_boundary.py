@@ -920,6 +920,27 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertIn("route_leaves_scut_coverage", blockers)
 
+    def test_operator_approved_scut_exit_is_not_reblocked_by_preflight(self):
+        self.operations.world.hazard_context = {
+            "scutNetworks": [{"network": {"id": "home", "relays": [{
+                "status": "on", "coverageRadiusSectors": 1,
+                "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+            }]}}]
+        }
+        command = Command(
+            type=CommandType.MOVE_PROBE,
+            probe_id=1,
+            payload={"target": {"x": 2, "y": 2, "z": 0}},
+            reason="Operator-approved Generic Class route",
+            priority=1,
+            source_action="Move Probe",
+            metadata={"requireScutCoverage": False},
+        )
+
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+
+        self.assertNotIn("route_leaves_scut_coverage", blockers)
+
     def test_constrained_tasks_never_become_commands(self):
         self.operations = build_operations(status="cruising")
 

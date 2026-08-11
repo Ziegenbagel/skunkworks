@@ -330,6 +330,49 @@ class TransportCycleTests(unittest.TestCase):
                 for item in runtime["queue"]
             ))
 
+    def test_reserve_tanker_tops_up_live_hub_free_capacity(self):
+        from src.data import DataEngine
+        from src.operations.logistics import FleetRoleService
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        sector = {"relative": {"x": 0, "y": 0, "z": 0}}
+
+        class Client:
+            def get_probe(self, probe_id):
+                return {"probe": {
+                    "id": probe_id,
+                    "model": "generic",
+                    "status": "idle",
+                    "sector": sector,
+                    "fuel": {"deuterium": 35, "maxDeuterium": 100},
+                }}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "reserve.sqlite3")
+            roles = FleetRoleService(engine)
+            roles.assign(
+                "probe", 7, "deuterium_reserve",
+                metadata={"protectedDeuterium": 100},
+            )
+            roles.assign("probe", 9, "hub")
+            operations = build_operations(fuel=350)
+            operations.world.probe.update({
+                "id": 7,
+                "model": "deuterium_tanker",
+                "status": "idle",
+                "sector": sector,
+                "fuel": {"deuterium": 350, "maxDeuterium": 400},
+            })
+            service = MissionControlDataService(client=Client(), data_engine=engine)
+
+            tasks = service._reserve_tanker_delivery_tasks(operations, 7)
+
+            self.assertEqual(len(tasks), 1)
+            self.assertEqual(tasks[0].target, "9")
+            self.assertEqual(tasks[0].quantity, 65)
+            self.assertIn("live free capacity", tasks[0].reason)
+
     def test_completed_one_time_travel_is_retired_at_safe_destination(self):
         from dataclasses import replace
         from src.data import DataEngine

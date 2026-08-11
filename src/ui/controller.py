@@ -7,6 +7,7 @@ import json
 import re
 import sys
 import time
+from importlib.metadata import PackageNotFoundError, version as package_version
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -23,7 +24,7 @@ from src.application.probe_selector import ProbeSelector
 from src.data import DataEngine
 from src.intelligence.world_builder import WorldBuilder
 from src.operations.operations import Operations
-from src.operations.logistics import FleetRoleService
+from src.operations.logistics import FleetRoleService, TankerLogisticsService
 from src.operations import OperationFactory, OperationStore, RoundTripTransportPlan
 from src.presentation import MissionControlViewModelBuilder
 from src.recipes.manager import RecipeManager
@@ -157,6 +158,7 @@ class MissionControlDataService:
         ).build()
         report(92, "Preparing mission-control displays")
         dashboard["apiVersion"] = self.api_version
+        dashboard["appVersion"] = self._app_version()
         dashboard["player"] = self._player_view(player)
         options = [self._probe_option(item) for item in probe_data.get("probes", ())]
         for option in options:
@@ -291,6 +293,19 @@ class MissionControlDataService:
         report(100, "Mission control ready")
         return dashboard
 
+    @staticmethod
+    def _app_version():
+        """Use installed package metadata, with source-tree metadata fallback."""
+        try:
+            return package_version("skunkworks")
+        except PackageNotFoundError:
+            try:
+                import tomllib
+                project = Path(__file__).resolve().parents[2] / "pyproject.toml"
+                return str(tomllib.loads(project.read_text())["project"]["version"])
+            except (KeyError, OSError, TypeError, ValueError):
+                return "development"
+
     def logbook_view(self, probe_id=None, probes=None):
         probe_id = probe_id or self._selected_probe_id
         probes = tuple(probes or ({"id": probe_id, "name": f"Probe {probe_id}"},))
@@ -368,6 +383,9 @@ class MissionControlDataService:
                 probe_id,
                 desired,
             )
+            transport_tasks.extend(
+                self._reserve_tanker_delivery_tasks(operations, probe_id)
+            )
             tasks = Planner(
                 operations,
                 desired,
@@ -399,6 +417,58 @@ class MissionControlDataService:
             } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
         }
+
+    def _reserve_tanker_delivery_tasks(self, operations, probe_id):
+        """Let a same-sector reserve tanker top up its designated hub."""
+        roles = [
+            dict(row) for row in FleetRoleService(self.data_engine).all("probe")
+        ]
+        role_by_id = {int(row["asset_id"]): row for row in roles}
+        source_role = role_by_id.get(int(probe_id), {})
+        if source_role.get("role") != "deuterium_reserve":
+            return []
+
+        hub_row = next((row for row in roles if row.get("role") == "hub"), None)
+        if hub_row is None:
+            return []
+        try:
+            response = self.client.get_probe(int(hub_row["asset_id"]))
+            target = response.get("probe", response)
+        except Exception:
+            return []
+
+        metadata = {}
+        try:
+            metadata = json.loads(source_role.get("metadata_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+        protected = float(
+            metadata.get("protectedDeuterium", metadata.get("reserve", 0)) or 0
+        )
+        target_fuel = target.get("fuel") or {}
+        requested = max(
+            0.0,
+            float(target_fuel.get("maxDeuterium", 0) or 0)
+            - float(target_fuel.get("deuterium", 0) or 0),
+        )
+        plan = TankerLogisticsService().plan_delivery(
+            operations.world.probe, target, requested, protected,
+        )
+        if plan.blockers:
+            return []
+        return [Task(
+            action="Transfer Deuterium",
+            reason=(
+                f"Reserve tanker tops up hub probe {plan.target_probe_id} by "
+                f"{plan.deliverable_amount:.2f} ECE based on its live free capacity; "
+                f"preserve {plan.source_return_reserve:.2f} ECE in reserve."
+            ),
+            category="transport",
+            target=str(plan.target_probe_id),
+            quantity=plan.deliverable_amount,
+            resource_type="deuterium",
+            priority=1,
+        )]
 
     def _reconcile_completed_autonomous_travel(self, operations, probe_id, desired):
         """Retire a one-time destination once its safe endpoint is reached."""
@@ -923,6 +993,15 @@ class MissionControlDataService:
         )
         execution = selected.hops[0] if selected.hops else destination
         route_hops = tuple(selected.hops) or (destination,)
+        route_leaves_scut = self._operations.travel_safety.scut_route_covered(
+            assessment.origin,
+            route_hops,
+        ) is False
+        fleet = self._operations.world.fleet or {}
+        scut_override_allowed = (
+            str(fleet.get("default_probe", ""))
+            == str(self._operations.world.probe.get("id", "unselected"))
+        )
         acknowledgement_required = (
             assessment.acknowledgement_recommended
             if selected.name == assessment.recommended.name
@@ -935,6 +1014,8 @@ class MissionControlDataService:
             "blockers": list(blockers),
             "canExecute": not blockers,
             "acknowledgementRequired": acknowledgement_required,
+            "routeLeavesScutCoverage": route_leaves_scut,
+            "scutOverrideAllowed": scut_override_allowed,
             "recommendedRoute": assessment.recommended.name,
             "selectedRoute": selected.name,
             "executionTarget": {"x": execution.x, "y": execution.y, "z": execution.z},
@@ -2240,12 +2321,29 @@ class MissionControlController(QObject):
             return
         self.settings_engine.set_preference(preference_key, "true")
 
-    @Slot(int, int, int, str, bool)
-    def setAutonomousTravelTarget(self, x, y, z, route_mode, risk_acknowledged=False):
+    @Slot(int, int, int, str, bool, bool)
+    def setAutonomousTravelTarget(
+        self, x, y, z, route_mode, risk_acknowledged=False,
+        scut_exit_acknowledged=False,
+    ):
         if self.service is None:
             self._set_error("Refresh live account data before setting automation.")
             return
         try:
+            preview = self.service.preview_travel(
+                self._focused_probe_id,
+                {"x": x, "y": y, "z": z},
+                str(route_mode or "segmented").strip().lower(),
+            )
+            if preview.get("routeLeavesScutCoverage"):
+                if not scut_exit_acknowledged:
+                    raise RuntimeError(
+                        "This route exits verified SCUT coverage. Approve the SCUT exit before saving."
+                    )
+                if not preview.get("scutOverrideAllowed"):
+                    raise RuntimeError(
+                        "Only the default probe may approve travel outside SCUT coverage."
+                    )
             store = DesiredStateStore(self.service.data_engine)
             current = store.load(self._focused_probe_id)
             state = DesiredState(
@@ -2260,6 +2358,7 @@ class MissionControlController(QObject):
                     SectorCoordinates(x, y, z),
                     route_mode=str(route_mode or "segmented").strip().lower(),
                     risk_acknowledged=bool(risk_acknowledged),
+                    scut_exit_acknowledged=bool(scut_exit_acknowledged),
                 ),
                 fleet=current.fleet,
             )
@@ -2274,6 +2373,7 @@ class MissionControlController(QObject):
             "z": z,
             "routeMode": str(route_mode or "segmented").strip().lower(),
             "riskAcknowledged": bool(risk_acknowledged),
+            "scutExitAcknowledged": bool(scut_exit_acknowledged),
         }
         self._dashboard["automation"] = automation
         self._set_error("")

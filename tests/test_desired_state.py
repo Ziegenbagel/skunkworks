@@ -26,6 +26,7 @@ class DesiredStateTests(unittest.TestCase):
                 SectorCoordinates(3, 3, 0),
                 "segmented",
                 risk_acknowledged=True,
+                scut_exit_acknowledged=True,
             ),
             maximum_safe_hop_distance=2,
         )
@@ -34,6 +35,7 @@ class DesiredStateTests(unittest.TestCase):
 
         self.assertEqual(restored.travel, state.travel)
         self.assertTrue(restored.travel.risk_acknowledged)
+        self.assertTrue(restored.travel.scut_exit_acknowledged)
         self.assertEqual(restored.maximum_safe_hop_distance, 2)
 
     def test_planner_defaults_to_empty_desired_state(self):
@@ -131,6 +133,29 @@ class DesiredStateTests(unittest.TestCase):
         self.assertEqual(travel.action, "Prepare Probe Travel")
         self.assertIn("route_leaves_scut_coverage", travel.constraints)
         self.assertEqual(travel.destination, destination)
+
+    def test_approved_scut_exit_remains_actionable_across_route_hops(self):
+        destination = SectorCoordinates(2, 2, 0)
+        state = DesiredState(travel=TravelGoal(
+            destination,
+            scut_exit_acknowledged=True,
+        ))
+        operations = build_operations()
+        operations.world.hazard_context = {
+            "scutNetworks": [{"network": {"id": "home", "relays": [{
+                "status": "on", "coverageRadiusSectors": 1,
+                "sector": {"relative": {"x": 0, "y": 0, "z": 0}},
+            }]}}]
+        }
+
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+
+        self.assertEqual(travel.action, "Move Probe")
+        self.assertNotIn("route_leaves_scut_coverage", travel.constraints)
+        self.assertFalse(travel.require_scut_coverage)
 
     def test_segmented_travel_goal_never_collapses_to_direct_route(self):
         destination = SectorCoordinates(3, 3, 0)

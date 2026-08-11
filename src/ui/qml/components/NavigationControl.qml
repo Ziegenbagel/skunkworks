@@ -17,7 +17,7 @@ Item {
     signal cancelMovementRequested()
     signal scanRequested(int x, int y, int z)
     signal neighborScanRequested()
-    signal autonomousTargetRequested(int x, int y, int z, string routeMode, bool riskAcknowledged)
+    signal autonomousTargetRequested(int x, int y, int z, string routeMode, bool riskAcknowledged, bool scutExitAcknowledged)
     signal autonomousTargetCancelRequested()
     signal transportCycleRequested(var plan)
     signal transportCycleStartRequested(string operationId)
@@ -62,6 +62,41 @@ Item {
             ,"loadAmount": root.tankerEligible && resourceType.currentValue === "deuterium" ? loadAmount.value : null
             ,"unloadAmount": null
         };
+    }
+
+    Dialog {
+        id: scutExitDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        title: "ROUTE EXITS SCUT COVERAGE"
+        standardButtons: Dialog.NoButton
+        contentItem: Label {
+            width: 620
+            text: root.travelPreview.scutOverrideAllowed
+                  ? "Part of this route is outside verified SCUT coverage. The default probe can continue without SCUT, but live telemetry may be lost. Approve to save this route, or cancel to leave the current goal unchanged."
+                  : "Part of this route is outside verified SCUT coverage. This probe class cannot waive the SCUT safety requirement, so the route has not been saved."
+            color: Constants.warningColor
+            font.pixelSize: 16
+            wrapMode: Text.Wrap
+        }
+        footer: DialogButtonBox {
+            Button {
+                text: "CANCEL"
+                onClicked: scutExitDialog.close()
+            }
+            Button {
+                visible: Boolean(root.travelPreview.scutOverrideAllowed)
+                text: "APPROVE AND SAVE"
+                onClicked: {
+                    scutExitDialog.close();
+                    root.autonomousTargetRequested(
+                        manualX.value, manualY.value, manualZ.value,
+                        String(routeMode.currentValue), acknowledgeRisk.checked,
+                        true);
+                }
+            }
+        }
     }
 
     ColumnLayout {
@@ -160,10 +195,15 @@ Item {
                                          && Boolean(root.travelPreview.targetLabel)
                                          && (!root.travelPreview.acknowledgementRequired
                                              || acknowledgeRisk.checked)
-                                onClicked: root.autonomousTargetRequested(
-                                    manualX.value, manualY.value, manualZ.value,
-                                    String(routeMode.currentValue),
-                                    acknowledgeRisk.checked)
+                                onClicked: {
+                                    if (root.travelPreview.routeLeavesScutCoverage)
+                                        scutExitDialog.open();
+                                    else
+                                        root.autonomousTargetRequested(
+                                            manualX.value, manualY.value, manualZ.value,
+                                            String(routeMode.currentValue),
+                                            acknowledgeRisk.checked, false);
+                                }
                             }
                             Label {
                                 Layout.fillWidth: true; wrapMode: Text.Wrap
