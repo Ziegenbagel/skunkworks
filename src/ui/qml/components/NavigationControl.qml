@@ -69,7 +69,7 @@ Item {
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        title: "ROUTE EXITS SCUT COVERAGE"
+        title: "WARNING! ROUTE EXITS SCUT COVERAGE!"
         standardButtons: Dialog.NoButton
         contentItem: Label {
             width: 620
