@@ -2,6 +2,8 @@ import os
 import unittest
 from unittest.mock import patch
 
+import requests
+
 from src.api.client import GameClient
 from src.api.contract import (
     ApiCompatibilityError,
@@ -35,7 +37,10 @@ class FakeSession:
 
     def request(self, method, url, **kwargs):
         self.calls.append((method, url, kwargs))
-        return self.responses.pop(0)
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
 
 class GameClientContractTests(unittest.TestCase):
@@ -94,6 +99,36 @@ class GameClientContractTests(unittest.TestCase):
             error.exception.retry_after_seconds,
             12,
         )
+
+    def test_retries_transient_disconnects_for_read_requests(self):
+        delays = []
+        with patch.dict(os.environ, {"VON_NEUMANN_API_KEY": "test-key"}):
+            client = GameClient(
+                FakeSession(
+                    [
+                        requests.ConnectionError("disconnected"),
+                        requests.exceptions.ChunkedEncodingError("truncated"),
+                        FakeResponse({"id": 42}),
+                    ]
+                ),
+                sleeper=delays.append,
+            )
+
+        self.assertEqual(client.get_player(), {"id": 42})
+        self.assertEqual(len(client.session.calls), 3)
+        self.assertEqual(delays, [0.25, 0.5])
+
+    def test_does_not_retry_mutating_requests(self):
+        with patch.dict(os.environ, {"VON_NEUMANN_API_KEY": "test-key"}):
+            client = GameClient(
+                FakeSession([requests.ConnectionError("disconnected")]),
+                sleeper=lambda _delay: None,
+            )
+
+        with self.assertRaises(requests.ConnectionError):
+            client.request("POST", "/api/order", json={})
+
+        self.assertEqual(len(client.session.calls), 1)
 
 
 if __name__ == "__main__":

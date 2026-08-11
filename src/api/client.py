@@ -1,4 +1,5 @@
 import os
+import time
 
 import requests
 from dotenv import load_dotenv
@@ -15,7 +16,15 @@ from src.api.contract import (
 class GameClient:
     """HTTP boundary for the Von Neumann Game API."""
 
-    def __init__(self, session=None, api_key=None, credential_store=None):
+    def __init__(
+        self,
+        session=None,
+        api_key=None,
+        credential_store=None,
+        retry_attempts=2,
+        retry_backoff_seconds=0.25,
+        sleeper=None,
+    ):
         load_dotenv()
 
         self.api_key = api_key or (credential_store or CredentialStore()).get()
@@ -28,6 +37,9 @@ class GameClient:
             "https://neumann-probe.net",
         ).rstrip("/")
         self.session = session or requests.Session()
+        self.retry_attempts = max(0, int(retry_attempts))
+        self.retry_backoff_seconds = max(0.0, float(retry_backoff_seconds))
+        self._sleep = sleeper or time.sleep
         self.rate_limit = {}
         self.api_version = None
 
@@ -120,13 +132,30 @@ class GameClient:
                 f"Bearer {self.api_key}"
             )
 
-        response = self.session.request(
-            method,
-            f"{self.base_url}{path}",
-            headers=headers,
-            timeout=30,
-            **kwargs,
+        method = method.upper()
+        retryable = method in {"GET", "HEAD", "OPTIONS"}
+        transient_errors = (
+            requests.ConnectionError,
+            requests.Timeout,
+            requests.exceptions.ChunkedEncodingError,
         )
+
+        for attempt in range(self.retry_attempts + 1):
+            try:
+                response = self.session.request(
+                    method,
+                    f"{self.base_url}{path}",
+                    headers=headers,
+                    timeout=30,
+                    **kwargs,
+                )
+                break
+            except transient_errors:
+                if not retryable or attempt >= self.retry_attempts:
+                    raise
+                self._sleep(
+                    self.retry_backoff_seconds * (2 ** attempt)
+                )
         self._capture_rate_limit(response)
 
         if response.status_code == 429:

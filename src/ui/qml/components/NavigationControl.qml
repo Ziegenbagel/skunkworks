@@ -68,11 +68,12 @@ Item {
         id: scutExitDialog
         parent: Overlay.overlay
         anchors.centerIn: parent
+        width: Math.min(700, parent ? parent.width - 80 : 700)
         modal: true
         title: "WARNING! ROUTE EXITS SCUT COVERAGE!"
         standardButtons: Dialog.NoButton
         contentItem: Label {
-            width: 620
+            width: scutExitDialog.availableWidth
             text: root.travelPreview.scutOverrideAllowed
                   ? "Part of this route is outside verified SCUT coverage. The default probe can continue without SCUT, but live telemetry may be lost. Approve to save this route, or cancel to leave the current goal unchanged."
                   : "Part of this route is outside verified SCUT coverage. This probe class cannot waive the SCUT safety requirement, so the route has not been saved."

@@ -24,6 +24,6 @@ QtObject {
     readonly property color criticalColor: "#d95f59"
 
     readonly property string displayFont: "Copperplate"
-    readonly property string bodyFont: "Sans Serif"
+    readonly property string bodyFont: Qt.application.font.family
     readonly property string technicalFont: "Menlo"
 }

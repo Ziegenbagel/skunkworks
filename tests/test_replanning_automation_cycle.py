@@ -146,6 +146,50 @@ def test_failed_recipe_is_not_retried_on_another_manny_before_mining_fallback():
     assert [item["status"] for item in result["results"]] == ["failed", "succeeded"]
 
 
+def test_successful_recipe_can_use_second_idle_manny_in_same_cycle():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+    service._refresh_operations = lambda probe_id: None
+    craft_a = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "steel_plate"}, "craft plate", 1,
+        target_id="manny-a",
+    ), "ready")
+    craft_b = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "steel_plate"}, "craft plate", 1,
+        target_id="manny-b",
+    ), "ready")
+    queues = iter(((craft_a,), (craft_b,), ()))
+    service.automation_view = lambda probe_id=None: setattr(
+        service, "_prepared_commands", next(queues)
+    ) or {}
+    service._prepare_next_cycle_mining = lambda policy, failed: None
+    executed = []
+
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, prepared, **kwargs):
+            executed.append(prepared.command.target_id)
+            return ExecutionResult(
+                "succeeded", prepared.command, response={"accepted": True}
+            )
+
+    policy = ExecutionPolicy(
+        mode=ExecutionMode.AUTOMATIC,
+        live_execution_enabled=True,
+        allowed_command_types=frozenset({CommandType.MANNY_CRAFT}),
+        max_commands_per_cycle=10,
+    )
+    with patch("src.ui.controller.AutomationRuntime", Runtime):
+        result = service._run_replanning_automatic_cycle(policy)
+
+    assert result["status"] == "succeeded"
+    assert executed == ["manny-a", "manny-b"]
+
+
 def test_automatic_risk_acknowledgement_executes_the_selected_command():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7

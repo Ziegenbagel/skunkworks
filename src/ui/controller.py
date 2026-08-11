@@ -806,7 +806,7 @@ class MissionControlDataService:
             dispatcher=CapabilityDispatcher(self.capabilities),
             refresh=self._refresh_operations,
         )
-        attempted = set()
+        failed_attempts = set()
         results = []
         dependency_command = None
         for _ in range(policy.max_commands_per_cycle):
@@ -820,7 +820,7 @@ class MissionControlDataService:
                     item for item in self._prepared_commands
                     if item.command.probe_id == self._selected_probe_id
                     and item.disposition == "ready"
-                    and self._cycle_attempt_key(item.command) not in attempted
+                    and self._cycle_attempt_key(item.command) not in failed_attempts
                 ), None)
             if prepared is None:
                 # Manufacturing proposals are prepared before mining and claim
@@ -828,16 +828,22 @@ class MissionControlDataService:
                 # fabrication goal has had its chance this cycle, prepare the
                 # remaining mining work alone so those stale planning claims do
                 # not hide useful orders for otherwise-idle Mannys.
-                prepared = self._prepare_next_cycle_mining(policy, attempted)
+                prepared = self._prepare_next_cycle_mining(policy, failed_attempts)
             if prepared is None:
                 break
-            attempted.add(self._cycle_attempt_key(prepared.command))
             result = runtime.execute(
                 prepared,
                 risk_acknowledged=risk_acknowledged,
             )
             results.append((prepared, result))
             if result.status != "succeeded":
+                # Suppress only a rejected logical command. Successful
+                # repeatable work must remain eligible after the authoritative
+                # refresh so every idle Manny can help with the same remaining
+                # recipe or mining shortage. Marking successes attempted made
+                # their newly-prepared duplicate claim a Manny, filtered that
+                # command out, and then incorrectly fell through to mining.
+                failed_attempts.add(self._cycle_attempt_key(prepared.command))
                 resource_type = self._missing_resource_from_failure(result)
                 if resource_type:
                     dependency_command = self._prepare_dependency_mining(
@@ -883,7 +889,7 @@ class MissionControlDataService:
             return (command.type.value, resources, command.target_id)
         return (command.type.value, command.fingerprint)
 
-    def _prepare_next_cycle_mining(self, policy, attempted):
+    def _prepare_next_cycle_mining(self, policy, failed_attempts):
         if getattr(self, "_operations", None) is None:
             return None
         desired = DesiredStateStore(self.data_engine).load(self._selected_probe_id)
@@ -897,7 +903,7 @@ class MissionControlDataService:
         return next((
             item for item in prepared
             if item.disposition == "ready"
-            and self._cycle_attempt_key(item.command) not in attempted
+            and self._cycle_attempt_key(item.command) not in failed_attempts
         ), None)
 
     @staticmethod
