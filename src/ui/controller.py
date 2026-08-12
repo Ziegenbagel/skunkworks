@@ -199,6 +199,13 @@ class MissionControlDataService:
             str(row["asset_id"]): row["role"]
             for row in FleetRoleService(self.data_engine).all("probe")
         }
+        automation["probeRoleSettings"] = {}
+        for row in FleetRoleService(self.data_engine).all("probe"):
+            try:
+                role_settings = json.loads(row["metadata_json"] or "{}")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                role_settings = {}
+            automation["probeRoleSettings"][str(row["asset_id"])] = role_settings
         reserve_sources = FleetRoleService(self.data_engine).deuterium_sources(probes)
         automation["deuteriumSources"] = reserve_sources
         automation["availableReserveDeuterium"] = sum(
@@ -431,20 +438,25 @@ class MissionControlDataService:
         if source_role.get("role") != "deuterium_reserve":
             return []
 
-        hub_row = next((row for row in roles if row.get("role") == "hub"), None)
-        if hub_row is None:
-            return []
-        try:
-            response = self.client.get_probe(int(hub_row["asset_id"]))
-            target = response.get("probe", response)
-        except Exception:
-            return []
-
         metadata = {}
         try:
             metadata = json.loads(source_role.get("metadata_json") or "{}")
         except (TypeError, ValueError, json.JSONDecodeError):
             pass
+        target_probe_id = metadata.get("targetProbeId")
+        if target_probe_id in {None, ""}:
+            # Backward compatibility for reserve tankers configured before
+            # targets became probe-specific. New settings always persist an
+            # explicit target, allowing arbitrary refill chains.
+            legacy_hub = next((row for row in roles if row.get("role") == "hub"), None)
+            target_probe_id = legacy_hub["asset_id"] if legacy_hub else None
+        if target_probe_id in {None, ""} or int(target_probe_id) == int(probe_id):
+            return []
+        try:
+            response = self.client.get_probe(int(target_probe_id))
+            target = response.get("probe", response)
+        except Exception:
+            return []
         protected = float(
             metadata.get("protectedDeuterium", metadata.get("reserve", 0)) or 0
         )
@@ -462,7 +474,7 @@ class MissionControlDataService:
         return [Task(
             action="Transfer Deuterium",
             reason=(
-                f"Reserve tanker tops up hub probe {plan.target_probe_id} by "
+                f"Reserve tanker tops up designated probe {plan.target_probe_id} by "
                 f"{plan.deliverable_amount:.2f} ECE based on its live free capacity; "
                 f"preserve {plan.source_return_reserve:.2f} ECE in reserve."
             ),
@@ -518,27 +530,34 @@ class MissionControlDataService:
             and int(item.probe_id or -1) == int(probe_id)
             and item.state.value == "active"
         ), None)
-        if operation is None:
-            return {}
-        cycle = operation.metadata.get("cycle") or {}
-        phase = operation.metadata.get("transportPhase", "to_source")
+        cycle = operation.metadata.get("cycle") or {} if operation else {}
+        phase = operation.metadata.get("transportPhase", "to_source") if operation else "auto_travel"
         phase_points = {
             "to_source": (cycle.get("returnPoint") or cycle.get("source"), cycle.get("source")),
             "to_destination": (cycle.get("source"), cycle.get("destination")),
             "to_return": (cycle.get("destination"), cycle.get("returnPoint")),
         }
         raw_origin, raw_final = phase_points.get(phase, (None, None))
+        if operation is None and desired.travel is not None:
+            raw_final = {
+                "x": desired.travel.target.x,
+                "y": desired.travel.target.y,
+                "z": desired.travel.target.z,
+            }
         if not raw_final:
-            return {"active": True, "phase": phase, "traveling": False}
+            return {}
         final = SectorCoordinates.from_api(raw_final)
-        origin = SectorCoordinates.from_api(raw_origin) if raw_origin else operations.travel.current_sector()
-        maximum_hop = max(1, int(getattr(desired, "maximum_safe_hop_distance", 1) or 1))
-        total_distance = origin.distance_to(final) if origin else 0
-        total_hops = max(1, (total_distance + maximum_hop - 1) // maximum_hop)
         movement = MissionControlViewModelBuilder._movement_view(operations.world.probe)
         movement_origin = self._movement_coordinates(
             movement.get("originSector") or movement.get("origin") or movement.get("from")
         )
+        origin = (
+            SectorCoordinates.from_api(raw_origin) if raw_origin
+            else movement_origin or operations.travel.current_sector()
+        )
+        maximum_hop = max(1, int(getattr(desired, "maximum_safe_hop_distance", 1) or 1))
+        total_distance = origin.distance_to(final) if origin else 0
+        total_hops = max(1, (total_distance + maximum_hop - 1) // maximum_hop)
         current = movement_origin or operations.travel.current_sector()
         completed_distance = origin.distance_to(current) if origin and current else 0
         hop_number = min(total_hops, completed_distance // maximum_hop + 1)
@@ -2308,6 +2327,29 @@ class MissionControlController(QObject):
         self._dashboard["automation"] = automation
         self.dashboardChanged.emit()
 
+    @Slot(int, "QVariantMap")
+    def saveProbeRoleSettings(self, probe_id, settings):
+        if self.service is None:
+            self.service = MissionControlDataService()
+        roles = FleetRoleService(self.service.data_engine)
+        row = next((dict(item) for item in roles.all("probe")
+                    if int(item["asset_id"]) == int(probe_id)), None)
+        if row is None:
+            self._set_error("Assign this probe a role before saving role settings.")
+            return
+        try:
+            roles.assign("probe", probe_id, row["role"], metadata=dict(settings))
+        except Exception as error:
+            self._set_error(str(error) or type(error).__name__)
+            return
+        automation = dict(self._dashboard.get("automation", {}))
+        role_settings = dict(automation.get("probeRoleSettings", {}))
+        role_settings[str(probe_id)] = dict(settings)
+        automation["probeRoleSettings"] = role_settings
+        self._dashboard["automation"] = automation
+        self._set_error("")
+        self.dashboardChanged.emit()
+
     @Slot(int, int, int, str)
     def previewTravel(self, x, y, z, route_mode="segmented"):
         if self.service is None or self._focused_probe_id < 0:
@@ -2914,6 +2956,7 @@ class MissionControlController(QObject):
                 item["model"] = focus.get("model") or item.get("model")
                 for telemetry_key in (
                     "movement", "velocity", "sensorMode", "deuterium", "maxDeuterium",
+                    "transportJourney",
                 ):
                     if telemetry_key in focus:
                         item[telemetry_key] = focus[telemetry_key]

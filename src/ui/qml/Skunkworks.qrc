@@ -78,6 +78,7 @@
         <file>App.qml</file>
         <file>AssetCatalog.qml</file>
         <file>components/AutomationSettings.qml</file>
+        <file>components/ProbeRoleSettings.qml</file>
         <file>components/AudioManager.qml</file>
         <file>components/CoordinateEditor.qml</file>
         <file>components/FirstLaunchWizard.qml</file>

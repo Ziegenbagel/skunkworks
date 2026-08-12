@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 
 from src.models.galaxy import SectorCoordinates
+from src.planner.desired_state import DesiredState, TravelGoal
 from src.operations import (
     RoundTripTransportPlan,
     RoundTripTransportService,
@@ -33,6 +34,32 @@ class TransportCycleTests(unittest.TestCase):
     def test_round_trip_reserves_destination_return_and_contingency_fuel(self):
         self.assertEqual(self.plan.minimum_departure_deuterium, 45)
         self.assertEqual(self.plan.transferable_deuterium(80), 35)
+
+    def test_auto_travel_journey_uses_durable_target_and_live_leg_eta(self):
+        from src.data import DataEngine
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "journey.sqlite3")
+            operations = build_operations()
+            operations.world.probe["movement"] = {
+                "originSector": {"relative": {"x": 0, "y": 0, "z": 0}},
+                "arrivalSector": {"relative": {"x": 1, "y": 1, "z": 0}},
+                "remainingSeconds": 60,
+            }
+            desired = DesiredState(
+                travel=TravelGoal(SectorCoordinates(3, 3, 0), "segmented"),
+            )
+            service = MissionControlDataService(data_engine=engine)
+
+            journey = service._transport_journey_view(operations, 7, desired)
+
+            self.assertEqual(journey["phase"], "auto_travel")
+            self.assertEqual(journey["hopNumber"], 1)
+            self.assertEqual(journey["totalHops"], 3)
+            self.assertEqual(journey["finalDestinationLabel"], "3:3:0")
+            self.assertGreater(journey["estimatedFinalArrivalEpochMs"], 0)
 
     def test_loading_waits_for_selected_fill_threshold(self):
         assessment = RoundTripTransportService().assess(
@@ -353,7 +380,7 @@ class TransportCycleTests(unittest.TestCase):
             roles = FleetRoleService(engine)
             roles.assign(
                 "probe", 7, "deuterium_reserve",
-                metadata={"protectedDeuterium": 100},
+                metadata={"protectedDeuterium": 100, "targetProbeId": 8},
             )
             roles.assign("probe", 9, "hub")
             operations = build_operations(fuel=350)
@@ -369,7 +396,7 @@ class TransportCycleTests(unittest.TestCase):
             tasks = service._reserve_tanker_delivery_tasks(operations, 7)
 
             self.assertEqual(len(tasks), 1)
-            self.assertEqual(tasks[0].target, "9")
+            self.assertEqual(tasks[0].target, "8")
             self.assertEqual(tasks[0].quantity, 65)
             self.assertIn("live free capacity", tasks[0].reason)
 

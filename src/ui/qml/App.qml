@@ -337,6 +337,10 @@ ApplicationWindow {
             if (window.backend)
                 window.backend.assignProbeRole(probeId, role);
         }
+        function onProbeRoleSettingsSaved(probeId, settings) {
+            if (window.backend)
+                window.backend.saveProbeRoleSettings(probeId, settings);
+        }
 
         function onTravelPreviewRequested(x, y, z, routeMode) {
             AudioManager.play("press");

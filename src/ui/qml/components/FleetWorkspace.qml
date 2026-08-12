@@ -32,12 +32,28 @@ Item {
         const status = String(probe.status || "unknown").toUpperCase();
         if (["PREPARING", "ACCELERATING", "CRUISING", "DECELERATING", "TRAVELING"].indexOf(status) < 0)
             return "";
+        const journey = probe.transportJourney || {};
+        const itinerary = journey.active
+            ? "\nAUTO-TRAVEL · HOP " + Number(journey.hopNumber || 1)
+              + " OF " + Number(journey.totalHops || 1)
+              + " · FINAL " + String(journey.finalDestinationLabel || "UNKNOWN")
+              + " · TRIP ETA " + journeyRemainingLabel(journey.estimatedFinalArrivalEpochMs)
+            : "";
         return "TRANSIT · " + status
             + "\nORIGIN " + String(movement.originLabel || "UNKNOWN")
             + "  ·  ARRIVAL SECTOR " + String(movement.destinationLabel || "UNKNOWN")
             + "\nREMAINING " + remainingLabel(movement)
             + "  ·  VELOCITY C " + String(movement.velocity || probe.velocity || "—")
-            + "  ·  HEADING " + headingLabel(movement.heading);
+            + "  ·  HEADING " + headingLabel(movement.heading) + itinerary;
+    }
+
+    function journeyRemainingLabel(epochMs) {
+        if (Number(epochMs || 0) <= 0) return "RECALCULATING";
+        const seconds = Math.max(0, Math.floor((Number(epochMs) - root.currentEpochMs) / 1000));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        return (hours ? hours + " HR " : "") + minutes + " MIN " + remainder + " S";
     }
 
     function remainingLabel(movement) {

@@ -383,12 +383,16 @@ def test_resource_workspace_groups_locations_and_uses_responsive_cards():
     assert "ResourceWorkspace" in navigation
 
 
-def test_navigation_separates_manual_transport_and_scanning_workflows():
+def test_navigation_moves_transport_workflow_to_probe_role_settings():
     navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text()
+    role_settings = Path("src/ui/qml/components/ProbeRoleSettings.qml").read_text()
 
     assert 'TabButton { text: "MANUAL TRAVEL" }' in navigation
-    assert 'TabButton { text: "TRANSPORT AUTOMATION" }' in navigation
+    assert 'visible: root.roleSettingsOnly' in navigation
     assert 'TabButton { text: "SECTOR SCANNING" }' in navigation
+    assert "roleSettingsOnly: true" in role_settings
+    assert "RESERVE TANKER REFILL CHAIN" in role_settings
+    assert "targetProbeId" in role_settings
     assert "LOADING SECTOR" in navigation
     assert "UNLOADING SECTOR" in navigation
     assert "RETURN POINT" in navigation

@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -7,6 +8,7 @@ import requests
 
 from src.data import DataEngine
 from src.operations.operations import Operations
+from src.operations.logistics import FleetRoleService
 from src.presentation import MissionControlViewModelBuilder
 from src.ui.controller import MissionControlController
 from tests.test_planner_missions import build_operations
@@ -393,6 +395,25 @@ class UiPreparationTests(unittest.TestCase):
 
             self.assertEqual(controller.dashboard["automation"]["probeRoles"]["9"], "deuterium_reserve")
             self.assertEqual(engine.fleet_roles("probe")[0]["role"], "deuterium_reserve")
+
+    def test_controller_persists_probe_specific_role_settings(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            FleetRoleService(engine).assign("probe", 7, "deuterium_reserve")
+            service = type("Service", (), {"data_engine": engine})()
+            controller = MissionControlController(service)
+            controller._dashboard = {"automation": {"probeRoleSettings": {}}}
+
+            controller.saveProbeRoleSettings(
+                7, {"targetProbeId": 8, "protectedDeuterium": 75},
+            )
+
+            row = dict(engine.fleet_roles("probe")[0])
+            self.assertEqual(json.loads(row["metadata_json"])["targetProbeId"], 8)
+            self.assertEqual(
+                controller.dashboard["automation"]["probeRoleSettings"]["7"]["protectedDeuterium"],
+                75,
+            )
 
     def test_controller_rejects_probe_role_change_from_secondary_probe(self):
         with tempfile.TemporaryDirectory() as temporary:

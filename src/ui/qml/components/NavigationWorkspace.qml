@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import ".."
 
 PanelFrame {
@@ -19,6 +18,7 @@ PanelFrame {
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)
+    signal probeRoleSettingsSaved(int probeId, var settings)
     signal travelPreviewRequested(int x, int y, int z, string routeMode)
     signal travelExecuteRequested(bool riskAcknowledged)
     signal travelCancelRequested()
@@ -143,9 +143,15 @@ PanelFrame {
             credentialData: root.dashboardData.credentials || ({})
             availableProbes: root.availableProbes
             focusedProbeId: root.focusedProbeId
+            focusedProbeData: root.dashboardData.focus || ({})
             defaultProbeId: root.dashboardData.defaultProbeId === undefined ? -1 : Number(root.dashboardData.defaultProbeId)
             onSaveRequested: settings => root.automationSettingsSaved(settings)
             onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
+            onRoleSettingsSaveRequested: (probeId, settings) => root.probeRoleSettingsSaved(probeId, settings)
+            onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
+            onTransportCycleStartRequested: operationId => root.transportCycleStartRequested(operationId)
+            onTransportCyclePauseRequested: operationId => root.transportCyclePauseRequested(operationId)
+            onTransportCycleDeleteRequested: operationId => root.transportCycleDeleteRequested(operationId)
             onApiKeySaveRequested: apiKey => root.apiKeySaveRequested(apiKey)
             onApiKeyTestRequested: root.apiKeyTestRequested()
             onApiKeyRemoveRequested: root.apiKeyRemoveRequested()

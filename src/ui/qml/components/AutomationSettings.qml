@@ -12,10 +12,16 @@ Item {
     property var credentialData: ({})
     property int focusedProbeId: -1
     property int defaultProbeId: -1
+    property var focusedProbeData: ({})
     property int desiredStateProbeId: -2
     readonly property bool canManageProbeRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
     signal saveRequested(var settings)
     signal roleAssignmentRequested(int probeId, string role)
+    signal roleSettingsSaveRequested(int probeId, var settings)
+    signal transportCycleRequested(var plan)
+    signal transportCycleStartRequested(string operationId)
+    signal transportCyclePauseRequested(string operationId)
+    signal transportCycleDeleteRequested(string operationId)
     signal apiKeySaveRequested(string apiKey)
     signal apiKeyTestRequested()
     signal apiKeyRemoveRequested()
@@ -180,8 +186,17 @@ Item {
         };
     }
 
+    TabBar {
+        id: settingsTabs
+        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+        TabButton { text: "GENERAL & AUTOMATION" }
+        TabButton { text: "PROBE ROLE SETTINGS" }
+    }
+
     ScrollView {
-        anchors.fill: parent; clip: true
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.top: settingsTabs.bottom; anchors.bottom: parent.bottom
+        visible: settingsTabs.currentIndex === 0; clip: true
         ColumnLayout {
             width: root.width - 24; spacing: 14
             GroupBox {
@@ -367,6 +382,7 @@ Item {
             }
 
             GroupBox {
+                visible: false
                 title: "OWNED PROBE ROLES"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 8
@@ -486,5 +502,22 @@ Item {
                 }
             }
         }
+    }
+
+    ProbeRoleSettings {
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.top: settingsTabs.bottom; anchors.bottom: parent.bottom
+        visible: settingsTabs.currentIndex === 1
+        settingsData: root.settingsData
+        availableProbes: root.availableProbes
+        focusedProbeId: root.focusedProbeId
+        defaultProbeId: root.defaultProbeId
+        focusedProbeData: root.focusedProbeData
+        onRoleAssignmentRequested: (probeId, role) => root.roleAssignmentRequested(probeId, role)
+        onRoleSettingsSaveRequested: (probeId, settings) => root.roleSettingsSaveRequested(probeId, settings)
+        onTransportCycleRequested: plan => root.transportCycleRequested(plan)
+        onTransportCycleStartRequested: operationId => root.transportCycleStartRequested(operationId)
+        onTransportCyclePauseRequested: operationId => root.transportCyclePauseRequested(operationId)
+        onTransportCycleDeleteRequested: operationId => root.transportCycleDeleteRequested(operationId)
     }
 }

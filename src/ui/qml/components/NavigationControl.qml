@@ -6,6 +6,7 @@ import ".."
 
 Item {
     id: root
+    property bool roleSettingsOnly: false
     readonly property var activeTravelTarget: (root.automationData || {}).travelTarget || ({})
     property var navigationData: ({})
     property var travelPreview: ({})
@@ -103,6 +104,7 @@ Item {
     ColumnLayout {
         anchors.fill: parent; spacing: 12
         RowLayout {
+            visible: !root.roleSettingsOnly
             Layout.fillWidth: true
             Label { text: "FOCUSED PROBE NAVIGATION"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; font.pixelSize: 15 }
             Item { Layout.fillWidth: true }
@@ -113,15 +115,16 @@ Item {
 
         TabBar {
             id: navigationTabs
+            visible: !root.roleSettingsOnly
             Layout.fillWidth: true
             TabButton { text: "MANUAL TRAVEL" }
-            TabButton { text: "TRANSPORT AUTOMATION" }
+            TabButton { text: "TRANSPORT AUTOMATION"; visible: root.roleSettingsOnly }
             TabButton { text: "SECTOR SCANNING" }
         }
 
         StackLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
-            currentIndex: navigationTabs.currentIndex
+            currentIndex: root.roleSettingsOnly ? 1 : navigationTabs.currentIndex
 
             ScrollView {
                 clip: true
