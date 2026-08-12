@@ -16,6 +16,12 @@ ApplicationWindow {
     color: Constants.voidColor
 
     Component.onCompleted: AudioManager.startMusic()
+    onClosing: function(close) {
+        if (window.backend && !window.backend.shuttingDown) {
+            close.accepted = false;
+            window.backend.shutdown();
+        }
+    }
 
     MissionControlScreen {
         id: missionControl
@@ -290,6 +296,14 @@ ApplicationWindow {
                 window.backend.saveAutomationSettings(settings);
         }
 
+        function onShutdownRequested() {
+            AudioManager.play("confirm");
+            if (window.backend)
+                window.backend.shutdown();
+            else
+                Qt.quit();
+        }
+
         function onFleetNamingRequested(policy, applyExisting) {
             AudioManager.play("save");
             if (window.backend)
@@ -523,6 +537,18 @@ ApplicationWindow {
         function onUpdateCheckRequested() {
             AudioManager.play("navigate");
             if (window.backend) window.backend.checkForUpdates();
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent; z: 2000
+        visible: window.backend && window.backend.shuttingDown
+        color: Qt.rgba(0.01, 0.04, 0.06, 0.94)
+        ColumnLayout {
+            anchors.centerIn: parent; spacing: 12
+            BusyIndicator { Layout.alignment: Qt.AlignHCenter; running: parent.parent.visible }
+            Label { text: "SHUTTING DOWN SAFELY"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 24; font.bold: true }
+            Label { text: "Waiting for active network and automation work to finish…"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
         }
     }
 }

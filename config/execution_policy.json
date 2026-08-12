@@ -42,6 +42,14 @@
         "move_probe"
       ],
       "maxCommandsPerCycle": 10
+    },
+    "836": {
+      "mode": "automatic",
+      "liveExecutionEnabled": true,
+      "allowedCommandTypes": [
+        "manny_repair"
+      ],
+      "maxCommandsPerCycle": 10
     }
   }
 }

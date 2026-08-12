@@ -15,6 +15,31 @@ from tests.test_planner_missions import build_operations
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_shutdown_stops_schedulers_clears_queue_and_quits_when_idle(self):
+        class Pool:
+            def __init__(self):
+                self.cleared = False
+
+            def clear(self):
+                self.cleared = True
+
+            def activeThreadCount(self):
+                return 0
+
+        pool = Pool()
+        controller = MissionControlController(thread_pool=pool)
+        controller._automation_timer.start()
+        controller._compatibility_timer.start()
+
+        with patch("src.ui.controller.QCoreApplication.quit") as quit_app:
+            controller.shutdown()
+
+        self.assertTrue(controller.shuttingDown)
+        self.assertTrue(pool.cleared)
+        self.assertFalse(controller._automation_timer.isActive())
+        self.assertFalse(controller._compatibility_timer.isActive())
+        quit_app.assert_called_once_with()
+
     def test_view_model_exposes_ui_domains_without_api_calls(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")

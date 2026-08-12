@@ -388,7 +388,7 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     role_settings = Path("src/ui/qml/components/ProbeRoleSettings.qml").read_text()
 
     assert 'TabButton { text: "MANUAL TRAVEL" }' in navigation
-    assert 'visible: root.roleSettingsOnly' in navigation
+    assert 'root.roleSettingsOnly ? 1' in navigation
     assert 'TabButton { text: "SECTOR SCANNING" }' in navigation
     assert "roleSettingsOnly: true" in role_settings
     assert "RESERVE TANKER REFILL CHAIN" in role_settings
@@ -410,6 +410,7 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "CANCEL AUTO-TRAVEL TARGET" in navigation
     assert "scanSummary" in navigation
     assert "transportAutomationScroll.availableWidth" in navigation
+    assert 'TabButton { text: "TRANSPORT AUTOMATION"' not in navigation
 
 
 def test_transit_panels_render_full_auto_travel_itinerary():
@@ -419,6 +420,16 @@ def test_transit_panels_render_full_auto_travel_itinerary():
     assert "AUTO-TRAVEL · HOP" in sector
     assert "itineraryLabel" in sector
     assert "ITINERARY ·" in fleet
+
+
+def test_settings_exposes_safe_application_shutdown():
+    app = Path("src/ui/qml/App.qml").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+
+    assert "SHUTDOWN SKUNKWORKS" in settings
+    assert "backend.shutdown()" in app
+    assert "SHUTTING DOWN SAFELY" in app
+    assert "onClosing" in app
 
 
 def test_inventory_workspace_exposes_identity_rules_items_and_transfers():

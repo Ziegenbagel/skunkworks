@@ -61,6 +61,7 @@ PanelFrame {
     signal manualMiningRequested(string mannyId, var payload)
     signal mannyCancelRequested(string mannyId)
     signal fleetNamingRequested(var policy, bool applyExisting)
+    signal shutdownRequested()
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -164,6 +165,7 @@ PanelFrame {
             onUpdateCheckRequested: root.updateCheckRequested()
             onDiagnosticLogsRequested: root.diagnosticLogsRequested()
             onFleetNamingRequested: (policy, applyExisting) => root.fleetNamingRequested(policy, applyExisting)
+            onShutdownRequested: root.shutdownRequested()
         }
 
         NavigationControl {

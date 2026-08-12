@@ -60,6 +60,23 @@ class OperationsLogisticsDepotTests(unittest.TestCase):
         self.assertEqual(plan.deliverable_amount, 90)
         self.assertEqual(plan.blockers, ())
 
+    def test_reserve_tanker_can_refill_probe_in_arrived_stationary_state(self):
+        sector = {"relative": {"x": 0, "y": 0, "z": 0}}
+        tanker = {
+            "id": 8, "model": "deuterium_tanker", "status": "idle",
+            "sector": sector,
+            "fuel": {"deuterium": 350, "maxDeuterium": 400},
+        }
+        target = {
+            "id": 9, "status": "arrived", "sector": sector,
+            "fuel": {"deuterium": 35, "maxDeuterium": 100},
+        }
+
+        plan = TankerLogisticsService().plan_delivery(tanker, target, 65, 100)
+
+        self.assertEqual(plan.deliverable_amount, 65)
+        self.assertEqual(plan.blockers, ())
+
     def test_arriving_tanker_fills_reserve_tanker_before_hub(self):
         sector = {"relative": {"x": 0, "y": 0, "z": 0}}
         arriving = {

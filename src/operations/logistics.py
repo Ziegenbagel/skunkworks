@@ -133,9 +133,10 @@ class TankerLogisticsService:
         blockers = []
         if tanker.get("model") != "deuterium_tanker":
             blockers.append("source_not_tanker")
-        if tanker.get("status") != "idle":
+        stationary = {"idle", "arrived"}
+        if str(tanker.get("status", "")).lower() not in stationary:
             blockers.append("tanker_unavailable")
-        if target.get("status") != "idle":
+        if str(target.get("status", "")).lower() not in stationary:
             blockers.append("target_unavailable")
         if self._sector(tanker) != self._sector(target):
             blockers.append("rendezvous_required")

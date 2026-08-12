@@ -34,6 +34,7 @@ Item {
     signal updateCheckRequested()
     signal diagnosticLogsRequested()
     signal fleetNamingRequested(var policy, bool applyExisting)
+    signal shutdownRequested()
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -499,6 +500,7 @@ Item {
                     Button { text: "OPEN CHANGE LOG"; onClicked: root.changeLogRequested() }
                     Button { text: "OPEN DIAGNOSTIC LOGS"; onClicked: root.diagnosticLogsRequested() }
                     Button { text: "CHECK FOR UPDATES"; onClicked: root.updateCheckRequested() }
+                    Button { text: "SHUTDOWN SKUNKWORKS"; onClicked: root.shutdownRequested() }
                 }
             }
         }

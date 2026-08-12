@@ -70,11 +70,11 @@ Item {
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(700, parent ? parent.width - 80 : 700)
+        height: 270
         modal: true
         title: "WARNING! ROUTE EXITS SCUT COVERAGE!"
         standardButtons: Dialog.NoButton
         contentItem: Label {
-            width: scutExitDialog.availableWidth
             text: root.travelPreview.scutOverrideAllowed
                   ? "Part of this route is outside verified SCUT coverage. The default probe can continue without SCUT, but live telemetry may be lost. Approve to save this route, or cancel to leave the current goal unchanged."
                   : "Part of this route is outside verified SCUT coverage. This probe class cannot waive the SCUT safety requirement, so the route has not been saved."
@@ -108,7 +108,7 @@ Item {
             Layout.fillWidth: true
             Label { text: "FOCUSED PROBE NAVIGATION"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; font.pixelSize: 15 }
             Item { Layout.fillWidth: true }
-            Label { text: root.navigationData.current ? root.navigationData.current.label : "SECTOR UNKNOWN"; color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true; font.pixelSize: 14 }
+            Label { text: String((root.navigationData.current || {}).label || "SECTOR UNKNOWN"); color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true; font.pixelSize: 14 }
             Label { text: root.focusedRole.replace("_", " ").toUpperCase(); color: root.transportEligible ? Constants.nominalColor : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 13 }
             Label { text: Math.round(root.navigationData.fuelPercent || 0) + "% FUEL"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 13 }
         }
@@ -118,13 +118,12 @@ Item {
             visible: !root.roleSettingsOnly
             Layout.fillWidth: true
             TabButton { text: "MANUAL TRAVEL" }
-            TabButton { text: "TRANSPORT AUTOMATION"; visible: root.roleSettingsOnly }
             TabButton { text: "SECTOR SCANNING" }
         }
 
         StackLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
-            currentIndex: root.roleSettingsOnly ? 1 : navigationTabs.currentIndex
+            currentIndex: root.roleSettingsOnly ? 1 : (navigationTabs.currentIndex === 0 ? 0 : 2)
 
             ScrollView {
                 id: manualTravelScroll

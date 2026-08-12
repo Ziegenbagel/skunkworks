@@ -12,7 +12,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 import requests
-from PySide6.QtCore import QObject, Property, QRunnable, QThreadPool, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QObject, Property, QRunnable, QThreadPool, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
 from src.api.capabilities import GameCapabilities
@@ -1654,6 +1654,16 @@ class _WorkerSignals(QObject):
     progress = Signal(int, str)
 
 
+def _safe_emit(signal, *args):
+    """Ignore late worker results after Qt has begun deleting UI objects."""
+    try:
+        signal.emit(*args)
+    except RuntimeError:
+        # The application is already shutting down. The work result has no
+        # remaining consumer and must not turn an orderly exit into a traceback.
+        pass
+
+
 class _RefreshWorker(QRunnable):
     def __init__(self, service, probe_id):
         super().__init__()
@@ -1664,16 +1674,21 @@ class _RefreshWorker(QRunnable):
     def run(self):
         try:
             try:
-                payload = self.service.load(self.probe_id, progress=self.signals.progress.emit)
+                payload = self.service.load(
+                    self.probe_id,
+                    progress=lambda value, message: _safe_emit(
+                        self.signals.progress, value, message,
+                    ),
+                )
             except TypeError as error:
                 if "progress" not in str(error):
                     raise
                 payload = self.service.load(self.probe_id)
         except Exception as error:  # UI boundary: preserve the process and report.
             traceback.print_exc()
-            self.signals.failed.emit(str(error) or type(error).__name__)
+            _safe_emit(self.signals.failed, str(error) or type(error).__name__)
         else:
-            self.signals.succeeded.emit(payload)
+            _safe_emit(self.signals.succeeded, payload)
 
 
 class _CompatibilityWorker(QRunnable):
@@ -1689,9 +1704,9 @@ class _CompatibilityWorker(QRunnable):
             version = self.client.get_api_version()
             self.client.api_version = version
         except Exception as error:
-            self.signals.failed.emit(str(error) or type(error).__name__)
+            _safe_emit(self.signals.failed, str(error) or type(error).__name__)
             return
-        self.signals.succeeded.emit({
+        _safe_emit(self.signals.succeeded, {
             "version": version,
             "compatible": MINIMUM_API_VERSION <= version <= MAXIMUM_API_VERSION,
         })
@@ -1711,9 +1726,9 @@ class _FleetNamingWorker(QRunnable):
             result = service.save_fleet_naming_policy(self.policy, self.apply_existing)
         except Exception as error:
             traceback.print_exc()
-            self.signals.failed.emit(str(error) or type(error).__name__)
+            _safe_emit(self.signals.failed, str(error) or type(error).__name__)
             return
-        self.signals.succeeded.emit(result)
+        _safe_emit(self.signals.succeeded, result)
 
 
 class _FleetAutomationWorker(QRunnable):
@@ -1746,9 +1761,9 @@ class _FleetAutomationWorker(QRunnable):
                 results.append({"probeId": probe_id, "result": result})
         except Exception as error:
             traceback.print_exc()
-            self.signals.failed.emit(str(error) or type(error).__name__)
+            _safe_emit(self.signals.failed, str(error) or type(error).__name__)
             return
-        self.signals.succeeded.emit(results)
+        _safe_emit(self.signals.succeeded, results)
 
 
 class _AutomationCycleWorker(QRunnable):
@@ -1777,14 +1792,15 @@ class _AutomationCycleWorker(QRunnable):
             )
         except Exception as error:
             traceback.print_exc()
-            self.signals.failed.emit(str(error) or type(error).__name__)
+            _safe_emit(self.signals.failed, str(error) or type(error).__name__)
             return
-        self.signals.succeeded.emit(result)
+        _safe_emit(self.signals.succeeded, result)
 
 
 class MissionControlController(QObject):
     """Asynchronous QObject consumed by App.qml."""
 
+    shuttingDownChanged = Signal()
     dashboardChanged = Signal()
     availableProbesChanged = Signal()
     focusedProbeIdChanged = Signal()
@@ -1838,6 +1854,10 @@ class MissionControlController(QObject):
         self._retry_probe_id = None
         self._naming_worker = None
         self._naming_last_audit = 0.0
+        self._shutting_down = False
+        self._shutdown_poll_timer = QTimer(self)
+        self._shutdown_poll_timer.setInterval(100)
+        self._shutdown_poll_timer.timeout.connect(self._finish_shutdown_when_idle)
 
     @Property("QVariantMap", notify=dashboardChanged)
     def dashboard(self):
@@ -1846,6 +1866,31 @@ class MissionControlController(QObject):
     @Property("QVariantList", notify=availableProbesChanged)
     def availableProbes(self):
         return self._available_probes
+
+    @Property(bool, notify=shuttingDownChanged)
+    def shuttingDown(self):
+        return self._shutting_down
+
+    @Slot()
+    def shutdown(self):
+        if self._shutting_down:
+            return
+        self._shutting_down = True
+        self.shuttingDownChanged.emit()
+        self._automation_timer.stop()
+        self._compatibility_timer.stop()
+        self._retry_timer.stop()
+        self._automation_after_refresh = False
+        self._pending_probe_id = None
+        self.thread_pool.clear()
+        self._shutdown_poll_timer.start()
+        self._finish_shutdown_when_idle()
+
+    def _finish_shutdown_when_idle(self):
+        if not self._shutting_down or self.thread_pool.activeThreadCount() > 0:
+            return
+        self._shutdown_poll_timer.stop()
+        QCoreApplication.quit()
 
     @Property(int, notify=focusedProbeIdChanged)
     def focusedProbeId(self):
