@@ -200,6 +200,7 @@ Rectangle {
             Label {
                 width: parent.width
                 visible: Boolean((root.focusProbe.transportJourney || {}).active)
+                    && Boolean((root.focusProbe.transportJourney || {}).showFinalArrivalEstimate)
                 text: "ESTIMATED FINAL ARRIVAL · " + root.durationLabel((root.focusProbe.transportJourney || {}).estimatedFinalArrivalEpochMs)
                 color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap
             }

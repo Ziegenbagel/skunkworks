@@ -37,7 +37,9 @@ Item {
             ? "\nAUTO-TRAVEL · HOP " + Number(journey.hopNumber || 1)
               + " OF " + Number(journey.totalHops || 1)
               + " · FINAL " + String(journey.finalDestinationLabel || "UNKNOWN")
-              + " · TRIP ETA " + journeyRemainingLabel(journey.estimatedFinalArrivalEpochMs)
+              + (journey.showFinalArrivalEstimate
+                    ? " · TRIP ETA " + journeyRemainingLabel(journey.estimatedFinalArrivalEpochMs)
+                    : "")
               + "\nITINERARY · " + (journey.itinerary || []).map(function(hop) {
                     return (Number(hop.number) === Number(journey.hopNumber) ? "▶ " : "")
                            + Number(hop.number) + ". " + String(hop.label);

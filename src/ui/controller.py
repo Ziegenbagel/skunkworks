@@ -626,13 +626,8 @@ class MissionControlDataService:
             SectorCoordinates.from_api(raw_origin) if raw_origin
             else movement_origin or operations.travel.current_sector()
         )
-        maximum_hop = max(1, int(getattr(desired, "maximum_safe_hop_distance", 1) or 1))
-        total_distance = origin.distance_to(final) if origin else 0
-        total_hops = max(1, (total_distance + maximum_hop - 1) // maximum_hop)
-        itinerary = self._journey_hops(origin, final, maximum_hop) if origin else (final,)
         current = movement_origin or operations.travel.current_sector()
-        completed_distance = origin.distance_to(current) if origin and current else 0
-        hop_number = min(total_hops, completed_distance // maximum_hop + 1)
+        maximum_hop = max(1, int(getattr(desired, "maximum_safe_hop_distance", 1) or 1))
         remaining_seconds = movement.get("remainingTime")
         try:
             remaining_seconds = max(0.0, float(remaining_seconds))
@@ -643,6 +638,24 @@ class MissionControlDataService:
             movement.get("arrivalSector") or movement.get("destinationSector")
             or movement.get("destination") or movement.get("target") or movement.get("to")
         )
+        planned_itinerary = self._journey_hops(origin, final, maximum_hop) if origin else (final,)
+        if leg_destination in planned_itinerary:
+            itinerary = planned_itinerary
+            hop_number = planned_itinerary.index(leg_destination) + 1
+        elif leg_destination is not None:
+            # The live API leg is authoritative. A goal can be edited while a
+            # probe is already moving, so the active endpoint may not belong to
+            # the newly calculated route. Show that leg first, then append the
+            # route from its arrival to the durable final destination.
+            following = self._journey_hops(leg_destination, final, maximum_hop)
+            itinerary = (leg_destination,) + tuple(
+                hop for hop in following if hop != leg_destination
+            )
+            hop_number = 1
+        else:
+            itinerary = planned_itinerary
+            hop_number = 1
+        total_hops = max(1, len(itinerary))
         current_leg_distance = current.distance_to(leg_destination) if current and leg_destination else 0
         after_leg_distance = leg_destination.distance_to(final) if leg_destination else 0
         total_remaining = 0
@@ -656,6 +669,7 @@ class MissionControlDataService:
             "traveling": bool(total_remaining),
             "hopNumber": int(hop_number),
             "totalHops": int(total_hops),
+            "showFinalArrivalEstimate": total_hops > 1,
             "itinerary": [
                 {"number": index, "label": f"{hop.x}:{hop.y}:{hop.z}"}
                 for index, hop in enumerate(itinerary, 1)

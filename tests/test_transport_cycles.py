@@ -58,6 +58,7 @@ class TransportCycleTests(unittest.TestCase):
             self.assertEqual(journey["phase"], "auto_travel")
             self.assertEqual(journey["hopNumber"], 1)
             self.assertEqual(journey["totalHops"], 3)
+            self.assertTrue(journey["showFinalArrivalEstimate"])
             self.assertEqual(journey["finalDestinationLabel"], "3:3:0")
             self.assertGreater(journey["estimatedFinalArrivalEpochMs"], 0)
             self.assertEqual(
@@ -86,6 +87,34 @@ class TransportCycleTests(unittest.TestCase):
 
             self.assertEqual(journey["phase"], "live_travel")
             self.assertEqual(journey["itinerary"], [{"number": 1, "label": "1:1:0"}])
+            self.assertFalse(journey["showFinalArrivalEstimate"])
+
+    def test_changed_goal_keeps_live_leg_as_first_itinerary_hop(self):
+        from src.data import DataEngine
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        with tempfile.TemporaryDirectory() as temporary:
+            operations = build_operations()
+            operations.world.probe["movement"] = {
+                "originSector": {"relative": {"x": 0, "y": 0, "z": 0}},
+                "arrivalSector": {"relative": {"x": -1, "y": -1, "z": 0}},
+                "remainingSeconds": 60,
+            }
+            desired = DesiredState(
+                travel=TravelGoal(SectorCoordinates(1, 1, 0), "segmented"),
+            )
+            service = MissionControlDataService(
+                data_engine=DataEngine(Path(temporary) / "journey.sqlite3"),
+            )
+
+            journey = service._transport_journey_view(operations, 7, desired)
+
+            self.assertEqual(journey["totalHops"], 3)
+            self.assertEqual(
+                [hop["label"] for hop in journey["itinerary"]],
+                ["-1:-1:0", "0:0:0", "1:1:0"],
+            )
 
     def test_loading_waits_for_selected_fill_threshold(self):
         assessment = RoundTripTransportService().assess(
