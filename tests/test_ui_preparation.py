@@ -246,7 +246,7 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(controller._automation_timer.interval(), 60_000)
 
-    def test_idle_automation_uses_five_minute_backoff(self):
+    def test_idle_automation_retains_one_minute_scheduler_cadence(self):
         controller = MissionControlController()
 
         controller._configure_automation_timer({
@@ -255,7 +255,7 @@ class UiPreparationTests(unittest.TestCase):
             "queue": ({"disposition": "blocked"},),
         })
 
-        self.assertEqual(controller._automation_timer.interval(), 5 * 60_000)
+        self.assertEqual(controller._automation_timer.interval(), 60_000)
 
     def test_production_includes_active_manny_crafting_and_mining(self):
         probe = {

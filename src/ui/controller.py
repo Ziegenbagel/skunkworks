@@ -1900,7 +1900,7 @@ class MissionControlController(QObject):
         self._loading_progress = 0
         self._loading_status = "Preparing secure connection"
         self._automation_timer = QTimer(self)
-        self._automation_timer.setInterval(5 * 60_000)
+        self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
         self._automation_after_refresh = False
         # Automatic mode should not sit visibly READY for a full timer interval
@@ -2318,24 +2318,10 @@ class MissionControlController(QObject):
 
     def _configure_automation_timer(self, runtime):
         enabled = runtime.get("mode") == "automatic" and runtime.get("liveExecutionEnabled")
-        active_transport = any(
-            item.get("state") == "active"
-            for item in self._dashboard.get("automation", {}).get(
-                "transportCycles", ()
-            )
-        )
-        actionable_work = any(
-            item.get("disposition") == "ready"
-            for item in runtime.get("queue", ())
-        )
-        # Five minutes is the idle/backoff interval after a complete planner
-        # walk finds nothing useful to do.  It must not also delay work that is
-        # already shown as READY: that left newly-idle Mannys visibly sitting
-        # around until the next long tick.  Keep the one-minute cadence while
-        # transport is active or the current plan contains dispatchable work.
-        self._automation_timer.setInterval(
-            60_000 if active_transport or actionable_work else 5 * 60_000
-        )
+        # Keep every automatic probe on the same one-minute cadence. A blocked
+        # cycle sends no orders, so extending its next evaluation to five
+        # minutes only delays noticing newly available resources or Mannys.
+        self._automation_timer.setInterval(60_000)
         if not enabled:
             for probe in self._available_probes:
                 policy = ExecutionPolicyStore().load(int(probe["id"]))
