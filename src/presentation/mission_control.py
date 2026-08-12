@@ -796,6 +796,8 @@ class MissionControlViewModelBuilder:
         current = self.operations.travel.current_sector()
         if current is None:
             return {"current": {}, "neighbors": (), "travelReady": False}
+        snapshot = (world.sector or {}).get("snapshot") or {}
+        current_sector = snapshot.get("sector", snapshot)
         galaxy = getattr(world, "galaxy", None)
         neighbors = []
         for coordinates in current.neighbors():
@@ -815,7 +817,20 @@ class MissionControlViewModelBuilder:
                 "scutCoverage": self._scut_coverage(world, coordinates),
             })
         return {
-            "current": {"x": current.x, "y": current.y, "z": current.z, "label": self._sector_label({"x": current.x, "y": current.y, "z": current.z})},
+            "current": {
+                "x": current.x, "y": current.y, "z": current.z,
+                "label": self._sector_label({
+                    "x": current.x, "y": current.y, "z": current.z,
+                }),
+                "isCurrent": True,
+                "visited": True,
+                "knowledgeLevel": current_sector.get("knowledgeLevel", "unknown"),
+                "confidence": float(current_sector.get("confidence", 0) or 0),
+                "objectCount": len(current_sector.get("objects", ()) or ()),
+                "scanSummary": self._scan_summary(current_sector),
+                "detailText": self._sector_detail_text(current_sector),
+                "scutCoverage": self._scut_coverage(world, current),
+            },
             "neighbors": tuple(neighbors),
             "travelReady": self.operations.travel.travel_ready(),
             "fuelPercent": self.operations.travel.fuel_percentage(),

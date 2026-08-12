@@ -434,6 +434,25 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("habitability: 0.500000", detail)
         self.assertIn("mass 1.2 Earth masses", detail)
 
+    def test_navigation_current_sector_exposes_same_planet_details_as_neighbors(self):
+        base = build_operations()
+        base.world.sector["snapshot"] = {"sector": {
+            "knowledgeLevel": "detailed", "confidence": 1,
+            "objects": [{
+                "type": "solar_system", "bookmarkTargets": [{
+                    "type": "planet", "category": "oceanic",
+                    "habitabilityScore": 0.75,
+                }],
+            }],
+        }}
+
+        navigation = MissionControlViewModelBuilder(base).navigation_view()
+
+        self.assertTrue(navigation["current"]["isCurrent"])
+        self.assertEqual(navigation["current"]["objectCount"], 1)
+        self.assertIn("1 planets", navigation["current"]["scanSummary"])
+        self.assertIn("composition/category: Oceanic", navigation["current"]["detailText"])
+
     def test_controller_persists_probe_role_and_updates_live_settings(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")

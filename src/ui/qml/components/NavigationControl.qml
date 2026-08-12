@@ -338,6 +338,34 @@ Item {
                         Button { text: "SCAN ALL 12 NEIGHBORING SECTORS"; onClicked: root.neighborScanRequested(); ToolTip.visible: hovered; ToolTip.text: "Runs the same passive observation for every adjacent FCC sector and saves each result to the Skunkworks galaxy map." }
                     }
                     Label { visible: root.focusedRole === "explorer"; Layout.fillWidth: true; text: "EXPLORER AUTOMATION ACTIVE · NEIGHBORS ARE SCANNED ONCE AFTER ARRIVAL IN EACH NEW SECTOR"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.preferredHeight: 190
+                        color: Constants.selectedColor; border.color: Constants.cyanColor; radius: 3
+                        ColumnLayout {
+                            anchors.fill: parent; anchors.margins: 10; spacing: 12
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label { text: "CURRENT SECTOR"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true }
+                                Label { text: String((root.navigationData.current || {}).label || "CURRENT SECTOR UNKNOWN"); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
+                                Item { Layout.fillWidth: true }
+                                Label { text: String((root.navigationData.current || {}).knowledgeLevel || "unknown").replace("_", " ").toUpperCase() + " · " + Math.round(Number((root.navigationData.current || {}).confidence || 0) * 100) + "% CONFIDENCE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Label { Layout.fillWidth: true; text: String((root.navigationData.current || {}).scanSummary || "Current-sector details unavailable"); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 13; wrapMode: Text.Wrap }
+                                Label { Layout.fillWidth: true; text: ((root.navigationData.current || {}).scutCoverage || {}).covered ? "SCUT · " + String(((root.navigationData.current || {}).scutCoverage || {}).networkName || "COVERED") : "OUTSIDE KNOWN SCUT"; color: ((root.navigationData.current || {}).scutCoverage || {}).covered ? Constants.nominalColor : Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+                            }
+                            ScrollView {
+                                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                                TextArea {
+                                    width: parent.width
+                                    text: String((root.navigationData.current || {}).detailText || "No detailed system telemetry is available for the current sector.")
+                                    readOnly: true; wrapMode: Text.Wrap
+                                    color: Constants.textColor; font.family: Constants.bodyFont; font.pixelSize: 14
+                                }
+                            }
+                        }
+                    }
                     Label {
                         visible: Boolean(root.navigationData.scanResult)
                         Layout.fillWidth: true
@@ -390,7 +418,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button { text: "USE FOR MANUAL TRAVEL"; onClicked: { root.chooseSector(root.selectedSectorDetails); sectorDetails.close(); } }
+                Button { visible: !Boolean(root.selectedSectorDetails.isCurrent); text: "USE FOR MANUAL TRAVEL"; onClicked: { root.chooseSector(root.selectedSectorDetails); sectorDetails.close(); } }
                 Button { text: "CLOSE"; onClicked: sectorDetails.close() }
             }
         }

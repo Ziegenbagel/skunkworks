@@ -288,6 +288,8 @@ def test_navigation_exposes_all_neighbor_scan_and_explorer_arrival_automation():
     assert "neighborScanRequested" in navigation
     assert "scanNeighboringSectors" in controller
     assert "explorer_neighbor_scan" in controller
+    assert "CURRENT SECTOR" in navigation
+    assert "No detailed system telemetry is available for the current sector." in navigation
 
 
 def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
