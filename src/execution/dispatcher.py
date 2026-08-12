@@ -12,6 +12,7 @@ class CapabilityDispatcher:
             CommandType.MANNY_CRAFT: self._manny_craft,
             CommandType.ATOMIC_PRINTER_CRAFT: self._printer_craft,
             CommandType.MANNY_MINE: self._manny_mine,
+            CommandType.MANNY_TRANSFER_DEUTERIUM: self._manny_transfer_deuterium,
             CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,
             CommandType.MANNY_REPAIR: self._manny_repair,
             CommandType.MOVE_PROBE: self._move_probe,
@@ -39,17 +40,18 @@ class CapabilityDispatcher:
         )
 
     def _manny_mine(self, command):
-        if command.metadata.get("transportTransfer"):
-            return self.capabilities.mannies.start_task(
-                command.probe_id,
-                command.target_id,
-                "transfer-deuterium-to-probe",
-                command.payload,
-            )
         return self.capabilities.mannies.start_task(
             command.probe_id,
             command.target_id,
             "mine",
+            command.payload,
+        )
+
+    def _manny_transfer_deuterium(self, command):
+        return self.capabilities.mannies.start_task(
+            command.probe_id,
+            command.target_id,
+            "transfer-deuterium-to-probe",
             command.payload,
         )
 

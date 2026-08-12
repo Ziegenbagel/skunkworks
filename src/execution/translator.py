@@ -32,9 +32,7 @@ class TaskCommandTranslator:
         if manny is None:
             return None
         return Command(
-            # Transport loading/unloading is an automatic Manny resource
-            # operation and intentionally follows the Mining allowlist.
-            type=CommandType.MANNY_MINE,
+            type=CommandType.MANNY_TRANSFER_DEUTERIUM,
             probe_id=self.probe_id,
             target_id=manny["id"],
             payload={
@@ -44,7 +42,11 @@ class TaskCommandTranslator:
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
-            metadata={"resource": "deuterium", "transportTransfer": True},
+            metadata={
+                "resource": "deuterium",
+                "transportTransfer": True,
+                "workflowAuthorized": bool(task.workflow_authorized),
+            },
         )
 
     def _repair(self, task):

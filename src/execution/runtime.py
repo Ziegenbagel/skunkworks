@@ -72,6 +72,7 @@ class AutomationRuntime:
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_MINE,
+            CommandType.MANNY_TRANSFER_DEUTERIUM,
         }
         if not repeatable and self.data_engine.action_was_successful(command.fingerprint):
             return self._finish(command, "cancelled", ("already_completed",))
@@ -79,7 +80,10 @@ class AutomationRuntime:
             return self._finish(command, "cancelled", ("live_execution_disabled",))
         if self.policy.mode == ExecutionMode.OBSERVE:
             return self._finish(command, "cancelled", ("observe_only",))
-        if command.type not in self.policy.allowed_command_types:
+        if (
+            command.type not in self.policy.allowed_command_types
+            and not command.metadata.get("workflowAuthorized", False)
+        ):
             return self._finish(command, "cancelled", ("command_not_allowlisted",))
         if self.policy.mode == ExecutionMode.APPROVE and not approved:
             return self._finish(command, "awaiting_approval")

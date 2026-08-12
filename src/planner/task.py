@@ -39,5 +39,10 @@ class Task:
     # Completed inventory committed to this goal.  The execution preparer uses
     # these claims to keep lower-priority recipes from consuming assembly parts.
     reserved_items: tuple[tuple[str, int], ...] = ()
+    # The player explicitly configured the durable workflow which emitted this
+    # task (for example, a reserve-tanker target). This authorizes only the
+    # workflow's narrowly typed command; global live execution and emergency
+    # stop protections still apply.
+    workflow_authorized: bool = False
 
     priority: int = 100

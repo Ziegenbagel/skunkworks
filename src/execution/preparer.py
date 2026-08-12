@@ -227,8 +227,8 @@ class CommandPreparer:
             return "awaiting_risk_acknowledgement"
 
         if (
-            command.type
-            not in self.policy.allowed_command_types
+            command.type not in self.policy.allowed_command_types
+            and not command.metadata.get("workflowAuthorized", False)
         ):
             return "awaiting_approval"
 

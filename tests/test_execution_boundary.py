@@ -227,7 +227,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
             "location": {"type": "probe"},
         })
         command = Command(
-            type=CommandType.MANNY_MINE,
+            type=CommandType.MANNY_TRANSFER_DEUTERIUM,
             probe_id=1,
             target_id=101,
             payload={"targetProbeId": 9, "amount": 20},
@@ -240,6 +240,33 @@ class ExecutionBoundaryTests(unittest.TestCase):
         blockers = PreflightValidator(self.operations, 1).blockers(command)
 
         self.assertIn("transport_transfer_already_active", blockers)
+
+    def test_saved_transport_transfer_is_distinct_from_mining_and_ready(self):
+        from src.planner.task import Task
+
+        prepared = CommandPreparer(
+            self.operations,
+            1,
+            ExecutionPolicy(
+                mode=ExecutionMode.AUTOMATIC,
+                live_execution_enabled=True,
+                allowed_command_types=frozenset(),
+            ),
+        ).prepare((Task(
+            action="Transfer Deuterium",
+            reason="Configured reserve-tanker refill",
+            target="9",
+            quantity=20,
+            workflow_authorized=True,
+            priority=1,
+        ),))
+
+        self.assertEqual(
+            prepared[0].command.type,
+            CommandType.MANNY_TRANSFER_DEUTERIUM,
+        )
+        self.assertEqual(prepared[0].disposition, "ready")
+        self.assertTrue(prepared[0].command.metadata["workflowAuthorized"])
 
     def test_reserve_floor_mining_cannot_saturate_manny_workforce(self):
         for manny_id in range(102, 110):

@@ -75,14 +75,31 @@ class MissionControlDataService:
         self._history_sync_at = {}
         self._hazard_cache = {}
         self._logbook_cache = {}
+        self._fleet_snapshot_cache = None
+        self._fleet_snapshot_cached_at = 0.0
 
-    def load(self, probe_id=None, include_archival=True, progress=None):
+    def load(
+        self, probe_id=None, include_archival=True, progress=None,
+        prefer_cached_fleet=False,
+    ):
         report = progress or (lambda percent, label: None)
         report(5, "Checking API compatibility and recipes")
         self._initialize()
         report(15, "Loading commander and fleet")
-        player = self.client.get_player()
-        probe_data = self.client.get_probes()
+        now = time.monotonic()
+        cached_fleet = self._fleet_snapshot_cache
+        if (
+            prefer_cached_fleet
+            and cached_fleet is not None
+            and now - self._fleet_snapshot_cached_at < 30
+        ):
+            player, probe_data = cached_fleet
+            report(20, "Reusing recent fleet index")
+        else:
+            player = self.client.get_player()
+            probe_data = self.client.get_probes()
+            self._fleet_snapshot_cache = (player, probe_data)
+            self._fleet_snapshot_cached_at = now
         selected = self.probe_selector.select(
             probe_data,
             arguments=[],
@@ -528,6 +545,7 @@ class MissionControlDataService:
             target=str(plan.target_probe_id),
             quantity=plan.deliverable_amount,
             resource_type="deuterium",
+            workflow_authorized=True,
             priority=1,
         )]
 
@@ -832,6 +850,7 @@ class MissionControlDataService:
                     quantity=amount,
                     constraints=tuple(dict.fromkeys(blockers)),
                     resource_type="deuterium",
+                    workflow_authorized=True,
                     priority=1,
                 )], None
 
@@ -1707,10 +1726,11 @@ def _safe_emit(signal, *args):
 
 
 class _RefreshWorker(QRunnable):
-    def __init__(self, service, probe_id):
+    def __init__(self, service, probe_id, prefer_cached_fleet=False):
         super().__init__()
         self.service = service
         self.probe_id = probe_id
+        self.prefer_cached_fleet = prefer_cached_fleet
         self.signals = _WorkerSignals()
 
     def run(self):
@@ -1718,12 +1738,16 @@ class _RefreshWorker(QRunnable):
             try:
                 payload = self.service.load(
                     self.probe_id,
+                    prefer_cached_fleet=self.prefer_cached_fleet,
                     progress=lambda value, message: _safe_emit(
                         self.signals.progress, value, message,
                     ),
                 )
             except TypeError as error:
-                if "progress" not in str(error):
+                if not any(
+                    name in str(error)
+                    for name in ("progress", "prefer_cached_fleet")
+                ):
                     raise
                 payload = self.service.load(self.probe_id)
         except Exception as error:  # UI boundary: preserve the process and report.
@@ -2350,7 +2374,7 @@ class MissionControlController(QObject):
             return
         if probe_id == self._focused_probe_id:
             return
-        self._start_refresh(probe_id)
+        self._start_refresh(probe_id, prefer_cached_fleet=True)
 
     @Slot(bool)
     def setEmergencyStop(self, active):
@@ -2971,7 +2995,7 @@ class MissionControlController(QObject):
         self._dashboard["logbook"] = logbook
         self.dashboardChanged.emit()
 
-    def _start_refresh(self, probe_id):
+    def _start_refresh(self, probe_id, prefer_cached_fleet=False):
         if self._refreshing:
             return
         self._set_refreshing(True)
@@ -2984,7 +3008,10 @@ class MissionControlController(QObject):
                 self._set_refreshing(False)
                 return
         self._refresh_target_id = probe_id
-        worker = _RefreshWorker(self.service, probe_id)
+        worker = _RefreshWorker(
+            self.service, probe_id,
+            prefer_cached_fleet=prefer_cached_fleet,
+        )
         worker.signals.succeeded.connect(self._accept_dashboard)
         worker.signals.failed.connect(self._reject_dashboard)
         worker.signals.progress.connect(self._set_loading_progress)
@@ -3188,7 +3215,7 @@ class MissionControlController(QObject):
         pending = self._pending_probe_id
         self._pending_probe_id = None
         if pending is not None and pending != self._focused_probe_id:
-            self._start_refresh(pending)
+            self._start_refresh(pending, prefer_cached_fleet=True)
             return
         if self._automation_after_refresh:
             self._automation_after_refresh = False

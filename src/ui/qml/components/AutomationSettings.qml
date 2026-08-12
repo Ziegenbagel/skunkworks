@@ -80,6 +80,7 @@ Item {
             allowed.push("manny_assemble_probe");
         }
         if (miningCommands.checked) allowed.push("manny_mine");
+        if (transferCommands.checked) allowed.push("manny_transfer_deuterium");
         if (travelCommands.checked) allowed.push("move_probe");
         if (repairCommands.checked) allowed.push("manny_repair");
         return {
@@ -95,6 +96,7 @@ Item {
         commandsPerCycle.value = Number(runtimeData.maxCommandsPerCycle || 1);
         craftCommands.checked = commandAllowed("manny_craft") || commandAllowed("atomic_printer_craft") || commandAllowed("manny_assemble_probe");
         miningCommands.checked = commandAllowed("manny_mine");
+        transferCommands.checked = commandAllowed("manny_transfer_deuterium");
         travelCommands.checked = commandAllowed("move_probe");
         repairCommands.checked = commandAllowed("manny_repair");
     }
@@ -273,6 +275,7 @@ Item {
                         Label { text: "COMMAND ALLOWLIST"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                         CheckBox { id: craftCommands; text: "CRAFTING & PROBE ASSEMBLY"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") || root.commandAllowed("manny_assemble_probe") }
                         CheckBox { id: miningCommands; text: "MINING"; checked: root.commandAllowed("manny_mine") }
+                        CheckBox { id: transferCommands; text: "DEUTERIUM TRANSFERS"; checked: root.commandAllowed("manny_transfer_deuterium"); ToolTip.visible: hovered; ToolTip.text: "Allows direct transfer orders. Configured reserve-tanker and transport workflows are authorized by their saved role settings." }
                         CheckBox { id: travelCommands; text: "TRAVEL"; checked: root.commandAllowed("move_probe") }
                         CheckBox { id: repairCommands; text: "PROBE REPAIR"; checked: root.commandAllowed("manny_repair"); ToolTip.visible: hovered; ToolTip.text: "Allows automatic repair only when the focused probe reaches its configured integrity trigger." }
                     }

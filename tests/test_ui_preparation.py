@@ -109,6 +109,35 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.focusedProbeId, 9)
         self.assertEqual(service.requested, [7, 9])
 
+    def test_probe_switch_requests_recent_fleet_index_reuse(self):
+        class Service:
+            def __init__(self):
+                self.requests = []
+
+            def load(self, probe_id, progress=None, prefer_cached_fleet=False):
+                selected = probe_id or 7
+                self.requests.append((selected, prefer_cached_fleet))
+                return {
+                    "focus": {"probeId": selected},
+                    "probeOptions": (
+                        {"id": 7, "name": "Explorer"},
+                        {"id": 9, "name": "Tanker"},
+                    ),
+                    "connection": "connected",
+                }
+
+        class ImmediatePool:
+            @staticmethod
+            def start(worker):
+                worker.run()
+
+        service = Service()
+        controller = MissionControlController(service, ImmediatePool())
+        controller.refresh()
+        controller.selectProbe(9)
+
+        self.assertEqual(service.requests, [(7, False), (9, True)])
+
     def test_failed_refresh_retains_snapshot_and_marks_it_stale(self):
         class Service:
             fail = False

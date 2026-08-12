@@ -25,6 +25,7 @@ class PreflightValidator:
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_MINE,
+            CommandType.MANNY_TRANSFER_DEUTERIUM,
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
             CommandType.MOVE_PROBE,
@@ -39,6 +40,7 @@ class PreflightValidator:
         if command.type in {
             CommandType.MANNY_CRAFT,
             CommandType.MANNY_MINE,
+            CommandType.MANNY_TRANSFER_DEUTERIUM,
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
         }:
