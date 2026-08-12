@@ -49,6 +49,36 @@ class ExecutionBoundaryTests(unittest.TestCase):
             journal=journal,
         ).prepare(tasks)
 
+    def test_craftable_lower_production_dispatches_before_blocked_recipe_mining(self):
+        from src.ui.controller import MissionControlDataService
+
+        self.operations.world.probe["fuel"]["deuterium"] = 0
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 10
+        self.operations.manufacturing.recipes._recipes["manny"] = {
+            "id": "manny", "name": "Manny", "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [
+                {"type": "deuterium", "quantity": 1, "kind": "resource"},
+            ],
+            "output": {"type": "manny", "containerSpace": 0.1},
+        }
+        desired = DesiredState(production=(
+            ProductionGoal("manny", 1, priority=1),
+            ProductionGoal("storage_container", 1, priority=5),
+        ))
+        tasks = Planner(self.operations, desired).tasks()
+        dispatch = MissionControlDataService._dispatch_tasks(tasks)
+        prepared = CommandPreparer(
+            self.operations,
+            1,
+            ExecutionPolicy(max_commands_per_cycle=1),
+        ).prepare(dispatch)
+
+        self.assertEqual(len(prepared), 1)
+        self.assertEqual(prepared[0].command.source_action, "Craft Item")
+        self.assertEqual(prepared[0].command.payload["recipe"], "storage_container")
+        self.assertFalse(any(task.category in {"fuel", "mining"} for task in dispatch))
+
     def test_craft_task_becomes_typed_dry_run_command(self):
         prepared = self.prepare(
             DesiredState(

@@ -412,9 +412,10 @@ class MissionControlDataService:
                 ]
             tasks.extend(transport_tasks)
             tasks.sort(key=lambda task: task.priority)
+            dispatch_tasks = self._dispatch_tasks(tasks)
             self._prepared_commands = CommandPreparer(
                 operations, probe_id, policy,
-            ).prepare(tasks)
+            ).prepare(dispatch_tasks)
         return {
             "probeId": probe_id,
             "mode": policy.mode.value,
@@ -431,6 +432,47 @@ class MissionControlDataService:
             } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
         }
+
+    @staticmethod
+    def _dispatch_order(task):
+        """Keep fabrication tiers ahead of resource acquisition.
+
+        Explicit priorities order goals *within* a tier. A blocked priority-1
+        recipe may request priority-1 mining, but that dependency must not take
+        a Manny away from a currently craftable priority-2 production goal.
+        Fleet assembly remains the first fabrication tier, ordinary production
+        is second, and acquisition runs only after both have been considered.
+        """
+        tiers = {
+            "safety": 0,
+            "inventory": 0,
+            "fleet_assembly": 1,
+            "manufacturing": 2,
+            "transport": 3,
+            "travel": 3,
+            "fuel": 4,
+            "mining": 4,
+            "sustainability": 5,
+        }
+        return (tiers.get(task.category, 3), task.priority)
+
+    @classmethod
+    def _dispatch_tasks(cls, tasks):
+        ordered = sorted(tasks, key=cls._dispatch_order)
+        craftable = any(
+            task.action in {"Craft Item", "Assemble Probe"}
+            and not task.constraints
+            for task in ordered
+        )
+        if not craftable:
+            return ordered
+        # A planning cycle that can fabricate something spends its available
+        # workforce on the fabrication tiers. Mining is reconsidered on the
+        # next authoritative refresh, after active crafts and inputs change.
+        return [
+            task for task in ordered
+            if task.category not in {"fuel", "mining"}
+        ]
 
     def _reserve_tanker_delivery_tasks(self, operations, probe_id):
         """Let a same-sector reserve tanker top up its designated hub."""
