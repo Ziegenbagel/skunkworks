@@ -59,11 +59,11 @@ Item {
 
     component CoverageCell: Model {
         source: "#Cube"
-        scale: Qt.vector3d(0.16, 0.16, 0.16)
+        scale: Qt.vector3d(0.075, 0.075, 0.075)
         materials: DefaultMaterial {
             lighting: DefaultMaterial.NoLighting
             diffuseColor: "#176b45"
-            opacity: 0.62
+            opacity: 0.68
         }
     }
 
@@ -186,7 +186,7 @@ Item {
         }
 
         Repeater3D {
-            model: root.showScutCoverage ? (root.galaxyData.scutCoverageCells || []) : []
+            model: root.showScutCoverage ? (root.galaxyData.scutCoverageBoundary || []) : []
             delegate: CoverageCell {
                 required property var modelData
                 position: root.positionFor(modelData)
@@ -402,7 +402,7 @@ Item {
                 }
                 CheckBox {
                     Layout.columnSpan: 2
-                    text: "SHOW VERIFIED SCUT COVERAGE SECTORS"
+                    text: "SHOW SCUT COVERAGE BOUNDARY"
                     checked: root.showScutCoverage; onToggled: root.showScutCoverage = checked
                 }
                 CheckBox {

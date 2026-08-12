@@ -446,6 +446,22 @@ class MissionControlViewModelBuilder:
                             if network.get("name", "SCUT network") not in cell["networkNames"]:
                                 cell["networkNames"].append(network.get("name", "SCUT network"))
                             cell["relayIds"].append(relay_id)
+        covered_coordinates = {
+            SectorCoordinates(cell["x"], cell["y"], cell["z"])
+            for cell in scut_coverage_cells.values()
+        }
+        # Render only the exterior shell of the union. This preserves the exact
+        # FCC coverage boundary while avoiding a dense cloud of interior cells,
+        # and it removes internal faces where relay coverage overlaps.
+        scut_coverage_boundary = tuple(
+            cell for cell in scut_coverage_cells.values()
+            if any(
+                neighbor not in covered_coordinates
+                for neighbor in SectorCoordinates(
+                    cell["x"], cell["y"], cell["z"],
+                ).neighbors()
+            )
+        )
         return {
             "nodes": tuple(nodes),
             "edges": tuple(edges),
@@ -457,6 +473,7 @@ class MissionControlViewModelBuilder:
             "recentTrailProbeId": world.probe.get("id"),
             "scutRanges": tuple(scut_ranges),
             "scutCoverageCells": tuple(scut_coverage_cells.values()),
+            "scutCoverageBoundary": scut_coverage_boundary,
         }
 
     def _communications(self, probe):

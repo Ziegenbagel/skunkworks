@@ -680,6 +680,9 @@ class UiPreparationTests(unittest.TestCase):
         cells = {cell["id"]: cell for cell in view["scutCoverageCells"]}
         self.assertIn("6:-1:3", cells)  # Exact radius-two FCC boundary.
         self.assertNotIn("6:1:5", cells)  # Cube corner is three FCC hops away.
+        boundary = {cell["id"] for cell in view["scutCoverageBoundary"]}
+        self.assertIn("6:-1:3", boundary)
+        self.assertNotIn("4:-1:3", boundary)  # Relay center is interior.
 
     def test_sector_view_exposes_black_hole_destruction_deadline(self):
         base = build_operations()
