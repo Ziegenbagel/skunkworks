@@ -263,6 +263,27 @@ class UiPreparationTests(unittest.TestCase):
         self.assertGreater(work[0]["startedAtEpochMs"], 0)
         self.assertIn("Started: 2026-", work[0]["detailText"])
 
+    def test_atomic_printer_infers_recipe_from_assisting_manny(self):
+        probe = {"inventory": {"items": [{
+            "id": "printer-1",
+            "type": "atomic_3d_printer",
+            "name": "Atomic Printer",
+            "currentTask": "atomic_printing",
+            "taskProgressPercent": 83.3,
+        }]}}
+        mannies = {"mannies": [{
+            "id": "manny-a",
+            "name": "Manny A",
+            "currentTask": "assisting_atomic_printer",
+            "task": {"recipeId": "integrated_circuit"},
+        }]}
+
+        work = MissionControlViewModelBuilder._production(probe, mannies)
+
+        printer = next(item for item in work if item["id"] == "printer-1")
+        self.assertIn("INTEGRATED CIRCUIT", printer["displayText"])
+        self.assertIn("Recipe: Integrated Circuit", printer["detailText"])
+
     def test_reserved_container_business_error_is_operator_readable(self):
         response = requests.Response()
         response.status_code = 409

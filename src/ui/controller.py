@@ -221,6 +221,9 @@ class MissionControlDataService:
             automation["namingPolicy"] = {}
         dashboard["automation"] = automation
         dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
+        dashboard["focus"]["transportJourney"] = self._transport_journey_view(
+            operations, selected["id"], desired_state,
+        )
         dashboard["crafting"] = {
             "recipes": tuple({
                 "id": recipe.get("id"),
@@ -500,6 +503,81 @@ class MissionControlDataService:
         completed = replace(desired, travel=None)
         DesiredStateStore(self.data_engine).save(completed, probe_id)
         return completed
+
+    def _transport_journey_view(self, operations, probe_id, desired):
+        """Describe the active transport leg and estimate its phase endpoint.
+
+        The estimate deliberately derives its pace from the current live leg.
+        A pause for mining/loading therefore does not burn down a stale clock;
+        as soon as movement resumes the final ETA is rebuilt from fresh travel
+        telemetry and the distance still outstanding.
+        """
+        operation = next((
+            item for item in OperationStore(self.data_engine).all()
+            if item.metadata.get("template") == "round_trip_transport"
+            and int(item.probe_id or -1) == int(probe_id)
+            and item.state.value == "active"
+        ), None)
+        if operation is None:
+            return {}
+        cycle = operation.metadata.get("cycle") or {}
+        phase = operation.metadata.get("transportPhase", "to_source")
+        phase_points = {
+            "to_source": (cycle.get("returnPoint") or cycle.get("source"), cycle.get("source")),
+            "to_destination": (cycle.get("source"), cycle.get("destination")),
+            "to_return": (cycle.get("destination"), cycle.get("returnPoint")),
+        }
+        raw_origin, raw_final = phase_points.get(phase, (None, None))
+        if not raw_final:
+            return {"active": True, "phase": phase, "traveling": False}
+        final = SectorCoordinates.from_api(raw_final)
+        origin = SectorCoordinates.from_api(raw_origin) if raw_origin else operations.travel.current_sector()
+        maximum_hop = max(1, int(getattr(desired, "maximum_safe_hop_distance", 1) or 1))
+        total_distance = origin.distance_to(final) if origin else 0
+        total_hops = max(1, (total_distance + maximum_hop - 1) // maximum_hop)
+        movement = MissionControlViewModelBuilder._movement_view(operations.world.probe)
+        movement_origin = self._movement_coordinates(
+            movement.get("originSector") or movement.get("origin") or movement.get("from")
+        )
+        current = movement_origin or operations.travel.current_sector()
+        completed_distance = origin.distance_to(current) if origin and current else 0
+        hop_number = min(total_hops, completed_distance // maximum_hop + 1)
+        remaining_seconds = movement.get("remainingTime")
+        try:
+            remaining_seconds = max(0.0, float(remaining_seconds))
+        except (TypeError, ValueError):
+            arrival_ms = float(movement.get("arrivalEpochMs", 0) or 0)
+            remaining_seconds = max(0.0, arrival_ms / 1000 - time.time()) if arrival_ms else 0
+        leg_destination = self._movement_coordinates(
+            movement.get("arrivalSector") or movement.get("destinationSector")
+            or movement.get("destination") or movement.get("target") or movement.get("to")
+        )
+        current_leg_distance = current.distance_to(leg_destination) if current and leg_destination else 0
+        after_leg_distance = leg_destination.distance_to(final) if leg_destination else 0
+        total_remaining = 0
+        if remaining_seconds and current_leg_distance:
+            total_remaining = remaining_seconds * (
+                1 + after_leg_distance / current_leg_distance
+            )
+        return {
+            "active": True,
+            "phase": phase,
+            "traveling": bool(total_remaining),
+            "hopNumber": int(hop_number),
+            "totalHops": int(total_hops),
+            "finalDestinationLabel": f"{final.x}:{final.y}:{final.z}",
+            "estimatedFinalArrivalEpochMs": int((time.time() + total_remaining) * 1000) if total_remaining else 0,
+        }
+
+    @staticmethod
+    def _movement_coordinates(value):
+        if not isinstance(value, dict):
+            return None
+        value = value.get("relative") or value.get("relativeCoordinates") or value
+        try:
+            return SectorCoordinates.from_api(value)
+        except (KeyError, TypeError, ValueError):
+            return None
 
     def _reconcile_transport_operation(self, operations, probe_id, desired):
         """Advance one active route from authoritative live telemetry."""

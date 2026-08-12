@@ -939,6 +939,7 @@ class MissionControlViewModelBuilder:
     def _production(probe, mannies, automation_reasons=None):
         automation_reasons = automation_reasons or {}
         work = []
+        printer_assistance_tasks = []
         for manny in (mannies or {}).get("mannies", ()):
             task_type = manny.get("currentTask")
             if not task_type:
@@ -958,6 +959,8 @@ class MissionControlViewModelBuilder:
                 })
                 continue
             task = manny.get("task") if isinstance(manny.get("task"), dict) else {}
+            if str(task_type).lower().replace("-", "_") == "assisting_atomic_printer":
+                printer_assistance_tasks.append(task)
             progress = float(manny.get("taskProgressPercent", 0) or 0)
             eta = manny.get("taskEstimatedEndTime") or "—"
             eta_view = MissionControlViewModelBuilder._completion_view(eta)
@@ -1002,6 +1005,16 @@ class MissionControlViewModelBuilder:
                 task_type = current.get("type", "crafting")
             else:
                 task_type = current
+            # The printer endpoint can report only "atomic_printing" while
+            # the assisting Manny carries the authoritative recipe payload.
+            # Merge that payload so both cards identify the same output.
+            if not MissionControlViewModelBuilder._task_recipe_label(task):
+                assisted = next((
+                    candidate for candidate in printer_assistance_tasks
+                    if MissionControlViewModelBuilder._task_recipe_label(candidate)
+                ), None)
+                if assisted:
+                    task = {**assisted, **task}
             progress = float(item.get("taskProgressPercent", 0) or 0)
             eta = item.get("taskEstimatedEndTime") or "—"
             eta_view = MissionControlViewModelBuilder._completion_view(eta)

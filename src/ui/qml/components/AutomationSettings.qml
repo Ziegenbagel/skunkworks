@@ -123,7 +123,9 @@ Item {
         repairPriority.value = Number(settingsData.repairPriority || 2);
         desiredStateProbeId = focusedProbeId;
     }
-    onRuntimeDataChanged: syncExecutionControls()
+    // A telemetry refresh replaces runtimeData even when the operator is
+    // still editing this probe. Only a real probe change should reload form
+    // controls; otherwise typed text, checkboxes and spin-box edits survive.
     // Periodic reconnects replace settingsData with a fresh QVariant object.
     // Do not overwrite the operator's in-progress edits for the same probe.
     onSettingsDataChanged: {
@@ -132,7 +134,10 @@ Item {
     }
     onFocusedProbeIdChanged: {
         desiredStateProbeId = -2;
-        Qt.callLater(syncDesiredStateControls);
+        Qt.callLater(function() {
+            syncExecutionControls();
+            syncDesiredStateControls();
+        });
     }
     Component.onCompleted: {
         syncExecutionControls();

@@ -321,7 +321,6 @@ Item {
     }
 
     Component.onCompleted: Qt.callLater(root.resetCamera)
-    onGalaxyDataChanged: Qt.callLater(root.resetCamera)
     onFocusedProbeIdChanged: Qt.callLater(root.resetCamera)
 
     TapHandler {

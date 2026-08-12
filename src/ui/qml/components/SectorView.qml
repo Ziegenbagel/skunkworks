@@ -37,6 +37,14 @@ Rectangle {
         if (movement.estimatedArrival) { const seconds = Math.max(0, Math.floor((Date.parse(movement.estimatedArrival) - Date.now()) / 1000)); if (!isNaN(seconds)) return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S"; }
         return "AWAITING TELEMETRY";
     }
+    function durationLabel(epochMs) {
+        if (Number(epochMs || 0) <= 0) return "RECALCULATING WHEN TRAVEL RESUMES";
+        const seconds = Math.max(0, Math.floor((Number(epochMs) - root.currentEpochMs) / 1000));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        return (hours > 0 ? hours + " HR " : "") + minutes + " MIN " + remainder + " S";
+    }
     function destructionCountdown() {
         const deadline = Number(root.sectorData.destructionEpochMs || 0);
         if (deadline <= 0) return "COUNTDOWN TELEMETRY UNAVAILABLE";
@@ -173,6 +181,20 @@ Rectangle {
             Label { width: parent.width; text: "ORIGIN SECTOR · " + String((root.focusProbe.movement || {}).originLabel || "UNKNOWN") + "    ARRIVAL SECTOR · " + String((root.focusProbe.movement || {}).destinationLabel || "UNKNOWN"); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 16; wrapMode: Text.Wrap }
             Label { width: parent.width; text: "SENSORS · " + String(root.focusProbe.sensorMode || "UNKNOWN").toUpperCase() + "    DEUTERIUM · " + Number(root.focusProbe.fuelPercent || 0).toFixed(2) + "%    VELOCITY C · " + String((root.focusProbe.movement || {}).velocity || root.focusProbe.velocity || "—") + "    HEADING · " + root.headingLabel((root.focusProbe.movement || {}).heading); color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 14; wrapMode: Text.Wrap }
             Label { width: parent.width; text: "REMAINING TIME · " + root.remainingLabel(root.focusProbe.movement || ({})); color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap }
+            Label {
+                width: parent.width
+                visible: Boolean((root.focusProbe.transportJourney || {}).active)
+                text: "AUTO-TRANSPORT · HOP " + Number((root.focusProbe.transportJourney || {}).hopNumber || 1)
+                      + " OF " + Number((root.focusProbe.transportJourney || {}).totalHops || 1)
+                      + " · FINAL " + String((root.focusProbe.transportJourney || {}).finalDestinationLabel || "UNKNOWN")
+                color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap
+            }
+            Label {
+                width: parent.width
+                visible: Boolean((root.focusProbe.transportJourney || {}).active)
+                text: "ESTIMATED FINAL ARRIVAL · " + root.durationLabel((root.focusProbe.transportJourney || {}).estimatedFinalArrivalEpochMs)
+                color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap
+            }
         }
     }
 
