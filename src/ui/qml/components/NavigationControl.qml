@@ -127,9 +127,11 @@ Item {
             currentIndex: root.roleSettingsOnly ? 1 : navigationTabs.currentIndex
 
             ScrollView {
+                id: manualTravelScroll
                 clip: true
+                contentWidth: availableWidth
                 ColumnLayout {
-                    width: parent.width - 20; spacing: 16
+                    width: Math.max(1, manualTravelScroll.availableWidth); spacing: 16
                     GroupBox {
                         visible: Boolean(root.focusedProbe.canCancelMovement)
                         title: "ACTIVE MOVEMENT · PREPARATION CANCELLATION"; Layout.fillWidth: true
@@ -231,9 +233,11 @@ Item {
             }
 
             ScrollView {
+                id: transportAutomationScroll
                 clip: true
+                contentWidth: availableWidth
                 ColumnLayout {
-                    width: parent.width - 20; spacing: 16
+                    width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 16
                     Rectangle {
                         visible: !root.transportEligible; Layout.fillWidth: true; implicitHeight: roleWarning.implicitHeight + 32
                         color: Constants.raisedColor; border.color: Constants.warningColor; radius: 4

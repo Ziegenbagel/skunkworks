@@ -395,6 +395,9 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "targetProbeId" in role_settings
     assert "TabBar" not in role_settings
     assert "visible: root.canManageRoles" in role_settings
+    assert "contentWidth: availableWidth" in role_settings
+    assert "roleScroll.availableWidth" in role_settings
+    assert "anchors.centerIn: parent" in role_settings
     assert "LOADING SECTOR" in navigation
     assert "UNLOADING SECTOR" in navigation
     assert "RETURN POINT" in navigation
@@ -406,6 +409,7 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "ACTIVE AUTO-TRAVEL TARGET" in navigation
     assert "CANCEL AUTO-TRAVEL TARGET" in navigation
     assert "scanSummary" in navigation
+    assert "transportAutomationScroll.availableWidth" in navigation
 
 
 def test_transit_panels_render_full_auto_travel_itinerary():

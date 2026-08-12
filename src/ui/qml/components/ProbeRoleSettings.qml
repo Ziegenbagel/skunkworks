@@ -46,9 +46,11 @@ Item {
             color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
         }
         ScrollView {
+            id: roleScroll
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+            contentWidth: availableWidth
             ColumnLayout {
-                width: Math.max(1, parent.width - 20); spacing: 14
+                width: Math.max(1, roleScroll.availableWidth); spacing: 14
                 GroupBox {
                     visible: root.canManageRoles
                     title: "OWNED PROBE ROLES · DEFAULT PROBE CONTROL"
@@ -85,6 +87,7 @@ Item {
                 }
                 Item {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: roleScroll.availableWidth
                     Layout.preferredHeight: 730
                     visible: root.focusedRole === "transport" || root.focusedRole === "deuterium_tanker"
                 NavigationControl {
@@ -122,11 +125,18 @@ Item {
                     Label { visible: reserveTarget.currentIndex >= 0 && Number(reserveTarget.currentValue) === root.focusedProbeId; text: "A reserve tanker cannot refill itself."; color: Constants.criticalColor; font.family: Constants.technicalFont }
                     }
                 }
-                Label {
-                    Layout.fillWidth: true; Layout.topMargin: 80
+                Item {
                     visible: ["transport", "deuterium_tanker", "deuterium_reserve"].indexOf(root.focusedRole) < 0
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: roleScroll.availableWidth
+                    Layout.preferredHeight: Math.max(300, roleScroll.availableHeight - 90)
+                    Label {
+                    anchors.centerIn: parent
+                    width: Math.min(parent.width - 80, 760)
                     text: "MORE COMING SOON\nNo probe-specific settings are available for this role yet."
-                    horizontalAlignment: Text.AlignHCenter; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 16
+                    horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap
+                    color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 16
+                    }
                 }
             }
         }
