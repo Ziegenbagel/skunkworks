@@ -393,6 +393,8 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "roleSettingsOnly: true" in role_settings
     assert "RESERVE TANKER REFILL CHAIN" in role_settings
     assert "targetProbeId" in role_settings
+    assert "TabBar" not in role_settings
+    assert "visible: root.canManageRoles" in role_settings
     assert "LOADING SECTOR" in navigation
     assert "UNLOADING SECTOR" in navigation
     assert "RETURN POINT" in navigation
@@ -404,6 +406,15 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "ACTIVE AUTO-TRAVEL TARGET" in navigation
     assert "CANCEL AUTO-TRAVEL TARGET" in navigation
     assert "scanSummary" in navigation
+
+
+def test_transit_panels_render_full_auto_travel_itinerary():
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text()
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
+
+    assert "AUTO-TRAVEL · HOP" in sector
+    assert "itineraryLabel" in sector
+    assert "ITINERARY ·" in fleet
 
 
 def test_inventory_workspace_exposes_identity_rules_items_and_transfers():

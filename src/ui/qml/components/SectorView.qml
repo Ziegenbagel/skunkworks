@@ -45,6 +45,14 @@ Rectangle {
         const remainder = seconds % 60;
         return (hours > 0 ? hours + " HR " : "") + minutes + " MIN " + remainder + " S";
     }
+    function itineraryLabel(journey) {
+        const rows = journey.itinerary || [];
+        if (!rows.length) return "ITINERARY · AWAITING ROUTE DATA";
+        return "ITINERARY · " + rows.map(function(hop) {
+            const marker = Number(hop.number) === Number(journey.hopNumber) ? "▶ " : "";
+            return marker + Number(hop.number) + ". " + String(hop.label);
+        }).join("   →   ");
+    }
     function destructionCountdown() {
         const deadline = Number(root.sectorData.destructionEpochMs || 0);
         if (deadline <= 0) return "COUNTDOWN TELEMETRY UNAVAILABLE";
@@ -184,7 +192,7 @@ Rectangle {
             Label {
                 width: parent.width
                 visible: Boolean((root.focusProbe.transportJourney || {}).active)
-                text: "AUTO-TRANSPORT · HOP " + Number((root.focusProbe.transportJourney || {}).hopNumber || 1)
+                text: "AUTO-TRAVEL · HOP " + Number((root.focusProbe.transportJourney || {}).hopNumber || 1)
                       + " OF " + Number((root.focusProbe.transportJourney || {}).totalHops || 1)
                       + " · FINAL " + String((root.focusProbe.transportJourney || {}).finalDestinationLabel || "UNKNOWN")
                 color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap
@@ -194,6 +202,12 @@ Rectangle {
                 visible: Boolean((root.focusProbe.transportJourney || {}).active)
                 text: "ESTIMATED FINAL ARRIVAL · " + root.durationLabel((root.focusProbe.transportJourney || {}).estimatedFinalArrivalEpochMs)
                 color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap
+            }
+            Label {
+                width: parent.width
+                visible: Boolean((root.focusProbe.transportJourney || {}).active)
+                text: root.itineraryLabel(root.focusProbe.transportJourney || ({}))
+                color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14; wrapMode: Text.Wrap
             }
         }
     }

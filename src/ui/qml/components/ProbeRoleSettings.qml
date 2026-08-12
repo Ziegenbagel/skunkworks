@@ -45,48 +45,50 @@ Item {
             text: "PROBE ROLE SETTINGS · " + root.probeName(root.focusedProbeId).toUpperCase()
             color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
         }
-        TabBar {
-            id: roleTabs; Layout.fillWidth: true
-            TabButton { text: "OWNED PROBE ROLES" }
-            TabButton { text: "FOCUSED ROLE · " + root.focusedRole.replace(/_/g, " ").toUpperCase() }
-        }
-        StackLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true
-            currentIndex: roleTabs.currentIndex
-
-            ScrollView {
-                clip: true
-                ColumnLayout {
-                    width: parent.width - 20; spacing: 10
-                    Label { Layout.fillWidth: true; text: "Assign fleet roles here. Role-specific controls for the focused probe are kept in the adjacent tab."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                    Label { visible: !root.canManageRoles; Layout.fillWidth: true; text: "LOCKED · Focus the main/default probe to change owned probe roles."; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
+        ScrollView {
+            Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+            ColumnLayout {
+                width: Math.max(1, parent.width - 20); spacing: 14
+                GroupBox {
+                    visible: root.canManageRoles
+                    title: "OWNED PROBE ROLES · DEFAULT PROBE CONTROL"
+                    Layout.fillWidth: true
+                    ColumnLayout {
+                        anchors.fill: parent; spacing: 10
+                        Label { Layout.fillWidth: true; text: "Assign one fleet role to each owned probe. These controls appear only while the default probe is focused."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                     Repeater {
                         model: root.availableProbes
-                        delegate: Rectangle {
+                            delegate: Rectangle {
                             id: roleRow; required property var modelData
-                            Layout.fillWidth: true; implicitHeight: 58
+                                Layout.fillWidth: true; implicitHeight: 62
                             color: Constants.raisedColor; border.color: Constants.lineColor; radius: 3
                             RowLayout {
-                                anchors.fill: parent; anchors.margins: 10; spacing: 16
-                                Label { Layout.preferredWidth: 300; text: roleRow.modelData.name; color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true }
-                                Label { Layout.preferredWidth: 190; text: String(roleRow.modelData.model || "generic").replace(/_/g, " ").toUpperCase(); color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                                    anchors.fill: parent; anchors.margins: 12; spacing: 20
+                                    Label { Layout.preferredWidth: 320; Layout.maximumWidth: 320; elide: Text.ElideRight; text: roleRow.modelData.name; color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true }
+                                    Label { Layout.preferredWidth: 210; Layout.maximumWidth: 210; text: String(roleRow.modelData.model || "generic").replace(/_/g, " ").toUpperCase(); color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                                 ComboBox {
-                                    Layout.preferredWidth: 240; enabled: root.canManageRoles
+                                        Layout.preferredWidth: 270
                                     model: root.roleOptions
                                     currentIndex: Math.max(0, root.roleOptions.indexOf(root.roleFor(roleRow.modelData.id)))
                                     onActivated: root.roleAssignmentRequested(Number(roleRow.modelData.id), String(currentText))
                                 }
-                                Label { Layout.fillWidth: true; text: roleRow.modelData.sectorLabel || "SECTOR UNKNOWN"; color: Constants.cyanColor; font.family: Constants.technicalFont }
+                                    Label { Layout.fillWidth: true; elide: Text.ElideRight; text: roleRow.modelData.sectorLabel || "SECTOR UNKNOWN"; color: Constants.cyanColor; font.family: Constants.technicalFont }
                             }
                         }
                     }
                 }
             }
-
-            Item {
+                Label {
+                    Layout.fillWidth: true
+                    text: "FOCUSED ROLE · " + root.focusedRole.replace(/_/g, " ").toUpperCase()
+                    color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
+                }
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 730
+                    visible: root.focusedRole === "transport" || root.focusedRole === "deuterium_tanker"
                 NavigationControl {
                     anchors.fill: parent
-                    visible: root.focusedRole === "transport" || root.focusedRole === "deuterium_tanker"
                     roleSettingsOnly: true
                     automationData: root.settingsData
                     focusedProbe: root.focusedProbeData
@@ -96,9 +98,13 @@ Item {
                     onTransportCyclePauseRequested: operationId => root.transportCyclePauseRequested(operationId)
                     onTransportCycleDeleteRequested: operationId => root.transportCycleDeleteRequested(operationId)
                 }
-                ColumnLayout {
-                    anchors.fill: parent; anchors.margins: 20; spacing: 14
+                }
+                GroupBox {
                     visible: root.focusedRole === "deuterium_reserve"
+                    title: "RESERVE TANKER REFILL CHAIN"
+                    Layout.fillWidth: true
+                    ColumnLayout {
+                    anchors.fill: parent; spacing: 14
                     Label { text: "RESERVE TANKER REFILL CHAIN"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true }
                     Label { Layout.fillWidth: true; text: "This tanker checks only the selected probe. Multiple reserve tankers can be chained by selecting the next tanker or final consumer for each link."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                     GridLayout {
@@ -114,10 +120,10 @@ Item {
                         onClicked: root.roleSettingsSaveRequested(root.focusedProbeId, {"targetProbeId": Number(reserveTarget.currentValue), "protectedDeuterium": Number(protectedReserve.value)})
                     }
                     Label { visible: reserveTarget.currentIndex >= 0 && Number(reserveTarget.currentValue) === root.focusedProbeId; text: "A reserve tanker cannot refill itself."; color: Constants.criticalColor; font.family: Constants.technicalFont }
-                    Item { Layout.fillHeight: true }
+                    }
                 }
                 Label {
-                    anchors.centerIn: parent
+                    Layout.fillWidth: true; Layout.topMargin: 80
                     visible: ["transport", "deuterium_tanker", "deuterium_reserve"].indexOf(root.focusedRole) < 0
                     text: "MORE COMING SOON\nNo probe-specific settings are available for this role yet."
                     horizontalAlignment: Text.AlignHCenter; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 16

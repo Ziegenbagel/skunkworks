@@ -228,8 +228,12 @@ class MissionControlDataService:
             automation["namingPolicy"] = {}
         dashboard["automation"] = automation
         dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
+        # automation_view may advance or replace the durable travel goal while
+        # reconciling an active transport phase. Build the itinerary from the
+        # post-reconciliation state that will actually drive the next order.
+        journey_state = DesiredStateStore(self.data_engine).load(selected["id"])
         dashboard["focus"]["transportJourney"] = self._transport_journey_view(
-            operations, selected["id"], desired_state,
+            operations, selected["id"], journey_state,
         )
         dashboard["crafting"] = {
             "recipes": tuple({
@@ -544,10 +548,17 @@ class MissionControlDataService:
                 "y": desired.travel.target.y,
                 "z": desired.travel.target.z,
             }
-        if not raw_final:
-            return {}
-        final = SectorCoordinates.from_api(raw_final)
         movement = MissionControlViewModelBuilder._movement_view(operations.world.probe)
+        if not raw_final:
+            live_destination = self._movement_coordinates(
+                movement.get("arrivalSector") or movement.get("destinationSector")
+                or movement.get("destination") or movement.get("target") or movement.get("to")
+            )
+            if live_destination is None:
+                return {}
+            raw_final = {"x": live_destination.x, "y": live_destination.y, "z": live_destination.z}
+            phase = "live_travel"
+        final = SectorCoordinates.from_api(raw_final)
         movement_origin = self._movement_coordinates(
             movement.get("originSector") or movement.get("origin") or movement.get("from")
         )
@@ -558,6 +569,7 @@ class MissionControlDataService:
         maximum_hop = max(1, int(getattr(desired, "maximum_safe_hop_distance", 1) or 1))
         total_distance = origin.distance_to(final) if origin else 0
         total_hops = max(1, (total_distance + maximum_hop - 1) // maximum_hop)
+        itinerary = self._journey_hops(origin, final, maximum_hop) if origin else (final,)
         current = movement_origin or operations.travel.current_sector()
         completed_distance = origin.distance_to(current) if origin and current else 0
         hop_number = min(total_hops, completed_distance // maximum_hop + 1)
@@ -584,6 +596,10 @@ class MissionControlDataService:
             "traveling": bool(total_remaining),
             "hopNumber": int(hop_number),
             "totalHops": int(total_hops),
+            "itinerary": [
+                {"number": index, "label": f"{hop.x}:{hop.y}:{hop.z}"}
+                for index, hop in enumerate(itinerary, 1)
+            ],
             "finalDestinationLabel": f"{final.x}:{final.y}:{final.z}",
             "estimatedFinalArrivalEpochMs": int((time.time() + total_remaining) * 1000) if total_remaining else 0,
         }
@@ -597,6 +613,29 @@ class MissionControlDataService:
             return SectorCoordinates.from_api(value)
         except (KeyError, TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _journey_hops(origin, final, maximum_hop):
+        route = []
+        current = origin
+        while current != final:
+            distance = current.distance_to(final)
+            candidates = tuple(
+                neighbor for neighbor in current.neighbors()
+                if neighbor.distance_to(final) < distance
+            )
+            if not candidates:
+                break
+            current = min(candidates, key=lambda point: (
+                point.distance_to(final), point.x, point.y, point.z,
+            ))
+            route.append(current)
+        if maximum_hop <= 1 or len(route) <= 1:
+            return tuple(route)
+        segmented = list(route[maximum_hop - 1::maximum_hop])
+        if not segmented or segmented[-1] != final:
+            segmented.append(final)
+        return tuple(segmented)
 
     def _reconcile_transport_operation(self, operations, probe_id, desired):
         """Advance one active route from authoritative live telemetry."""

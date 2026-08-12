@@ -38,6 +38,10 @@ Item {
               + " OF " + Number(journey.totalHops || 1)
               + " · FINAL " + String(journey.finalDestinationLabel || "UNKNOWN")
               + " · TRIP ETA " + journeyRemainingLabel(journey.estimatedFinalArrivalEpochMs)
+              + "\nITINERARY · " + (journey.itinerary || []).map(function(hop) {
+                    return (Number(hop.number) === Number(journey.hopNumber) ? "▶ " : "")
+                           + Number(hop.number) + ". " + String(hop.label);
+                }).join("  →  ")
             : "";
         return "TRANSIT · " + status
             + "\nORIGIN " + String(movement.originLabel || "UNKNOWN")
