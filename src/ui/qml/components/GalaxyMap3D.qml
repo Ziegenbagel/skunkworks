@@ -57,12 +57,13 @@ Item {
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
 
-    component CoverageEdge: Model {
+    component CoverageCell: Model {
         source: "#Cube"
+        scale: Qt.vector3d(0.16, 0.16, 0.16)
         materials: DefaultMaterial {
             lighting: DefaultMaterial.NoLighting
             diffuseColor: "#176b45"
-            opacity: 0.72
+            opacity: 0.62
         }
     }
 
@@ -185,26 +186,10 @@ Item {
         }
 
         Repeater3D {
-            model: root.showScutCoverage ? (root.galaxyData.scutRanges || []) : []
-            delegate: Node {
-                id: coverageVolume
+            model: root.showScutCoverage ? (root.galaxyData.scutCoverageCells || []) : []
+            delegate: CoverageCell {
                 required property var modelData
-                readonly property real side: (Number(modelData.radius || 0) * 2 + 1) * root.spacing3D
-                readonly property real halfSide: side / 2
                 position: root.positionFor(modelData)
-
-                CoverageEdge { position: Qt.vector3d(0, coverageVolume.halfSide, coverageVolume.halfSide); scale: Qt.vector3d(coverageVolume.side / 100, 0.025, 0.025) }
-                CoverageEdge { position: Qt.vector3d(0, coverageVolume.halfSide, -coverageVolume.halfSide); scale: Qt.vector3d(coverageVolume.side / 100, 0.025, 0.025) }
-                CoverageEdge { position: Qt.vector3d(0, -coverageVolume.halfSide, coverageVolume.halfSide); scale: Qt.vector3d(coverageVolume.side / 100, 0.025, 0.025) }
-                CoverageEdge { position: Qt.vector3d(0, -coverageVolume.halfSide, -coverageVolume.halfSide); scale: Qt.vector3d(coverageVolume.side / 100, 0.025, 0.025) }
-                CoverageEdge { position: Qt.vector3d(coverageVolume.halfSide, 0, coverageVolume.halfSide); scale: Qt.vector3d(0.025, coverageVolume.side / 100, 0.025) }
-                CoverageEdge { position: Qt.vector3d(coverageVolume.halfSide, 0, -coverageVolume.halfSide); scale: Qt.vector3d(0.025, coverageVolume.side / 100, 0.025) }
-                CoverageEdge { position: Qt.vector3d(-coverageVolume.halfSide, 0, coverageVolume.halfSide); scale: Qt.vector3d(0.025, coverageVolume.side / 100, 0.025) }
-                CoverageEdge { position: Qt.vector3d(-coverageVolume.halfSide, 0, -coverageVolume.halfSide); scale: Qt.vector3d(0.025, coverageVolume.side / 100, 0.025) }
-                CoverageEdge { position: Qt.vector3d(coverageVolume.halfSide, coverageVolume.halfSide, 0); scale: Qt.vector3d(0.025, 0.025, coverageVolume.side / 100) }
-                CoverageEdge { position: Qt.vector3d(coverageVolume.halfSide, -coverageVolume.halfSide, 0); scale: Qt.vector3d(0.025, 0.025, coverageVolume.side / 100) }
-                CoverageEdge { position: Qt.vector3d(-coverageVolume.halfSide, coverageVolume.halfSide, 0); scale: Qt.vector3d(0.025, 0.025, coverageVolume.side / 100) }
-                CoverageEdge { position: Qt.vector3d(-coverageVolume.halfSide, -coverageVolume.halfSide, 0); scale: Qt.vector3d(0.025, 0.025, coverageVolume.side / 100) }
             }
         }
 
@@ -417,7 +402,7 @@ Item {
                 }
                 CheckBox {
                     Layout.columnSpan: 2
-                    text: "SHOW FULL SCUT COVERAGE VOLUMES"
+                    text: "SHOW VERIFIED SCUT COVERAGE SECTORS"
                     checked: root.showScutCoverage; onToggled: root.showScutCoverage = checked
                 }
                 CheckBox {

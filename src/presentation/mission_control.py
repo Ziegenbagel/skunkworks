@@ -407,6 +407,7 @@ class MissionControlViewModelBuilder:
         recent_route = self._recent_galaxy_route(world, nodes)
         recent_nodes = self._recent_galaxy_nodes(world, nodes)
         scut_ranges = []
+        scut_coverage_cells = {}
         seen_relays = set()
         for response in getattr(world, "hazard_context", {}).get("scutNetworks", ()):
             network = response.get("network", {})
@@ -416,14 +417,35 @@ class MissionControlViewModelBuilder:
                 if not relative or relay.get("status") != "on" or relay_id in seen_relays:
                     continue
                 seen_relays.add(relay_id)
+                relay_coordinates = SectorCoordinates.from_api(relative)
+                radius = max(0, int(relay.get("coverageRadiusSectors", 0) or 0))
                 scut_ranges.append({
                     "id": relay_id,
                     "x": int(relative.get("x", 0)),
                     "y": int(relative.get("y", 0)),
                     "z": int(relative.get("z", 0)),
-                    "radius": max(0, int(relay.get("coverageRadiusSectors", 0) or 0)),
+                    "radius": radius,
                     "networkName": network.get("name", "SCUT network"),
                 })
+                # FCC coverage is a graph-distance volume, not an axis-aligned
+                # cube. Export the exact valid lattice cells so the map and
+                # travel preflight share the same boundary calculation.
+                for x in range(relay_coordinates.x - radius, relay_coordinates.x + radius + 1):
+                    for y in range(relay_coordinates.y - radius, relay_coordinates.y + radius + 1):
+                        for z in range(relay_coordinates.z - radius, relay_coordinates.z + radius + 1):
+                            if (x + y + z) % 2:
+                                continue
+                            coordinates = SectorCoordinates(x, y, z)
+                            if relay_coordinates.distance_to(coordinates) > radius:
+                                continue
+                            key = f"{x}:{y}:{z}"
+                            cell = scut_coverage_cells.setdefault(key, {
+                                "id": key, "x": x, "y": y, "z": z,
+                                "networkNames": [], "relayIds": [],
+                            })
+                            if network.get("name", "SCUT network") not in cell["networkNames"]:
+                                cell["networkNames"].append(network.get("name", "SCUT network"))
+                            cell["relayIds"].append(relay_id)
         return {
             "nodes": tuple(nodes),
             "edges": tuple(edges),
@@ -434,6 +456,7 @@ class MissionControlViewModelBuilder:
             "recentTrailCount": len(recent_route),
             "recentTrailProbeId": world.probe.get("id"),
             "scutRanges": tuple(scut_ranges),
+            "scutCoverageCells": tuple(scut_coverage_cells.values()),
         }
 
     def _communications(self, probe):

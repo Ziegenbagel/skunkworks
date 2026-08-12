@@ -677,6 +677,9 @@ class UiPreparationTests(unittest.TestCase):
             "id": "17", "x": 4, "y": -1, "z": 3, "radius": 2,
             "networkName": "Home Grid",
         },))
+        cells = {cell["id"]: cell for cell in view["scutCoverageCells"]}
+        self.assertIn("6:-1:3", cells)  # Exact radius-two FCC boundary.
+        self.assertNotIn("6:1:5", cells)  # Cube corner is three FCC hops away.
 
     def test_sector_view_exposes_black_hole_destruction_deadline(self):
         base = build_operations()

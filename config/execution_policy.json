@@ -19,8 +19,7 @@
         "manny_assemble_probe",
         "manny_craft",
         "manny_mine",
-        "manny_repair",
-        "manny_transfer_deuterium"
+        "manny_repair"
       ],
       "maxCommandsPerCycle": 10
     },
