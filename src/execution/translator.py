@@ -132,7 +132,13 @@ class TaskCommandTranslator:
         cargo = manny.get("cargo") or {}
         trip_capacity = float(cargo.get("capacity", 0.05) or 0.05)
         uncovered = float(task.quantity)
-        per_order_maximum = min(float(task.maximum_order_amount), 0.55)
+        # API v106 expresses deuterium mining directly in tank units (5–55),
+        # while ordinary resources retain the fractional 0.05–0.55 scale.
+        unit_scale = 100.0 if resource_type == "deuterium" else 1.0
+        per_order_maximum = min(
+            float(task.maximum_order_amount) * unit_scale,
+            55.0 if resource_type == "deuterium" else 0.55,
+        )
         # Use only as many Mannys as the deficit requires at the configured
         # per-order maximum, then divide the work evenly among them. This
         # avoids several long, identical trips whose combined deliveries
@@ -145,7 +151,7 @@ class TaskCommandTranslator:
             uncovered / planned_workers,
             per_order_maximum,
         ), 3)
-        trips = max(1, int((target_amount / trip_capacity) + 0.999999))
+        trips = max(1, int((target_amount / (trip_capacity * unit_scale)) + 0.999999))
         target_container = self._preferred_mining_container(task.target, resource_type)
 
         payload = {
@@ -168,6 +174,7 @@ class TaskCommandTranslator:
                 "requestedNeed": round(float(task.quantity), 3),
                 "orderAmount": target_amount,
                 "mannyCargoPerTrip": trip_capacity,
+                "apiUnitScale": unit_scale,
                 "estimatedTrips": trips,
                 "plannedMiningWorkers": planned_workers,
                 "remainingAmount": max(0, round(float(task.quantity) - target_amount, 3)),

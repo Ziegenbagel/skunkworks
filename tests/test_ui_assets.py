@@ -470,6 +470,8 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert "REVIEW MINING ORDER" in fleet
     assert "maximumMiningOrderAmount" in fleet
     assert '"targetAmount"' in fleet
+    assert 'String(miningResource.currentText) === "deuterium"' in fleet
+    assert 'resource === "deuterium"' in Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
     assert "manualMiningRequested" in navigation
     assert "inventoryManagement || {}).miningTargets" in manual
     assert 'runInventoryMannyAction("mine", mannyId, payload)' in app

@@ -1018,6 +1018,7 @@ class MissionControlDataService:
             refresh=self._refresh_operations,
         )
         failed_attempts = set()
+        mining_allocations = {}
         results = []
         for _ in range(policy.max_commands_per_cycle):
             # The previous execution's preflight already refreshed the world.
@@ -1038,6 +1039,11 @@ class MissionControlDataService:
                 prepared = self._prepare_next_cycle_mining(policy, failed_attempts)
             if prepared is None:
                 break
+            prepared = self._bound_cycle_mining_allocation(
+                prepared, mining_allocations,
+            )
+            if prepared is None:
+                break
             result = runtime.execute(
                 prepared,
                 risk_acknowledged=risk_acknowledged,
@@ -1056,6 +1062,11 @@ class MissionControlDataService:
                 # acquisition; dependency mining remains available only after
                 # no currently craftable order is left.
                 continue
+            if prepared.command.type == CommandType.MANNY_MINE:
+                resource = tuple(prepared.command.payload.get("resources") or ("resource",))[0]
+                mining_allocations[resource]["committed"] += float(
+                    prepared.command.payload.get("targetAmount", 0) or 0
+                )
             self._refresh_operations(self._selected_probe_id)
         if not results:
             return {
@@ -1077,6 +1088,45 @@ class MissionControlDataService:
                 for prepared, result in results
             ],
         }
+
+    @staticmethod
+    def _bound_cycle_mining_allocation(prepared, allocations):
+        """Prevent accepted orders outrunning telemetry and the target deficit."""
+
+        command = prepared.command
+        if command.type != CommandType.MANNY_MINE:
+            return prepared
+        resource = tuple(command.payload.get("resources") or ("resource",))[0]
+        proposed_amount = max(0.0, float(command.payload.get("targetAmount", 0) or 0))
+        allocation = allocations.setdefault(resource, {
+            "need": max(0.0, float(
+                command.metadata.get("requestedNeed", proposed_amount) or proposed_amount
+            )),
+            "share": max(0.0, float(
+                command.metadata.get("orderAmount", proposed_amount) or proposed_amount
+            )),
+            "committed": 0.0,
+        })
+        remaining = max(0.0, allocation["need"] - allocation["committed"])
+        amount = round(min(
+            remaining,
+            allocation["share"],
+            proposed_amount,
+        ), 3)
+        if amount <= 0:
+            return None
+        if amount == float(command.payload.get("targetAmount", 0) or 0):
+            return prepared
+        payload = {**command.payload, "targetAmount": amount}
+        metadata = {
+            **command.metadata,
+            "orderAmount": amount,
+            "remainingAmount": max(0, round(remaining - amount, 3)),
+        }
+        return replace(
+            prepared,
+            command=replace(command, payload=payload, metadata=metadata),
+        )
 
     @staticmethod
     def _cycle_attempt_key(command):

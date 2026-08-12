@@ -457,7 +457,7 @@ Item {
                         ToolTip.text: "Caps each continuous mining assignment. Smaller orders return Mannys to the available pool sooner; remaining demand is reconsidered next cycle."
                         HoverHandler { id: miningOrderHover }
                     }
-                    Label { text: "0.05–0.55 ECE · PER PROBE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                    Label { text: "NORMAL 0.05–0.55 ECE · DEUTERIUM 5–55 ECE · PER PROBE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                     Label { text: "SAFE SEGMENT LENGTH"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     SpinBox { id: safeHopDistance; from: 1; to: 2; editable: false; value: 1 }
                     Label { text: safeHopDistance.value + " SECTOR" + (safeHopDistance.value === 1 ? "" : "S") + " PER JUMP · BOTH ARE COLLISION-SAFE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }

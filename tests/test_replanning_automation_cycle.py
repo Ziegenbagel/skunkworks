@@ -235,6 +235,41 @@ def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
     preparer.assert_not_called()
 
 
+def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():
+    allocations = {}
+
+    def proposal(amount):
+        return PreparedCommand(Command(
+            CommandType.MANNY_MINE,
+            7,
+            {"objectId": "ice-1", "resources": ["deuterium"], "targetAmount": amount},
+            "fill bounded fuel deficit",
+            1,
+            target_id="manny-a",
+            metadata={"requestedNeed": 0.4, "orderAmount": amount},
+        ), "ready")
+
+    first = MissionControlDataService._bound_cycle_mining_allocation(
+        proposal(0.1), allocations,
+    )
+    allocations["deuterium"]["committed"] += first.command.payload["targetAmount"]
+    accepted = [first.command.payload["targetAmount"]]
+    # Simulate stale replans that divide the unchanged 0.4 deficit among fewer
+    # idle Mannys and therefore propose progressively larger individual jobs.
+    for amount in (0.133, 0.2, 0.4, 0.4):
+        bounded = MissionControlDataService._bound_cycle_mining_allocation(
+            proposal(amount), allocations,
+        )
+        if bounded is None:
+            break
+        delivered = bounded.command.payload["targetAmount"]
+        accepted.append(delivered)
+        allocations["deuterium"]["committed"] += delivered
+
+    assert accepted == [0.1, 0.1, 0.1, 0.1]
+    assert sum(accepted) == 0.4
+
+
 def test_automatic_risk_acknowledgement_executes_the_selected_command():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7

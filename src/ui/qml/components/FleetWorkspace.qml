@@ -181,10 +181,15 @@ Item {
                         id: miningAmount; editable: true; from: 1
                         to: Math.max(1, Math.min(11, Math.round(root.maximumMiningOrderAmount / 0.05)))
                         value: Math.min(5, to)
-                        textFromValue: function(value, locale) { return (value * 0.05).toFixed(2) + " ECE" }
+                        textFromValue: function(value, locale) {
+                            return String(miningResource.currentText) === "deuterium"
+                                ? (value * 5).toFixed(0) + " ECE"
+                                : (value * 0.05).toFixed(2) + " ECE"
+                        }
                         valueFromText: function(text, locale) {
                             const amount = Number(String(text).replace(/[^0-9.]/g, ""));
-                            return Math.max(from, Math.min(to, Math.round(amount / 0.05)));
+                            const step = String(miningResource.currentText) === "deuterium" ? 5 : 0.05;
+                            return Math.max(from, Math.min(to, Math.round(amount / step)));
                         }
                     }
                     Label { text: "DELIVER TO"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
@@ -208,7 +213,9 @@ Item {
                             const payload = {
                                 "objectId": String(miningTarget.currentValue),
                                 "resources": [String(miningResource.currentText)],
-                                "targetAmount": Number((miningAmount.value * 0.05).toFixed(2))
+                                "targetAmount": String(miningResource.currentText) === "deuterium"
+                                    ? Number((miningAmount.value * 5).toFixed(0))
+                                    : Number((miningAmount.value * 0.05).toFixed(2))
                             };
                             if (miningDestination.currentValue)
                                 payload.targetContainerId = String(miningDestination.currentValue);

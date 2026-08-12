@@ -145,11 +145,11 @@ Item {
                     Label { text: "RESOURCE"; color: Constants.textColor }
                     ComboBox { id: miningResource; model: miningTarget.currentIndex >= 0 ? miningTarget.model[miningTarget.currentIndex].resourceTypes : []; Layout.fillWidth: true }
                     Label { text: "TOTAL ORDER"; color: Constants.textColor }
-                    RowLayout { SpinBox { id: miningAmount; from: 1; to: 55; value: 5; editable: true } Label { text: "× 0.01 ECE"; color: Constants.mutedTextColor } }
+                    RowLayout { SpinBox { id: miningAmount; from: 1; to: 55; value: 5; editable: true } Label { text: String(miningResource.currentText) === "deuterium" ? "ECE DEUTERIUM" : "× 0.01 ECE"; color: Constants.mutedTextColor } }
                     Label { text: "DELIVER TO"; color: Constants.textColor }
                     ComboBox { id: miningDestination; textRole: "name"; valueRole: "id"; model: [{"id":"", "name":"PROBE · USE CONTAINER ROUTING RULES"}].concat(root.inventoryData.detachedContainers || []); Layout.fillWidth: true }
                     Label { Layout.columnSpan: 1; Layout.fillWidth: true; text: miningDestination.currentValue ? "Detached containers cannot accept deuterium." : "Resource-specific attached containers are preferred by their saved routing rules; otherwise an unassigned container is used."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
-                    Button { text: "REVIEW MINING ORDER"; enabled: miningManny.count > 0 && miningTarget.count > 0 && miningResource.count > 0; onClicked: { const payload = {"objectId":String(miningTarget.currentValue), "resources":[String(miningResource.currentText)], "targetAmount":Number(miningAmount.value) / 100}; if (miningDestination.currentValue) payload.targetContainerId = String(miningDestination.currentValue); root.pendingOperation = {"kind":"manny", "action":"mine", "mannyId":String(miningManny.currentValue), "payload":payload}; operationConfirmation.open(); } }
+                    Button { text: "REVIEW MINING ORDER"; enabled: miningManny.count > 0 && miningTarget.count > 0 && miningResource.count > 0; onClicked: { const resource = String(miningResource.currentText); const payload = {"objectId":String(miningTarget.currentValue), "resources":[resource], "targetAmount":resource === "deuterium" ? Number(miningAmount.value) : Number(miningAmount.value) / 100}; if (miningDestination.currentValue) payload.targetContainerId = String(miningDestination.currentValue); root.pendingOperation = {"kind":"manny", "action":"mine", "mannyId":String(miningManny.currentValue), "payload":payload}; operationConfirmation.open(); } }
                 }
             }
 

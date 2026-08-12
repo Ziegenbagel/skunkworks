@@ -291,6 +291,37 @@ class PlannerMissionTests(unittest.TestCase):
         fuel_task = next(task for task in tasks if task.category == "fuel")
         self.assertAlmostEqual(fuel_task.quantity, 0.88)
         self.assertEqual(fuel_task.maximum_order_amount, 0.25)
+        from src.execution.translator import TaskCommandTranslator
+        command = TaskCommandTranslator(operations, 1).translate(fuel_task)
+        self.assertEqual(command.payload["targetAmount"], 0.88)
+        self.assertEqual(command.metadata["apiUnitScale"], 100)
+
+    def test_large_deuterium_deficit_is_split_in_tank_units(self):
+        operations = build_operations(fuel=94.5)
+        operations.world.probe["fuel"] = {
+            "deuterium": 378, "maxDeuterium": 400,
+        }
+        operations.world.sector["resources"][0]["resources"]["deuterium"] = 100
+        operations.world.mannies["mannies"].extend([
+            {
+                "id": manny_id, "currentTask": None,
+                "canReceiveOrders": True, "location": {"type": "probe"},
+            }
+            for manny_id in (102, 103, 104)
+        ])
+        task = next(task for task in Planner(
+            operations,
+            DesiredState(
+                fuel=FuelGoal(100), maximum_mining_order_amount=0.25,
+            ),
+        ).tasks() if task.category == "fuel")
+
+        from src.execution.translator import TaskCommandTranslator
+        command = TaskCommandTranslator(operations, 1).translate(task)
+
+        self.assertEqual(task.quantity, 22)
+        self.assertEqual(command.payload["targetAmount"], 22)
+        self.assertEqual(command.metadata["plannedMiningWorkers"], 1)
 
     def test_mission_13_plans_capacity_and_travel(self):
         operations = build_operations(free_capacity=0.5)
