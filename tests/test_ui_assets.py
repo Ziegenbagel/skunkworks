@@ -258,6 +258,9 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "Repeater3D" in galaxy
     assert "pickable: true" in galaxy
     assert "CLICK A SECTOR DOT FOR DETAILS" in galaxy
+    assert 'objectName: "scut:"' in galaxy
+    assert "SCUT BOUNDARY · FCC" in galaxy
+    assert "selectedCoveragePoint" in galaxy
     assert "HAZARDS ONLY" in galaxy
     assert "HAS ANY SELECTED RESOURCE" in galaxy
     assert 'CheckBox { text: "DEUTERIUM"' in galaxy

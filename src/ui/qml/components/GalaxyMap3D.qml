@@ -11,6 +11,7 @@ Item {
     property var galaxyData: ({})
     property int focusedProbeId: -1
     property var selectedNode: null
+    property var selectedCoveragePoint: null
     readonly property var nodes: galaxyData.nodes || []
     readonly property var nodeIndex: {
         const result = {};
@@ -58,12 +59,15 @@ Item {
     signal scanRequested(int x, int y, int z)
 
     component CoverageCell: Model {
+        id: coverageCell
+        property bool coverageSelected: false
         source: "#Cube"
-        scale: Qt.vector3d(0.075, 0.075, 0.075)
+        pickable: true
+        scale: coverageSelected ? Qt.vector3d(0.16, 0.16, 0.16) : Qt.vector3d(0.09, 0.09, 0.09)
         materials: DefaultMaterial {
             lighting: DefaultMaterial.NoLighting
-            diffuseColor: "#176b45"
-            opacity: 0.68
+            diffuseColor: coverageCell.coverageSelected ? Constants.warningColor : "#19a76a"
+            opacity: coverageCell.coverageSelected ? 1.0 : 0.76
         }
     }
 
@@ -189,6 +193,9 @@ Item {
             model: root.showScutCoverage ? (root.galaxyData.scutCoverageBoundary || []) : []
             delegate: CoverageCell {
                 required property var modelData
+                objectName: "scut:" + String(modelData.id)
+                coverageSelected: root.selectedCoveragePoint !== null
+                    && String(root.selectedCoveragePoint.id) === String(modelData.id)
                 position: root.positionFor(modelData)
             }
         }
@@ -313,19 +320,39 @@ Item {
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: (eventPoint, button) => {
             const hit = galaxyView.pick(eventPoint.position.x, eventPoint.position.y);
-            if (hit.objectHit)
-                root.selectedNode = root.nodeById(String(hit.objectHit.objectName));
+            if (!hit.objectHit) return;
+            const identifier = String(hit.objectHit.objectName);
+            if (identifier.indexOf("scut:") === 0) {
+                const coverageId = identifier.slice(5);
+                const boundary = root.galaxyData.scutCoverageBoundary || [];
+                for (let i = 0; i < boundary.length; ++i) {
+                    if (String(boundary[i].id) === coverageId) {
+                        root.selectedCoveragePoint = boundary[i];
+                        return;
+                    }
+                }
+                return;
+            }
+            root.selectedCoveragePoint = null;
+            root.selectedNode = root.nodeById(identifier);
         }
     }
 
     Rectangle {
         anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 12
-        width: 500; height: 90; color: Qt.rgba(0.03, 0.08, 0.12, 0.90); border.color: Constants.lineColor
+        width: 500; height: 90; color: Qt.rgba(0.03, 0.08, 0.12, 0.90); border.color: root.selectedCoveragePoint ? Constants.warningColor : Constants.lineColor
         Column {
             anchors.fill: parent; anchors.margins: 9; spacing: 4
             Label { text: "ROTATABLE FCC GALAXY SPACE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
             Label { text: "LEFT DRAG · ORBIT    RIGHT/MIDDLE DRAG · PAN    WHEEL · ZOOM"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
-            Label { text: root.nodes.length + " SECTORS · " + (root.galaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+            Label {
+                text: root.selectedCoveragePoint
+                    ? "SCUT BOUNDARY · FCC " + root.selectedCoveragePoint.x + " / " + root.selectedCoveragePoint.y + " / " + root.selectedCoveragePoint.z
+                        + " · " + (root.selectedCoveragePoint.networkNames || []).join(", ").toUpperCase()
+                    : root.nodes.length + " SECTORS · " + (root.galaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"
+                color: root.selectedCoveragePoint ? Constants.warningColor : Constants.mutedTextColor
+                font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: root.selectedCoveragePoint !== null
+            }
         }
     }
 
