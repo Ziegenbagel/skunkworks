@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from src.execution import Command, CommandType, ExecutionMode, ExecutionPolicy, PreparedCommand
 from src.execution.runtime import ExecutionResult
+from src.planner.task import Task
 from src.ui.controller import MissionControlDataService
 
 
@@ -49,7 +50,7 @@ def test_automatic_cycle_replans_after_each_successful_order():
     assert "freshly replanned" in result["message"]
 
 
-def test_failed_craft_mines_reported_dependency_and_continues_cycle():
+def test_failed_craft_tries_next_recipe_before_mining_dependency():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7
     service.capabilities = SimpleNamespace()
@@ -63,19 +64,25 @@ def test_failed_craft_mines_reported_dependency_and_continues_cycle():
         {"objectId": "ice-1", "resources": ["deuterium"], "targetAmount": 0.55},
         "mine rejected dependency", 1, target_id="manny-b",
     ), "ready")
-    queues = iter(((craft,), (craft,), ()))
+    alternate = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "additional_container"},
+        "craft available container", 2, target_id="manny-b",
+    ), "ready")
+    queues = iter(((craft,), (craft, alternate), (mine,), ()))
     service.automation_view = lambda probe_id=None: setattr(
         service, "_prepared_commands", next(queues)
     ) or {}
     service._refresh_operations = lambda probe_id: None
-    service._prepare_dependency_mining = lambda resource, policy: mine
+    service._prepare_next_cycle_mining = lambda policy, failed: None
+    executed = []
 
     class Runtime:
         def __init__(self, **kwargs):
             pass
 
         def execute(self, prepared, **kwargs):
-            if prepared.command.type == CommandType.MANNY_CRAFT:
+            executed.append((prepared.command.type, prepared.command.payload))
+            if prepared.command.payload.get("recipe") == "manny":
                 return ExecutionResult("failed", prepared.command, response={
                     "detail": {"error": {"code": "insufficient_deuterium"}}
                 })
@@ -90,9 +97,11 @@ def test_failed_craft_mines_reported_dependency_and_continues_cycle():
     with patch("src.ui.controller.AutomationRuntime", Runtime):
         result = service._run_replanning_automatic_cycle(policy)
 
-    assert len(result["results"]) == 2
+    assert len(result["results"]) == 3
     assert result["results"][0]["status"] == "failed"
     assert result["results"][1]["status"] == "succeeded"
+    assert executed[1][1]["recipe"] == "additional_container"
+    assert executed[2][0] == CommandType.MANNY_MINE
     assert service._missing_resource_from_failure(
         ExecutionResult("failed", craft.command, response={
             "detail": {"error": {"code": "insufficient_deuterium"}}
@@ -188,6 +197,42 @@ def test_successful_recipe_can_use_second_idle_manny_in_same_cycle():
 
     assert result["status"] == "succeeded"
     assert executed == ["manny-a", "manny-b"]
+
+
+def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.data_engine = SimpleNamespace()
+    service._operations = SimpleNamespace()
+    tasks = (
+        Task(
+            action="Prepare Manufacturing",
+            reason="Container inputs available",
+            category="manufacturing",
+            target="additional_container",
+            constraints=("fabricator_unavailable",),
+            priority=2,
+        ),
+        Task(
+            action="Mine Resource",
+            reason="Reserve metals",
+            category="mining",
+            target="asteroid-1",
+            resource_type="metals",
+            priority=3,
+        ),
+    )
+
+    with (
+        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch("src.ui.controller.Planner") as planner,
+        patch("src.ui.controller.CommandPreparer") as preparer,
+    ):
+        planner.return_value.tasks.return_value = tasks
+        result = service._prepare_next_cycle_mining(ExecutionPolicy(), set())
+
+    assert result is None
+    preparer.assert_not_called()
 
 
 def test_automatic_risk_acknowledgement_executes_the_selected_command():

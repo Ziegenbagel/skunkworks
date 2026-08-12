@@ -48,6 +48,7 @@
       "mode": "automatic",
       "liveExecutionEnabled": true,
       "allowedCommandTypes": [
+        "manny_mine",
         "manny_repair",
         "manny_transfer_deuterium"
       ],

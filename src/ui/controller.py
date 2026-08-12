@@ -1019,20 +1019,16 @@ class MissionControlDataService:
         )
         failed_attempts = set()
         results = []
-        dependency_command = None
         for _ in range(policy.max_commands_per_cycle):
             # The previous execution's preflight already refreshed the world.
             # Rebuild the queue from that authoritative post-order state.
             self.automation_view(probe_id=self._selected_probe_id)
-            prepared = dependency_command
-            dependency_command = None
-            if prepared is None:
-                prepared = next((
-                    item for item in self._prepared_commands
-                    if item.command.probe_id == self._selected_probe_id
-                    and item.disposition == "ready"
-                    and self._cycle_attempt_key(item.command) not in failed_attempts
-                ), None)
+            prepared = next((
+                item for item in self._prepared_commands
+                if item.command.probe_id == self._selected_probe_id
+                and item.disposition == "ready"
+                and self._cycle_attempt_key(item.command) not in failed_attempts
+            ), None)
             if prepared is None:
                 # Manufacturing proposals are prepared before mining and claim
                 # idle Mannys while the queue is built. Once each distinct
@@ -1055,14 +1051,10 @@ class MissionControlDataService:
                 # their newly-prepared duplicate claim a Manny, filtered that
                 # command out, and then incorrectly fell through to mining.
                 failed_attempts.add(self._cycle_attempt_key(prepared.command))
-                resource_type = self._missing_resource_from_failure(result)
-                if resource_type:
-                    dependency_command = self._prepare_dependency_mining(
-                        resource_type, policy,
-                    )
-                # A rejected goal cannot freeze the priority walk. Mine its
-                # dependency when possible; otherwise continue to the next
-                # ready goal in this bounded cycle.
+                # A rejected goal cannot freeze the priority walk. Replan and
+                # offer every other fabrication goal before resource
+                # acquisition; dependency mining remains available only after
+                # no currently craftable order is left.
                 continue
             self._refresh_operations(self._selected_probe_id)
         if not results:
@@ -1104,8 +1096,26 @@ class MissionControlDataService:
         if getattr(self, "_operations", None) is None:
             return None
         desired = DesiredStateStore(self.data_engine).load(self._selected_probe_id)
+        planned_tasks = tuple(Planner(self._operations, desired).tasks())
+        fabrication_waiting = any(
+            task.category in {"fleet_assembly", "manufacturing"}
+            and task.action in {"Craft Item", "Assemble Probe", "Prepare Manufacturing"}
+            and (
+                not task.constraints
+                or set(task.constraints) <= {
+                    "fabricator_unavailable", "no_idle_manny",
+                }
+            )
+            for task in planned_tasks
+        )
+        if fabrication_waiting:
+            # Never let the mining-only fallback consume capacity needed by a
+            # recipe whose material inputs are already available. This check
+            # is intentionally repeated after every dispatched order because
+            # live Manny state can lag briefly behind the accepted API order.
+            return None
         mining_tasks = tuple(
-            task for task in Planner(self._operations, desired).tasks()
+            task for task in planned_tasks
             if task.action in {"Mine Resource", "Mine Deuterium"}
         )
         prepared = CommandPreparer(
