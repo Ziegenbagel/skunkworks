@@ -213,9 +213,7 @@ Item {
                             const payload = {
                                 "objectId": String(miningTarget.currentValue),
                                 "resources": [String(miningResource.currentText)],
-                                "targetAmount": String(miningResource.currentText) === "deuterium"
-                                    ? Number((miningAmount.value * 5).toFixed(0))
-                                    : Number((miningAmount.value * 0.05).toFixed(2))
+                                "targetAmount": Number((miningAmount.value * 0.05).toFixed(2))
                             };
                             if (miningDestination.currentValue)
                                 payload.targetContainerId = String(miningDestination.currentValue);

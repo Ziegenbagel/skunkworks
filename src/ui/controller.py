@@ -1065,7 +1065,9 @@ class MissionControlDataService:
             if prepared.command.type == CommandType.MANNY_MINE:
                 resource = tuple(prepared.command.payload.get("resources") or ("resource",))[0]
                 mining_allocations[resource]["committed"] += float(
-                    prepared.command.payload.get("targetAmount", 0) or 0
+                    prepared.command.metadata.get(
+                        "orderAmount", prepared.command.payload.get("targetAmount", 0),
+                    ) or 0
                 )
             self._refresh_operations(self._selected_probe_id)
         if not results:
@@ -1097,7 +1099,12 @@ class MissionControlDataService:
         if command.type != CommandType.MANNY_MINE:
             return prepared
         resource = tuple(command.payload.get("resources") or ("resource",))[0]
-        proposed_amount = max(0.0, float(command.payload.get("targetAmount", 0) or 0))
+        unit_scale = max(1.0, float(command.metadata.get("apiUnitScale", 1) or 1))
+        api_proposed = max(0.0, float(command.payload.get("targetAmount", 0) or 0))
+        proposed_amount = max(0.0, float(
+            command.metadata.get("orderAmount", api_proposed * unit_scale)
+            or api_proposed * unit_scale
+        ))
         allocation = allocations.setdefault(resource, {
             "need": max(0.0, float(
                 command.metadata.get("requestedNeed", proposed_amount) or proposed_amount
@@ -1115,12 +1122,13 @@ class MissionControlDataService:
         ), 3)
         if amount <= 0:
             return None
-        if amount == float(command.payload.get("targetAmount", 0) or 0):
+        if amount == proposed_amount:
             return prepared
-        payload = {**command.payload, "targetAmount": amount}
+        payload = {**command.payload, "targetAmount": round(amount / unit_scale, 4)}
         metadata = {
             **command.metadata,
             "orderAmount": amount,
+            "apiTargetAmount": payload["targetAmount"],
             "remainingAmount": max(0, round(remaining - amount, 3)),
         }
         return replace(

@@ -70,7 +70,7 @@ class MiningService:
                 continue
             resource_type = details.get("resourceType")
             if not resource_type:
-                resource_types = details.get("resourceTypes") or ()
+                resource_types = details.get("resourceTypes") or details.get("resources") or ()
                 resource_type = resource_types[0] if resource_types else None
             if resource_type in {"organic_compound", "organic_compounds"}:
                 resource_type = "carbon_compounds"
@@ -78,6 +78,9 @@ class MiningService:
                 continue
             target = float(details.get("targetAmount", 0) or 0)
             deposited = float(details.get("depositedAmount", 0) or 0)
+            if resource_type == "deuterium":
+                target *= 100
+                deposited *= 100
             commitments[resource_type] = commitments.get(resource_type, 0) + max(
                 0, target - deposited,
             )

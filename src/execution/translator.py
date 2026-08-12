@@ -132,8 +132,9 @@ class TaskCommandTranslator:
         cargo = manny.get("cargo") or {}
         trip_capacity = float(cargo.get("capacity", 0.05) or 0.05)
         uncovered = float(task.quantity)
-        # API v106 expresses deuterium mining directly in tank units (5–55),
-        # while ordinary resources retain the fractional 0.05–0.55 scale.
+        # The UI expresses deuterium delivery in tank ECE (5–55), while the
+        # mining API retains the normalized 0.05–0.55 payload. Plan and reserve
+        # in tank units, then normalize only the outbound targetAmount.
         unit_scale = 100.0 if resource_type == "deuterium" else 1.0
         per_order_maximum = min(
             float(task.maximum_order_amount) * unit_scale,
@@ -151,13 +152,14 @@ class TaskCommandTranslator:
             uncovered / planned_workers,
             per_order_maximum,
         ), 3)
+        api_target_amount = round(target_amount / unit_scale, 4)
         trips = max(1, int((target_amount / (trip_capacity * unit_scale)) + 0.999999))
         target_container = self._preferred_mining_container(task.target, resource_type)
 
         payload = {
             "objectId": task.target,
             "resources": [resource_type],
-            "targetAmount": target_amount,
+            "targetAmount": api_target_amount,
         }
         if target_container is not None:
             payload["targetContainerId"] = str(target_container["id"])
@@ -173,6 +175,7 @@ class TaskCommandTranslator:
             metadata={
                 "requestedNeed": round(float(task.quantity), 3),
                 "orderAmount": target_amount,
+                "apiTargetAmount": api_target_amount,
                 "mannyCargoPerTrip": trip_capacity,
                 "apiUnitScale": unit_scale,
                 "estimatedTrips": trips,

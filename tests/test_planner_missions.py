@@ -211,6 +211,22 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertIn("0.550 is already committed", carbon.reason)
         self.assertEqual(carbon.quantity, 5)
 
+    def test_deuterium_active_commitment_converts_api_fraction_to_tank_ece(self):
+        operations = build_operations()
+        operations.world.mannies["mannies"][0].update({
+            "currentTask": "mining",
+            "canReceiveOrders": False,
+            "task": {
+                "resourceType": "deuterium",
+                "targetAmount": 0.22,
+                "depositedAmount": 0,
+            },
+        })
+
+        self.assertEqual(
+            operations.mining.active_commitments()["deuterium"], 22,
+        )
+
     def test_mining_order_uses_probe_specific_maximum(self):
         operations = build_operations(metals=0)
         tasks = Planner(
@@ -293,7 +309,7 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertEqual(fuel_task.maximum_order_amount, 0.25)
         from src.execution.translator import TaskCommandTranslator
         command = TaskCommandTranslator(operations, 1).translate(fuel_task)
-        self.assertEqual(command.payload["targetAmount"], 0.88)
+        self.assertEqual(command.payload["targetAmount"], 0.0088)
         self.assertEqual(command.metadata["apiUnitScale"], 100)
 
     def test_large_deuterium_deficit_is_split_in_tank_units(self):
@@ -320,7 +336,7 @@ class PlannerMissionTests(unittest.TestCase):
         command = TaskCommandTranslator(operations, 1).translate(task)
 
         self.assertEqual(task.quantity, 22)
-        self.assertEqual(command.payload["targetAmount"], 22)
+        self.assertEqual(command.payload["targetAmount"], 0.22)
         self.assertEqual(command.metadata["plannedMiningWorkers"], 1)
 
     def test_mission_13_plans_capacity_and_travel(self):

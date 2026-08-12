@@ -1114,7 +1114,8 @@ class MissionControlViewModelBuilder:
             resources = payload.get("resources") or ("resource",)
             resource = str(resources[0]).replace("carbon_compounds", "organic_compound")
             resource = resource.replace("_", " ").title()
-            amount = float(payload.get("targetAmount", 0) or 0)
+            metadata = command.get("metadata") if isinstance(command.get("metadata"), dict) else {}
+            amount = float(metadata.get("orderAmount", payload.get("targetAmount", 0)) or 0)
             action = f"Mine {amount:g} ECE {resource}"
         elif command_type == "manny_craft":
             recipe = str(payload.get("recipe") or "item").replace("_", " ").title()
@@ -1249,7 +1250,15 @@ class MissionControlViewModelBuilder:
             trip = task.get("tripIndex") or task.get("currentTrip")
             lines.append(f"Trip: {trip}" if trip is not None else "Trip: Single scheduled delivery (API v106)")
             if task.get("targetAmount") is not None:
-                lines.append(f"Target amount: {task['targetAmount']} ECE")
+                amount = float(task["targetAmount"] or 0)
+                if task_type == "mining" and (
+                    task.get("resourceType") == "deuterium"
+                    or "deuterium" in (
+                        task.get("resourceTypes") or task.get("resources") or ()
+                    )
+                ):
+                    amount *= 100
+                lines.append(f"Target amount: {amount:g} ECE")
             if task.get("depositedAmount") is not None:
                 lines.append(f"Deposited: {task['depositedAmount']} ECE (commits at completion)")
             if progress < 100 and float(task.get("depositedAmount", 0) or 0) == 0:
