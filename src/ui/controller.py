@@ -84,21 +84,32 @@ class MissionControlDataService:
         prefer_cached_fleet=False,
     ):
         report = progress or (lambda percent, label: None)
+        load_started = time.monotonic()
+        timings = {}
+
+        def timed(name, callback):
+            started = time.monotonic()
+            value = callback()
+            timings[name] = round(time.monotonic() - started, 3)
+            return value
+
         report(5, "Checking API compatibility and recipes")
-        self._initialize()
+        timed("initialize", self._initialize)
         report(15, "Loading commander and fleet")
         now = time.monotonic()
         cached_fleet = self._fleet_snapshot_cache
+        reused_fleet_index = False
         if (
             prefer_cached_fleet
             and cached_fleet is not None
             and now - self._fleet_snapshot_cached_at < 30
         ):
             player, probe_data = cached_fleet
+            reused_fleet_index = True
             report(20, "Reusing recent fleet index")
         else:
-            player = self.client.get_player()
-            probe_data = self.client.get_probes()
+            player = timed("player", self.client.get_player)
+            probe_data = timed("fleet", self.client.get_probes)
             self._fleet_snapshot_cache = (player, probe_data)
             self._fleet_snapshot_cached_at = now
         selected = self.probe_selector.select(
@@ -109,12 +120,12 @@ class MissionControlDataService:
         self.data_engine.remember_probe(selected["id"])
 
         report(30, "Loading focused probe telemetry")
-        details = self.client.get_probe(selected["id"])
+        details = timed("focusedProbe", lambda: self.client.get_probe(selected["id"]))
         probe = details.get("probe", details)
         mannies = None
         if selected.get("isReachable", True):
             report(42, "Loading Manny tasks")
-            mannies = self.client.get_mannies(selected["id"])
+            mannies = timed("mannies", lambda: self.client.get_mannies(selected["id"]))
 
         report(52, "Loading sector and inventory")
         world = self._build_world(player, probe_data, probe, selected, mannies)
@@ -246,6 +257,12 @@ class MissionControlDataService:
             automation["namingPolicy"] = {}
         dashboard["automation"] = automation
         dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
+        timings["total"] = round(time.monotonic() - load_started, 3)
+        dashboard["refreshDiagnostics"] = {
+            "elapsedSeconds": timings["total"],
+            "stages": timings,
+            "reusedFleetIndex": reused_fleet_index,
+        }
         # automation_view may advance or replace the durable travel goal while
         # reconciling an active transport phase. Build the itinerary from the
         # post-reconciliation state that will actually drive the next order.
@@ -1930,6 +1947,10 @@ class _FleetAutomationWorker(QRunnable):
     def run(self):
         results = []
         try:
+            # One cycle is one account session. Reusing the service preserves
+            # initialized recipes and the 30-second fleet index cache instead
+            # of repeating account-wide API work once per probe.
+            service = self.service_factory()
             for probe_id in self.probe_ids:
                 policy = ExecutionPolicyStore().load(probe_id)
                 if not (
@@ -1937,9 +1958,12 @@ class _FleetAutomationWorker(QRunnable):
                     and policy.live_execution_enabled
                 ):
                     continue
-                service = self.service_factory()
                 try:
-                    service.load(probe_id, include_archival=False)
+                    service.load(
+                        probe_id,
+                        include_archival=False,
+                        prefer_cached_fleet=bool(results),
+                    )
                 except TypeError:
                     # Preserve lightweight test/service doubles with the older
                     # one-argument protocol.
@@ -2134,6 +2158,10 @@ class MissionControlController(QObject):
             self._set_credential_message("Configure an API key in Settings.")
             self._set_startup_loading(False)
             return
+        # The scheduler heartbeat is an application service, not a property of
+        # whichever probe/dashboard payload happens to be focused. Individual
+        # ticks still enforce each probe's saved Automatic/live policy.
+        self._ensure_automation_heartbeat()
         self.refresh()
 
     @Slot(str)
@@ -2257,7 +2285,10 @@ class MissionControlController(QObject):
     def _accept_fleet_naming(self, result):
         self._naming_worker = None
         self._set_error("")
-        self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
+        self._start_refresh(
+            self._focused_probe_id if self._focused_probe_id >= 0 else None,
+            prefer_cached_fleet=True,
+        )
 
     @Slot(str)
     def _reject_fleet_naming(self, message):
@@ -2349,6 +2380,10 @@ class MissionControlController(QObject):
             self._start_refresh(self._focused_probe_id)
 
     def _automation_tick(self):
+        # A repeating QTimer should remain active, but explicitly self-heal if
+        # platform sleep, a transient dashboard reconfiguration, or an earlier
+        # compatibility transition left it stopped.
+        self._ensure_automation_heartbeat()
         if self._emergency_stop or not self._api_compatible:
             return
         if (
@@ -2377,6 +2412,13 @@ class MissionControlController(QObject):
         worker.signals.failed.connect(self._reject_fleet_automation)
         self._fleet_automation_worker = worker
         self.thread_pool.start(worker)
+
+    def _ensure_automation_heartbeat(self):
+        if self._shutting_down or not self.credentialConfigured:
+            return
+        self._automation_timer.setInterval(60_000)
+        if not self._automation_timer.isActive():
+            self._automation_timer.start()
 
     @Slot(object)
     def _accept_fleet_automation(self, results):
@@ -2433,6 +2475,7 @@ class MissionControlController(QObject):
                 self._dashboard["connectionLabel"] = "API REVIEW REQUIRED"
             self.dashboardChanged.emit()
         if compatible:
+            self._ensure_automation_heartbeat()
             return
         self._automation_timer.stop()
         self._set_error(
@@ -2454,21 +2497,11 @@ class MissionControlController(QObject):
             self.dashboardChanged.emit()
 
     def _configure_automation_timer(self, runtime):
-        enabled = runtime.get("mode") == "automatic" and runtime.get("liveExecutionEnabled")
-        # Keep every automatic probe on the same one-minute cadence. A blocked
-        # cycle sends no orders, so extending its next evaluation to five
-        # minutes only delays noticing newly available resources or Mannys.
-        self._automation_timer.setInterval(60_000)
-        if not enabled:
-            for probe in self._available_probes:
-                policy = ExecutionPolicyStore().load(int(probe["id"]))
-                if policy.mode == ExecutionMode.AUTOMATIC and policy.live_execution_enabled:
-                    enabled = True
-                    break
-        if enabled and not self._automation_timer.isActive():
-            self._automation_timer.start()
-        elif not enabled:
-            self._automation_timer.stop()
+        # Dashboard payloads are snapshots and may be partial during startup,
+        # probe switching, or recovery. Never let one transient payload stop
+        # the application heartbeat. `_automation_tick` reads authoritative
+        # per-probe policies and simply returns when none are eligible.
+        self._ensure_automation_heartbeat()
 
     def _set_credential_message(self, message):
         if message == self._credential_message:

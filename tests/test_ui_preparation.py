@@ -10,7 +10,7 @@ from src.data import DataEngine
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
 from src.presentation import MissionControlViewModelBuilder
-from src.ui.controller import MissionControlController
+from src.ui.controller import MissionControlController, _FleetAutomationWorker
 from tests.test_planner_missions import build_operations
 
 
@@ -206,6 +206,34 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(started[0].probe_ids, (7,))
         self.assertIs(controller._fleet_automation_worker, started[0])
 
+    def test_fleet_worker_reuses_one_service_and_recent_fleet_index(self):
+        instances = []
+
+        class Service:
+            def __init__(self):
+                instances.append(self)
+                self.loads = []
+
+            def load(self, probe_id, **kwargs):
+                self.loads.append((probe_id, kwargs))
+
+            def run_automation_cycle(self, _fingerprint, _risk):
+                return {"status": "idle"}
+
+        automatic_policy = type(
+            "Policy", (), {"mode": "automatic", "live_execution_enabled": True},
+        )()
+        worker = _FleetAutomationWorker((7, 9, 11), service_factory=Service)
+        with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=automatic_policy):
+            worker.run()
+
+        self.assertEqual(len(instances), 1)
+        self.assertEqual(instances[0].loads, [
+            (7, {"include_archival": False, "prefer_cached_fleet": False}),
+            (9, {"include_archival": False, "prefer_cached_fleet": True}),
+            (11, {"include_archival": False, "prefer_cached_fleet": True}),
+        ])
+
     def test_busy_periodic_tick_is_queued_instead_of_discarded(self):
         controller = MissionControlController()
         controller._focused_probe_id = 7
@@ -293,6 +321,41 @@ class UiPreparationTests(unittest.TestCase):
         })
 
         self.assertEqual(controller._automation_timer.interval(), 60_000)
+
+    def test_partial_dashboard_runtime_cannot_stop_scheduler_heartbeat(self):
+        class Credentials:
+            @staticmethod
+            def get():
+                return "configured"
+
+            @staticmethod
+            def source():
+                return "test"
+
+        controller = MissionControlController(credential_store=Credentials())
+        with patch.object(controller._automation_timer, "start") as start:
+            controller._configure_automation_timer({})
+
+        start.assert_called_once_with()
+        self.assertEqual(controller._automation_timer.interval(), 60_000)
+
+    def test_compatible_api_transition_rearms_scheduler_heartbeat(self):
+        class Credentials:
+            @staticmethod
+            def get():
+                return "configured"
+
+            @staticmethod
+            def source():
+                return "test"
+
+        controller = MissionControlController(credential_store=Credentials())
+        controller._automation_timer.stop()
+
+        with patch.object(controller._automation_timer, "start") as start:
+            controller._accept_compatibility({"version": 106, "compatible": True})
+
+        start.assert_called_once_with()
 
     def test_production_includes_active_manny_crafting_and_mining(self):
         probe = {
