@@ -33,6 +33,23 @@ RECIPES = {
                 "type": "storage_container",
                 "containerSpace": 0.1,
             },
+        },
+        {
+            "id": "manny",
+            "name": "Manny",
+            "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [
+                {
+                    "type": "deuterium",
+                    "quantity": 2,
+                    "kind": "resource",
+                }
+            ],
+            "output": {
+                "type": "manny",
+                "containerSpace": 0.1,
+            },
         }
     ]
 }
@@ -161,6 +178,49 @@ class PlannerMissionTests(unittest.TestCase):
         mining = next(task for task in tasks if task.category == "mining")
         self.assertEqual(mining.quantity, 1)
         self.assertIn("Need 1.000 additional metals", mining.reason)
+
+    def test_dependency_mining_does_not_inherit_lower_reserve_quantity(self):
+        tasks = Planner(
+            build_operations(metals=0),
+            DesiredState(
+                production=(
+                    ProductionGoal("storage_container", 100, priority=1),
+                ),
+                resources=(ResourceGoal("metals", 50, priority=3),),
+            ),
+        ).tasks()
+
+        mining = next(task for task in tasks if task.category == "mining")
+        self.assertEqual(mining.priority, 1)
+        self.assertEqual(mining.quantity, 1)
+        self.assertIn("Need 1.000 additional metals", mining.reason)
+        self.assertIn("next production unit: storage container", mining.reason)
+        self.assertNotIn("50 metals reserve target", mining.reason)
+
+    def test_unavailable_top_dependency_does_not_hide_next_craftable_goal(self):
+        operations = build_operations(metals=1, fuel=0)
+        operations.world.sector["resources"][0]["resources"].pop("deuterium")
+        operations.world.sector["resources"][0]["composition"].pop("deuterium")
+        tasks = Planner(
+            operations,
+            DesiredState(production=(
+                ProductionGoal("manny", 2, priority=1),
+                ProductionGoal("storage_container", 1, priority=2),
+            )),
+        ).tasks()
+
+        unavailable = next(
+            task for task in tasks
+            if task.category == "mining" and task.resource_type == "deuterium"
+        )
+        fallback = next(
+            task for task in tasks
+            if task.category == "manufacturing"
+            and task.target == "storage_container"
+        )
+        self.assertIn("resource_not_in_current_sector", unavailable.constraints)
+        self.assertEqual(fallback.action, "Craft Item")
+        self.assertEqual(fallback.constraints, ())
 
     def test_mission_12_plans_resource_and_fuel_reserves(self):
         tasks = Planner(

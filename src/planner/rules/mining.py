@@ -8,11 +8,13 @@ from src.planner.assembly import tanker_component_statuses
 
 
 def plan(operations, desired_state) -> list[Task]:
-    shortages = operations.inventory.reserve_shortages(
+    reserve_shortages = operations.inventory.reserve_shortages(
         desired_state.resources
     )
+    shortages = dict(reserve_shortages)
     manufacturing_resources = set()
     resource_reasons = defaultdict(set)
+    fabrication_dependencies = defaultdict(list)
     priorities = {
         goal.resource_type: goal.priority
         for goal in desired_state.resources
@@ -48,17 +50,9 @@ def plan(operations, desired_state) -> list[Task]:
         for resource_type, amount in production[
             "missing_resources"
         ].items():
-            shortages[resource_type] = max(
-                shortages.get(resource_type, 0),
-                amount,
-            )
-            manufacturing_resources.add(resource_type)
-            resource_reasons[resource_type].add(
-                f"next production unit: {goal.recipe_id.replace('_', ' ')}"
-            )
-            priorities[resource_type] = min(
-                priorities.get(resource_type, goal.priority),
-                goal.priority,
+            fabrication_dependencies[resource_type].append(
+                (goal.priority, float(amount),
+                 f"next production unit: {goal.recipe_id.replace('_', ' ')}")
             )
 
     for goal in desired_state.fleet:
@@ -75,11 +69,6 @@ def plan(operations, desired_state) -> list[Task]:
             for status in tanker_component_statuses(operations)
             if status["missing"] > 0
         }
-        production = operations.manufacturing.production_bundle_plan(
-            requests, use_inventory_items=False,
-        )
-        if production is None:
-            continue
         for component, quantity in requests.items():
             component_plan = operations.manufacturing.production_plan(
                 component,
@@ -91,13 +80,25 @@ def plan(operations, desired_state) -> list[Task]:
                 continue
             for resource_type, amount in component_plan["missing_resources"].items():
                 if amount > 0:
-                    resource_reasons[resource_type].add(
-                        f"tanker component: {component.replace('_', ' ')}"
+                    fabrication_dependencies[resource_type].append(
+                        (goal.priority, float(amount),
+                         f"tanker component: {component.replace('_', ' ')}")
                     )
-        for resource_type, resource_amount in production["missing_resources"].items():
-            shortages[resource_type] = max(shortages.get(resource_type, 0), resource_amount)
-            manufacturing_resources.add(resource_type)
-            priorities[resource_type] = min(priorities.get(resource_type, goal.priority), goal.priority)
+
+    # Fund only the highest-priority blocked fabrication horizon for each raw
+    # resource. Do not relabel a large lower-priority reserve floor (or every
+    # lower-priority recipe) as priority 1 merely because they share metals.
+    # The next refresh rebuilds this from current inventory and advances to the
+    # next goal once the leading dependency is covered.
+    for resource_type, dependencies in fabrication_dependencies.items():
+        leading_priority = min(priority for priority, _amount, _reason in dependencies)
+        leading = [item for item in dependencies if item[0] == leading_priority]
+        shortages[resource_type] = max(amount for _priority, amount, _reason in leading)
+        resource_reasons[resource_type] = {
+            reason for _priority, _amount, reason in leading
+        }
+        priorities[resource_type] = leading_priority
+        manufacturing_resources.add(resource_type)
 
     tasks = []
     active_commitments = operations.mining.active_commitments()

@@ -290,7 +290,7 @@ Item {
                         Button { text: "EVALUATE / RUN ONE CYCLE"; enabled: !root.runtimeData.emergencyStopActive; onClicked: root.automationCycleRequested() }
                         Label {
                             Layout.fillWidth: true
-                            text: root.runtimeData.lastResult ? String(root.runtimeData.lastResult.message || root.runtimeData.lastResult.status).toUpperCase() : "NO EXECUTION ATTEMPT THIS SESSION"
+                            text: root.runtimeData.lastResult ? "LAST CYCLE · " + String(root.runtimeData.lastResult.message || root.runtimeData.lastResult.status).toUpperCase() : "NO EXECUTION ATTEMPT THIS SESSION"
                             color: Constants.mutedTextColor; font.family: Constants.technicalFont; horizontalAlignment: Text.AlignRight
                             wrapMode: Text.Wrap
                         }
