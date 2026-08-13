@@ -97,6 +97,13 @@ Item {
         if (showCarbonCompounds) selected.push("carbon_compounds");
         return selected;
     }
+    function isGodSector(node) {
+        const types = (node && node.resourceTypes) || [];
+        return types.indexOf("deuterium") >= 0
+            && types.indexOf("metals") >= 0
+            && types.indexOf("ice") >= 0
+            && types.indexOf("carbon_compounds") >= 0;
+    }
     function showOnlyState(state) {
         showCurrent = state === "current"; showScanned = state === "scanned";
         showVisited = state === "visited";
@@ -171,6 +178,7 @@ Item {
             return (node.resourceTypes || []).indexOf(resource) >= 0;
         });
         if (matches.length > 0) {
+            if (isGodSector(node)) return "#ffd34d";
             const resourceColors = {"deuterium":"#e45cff", "metals":"#ffffff", "ice":"#32c5ff", "carbon_compounds":"#34f59a"};
             // Orange is reserved for the focused probe's recent trail. A
             // multi-resource match uses its own unallocated lavender color.
@@ -279,6 +287,30 @@ Item {
                 materials: DefaultMaterial {
                     lighting: DefaultMaterial.NoLighting
                     diffuseColor: root.colorFor(sectorModel.modelData)
+                }
+            }
+        }
+
+        // A confirmed all-resource sector gets a soft gold corona while a
+        // resource filter is active. The halo is deliberately non-pickable so
+        // clicks continue to resolve to the normal sector sphere beneath it.
+        Repeater3D {
+            model: root.visibleNodes.filter(function(node) {
+                return root.selectedResources().length > 0 && root.isGodSector(node);
+            })
+            delegate: Model {
+                id: godSectorHalo
+                required property var modelData
+                source: "#Sphere"
+                pickable: false
+                position: root.positionFor(modelData)
+                scale: modelData.isFocused
+                    ? Qt.vector3d(0.48, 0.48, 0.48)
+                    : Qt.vector3d(0.36, 0.36, 0.36)
+                materials: DefaultMaterial {
+                    lighting: DefaultMaterial.NoLighting
+                    diffuseColor: "#ffd34d"
+                    opacity: 0.24
                 }
             }
         }
@@ -451,6 +483,11 @@ Item {
                     text: "MULTIPLE SELECTED RESOURCES · LAVENDER"
                     color: "#9d7cff"; font.family: Constants.technicalFont; font.pixelSize: 12
                 }
+                Label {
+                    Layout.columnSpan: 2; Layout.fillWidth: true
+                    text: "ALL FOUR RESOURCES · GOD SECTOR · GOLD"
+                    color: "#ffd34d"; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true
+                }
             }
             GridLayout {
                 visible: root.filtersExpanded; Layout.fillWidth: true
@@ -509,7 +546,7 @@ Item {
             anchors.fill: parent; anchors.margins: 10; spacing: 5
             ComboBox { Layout.fillWidth: true; model: root.visibleNodes; textRole: "label"; onActivated: root.selectedNode = root.visibleNodes[currentIndex] }
             Label { text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-            Label { Layout.fillWidth: true; text: root.selectedNode ? "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true }
+            Label { Layout.fillWidth: true; text: root.selectedNode ? (root.isGodSector(root.selectedNode) ? "GOD SECTOR · ALL FOUR RESOURCES    " : "") + "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode && root.isGodSector(root.selectedNode) ? "#ffd34d" : root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true }
             Label { Layout.fillWidth: true; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
             ScrollView {
                 visible: root.selectedNode && (root.selectedNode.objects || []).length > 0
@@ -539,7 +576,7 @@ Item {
         anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 12
         spacing: 18
         Repeater {
-            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}]
+            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}, {"label":"GOD SECTOR", "color":"#ffd34d"}]
             delegate: Row {
                 required property var modelData; spacing: 8
                 Rectangle { width: 18; height: 18; radius: 9; color: parent.modelData.color }

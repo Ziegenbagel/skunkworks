@@ -293,6 +293,11 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert 'CheckBox { text: "ICE"' in galaxy
     assert 'CheckBox { text: "ORGANIC / CARBON COMPOUNDS"' in galaxy
     assert "ORGANIC / CARBON COMPOUNDS" in galaxy
+    assert "function isGodSector(" in galaxy
+    assert "ALL FOUR RESOURCES · GOD SECTOR · GOLD" in galaxy
+    assert '"label":"GOD SECTOR", "color":"#ffd34d"' in galaxy
+    assert "id: godSectorHalo" in galaxy
+    assert "pickable: false" in galaxy
     assert "DROPPED CONTAINERS" in galaxy
     assert "FOCUSED PROBE · RECENT 10 TRAIL" in galaxy
     assert "recentTrail" in galaxy
