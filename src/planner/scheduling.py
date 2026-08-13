@@ -18,11 +18,32 @@ TIER_BY_CATEGORY = {
     "sustainability": 5,
 }
 
+# Priority is global within the fabrication stage. This lets a priority-1 Manny
+# goal outrank priority-2 fleet assembly, while the tier remains the tie-breaker
+# when several goals intentionally share a priority. Acquisition stays behind
+# fabrication so dependency/reserve mining cannot consume capacity while any
+# craft or assembly command is currently dispatchable.
+STAGE_BY_CATEGORY = {
+    "safety": 0,
+    "inventory": 0,
+    "fleet_assembly": 1,
+    "manufacturing": 1,
+    "transport": 2,
+    "travel": 2,
+    "fuel": 3,
+    "mining": 3,
+    "sustainability": 4,
+}
+
 
 def task_order_key(task):
-    """Fleet assembly, then production, then acquisition; priority within tier."""
+    """Safety, then globally prioritized fabrication, then acquisition."""
 
-    return (TIER_BY_CATEGORY.get(task.category, 3), int(task.priority))
+    return (
+        STAGE_BY_CATEGORY.get(task.category, 2),
+        int(task.priority),
+        TIER_BY_CATEGORY.get(task.category, 3),
+    )
 
 
 def ordered_tasks(tasks):

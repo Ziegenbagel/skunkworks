@@ -488,11 +488,11 @@ class MissionControlDataService:
     def _dispatch_order(task):
         """Keep fabrication tiers ahead of resource acquisition.
 
-        Explicit priorities order goals *within* a tier. A blocked priority-1
+        Explicit priorities order goals across the fabrication stage, with
+        fleet assembly winning only ties. A blocked priority-1
         recipe may request priority-1 mining, but that dependency must not take
         a Manny away from a currently craftable priority-2 production goal.
-        Fleet assembly remains the first fabrication tier, ordinary production
-        is second, and acquisition runs only after both have been considered.
+        Acquisition runs only after all fabrication has been considered.
         """
         return task_order_key(task)
 
