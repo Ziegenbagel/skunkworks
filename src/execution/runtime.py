@@ -73,6 +73,7 @@ class AutomationRuntime:
             CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_MINE,
             CommandType.MANNY_TRANSFER_DEUTERIUM,
+            CommandType.MANNY_REFILL_DEUTERIUM_TANK,
         }
         if not repeatable and self.data_engine.action_was_successful(command.fingerprint):
             return self._finish(command, "cancelled", ("already_completed",))

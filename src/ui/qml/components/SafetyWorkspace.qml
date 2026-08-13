@@ -23,14 +23,17 @@ Item {
             }
         }
         ScrollView {
+            id: safetyScroll
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+            contentWidth: availableWidth
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
             ColumnLayout {
-                width: parent.width; spacing: 10
+                width: Math.max(1, safetyScroll.availableWidth - 12); spacing: 10
                 Repeater {
                     model: root.alerts
                     delegate: Rectangle {
                         id: alertCard; required property var modelData
-                        Layout.fillWidth: true; implicitHeight: alertDetails.implicitHeight + 28
+                        Layout.fillWidth: true; Layout.preferredHeight: alertDetails.implicitHeight + 28
                         color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
                         ColumnLayout { id: alertDetails; anchors.fill: parent; anchors.margins: 14
                             Label { Layout.fillWidth: true; text: alertCard.modelData.codeLabel || "SAFETY ALERT"; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }

@@ -785,7 +785,11 @@ class MissionControlDataService:
         fuel_amount = float(fuel.get("deuterium", 0) or 0)
         fuel_maximum = float(fuel.get("maxDeuterium", 0) or 0)
         load_amount = cycle.get("loadAmount")
+        load_source_mode = str(cycle.get("loadSourceMode", "probe"))
         load_target = (
+            fuel_maximum
+            if load_source_mode == "deuterium_station"
+            else
             float(load_amount)
             if load_amount is not None
             else fuel_maximum * float(cycle.get("loadUntilPercent", 100)) / 100
@@ -835,6 +839,30 @@ class MissionControlDataService:
 
             if phase == "loading":
                 if fuel_amount + 0.0001 < load_target:
+                    if load_source_mode == "deuterium_station":
+                        active_refill = any(
+                            "refill" in task_type and "deuterium" in task_type
+                            for manny in operations.mannies.all()
+                            if (
+                                task_type := str(
+                                    operations.mannies._task_type(manny) or ""
+                                ).lower().replace("-", "_").replace(" ", "_")
+                            )
+                        )
+                        if active_refill:
+                            return desired, [], None
+                        return desired, [Task(
+                            action="Refill Deuterium Tank",
+                            reason=(
+                                "Refill the transport tanker at the deuterium "
+                                "station in its configured loading sector."
+                            ),
+                            category="transport",
+                            constraints=(),
+                            resource_type="deuterium",
+                            workflow_authorized=True,
+                            priority=1,
+                        )], None
                     target_percent = min(
                         100,
                         load_target / fuel_maximum * 100 if fuel_maximum else 100,
@@ -2104,6 +2132,10 @@ class MissionControlController(QObject):
         self._startup_loading = True
         self._loading_progress = 0
         self._loading_status = "Preparing secure connection"
+        self._startup_watchdog = QTimer(self)
+        self._startup_watchdog.setSingleShot(True)
+        self._startup_watchdog.setInterval(45_000)
+        self._startup_watchdog.timeout.connect(self._release_slow_startup)
         self._automation_timer = QTimer(self)
         self._automation_timer.setSingleShot(True)
         self._automation_timer.setInterval(60_000)
@@ -2153,6 +2185,7 @@ class MissionControlController(QObject):
         self._automation_timer.stop()
         self._compatibility_timer.stop()
         self._retry_timer.stop()
+        self._startup_watchdog.stop()
         self._automation_after_refresh = False
         self._automation_tick_pending = False
         self._pending_probe_id = None
@@ -2223,6 +2256,7 @@ class MissionControlController(QObject):
         # whichever probe/dashboard payload happens to be focused. Individual
         # ticks still enforce each probe's saved Automatic/live policy.
         self._ensure_automation_heartbeat()
+        self._startup_watchdog.start()
         self.refresh()
 
     @Slot(str)
@@ -3276,6 +3310,8 @@ class MissionControlController(QObject):
             except Exception as error:
                 self._set_error(str(error) or type(error).__name__)
                 self._set_refreshing(False)
+                self._startup_watchdog.stop()
+                self._set_startup_loading(False)
                 return
         self._refresh_target_id = probe_id
         worker = _RefreshWorker(
@@ -3484,6 +3520,7 @@ class MissionControlController(QObject):
             self._start_refresh(probe_id)
 
     def _finish_refresh(self):
+        self._startup_watchdog.stop()
         self._set_startup_loading(False)
         self._worker = None
         self._refresh_target_id = None
@@ -3507,6 +3544,16 @@ class MissionControlController(QObject):
         # A single-shot deadline avoids accumulated phase drift and overlap.
         if self.credentialConfigured and not self._shutting_down:
             self._automation_timer.start(60_000)
+
+    def _release_slow_startup(self):
+        """Never let a slow or wedged first request trap the whole UI."""
+        if not self._startup_loading:
+            return
+        self._set_error(
+            "The initial API refresh is taking longer than expected. "
+            "Skunkworks has opened the control interface while that refresh continues."
+        )
+        self._set_startup_loading(False)
 
     def _set_refreshing(self, value):
         if value == self._refreshing:

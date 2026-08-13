@@ -13,6 +13,7 @@ class CapabilityDispatcher:
             CommandType.ATOMIC_PRINTER_CRAFT: self._printer_craft,
             CommandType.MANNY_MINE: self._manny_mine,
             CommandType.MANNY_TRANSFER_DEUTERIUM: self._manny_transfer_deuterium,
+            CommandType.MANNY_REFILL_DEUTERIUM_TANK: self._manny_refill_deuterium_tank,
             CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,
             CommandType.MANNY_REPAIR: self._manny_repair,
             CommandType.MOVE_PROBE: self._move_probe,
@@ -53,6 +54,14 @@ class CapabilityDispatcher:
             command.target_id,
             "transfer-deuterium-to-probe",
             command.payload,
+        )
+
+    def _manny_refill_deuterium_tank(self, command):
+        return self.capabilities.mannies.start_task(
+            command.probe_id,
+            command.target_id,
+            "refill-deuterium-tank",
+            {},
         )
 
     def _manny_assemble_probe(self, command):

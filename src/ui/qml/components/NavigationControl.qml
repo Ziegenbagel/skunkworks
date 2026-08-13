@@ -31,12 +31,17 @@ Item {
     readonly property bool transportEligible: focusedRole === "transport" || focusedRole === "deuterium_tanker"
     readonly property bool tankerEligible: focusedRole === "deuterium_tanker" || String(focusedProbe.model) === "deuterium_tanker"
     readonly property bool validManualCoordinates: validCoordinates(manualX.value, manualY.value, manualZ.value)
-    readonly property bool validTransportCoordinates: sourceCoordinates.valid && deliveryCoordinates.valid && returnCoordinates.valid && (!refuelEnabled.checked || refuelCoordinates.valid)
+    readonly property bool validTransportCoordinates: sourceCoordinates.valid && deliveryCoordinates.valid && returnCoordinates.valid && (!refuelEnabled.checked || refuelCoordinates.valid) && (loadSourceMode.currentValue !== "deuterium_station" || (root.tankerEligible && resourceType.currentValue === "deuterium"))
     function validCoordinates(x, y, z) { return (Number(x) + Number(y) + Number(z)) % 2 === 0; }
     function coordinates(x, y, z) { return {"x": Number(x), "y": Number(y), "z": Number(z)}; }
     function coordinateLabel(value) {
         value = value || {};
         return "FCC " + Number(value.x || 0) + " / " + Number(value.y || 0) + " / " + Number(value.z || 0);
+    }
+    function loadingSourceLabel(mode) {
+        if (String(mode) === "mine_in_sector") return "MINE IN SECTOR";
+        if (String(mode) === "deuterium_station") return "REFILL AT DEUTERIUM STATION";
+        return "LOAD FROM PROBE";
     }
     function chooseSector(sector) {
         manualX.value = Number(sector.x); manualY.value = Number(sector.y); manualZ.value = Number(sector.z);
@@ -262,10 +267,16 @@ Item {
                             ComboBox {
                                 id: loadSourceMode; Layout.columnSpan: 3; Layout.fillWidth: true
                                 textRole: "text"; valueRole: "value"
-                                model: [
-                                    {"text":"LOAD FROM PROBE", "value":"probe"},
-                                    {"text":"MINE IN SECTOR", "value":"mine_in_sector"}
-                                ]
+                                model: root.tankerEligible && resourceType.currentValue === "deuterium"
+                                    ? [
+                                        {"text":"LOAD FROM PROBE", "value":"probe"},
+                                        {"text":"MINE IN SECTOR", "value":"mine_in_sector"},
+                                        {"text":"REFILL AT DEUTERIUM STATION", "value":"deuterium_station"}
+                                      ]
+                                    : [
+                                        {"text":"LOAD FROM PROBE", "value":"probe"},
+                                        {"text":"MINE IN SECTOR", "value":"mine_in_sector"}
+                                      ]
                             }
                             Label { visible: loadSourceMode.currentValue === "probe"; text: "LOAD FROM PROBE"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
                             ComboBox { visible: loadSourceMode.currentValue === "probe"; id: sourceProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
@@ -273,6 +284,14 @@ Item {
                                 visible: loadSourceMode.currentValue === "mine_in_sector"; Layout.columnSpan: 4; Layout.fillWidth: true
                                 text: "At the loading sector, the resource planner assigns available Mannys to the selected resource until the load threshold is reached or the observed source is depleted. The delivery leg then resumes automatically."
                                 color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap
+                            }
+                            Label {
+                                visible: loadSourceMode.currentValue === "deuterium_station"; Layout.columnSpan: 4; Layout.fillWidth: true
+                                text: root.tankerEligible && resourceType.currentValue === "deuterium"
+                                    ? "At the loading sector, an idle Manny refills the tanker at the deployed deuterium station. Station refills fill the tank completely; the route resumes only after live telemetry confirms the refill."
+                                    : "Deuterium-station loading is available only for a deuterium tanker carrying deuterium."
+                                color: root.tankerEligible && resourceType.currentValue === "deuterium" ? Constants.mutedTextColor : Constants.warningColor
+                                font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap
                             }
                             Label { text: "UNLOAD INTO PROBE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                             ComboBox { id: destinationProbe; Layout.columnSpan: 3; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: root.availableProbes }
@@ -282,7 +301,7 @@ Item {
                             Label { visible: !(root.tankerEligible && resourceType.currentValue === "deuterium"); text: "UNLOAD CARGO UNTIL"; color: Constants.textColor; font.family: Constants.technicalFont }
                             RowLayout { visible: !(root.tankerEligible && resourceType.currentValue === "deuterium"); SpinBox { id: unloadThreshold; from: 0; to: 99; value: 10; editable: true } Label { text: "% REMAINS" } }
                             Label { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; text: "LOAD TANK TO"; color: Constants.textColor; font.family: Constants.technicalFont }
-                            RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: loadAmount; from: 0; to: 800; value: 400; editable: true } Label { text: "ECE (MAX 800)" } }
+                            RowLayout { visible: root.tankerEligible && resourceType.currentValue === "deuterium"; SpinBox { id: loadAmount; enabled: loadSourceMode.currentValue !== "deuterium_station"; from: 0; to: 800; value: 400; editable: true } Label { text: loadSourceMode.currentValue === "deuterium_station" ? "ECE · STATION FILLS TO MAX" : "ECE (MAX 800)" } }
                             Label { text: "PROTECTED DEUTERIUM"; color: Constants.warningColor; font.family: Constants.technicalFont }
                             RowLayout { SpinBox { id: protectedFuel; from: 0; to: 100; value: 20; editable: true } Label { text: "% FLOOR" } }
                             Label { text: "CONTINGENCY"; color: Constants.textColor; font.family: Constants.technicalFont }
@@ -433,9 +452,9 @@ Item {
         property var cycle: (root.selectedTransportCycle.metadata || {}).cycle || ({})
         ColumnLayout {
             width: parent.width; spacing: 12
-            Label { Layout.fillWidth: true; text: String(transportReview.cycle.resourceType || "resource").replace("_", " ").toUpperCase() + " · " + (String(transportReview.cycle.loadSourceMode || "probe") === "mine_in_sector" ? "MINE IN SECTOR" : "LOAD FROM PROBE"); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: String(transportReview.cycle.resourceType || "resource").replace("_", " ").toUpperCase() + " · " + root.loadingSourceLabel(transportReview.cycle.loadSourceMode); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; text: "1 · TRAVEL TO " + root.coordinateLabel(transportReview.cycle.source); color: Constants.textColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
-            Label { Layout.fillWidth: true; text: "2 · " + (String(transportReview.cycle.loadSourceMode || "probe") === "mine_in_sector" ? "MINE " + String(transportReview.cycle.resourceType || "resource").replace("_", " ").toUpperCase() : "LOAD FROM PROBE " + String(transportReview.cycle.sourceProbeId || "UNSELECTED")) + (transportReview.cycle.loadAmount !== null && transportReview.cycle.loadAmount !== undefined ? " UNTIL " + Number(transportReview.cycle.loadAmount) + " ECE" : " UNTIL " + Number(transportReview.cycle.loadUntilPercent || 0) + "% FULL"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; text: "2 · " + (String(transportReview.cycle.loadSourceMode || "probe") === "deuterium_station" ? "REFILL COMPLETELY AT DEUTERIUM STATION" : String(transportReview.cycle.loadSourceMode || "probe") === "mine_in_sector" ? "MINE " + String(transportReview.cycle.resourceType || "resource").replace("_", " ").toUpperCase() : "LOAD FROM PROBE " + String(transportReview.cycle.sourceProbeId || "UNSELECTED")) + (String(transportReview.cycle.loadSourceMode || "probe") === "deuterium_station" ? "" : transportReview.cycle.loadAmount !== null && transportReview.cycle.loadAmount !== undefined ? " UNTIL " + Number(transportReview.cycle.loadAmount) + " ECE" : " UNTIL " + Number(transportReview.cycle.loadUntilPercent || 0) + "% FULL"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; text: "3 · TRAVEL TO " + root.coordinateLabel(transportReview.cycle.destination) + " AND KEEP FILLING PROBE " + String(transportReview.cycle.destinationProbeId || "UNSELECTED") + " AS SPACE OPENS, UNTIL THE TANKER REACHES ITS PROTECTED RETURN RESERVE"; color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; text: "4 · RETURN TO " + root.coordinateLabel(transportReview.cycle.returnPoint) + (transportReview.cycle.repeat ? " AND REPEAT" : " AND COMPLETE"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; text: "SAFETY · PROTECT " + Number(transportReview.cycle.protectedDeuterium || 0) + "% DEUTERIUM PLUS " + Number(transportReview.cycle.reserveHops || 0) + " RESERVE HOPS"; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }

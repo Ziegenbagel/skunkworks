@@ -23,9 +23,25 @@ class TaskCommandTranslator:
             "Assemble Probe": self._assemble_probe,
             "Repair Probe": self._repair,
             "Transfer Deuterium": self._transfer_deuterium,
+            "Refill Deuterium Tank": self._refill_deuterium_tank,
         }.get(task.action)
 
         return handler(task) if handler is not None else None
+
+    def _refill_deuterium_tank(self, task):
+        manny = self._claim_idle_manny()
+        if manny is None:
+            return None
+        return Command(
+            type=CommandType.MANNY_REFILL_DEUTERIUM_TANK,
+            probe_id=self.probe_id,
+            target_id=manny["id"],
+            payload={},
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+            metadata={"workflowAuthorized": bool(task.workflow_authorized)},
+        )
 
     def _transfer_deuterium(self, task):
         manny = self._claim_idle_manny()

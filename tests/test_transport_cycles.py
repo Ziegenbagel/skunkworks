@@ -144,6 +144,24 @@ class TransportCycleTests(unittest.TestCase):
             tuple(step.action for step in operation.steps),
         )
 
+    def test_deuterium_station_selects_station_refill_action(self):
+        from dataclasses import replace
+
+        tanker = replace(
+            self.plan,
+            resource_type="deuterium",
+            load_source_mode="deuterium_station",
+        )
+
+        self.assertEqual(tanker.loading_action, "refill_at_deuterium_station")
+        self.assertEqual(tanker.to_dict()["loadSourceMode"], "deuterium_station")
+
+    def test_deuterium_station_rejects_non_deuterium_route(self):
+        from dataclasses import replace
+
+        with self.assertRaisesRegex(ValueError, "only load deuterium"):
+            replace(self.plan, load_source_mode="deuterium_station")
+
     def test_unloading_waits_until_selected_remaining_percentage(self):
         service = RoundTripTransportService()
         waiting = service.assess(

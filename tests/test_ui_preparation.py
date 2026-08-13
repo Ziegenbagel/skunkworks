@@ -15,6 +15,16 @@ from tests.test_planner_missions import build_operations
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_slow_startup_releases_splash_without_cancelling_refresh(self):
+        controller = MissionControlController()
+        controller._refreshing = True
+
+        controller._release_slow_startup()
+
+        self.assertFalse(controller.startupLoading)
+        self.assertTrue(controller.refreshing)
+        self.assertIn("taking longer than expected", controller.error)
+
     def test_shutdown_stops_schedulers_clears_queue_and_quits_when_idle(self):
         class Pool:
             def __init__(self):

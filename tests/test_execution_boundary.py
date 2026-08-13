@@ -335,6 +335,22 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual(command.payload["targetContainerId"], "metals-depot")
 
+    def test_station_refill_claims_idle_manny_and_uses_station_command(self):
+        from src.planner.task import Task
+
+        command = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Refill Deuterium Tank",
+            reason="Transport loading stop",
+            category="transport",
+            resource_type="deuterium",
+            workflow_authorized=True,
+            priority=1,
+        ))
+
+        self.assertEqual(command.type, CommandType.MANNY_REFILL_DEUTERIUM_TANK)
+        self.assertEqual(command.payload, {})
+        self.assertTrue(command.metadata["workflowAuthorized"])
+
     def test_active_tanker_component_does_not_request_zero_quantity_recipe_plan(self):
         from src.planner.assembly import TANKER_COMPONENTS
 
