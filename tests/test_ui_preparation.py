@@ -206,6 +206,43 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(started[0].probe_ids, (7,))
         self.assertIs(controller._fleet_automation_worker, started[0])
 
+    def test_busy_periodic_tick_is_queued_instead_of_discarded(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        controller._refreshing = True
+
+        controller._automation_tick()
+
+        self.assertTrue(controller._automation_tick_pending)
+
+    def test_finished_refresh_runs_queued_automation_tick(self):
+        controller = MissionControlController()
+        controller._automation_tick_pending = True
+        callbacks = []
+
+        with patch(
+            "src.ui.controller.QTimer.singleShot",
+            side_effect=lambda _delay, callback: callbacks.append(callback),
+        ):
+            controller._finish_refresh()
+
+        self.assertEqual(callbacks, [controller._automation_tick])
+
+    def test_scheduled_cycle_completion_always_refreshes_focused_probe(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        controller._fleet_automation_worker = object()
+        refreshes = []
+        controller._start_refresh = lambda probe_id: refreshes.append(probe_id)
+
+        controller._accept_fleet_automation(({
+            "probeId": 7,
+            "result": {"status": "idle", "message": "No order ready"},
+        },))
+
+        self.assertEqual(refreshes, [7])
+        self.assertIsNone(controller._fleet_automation_worker)
+
     def test_manual_automation_cycle_is_dispatched_off_the_ui_thread(self):
         started = []
 

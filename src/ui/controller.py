@@ -2024,6 +2024,7 @@ class MissionControlController(QObject):
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
         self._automation_after_refresh = False
+        self._automation_tick_pending = False
         # Automatic mode should not sit visibly READY for a full timer interval
         # after application startup. Consume this once after the first
         # authoritative dashboard has loaded.
@@ -2068,6 +2069,7 @@ class MissionControlController(QObject):
         self._compatibility_timer.stop()
         self._retry_timer.stop()
         self._automation_after_refresh = False
+        self._automation_tick_pending = False
         self._pending_probe_id = None
         self.thread_pool.clear()
         self._shutdown_poll_timer.start()
@@ -2347,8 +2349,19 @@ class MissionControlController(QObject):
             self._start_refresh(self._focused_probe_id)
 
     def _automation_tick(self):
-        if self._emergency_stop or self._refreshing or self._fleet_automation_worker is not None:
+        if self._emergency_stop or not self._api_compatible:
             return
+        if (
+            self._refreshing
+            or self._fleet_automation_worker is not None
+            or self._automation_cycle_worker is not None
+        ):
+            # Never discard a one-minute tick merely because a slow refresh or
+            # the preceding cycle overlaps it. Coalesce overlaps into one
+            # immediate follow-up cycle when the controller becomes idle.
+            self._automation_tick_pending = True
+            return
+        self._automation_tick_pending = False
         probe_ids = [item.get("id") for item in self._available_probes if item.get("id")]
         if not probe_ids and self._focused_probe_id >= 0:
             probe_ids = [self._focused_probe_id]
@@ -2379,6 +2392,9 @@ class MissionControlController(QObject):
             runtime["lastResult"] = self._qt_safe(focused_result)
         self._dashboard["automationRuntime"] = runtime
         self.dashboardChanged.emit()
+        # Every scheduled cycle is followed by an authoritative focused-probe
+        # refresh, including idle cycles, so queue/readiness changes appear in
+        # the UI without the operator pressing Refresh.
         self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
 
     @Slot(str)
@@ -3330,6 +3346,9 @@ class MissionControlController(QObject):
                 0,
                 self._automation_tick,
             )
+            return
+        if self._automation_tick_pending:
+            QTimer.singleShot(0, self._automation_tick)
 
     def _set_refreshing(self, value):
         if value == self._refreshing:
