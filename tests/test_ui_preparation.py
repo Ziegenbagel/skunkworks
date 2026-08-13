@@ -200,7 +200,7 @@ class UiPreparationTests(unittest.TestCase):
         with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=automatic_policy), patch(
             "src.ui.controller._FleetAutomationWorker", Worker
         ):
-            controller._automation_tick()
+            controller._dispatch_fleet_automation()
 
         self.assertEqual(len(started), 1)
         self.assertEqual(started[0].probe_ids, (7,))
@@ -242,6 +242,44 @@ class UiPreparationTests(unittest.TestCase):
         controller._automation_tick()
 
         self.assertTrue(controller._automation_tick_pending)
+
+    def test_periodic_deadline_refreshes_before_dispatching_cycle(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        refreshes = []
+        controller._start_refresh = lambda probe_id, **kwargs: refreshes.append(
+            (probe_id, kwargs)
+        )
+
+        controller._automation_tick()
+
+        self.assertEqual(refreshes, [(7, {"prefer_cached_fleet": True})])
+        self.assertTrue(controller._automation_after_refresh)
+
+    def test_finished_refresh_dispatches_cycle_then_rearms_from_completion(self):
+        class Credentials:
+            @staticmethod
+            def get():
+                return "configured"
+
+            @staticmethod
+            def source():
+                return "test"
+
+        controller = MissionControlController(credential_store=Credentials())
+        callbacks = []
+        controller._automation_after_refresh = True
+        with patch(
+            "src.ui.controller.QTimer.singleShot",
+            side_effect=lambda _delay, callback: callbacks.append(callback),
+        ):
+            controller._finish_refresh()
+        self.assertEqual(callbacks, [controller._dispatch_fleet_automation])
+
+        callbacks.clear()
+        with patch.object(controller._automation_timer, "start") as start:
+            controller._finish_refresh()
+        start.assert_called_once_with(60_000)
 
     def test_finished_refresh_runs_queued_automation_tick(self):
         controller = MissionControlController()

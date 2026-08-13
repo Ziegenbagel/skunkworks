@@ -2045,6 +2045,7 @@ class MissionControlController(QObject):
         self._loading_progress = 0
         self._loading_status = "Preparing secure connection"
         self._automation_timer = QTimer(self)
+        self._automation_timer.setSingleShot(True)
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
         self._automation_after_refresh = False
@@ -2397,6 +2398,26 @@ class MissionControlController(QObject):
             self._automation_tick_pending = True
             return
         self._automation_tick_pending = False
+        # Make the one-minute boundary visible and give the planner a fresh
+        # focused snapshot before evaluating the fleet. The fleet worker is
+        # launched by `_finish_refresh`; its duration therefore cannot hide
+        # behind an apparently late refresh.
+        self._automation_after_refresh = True
+        self._start_refresh(
+            self._focused_probe_id if self._focused_probe_id >= 0 else None,
+            prefer_cached_fleet=True,
+        )
+
+    def _dispatch_fleet_automation(self):
+        if self._emergency_stop or not self._api_compatible:
+            return
+        if (
+            self._refreshing
+            or self._fleet_automation_worker is not None
+            or self._automation_cycle_worker is not None
+        ):
+            self._automation_tick_pending = True
+            return
         probe_ids = [item.get("id") for item in self._available_probes if item.get("id")]
         if not probe_ids and self._focused_probe_id >= 0:
             probe_ids = [self._focused_probe_id]
@@ -3377,11 +3398,16 @@ class MissionControlController(QObject):
             self._automation_after_refresh = False
             QTimer.singleShot(
                 0,
-                self._automation_tick,
+                self._dispatch_fleet_automation,
             )
             return
         if self._automation_tick_pending:
             QTimer.singleShot(0, self._automation_tick)
+            return
+        # Anchor the next visible automatic refresh to the end of this one.
+        # A single-shot deadline avoids accumulated phase drift and overlap.
+        if self.credentialConfigured and not self._shutting_down:
+            self._automation_timer.start(60_000)
 
     def _set_refreshing(self, value):
         if value == self._refreshing:
