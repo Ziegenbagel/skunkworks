@@ -769,6 +769,8 @@ class UiPreparationTests(unittest.TestCase):
         view = MissionControlViewModelBuilder(base).build()["galaxy"]
 
         self.assertEqual(view["sectorCount"], 2)
+        self.assertEqual(view["focusCoordinates"], {"x": 0, "y": 0, "z": 0})
+        self.assertEqual(view["focusProbeId"], base.world.probe["id"])
         self.assertEqual(len(view["edges"]), 1)
         self.assertEqual(view["nodes"][0]["mapState"], "current")
         self.assertEqual(view["nodes"][1]["mapState"], "visited")
@@ -793,6 +795,20 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(len(view["nodes"]), 1)
         self.assertEqual(view["nodes"][0]["mapState"], "scanned")
         self.assertEqual(view["unknownNeighborCount"], 0)
+
+    def test_galaxy_view_exposes_focus_coordinates_without_matching_node(self):
+        from src.models.galaxy import GalaxyMap
+
+        base = build_operations()
+        base.world.galaxy = GalaxyMap()
+
+        view = MissionControlViewModelBuilder(base)._galaxy_view(
+            base.world,
+            {"x": -12, "y": 4, "z": 8},
+        )
+
+        self.assertEqual(view["nodes"], ())
+        self.assertEqual(view["focusCoordinates"], {"x": -12, "y": 4, "z": 8})
 
     def test_galaxy_view_exposes_resource_hazard_salvage_filters_and_recent_route(self):
         from src.models.galaxy import GalaxyMap

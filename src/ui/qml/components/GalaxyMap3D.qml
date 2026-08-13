@@ -12,6 +12,7 @@ Item {
     property int focusedProbeId: -1
     property var selectedNode: null
     property var selectedCoveragePoint: null
+    property bool hasCenteredOnProbe: false
     readonly property var nodes: galaxyData.nodes || []
     readonly property var nodeIndex: {
         const result = {};
@@ -120,12 +121,25 @@ Item {
         return null;
     }
     function centerOnFocusedProbe() {
+        if (galaxyData.focusProbeId !== undefined
+                && Number(galaxyData.focusProbeId) !== focusedProbeId)
+            return false;
         const target = focusedNode();
-        cameraOrigin.position = target ? positionFor(target) : Qt.vector3d(0, 0, 0);
-        if (target) selectedNode = target;
+        const coordinates = galaxyData.focusCoordinates;
+        if (target) {
+            cameraOrigin.position = positionFor(target);
+            selectedNode = target;
+            return true;
+        }
+        if (coordinates && coordinates.x !== undefined
+                && coordinates.y !== undefined && coordinates.z !== undefined) {
+            cameraOrigin.position = positionFor(coordinates);
+            return true;
+        }
+        return false;
     }
     function resetCamera() {
-        centerOnFocusedProbe();
+        hasCenteredOnProbe = centerOnFocusedProbe();
         cameraOrigin.eulerRotation = Qt.vector3d(-25, 35, 0);
         camera.z = 950;
     }
@@ -313,7 +327,19 @@ Item {
     }
 
     Component.onCompleted: Qt.callLater(root.resetCamera)
-    onFocusedProbeIdChanged: Qt.callLater(root.resetCamera)
+    onFocusedProbeIdChanged: {
+        root.hasCenteredOnProbe = false;
+        if (root.galaxyData.focusProbeId !== undefined
+                && Number(root.galaxyData.focusProbeId) === root.focusedProbeId)
+            Qt.callLater(root.resetCamera);
+    }
+    onGalaxyDataChanged: {
+        // Initial data commonly arrives after the QML component is created.
+        // Center once when it becomes available, but preserve operator pan and
+        // orbit choices across ordinary background refreshes.
+        if (!root.hasCenteredOnProbe)
+            Qt.callLater(root.resetCamera);
+    }
 
     TapHandler {
         acceptedButtons: Qt.LeftButton

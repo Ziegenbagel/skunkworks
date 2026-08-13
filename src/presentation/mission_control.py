@@ -464,6 +464,16 @@ class MissionControlViewModelBuilder:
         )
         return {
             "nodes": tuple(nodes),
+            # Camera centering must not depend on the focused sector already
+            # existing in the persisted discovery graph. A newly arrived or
+            # partially refreshed probe can legitimately have no matching
+            # rendered node yet.
+            "focusCoordinates": {
+                "x": int(focus_coordinates.get("x", 0) or 0),
+                "y": int(focus_coordinates.get("y", 0) or 0),
+                "z": int(focus_coordinates.get("z", 0) or 0),
+            },
+            "focusProbeId": world.probe.get("id"),
             "edges": tuple(edges),
             "sectorCount": len(nodes),
             "unknownNeighborCount": 0,
