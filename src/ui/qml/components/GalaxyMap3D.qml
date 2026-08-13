@@ -112,11 +112,15 @@ Item {
         return Qt.vector3d(Number(node.x) * spacing3D, Number(node.y) * spacing3D, Number(node.z) * spacing3D);
     }
     function focusedNode() {
+        const coordinates = galaxyData.focusCoordinates;
+        const coordinateId = coordinates && coordinates.x !== undefined
+            && coordinates.y !== undefined && coordinates.z !== undefined
+            ? String(coordinates.x) + ":" + String(coordinates.y) + ":" + String(coordinates.z)
+            : "";
+        if (coordinateId && nodeIndex[coordinateId])
+            return nodeIndex[coordinateId];
         for (let i = 0; i < nodes.length; ++i) {
             if (nodes[i].isFocused) return nodes[i];
-            const probeIds = nodes[i].probeIds || [];
-            if (probeIds.indexOf(focusedProbeId) >= 0 || probeIds.indexOf(String(focusedProbeId)) >= 0)
-                return nodes[i];
         }
         return null;
     }
@@ -124,16 +128,20 @@ Item {
         if (galaxyData.focusProbeId !== undefined
                 && Number(galaxyData.focusProbeId) !== focusedProbeId)
             return false;
-        const target = focusedNode();
         const coordinates = galaxyData.focusCoordinates;
-        if (target) {
-            cameraOrigin.position = positionFor(target);
-            selectedNode = target;
-            return true;
-        }
+        const target = focusedNode();
+        // The live focused-probe position is authoritative. `probeIds` on a
+        // galaxy node means "has observed this sector" and is historical; it
+        // must never be interpreted as the probe's current location.
         if (coordinates && coordinates.x !== undefined
                 && coordinates.y !== undefined && coordinates.z !== undefined) {
             cameraOrigin.position = positionFor(coordinates);
+            if (target) selectedNode = target;
+            return true;
+        }
+        if (target) {
+            cameraOrigin.position = positionFor(target);
+            selectedNode = target;
             return true;
         }
         return false;
@@ -190,6 +198,7 @@ Item {
 
         Node {
             id: cameraOrigin
+            objectName: "galaxyCameraOrigin"
             eulerRotation: Qt.vector3d(-25, 35, 0)
             PerspectiveCamera { id: camera; z: 950; fieldOfView: 45 }
         }

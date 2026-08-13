@@ -243,6 +243,8 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "GalaxyMap3D" in workspace
     assert "focusedProbeId: root.focusedProbeId" in workspace
     assert "function focusedNode()" in galaxy
+    assert "nodeIndex[coordinateId]" in galaxy
+    assert "probeIds.indexOf(focusedProbeId)" not in galaxy
     assert "CENTER PROBE" in galaxy
     assert "function panBy(" in galaxy
     assert "RIGHT/MIDDLE DRAG · PAN" in galaxy
