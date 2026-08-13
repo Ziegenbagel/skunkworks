@@ -448,7 +448,8 @@ class MissionControlDataService:
                 operations, probe_id, preparation_policy,
             ).prepare(preparation_tasks)
             self._prepared_commands = self._dispatch_prepared_commands(
-                prepared_commands
+                prepared_commands,
+                idle_manny_count=len(operations.mining.idle_mannies()),
             )
         return {
             "probeId": probe_id,
@@ -487,7 +488,7 @@ class MissionControlDataService:
         return sorted(tasks, key=cls._dispatch_order)
 
     @staticmethod
-    def _dispatch_prepared_commands(prepared):
+    def _dispatch_prepared_commands(prepared, idle_manny_count=None):
         """Hide acquisition only when fabrication is genuinely executable."""
 
         fabrication_types = {
@@ -501,7 +502,30 @@ class MissionControlDataService:
             for item in prepared
         )
         if not actionable_fabrication:
-            return tuple(prepared)
+            fabrication_waiting = any(
+                item.command.type in fabrication_types
+                for item in prepared
+            )
+            if not fabrication_waiting or idle_manny_count is None:
+                return tuple(prepared)
+
+            # Reserve one idle Manny while any fabrication/assembly goal is
+            # outstanding. Background reserve mining must live up to its name:
+            # it cannot occupy the final worker and prevent a newly-unblocked
+            # craft from starting on the next authoritative refresh.
+            mining_slots = max(0, int(idle_manny_count) - 1)
+            retained = []
+            ready_mining = 0
+            for item in prepared:
+                if (
+                    item.command.type == CommandType.MANNY_MINE
+                    and item.disposition == "ready"
+                ):
+                    if ready_mining >= mining_slots:
+                        continue
+                    ready_mining += 1
+                retained.append(item)
+            return tuple(retained)
         return tuple(
             item for item in prepared
             if item.command.type != CommandType.MANNY_MINE
@@ -1187,6 +1211,19 @@ class MissionControlDataService:
             return None
         desired = DesiredStateStore(self.data_engine).load(self._selected_probe_id)
         planned_tasks = tuple(Planner(self._operations, desired).tasks())
+        fabrication_waiting = any(
+            task.category in {"fleet_assembly", "manufacturing"}
+            and task.action in {
+                "Craft Item", "Assemble Probe", "Prepare Manufacturing",
+                "Prepare Probe Assembly", "Await Active Production",
+            }
+            for task in planned_tasks
+        )
+        if (
+            fabrication_waiting
+            and len(self._operations.mining.idle_mannies()) <= 1
+        ):
+            return None
         preparation_policy = replace(
             policy,
             max_commands_per_cycle=max(

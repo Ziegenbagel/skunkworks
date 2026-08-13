@@ -208,7 +208,9 @@ def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7
     service.data_engine = SimpleNamespace()
-    service._operations = SimpleNamespace()
+    service._operations = SimpleNamespace(
+        mining=SimpleNamespace(idle_mannies=lambda: [object(), object()])
+    )
     tasks = (
         Task(
             action="Prepare Manufacturing",
@@ -242,6 +244,29 @@ def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
 
     assert result is None
     assert preparer.call_count == 1
+
+
+def test_background_mining_preserves_last_idle_manny_for_waiting_fabrication():
+    craft = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "manny"}, "waiting craft", 1,
+        target_id="manny-a",
+    ), "blocked", blockers=("item_reserved_by_higher_priority_goal",))
+    mines = tuple(PreparedCommand(Command(
+        CommandType.MANNY_MINE, 7,
+        {"objectId": f"rock-{index}", "resources": [resource], "targetAmount": 0.25},
+        "background reserve", 3, target_id=f"manny-{index}",
+        metadata={"backgroundWork": True},
+    ), "ready") for index, resource in enumerate(("metals", "ice", "carbon_compounds"), 1))
+
+    dispatched = MissionControlDataService._dispatch_prepared_commands(
+        (craft, *mines), idle_manny_count=3,
+    )
+
+    ready_mining = [
+        item for item in dispatched
+        if item.command.type == CommandType.MANNY_MINE and item.disposition == "ready"
+    ]
+    assert len(ready_mining) == 2
 
 
 def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():

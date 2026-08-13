@@ -180,6 +180,7 @@ class TaskCommandTranslator:
                 "apiUnitScale": unit_scale,
                 "estimatedTrips": trips,
                 "plannedMiningWorkers": planned_workers,
+                "backgroundWork": bool(task.background_work),
                 "remainingAmount": max(0, round(float(task.quantity) - target_amount, 3)),
             },
         )
