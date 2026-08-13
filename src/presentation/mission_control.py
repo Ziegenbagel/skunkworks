@@ -165,10 +165,17 @@ class MissionControlViewModelBuilder:
         sector_targets = []
         mining_targets = []
         recoverable_objects = []
+        bookmark_targets = []
+        inspectable_objects = []
+        inactive_scut_relays = []
+        active_scut_relays = []
+        refuel_stations = []
         seen_targets = set()
         seen_recoverable = set()
+        seen_bookmarks = set()
+        seen_inspectable = set()
         snapshot = (world.sector.get("snapshot") or {}).get("sector", {})
-        def collect_targets(values):
+        def collect_targets(values, *, bookmark_candidates=False):
             for value in values or ():
                 target_type = str(value.get("type", "")).lower()
                 target_kind = "planet" if "planet" in target_type else "asteroid" if "asteroid" in target_type else ""
@@ -207,9 +214,40 @@ class MissionControlViewModelBuilder:
                         "freeCapacity": float(value.get("freeCapacity", value.get("capacity", 0)) or 0),
                         "rules": value.get("rules") or {},
                     })
+                if bookmark_candidates and target_id and target_id not in seen_bookmarks:
+                    seen_bookmarks.add(target_id)
+                    bookmark_targets.append({
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or f"{target_type.replace('_', ' ').title()} · {target_id}",
+                        "type": target_type or "celestial_object",
+                    })
+                if target_type in {"asteroid", "detached_container", "dormant_construct"} and target_id and target_id not in seen_inspectable:
+                    seen_inspectable.add(target_id)
+                    inspectable_objects.append({
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or f"{target_type.replace('_', ' ').title()} · {target_id}",
+                        "type": target_type,
+                    })
+                if target_type == "scut_relay" and target_id:
+                    relay = {
+                        "id": target_id,
+                        "name": value.get("name") or f"SCUT Relay {target_id}",
+                        "status": str(value.get("status", "off")).lower(),
+                        "hasTransitBeacon": bool(value.get("isTransitBeacon", value.get("hasTransitBeacon", False))),
+                    }
+                    if relay["status"] == "on":
+                        if not relay["hasTransitBeacon"]:
+                            active_scut_relays.append(relay)
+                    else:
+                        inactive_scut_relays.append(relay)
+                if target_type == "deuterium_refuel_station" and target_id:
+                    refuel_stations.append({
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or f"Deuterium Station · {target_id}",
+                    })
                 collect_targets(value.get("objects"))
                 collect_targets(value.get("minableTargets"))
-                collect_targets(value.get("bookmarkTargets"))
+                collect_targets(value.get("bookmarkTargets"), bookmark_candidates=True)
         collect_targets(snapshot.get("objects"))
         collect_targets(snapshot.get("minableTargets"))
         detached = tuple(item for item in recoverable_objects if "container" in item["type"])
@@ -226,6 +264,19 @@ class MissionControlViewModelBuilder:
             "miningTargets": tuple(mining_targets),
             "detachedContainers": tuple(detached),
             "recoverableObjects": tuple(recoverable_objects),
+            "bookmarkTargets": tuple(bookmark_targets),
+            "inspectableObjects": tuple(inspectable_objects),
+            "inactiveScutRelays": tuple(inactive_scut_relays),
+            "activeScutRelaysWithoutBeacon": tuple(active_scut_relays),
+            "refuelStations": tuple(refuel_stations),
+            "waitingCargoMannies": tuple(
+                manny for manny in all_mannies
+                if (
+                    (manny.get("currentTask") or {}).get("type")
+                    if isinstance(manny.get("currentTask"), dict)
+                    else manny.get("currentTask")
+                ) == "waiting_for_space"
+            ),
             "deuterium": float((world.probe.get("fuel") or {}).get("deuterium", world.probe.get("deuterium", 0)) or 0),
             "maxDeuterium": float((world.probe.get("fuel") or {}).get("maxDeuterium", 100) or 100),
         }

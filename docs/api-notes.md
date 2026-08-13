@@ -304,6 +304,52 @@ source.
 This makes tanker probes mobile fuel carriers, but not detached deuterium
 storage containers. Fuel logistics require rendezvous between probes.
 
+## Observation 012
+
+### API v107 manual-control coverage audit
+
+The public v107 OpenAPI contract was compared against the application gateways,
+service allowlists, and operator-facing controls. A route existing in a gateway
+does not count as supported unless an operator can discover it and submit its
+required payload through an appropriate review flow.
+
+The Manual Control inventory workspace now exposes the previously unreachable
+Manny operations:
+
+- `inspect-sector-object` for asteroids, detached containers, and dormant constructs
+- `install-bookmark` for current-sector celestial objects
+- `drop-manny-cargo` only for a Manny reported as `waiting_for_space`
+- `refill-deuterium-tank` when a current-sector refuel station is observed
+- `turn-on-relay` for an inactive current-sector SCUT relay
+- `install-scut-transit-beacon` for an active relay without a beacon
+
+The complete relay workflow is now visible in one place: jettison a specific
+stored `scut_relay`, refresh the sector observation, activate that relay with an
+idle Manny and an integrated circuit, then install a stored transit beacon.
+Relay ids remain opaque strings in sector telemetry and are converted to the
+integer `relayId` required by the two task endpoints only at command submission.
+
+Existing UI coverage was confirmed for movement and cancellation, scanning,
+crafting and printer crafting, mining, repair and improvements, Manny recall,
+storage moves and rules, container detach/drop/recovery, item and resource
+jettison, same-sector transfers, reservation reassignment, alerts, logbooks,
+messages, missions, and probe renaming.
+
+The following operations intentionally remain outside this general inventory
+panel:
+
+- `assemble-probe` is reference/automation-only pending a dedicated review that
+  shows the model components and the two distinct empty containers consumed.
+- setting `isDefault` belongs with fleet identity controls and requires explicit
+  presentation of the SCUT/same-sector reachability rule.
+- `mind-snapshot/reassign` is terminal disaster recovery that deletes the dead
+  or trapped probe and resets the reference frame; it belongs in Safety and must
+  only appear when the API advertises its critical recovery action.
+- batch Manny task endpoints are transport optimizations, not separate player
+  features; Skunkworks uses the equivalent reviewed individual actions.
+- account-key and forum administration are account/community concerns rather
+  than focused-probe manual controls.
+
 ### Compatibility Note
 
 The tanker assembly details were added while the public API still identified

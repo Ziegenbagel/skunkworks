@@ -781,6 +781,34 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(inventory["items"][0]["type"], "deuterium_engine")
         self.assertEqual(inventory["items"][0]["containerLabel"], "Probe · Carrier")
 
+    def test_inventory_management_exposes_v107_sector_operations(self):
+        world = build_operations().world
+        world.mannies["mannies"].append({
+            "id": "manny-waiting", "name": "Waiting Manny",
+            "currentTask": {"type": "waiting_for_space"},
+            "canReceiveOrders": False,
+        })
+        world.sector["snapshot"] = {"sector": {"objects": [
+            {"id": "system-1", "type": "solar_system", "bookmarkTargets": [
+                {"id": "star-1", "type": "star", "name": "Primary"},
+                {"id": "asteroid-1", "type": "asteroid", "name": "Iron Rock"},
+            ]},
+            {"id": "construct-1", "type": "dormant_construct", "name": "Dormant Frame"},
+            {"id": "41", "type": "scut_relay", "name": "Relay 41", "status": "off"},
+            {"id": "42", "type": "scut_relay", "name": "Relay 42", "status": "on", "isTransitBeacon": False},
+            {"id": "43", "type": "scut_relay", "name": "Relay 43", "status": "on", "isTransitBeacon": True},
+            {"id": "station-1", "type": "deuterium_refuel_station", "name": "Fuel Station"},
+        ]}}
+
+        inventory = MissionControlViewModelBuilder._inventory_management(world)
+
+        self.assertEqual({item["id"] for item in inventory["bookmarkTargets"]}, {"star-1", "asteroid-1"})
+        self.assertEqual({item["id"] for item in inventory["inspectableObjects"]}, {"asteroid-1", "construct-1"})
+        self.assertEqual([item["id"] for item in inventory["inactiveScutRelays"]], ["41"])
+        self.assertEqual([item["id"] for item in inventory["activeScutRelaysWithoutBeacon"]], ["42"])
+        self.assertEqual([item["id"] for item in inventory["refuelStations"]], ["station-1"])
+        self.assertEqual([item["id"] for item in inventory["waitingCargoMannies"]], ["manny-waiting"])
+
     def test_galaxy_view_exposes_discovered_nodes_and_neighbor_links(self):
         from src.models.galaxy import GalaxyMap
 

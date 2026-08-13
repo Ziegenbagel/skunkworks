@@ -112,6 +112,62 @@ Item {
             }
 
             GroupBox {
+                title: "SCUT RELAY DEPLOYMENT & SECTOR OPERATIONS"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 12
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Relay workflow: jettison one stored SCUT relay above, refresh until the inactive relay appears here, activate it with one Integrated Circuit, then install a stocked SCUT Transit Beacon. Each Manny step takes five minutes."
+                        color: Constants.warningColor; font.pixelSize: 14; wrapMode: Text.Wrap
+                    }
+                    GridLayout {
+                        Layout.fillWidth: true; columns: 4; columnSpacing: 14; rowSpacing: 10
+                        Label { text: "AVAILABLE MANNY"; color: Constants.cyanColor; font.bold: true }
+                        ComboBox { id: sectorManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
+                        Label { text: "INACTIVE RELAY"; color: Constants.cyanColor; font.bold: true }
+                        ComboBox { id: inactiveRelay; textRole: "name"; valueRole: "id"; model: root.inventoryData.inactiveScutRelays || []; Layout.fillWidth: true }
+                        Label { text: "NEW NETWORK NAME"; color: Constants.textColor }
+                        TextField { id: relayNetworkName; Layout.fillWidth: true; placeholderText: "Optional for an isolated relay"; maximumLength: 255 }
+                        Label { Layout.fillWidth: true; text: inactiveRelay.count ? "Activation consumes one Integrated Circuit. A network name is ignored when this relay joins existing coverage." : "No inactive SCUT relay is visible in the current sector. Jettison a stored relay above, then refresh."; color: inactiveRelay.count ? Constants.mutedTextColor : Constants.warningColor; wrapMode: Text.Wrap }
+                        Button {
+                            text: "REVIEW RELAY ACTIVATION"; enabled: sectorManny.count > 0 && root.selectedIntegerId(inactiveRelay) > 0
+                            onClicked: {
+                                const payload = {"relayId":root.selectedIntegerId(inactiveRelay)};
+                                if (relayNetworkName.text.trim().length > 0) payload.networkName = relayNetworkName.text.trim();
+                                root.pendingOperation = {"kind":"manny", "action":"turn-on-relay", "mannyId":String(sectorManny.currentValue), "payload":payload};
+                                operationConfirmation.open();
+                            }
+                        }
+
+                        Label { text: "ACTIVE RELAY"; color: Constants.cyanColor; font.bold: true }
+                        ComboBox { id: activeRelay; textRole: "name"; valueRole: "id"; model: root.inventoryData.activeScutRelaysWithoutBeacon || []; Layout.fillWidth: true }
+                        Label { Layout.fillWidth: true; text: activeRelay.count ? "Installs and consumes one stocked SCUT Transit Beacon on this relay." : "No active relay without a transit beacon is visible in the current sector."; color: activeRelay.count ? Constants.mutedTextColor : Constants.warningColor; wrapMode: Text.Wrap }
+                        Button { text: "REVIEW BEACON INSTALL"; enabled: sectorManny.count > 0 && root.selectedIntegerId(activeRelay) > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"install-scut-transit-beacon", "mannyId":String(sectorManny.currentValue), "payload":{"relayId":root.selectedIntegerId(activeRelay)}}; operationConfirmation.open(); } }
+
+                        Label { text: "INSPECT OBJECT"; color: Constants.cyanColor; font.bold: true }
+                        ComboBox { id: inspectObject; textRole: "name"; valueRole: "id"; model: root.inventoryData.inspectableObjects || []; Layout.fillWidth: true }
+                        Label { Layout.fillWidth: true; text: "Inspects asteroids, detached containers, or dormant constructs without starting a mining order."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                        Button { text: "REVIEW INSPECTION"; enabled: sectorManny.count > 0 && inspectObject.count > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"inspect-sector-object", "mannyId":String(sectorManny.currentValue), "payload":{"objectId":String(inspectObject.currentValue)}}; operationConfirmation.open(); } }
+
+                        Label { text: "BOOKMARK TARGET"; color: Constants.cyanColor; font.bold: true }
+                        ComboBox { id: bookmarkTarget; textRole: "name"; valueRole: "id"; model: root.inventoryData.bookmarkTargets || []; Layout.fillWidth: true }
+                        TextField { id: bookmarkName; Layout.fillWidth: true; placeholderText: "Bookmark name (required)"; maximumLength: 80 }
+                        Button { text: "REVIEW BOOKMARK INSTALL"; enabled: sectorManny.count > 0 && bookmarkTarget.count > 0 && bookmarkName.text.trim().length > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"install-bookmark", "mannyId":String(sectorManny.currentValue), "payload":{"objectId":String(bookmarkTarget.currentValue), "name":bookmarkName.text.trim()}}; operationConfirmation.open(); } }
+
+                        Label { text: "DEUTERIUM STATION"; color: Constants.cyanColor; font.bold: true }
+                        ComboBox { id: refuelStation; textRole: "name"; valueRole: "id"; model: root.inventoryData.refuelStations || []; Layout.fillWidth: true }
+                        Label { Layout.fillWidth: true; text: refuelStation.count ? "Fills the focused probe's tank to its configured maximum in one minute." : "No deuterium refuel station is visible in the current sector."; color: refuelStation.count ? Constants.mutedTextColor : Constants.warningColor; wrapMode: Text.Wrap }
+                        Button { text: "REVIEW STATION REFUEL"; enabled: sectorManny.count > 0 && refuelStation.count > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"refill-deuterium-tank", "mannyId":String(sectorManny.currentValue), "payload":{}}; operationConfirmation.open(); } }
+
+                        Label { text: "WAITING CARGO"; color: Constants.warningColor; font.bold: true }
+                        ComboBox { id: waitingCargoManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.waitingCargoMannies || []; Layout.fillWidth: true }
+                        Label { Layout.fillWidth: true; text: "Emergency re-dock: discards resource cargo permanently. Recoverable objects are returned to the sector."; color: Constants.criticalColor; wrapMode: Text.Wrap }
+                        Button { text: "REVIEW CARGO DISCARD"; enabled: waitingCargoManny.count > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"drop-manny-cargo", "mannyId":String(waitingCargoManny.currentValue), "payload":{}}; operationConfirmation.open(); } }
+                    }
+                }
+            }
+
+            GroupBox {
                 title: "CONTAINER DEPLOYMENT, RECOVERY & PROBE HANDOFF"; Layout.fillWidth: true
                 GridLayout {
                     anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10

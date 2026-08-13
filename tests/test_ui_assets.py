@@ -181,6 +181,13 @@ def test_inventory_workspace_exposes_complete_manual_game_controls():
         '"mine"',
         '"attach_to_probe"',
         "MANUAL MINING DESTINATION",
+        "SCUT RELAY DEPLOYMENT & SECTOR OPERATIONS",
+        '"turn-on-relay"',
+        '"install-scut-transit-beacon"',
+        '"inspect-sector-object"',
+        '"install-bookmark"',
+        '"refill-deuterium-tank"',
+        '"drop-manny-cargo"',
     ):
         assert control in workspace
     assert "CONFIRM LIVE INVENTORY ORDER" in workspace
