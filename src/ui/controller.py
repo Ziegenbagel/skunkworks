@@ -121,7 +121,16 @@ class MissionControlDataService:
 
         report(30, "Loading focused probe telemetry")
         details = timed("focusedProbe", lambda: self.client.get_probe(selected["id"]))
-        probe = details.get("probe", details)
+        probe = dict(details.get("probe", details))
+        # The requested fleet row is the selection authority. API v107 may
+        # return compact probe telemetry whose embedded identity is absent or
+        # stale while the probe-specific sector endpoint is current. Letting
+        # that identity replace the requested row produces a split dashboard:
+        # Explorer movement/trail with the Hub selector and current-sector
+        # marker. Preserve the selected identity while retaining all returned
+        # telemetry fields.
+        probe["id"] = selected["id"]
+        probe["name"] = selected.get("name") or probe.get("name") or f"Probe {selected['id']}"
         mannies = None
         if selected.get("isReachable", True):
             report(42, "Loading Manny tasks")

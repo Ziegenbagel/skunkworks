@@ -282,6 +282,13 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert 'text: "UNKNOWN"' not in galaxy
 
 
+def test_probe_selector_display_is_keyed_to_authoritative_focus_id():
+    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text()
+
+    assert "readonly property var selectedProbe: probeForId(currentProbeId)" in selector
+    assert "text: root.selectedProbe ? String(root.selectedProbe.name" in selector
+
+
 def test_transit_panel_labels_failed_refresh_data_as_last_known():
     sector = Path("src/ui/qml/components/SectorView.qml").read_text()
     screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()

@@ -10,7 +10,7 @@ Item {
     property var probeModel: []
     property int currentProbeId: -1
     property bool refreshing: false
-    readonly property var selectedProbe: selector.currentIndex >= 0 && selector.currentIndex < probeModel.length ? probeModel[selector.currentIndex] : null
+    readonly property var selectedProbe: probeForId(currentProbeId)
 
     signal probeSelected(int probeId)
     signal refreshRequested
@@ -24,6 +24,11 @@ Item {
                 return index;
         }
         return probeModel.length ? 0 : -1;
+    }
+
+    function probeForId(probeId) {
+        const index = indexForProbe(probeId);
+        return index >= 0 && index < probeModel.length ? probeModel[index] : null;
     }
 
     onCurrentProbeIdChanged: selector.currentIndex = indexForProbe(currentProbeId)
@@ -69,7 +74,7 @@ Item {
                 contentItem: Label {
                     leftPadding: 9
                     rightPadding: 25
-                    text: selector.displayText
+                    text: root.selectedProbe ? String(root.selectedProbe.name || "Probe " + root.currentProbeId) : "NO PROBE SELECTED"
                     color: Constants.textColor
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight
