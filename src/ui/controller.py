@@ -691,7 +691,28 @@ class MissionControlDataService:
             movement.get("arrivalSector") or movement.get("destinationSector")
             or movement.get("destination") or movement.get("target") or movement.get("to")
         )
-        planned_itinerary = self._journey_hops(origin, final, maximum_hop) if origin else (final,)
+        beacon_transit = bool(
+            current is not None
+            and leg_destination is not None
+            and operations.travel_safety.scut_beacon_corridor(
+                current, leg_destination,
+            )
+        )
+        direct_goal = bool(
+            operation is None
+            and desired.travel is not None
+            and desired.travel.route_mode == "direct"
+        )
+        live_only = phase == "live_travel"
+        if live_only or beacon_transit or direct_goal:
+            # The API has accepted one long-distance leg. Do not redraw it as
+            # imaginary distance-1 stops merely because the normal safety
+            # limit is one sector. Beacon corridors and explicit direct goals
+            # are single game movements.
+            planned_itinerary = (leg_destination or final,)
+            final = leg_destination or final
+        else:
+            planned_itinerary = self._journey_hops(origin, final, maximum_hop) if origin else (final,)
         if leg_destination in planned_itinerary:
             itinerary = planned_itinerary
             hop_number = planned_itinerary.index(leg_destination) + 1
@@ -719,6 +740,14 @@ class MissionControlDataService:
         return {
             "active": True,
             "phase": phase,
+            "journeyLabel": (
+                "SCUT BEACON TRANSIT"
+                if beacon_transit
+                else "DIRECT TRAVEL"
+                if direct_goal or live_only
+                else "AUTO-TRAVEL"
+            ),
+            "beaconTransit": beacon_transit,
             "traveling": bool(total_remaining),
             "hopNumber": int(hop_number),
             "totalHops": int(total_hops),

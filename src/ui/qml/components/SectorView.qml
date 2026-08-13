@@ -194,7 +194,7 @@ Rectangle {
             Label {
                 width: parent.width
                 visible: Boolean((root.focusProbe.transportJourney || {}).active)
-                text: "AUTO-TRAVEL · HOP " + Number((root.focusProbe.transportJourney || {}).hopNumber || 1)
+                text: String((root.focusProbe.transportJourney || {}).journeyLabel || "AUTO-TRAVEL") + " · HOP " + Number((root.focusProbe.transportJourney || {}).hopNumber || 1)
                       + " OF " + Number((root.focusProbe.transportJourney || {}).totalHops || 1)
                       + " · FINAL " + String((root.focusProbe.transportJourney || {}).finalDestinationLabel || "UNKNOWN")
                 color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap

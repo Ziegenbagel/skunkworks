@@ -478,7 +478,7 @@ def test_transit_panels_render_full_auto_travel_itinerary():
     sector = Path("src/ui/qml/components/SectorView.qml").read_text()
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
 
-    assert "AUTO-TRAVEL · HOP" in sector
+    assert 'journeyLabel || "AUTO-TRAVEL"' in sector
     assert "itineraryLabel" in sector
     assert "ITINERARY ·" in fleet
 

@@ -88,6 +88,40 @@ class TransportCycleTests(unittest.TestCase):
             self.assertEqual(journey["phase"], "live_travel")
             self.assertEqual(journey["itinerary"], [{"number": 1, "label": "1:1:0"}])
             self.assertFalse(journey["showFinalArrivalEstimate"])
+            self.assertEqual(journey["journeyLabel"], "DIRECT TRAVEL")
+
+    def test_live_beacon_transit_is_one_authoritative_hop(self):
+        from src.data import DataEngine
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        with tempfile.TemporaryDirectory() as temporary:
+            operations = build_operations()
+            operations.world.probe["movement"] = {
+                "originSector": {"relative": {"x": -5, "y": -18, "z": 17}},
+                "arrivalSector": {"relative": {"x": 0, "y": 1, "z": -1}},
+                "remainingSeconds": 40171,
+            }
+            operations.world.hazard_context = {"scutNetworks": [{"network": {
+                "id": "beacon-line",
+                "relays": [
+                    {"status": "on", "isTransitBeacon": True, "sector": {"relative": {"x": -5, "y": -18, "z": 17}}},
+                    {"status": "on", "isTransitBeacon": True, "sector": {"relative": {"x": 0, "y": 1, "z": -1}}},
+                ],
+            }}]}
+            service = MissionControlDataService(
+                data_engine=DataEngine(Path(temporary) / "journey.sqlite3"),
+            )
+
+            journey = service._transport_journey_view(
+                operations, 7, DesiredState.empty(),
+            )
+
+            self.assertEqual(journey["journeyLabel"], "SCUT BEACON TRANSIT")
+            self.assertTrue(journey["beaconTransit"])
+            self.assertEqual(journey["totalHops"], 1)
+            self.assertEqual(journey["itinerary"], [{"number": 1, "label": "0:1:-1"}])
+            self.assertFalse(journey["showFinalArrivalEstimate"])
 
     def test_changed_goal_keeps_live_leg_as_first_itinerary_hop(self):
         from src.data import DataEngine

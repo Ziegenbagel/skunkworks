@@ -35,7 +35,7 @@ Item {
             return "";
         const journey = probe.transportJourney || {};
         const itinerary = journey.active
-            ? "\nAUTO-TRAVEL · HOP " + Number(journey.hopNumber || 1)
+            ? "\n" + String(journey.journeyLabel || "AUTO-TRAVEL") + " · HOP " + Number(journey.hopNumber || 1)
               + " OF " + Number(journey.totalHops || 1)
               + " · FINAL " + String(journey.finalDestinationLabel || "UNKNOWN")
               + (journey.showFinalArrivalEstimate
