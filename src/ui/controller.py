@@ -1384,6 +1384,7 @@ class MissionControlDataService:
         desired = DesiredStateStore(self.data_engine).load(probe_id)
         assessment = self._operations.travel_safety.assess(
             destination,
+            route_mode=str(route_mode or "segmented").strip().lower(),
             maximum_segment_distance=desired.maximum_safe_hop_distance,
         )
         if assessment is None:
@@ -1448,7 +1449,30 @@ class MissionControlDataService:
             raise RuntimeError("Travel is blocked: " + ", ".join(preview["blockers"]))
         if preview.get("acknowledgementRequired") and not risk_acknowledged:
             raise RuntimeError("Risk acknowledgement is required.")
+        self.clear_automatic_travel_intent(preview["probeId"])
         return self.capabilities.probes.move(preview["probeId"], preview["executionTarget"])
+
+    def clear_automatic_travel_intent(self, probe_id):
+        """Let a one-time command or cancellation supersede saved routing."""
+        store = DesiredStateStore(self.data_engine)
+        current = store.load(probe_id)
+        if current.travel is not None:
+            store.save(replace(current, travel=None), probe_id)
+        operation_store = OperationStore(self.data_engine)
+        for operation in operation_store.all():
+            if (
+                operation.metadata.get("template") == "round_trip_transport"
+                and operation.state.value == "active"
+                and int(operation.probe_id or -1) == int(probe_id)
+            ):
+                operation_store.save(operation.pause("Superseded by manual travel control."))
+
+    def cancel_travel(self, probe_id):
+        # Clear the durable intent first. Even if the game rejects cancellation
+        # because preparation has already ended, automation must not recreate
+        # the movement on the following refresh.
+        self.clear_automatic_travel_intent(probe_id)
+        return self.capabilities.probes.cancel_move(probe_id)
 
     def save_transport_cycle(self, value):
         coordinates = lambda key: SectorCoordinates.from_api(value[key])
@@ -2853,7 +2877,7 @@ class MissionControlController(QObject):
             self._set_error("Select and refresh a probe before cancelling movement.")
             return
         try:
-            self.service.capabilities.probes.cancel_move(self._focused_probe_id)
+            self.service.cancel_travel(self._focused_probe_id)
         except Exception as error:
             self._set_error(str(error) or type(error).__name__)
             return

@@ -339,6 +339,31 @@ class TransportCycleTests(unittest.TestCase):
             self.assertEqual(paused["state"], "paused")
             self.assertIsNone(DesiredStateStore(engine).load(7).travel)
 
+    def test_manual_travel_supersedes_active_transport_intent(self):
+        from src.data import DataEngine
+        from src.operations import OperationFactory, OperationStore
+        from src.planner.desired_state_store import DesiredStateStore
+        from src.ui.controller import MissionControlDataService
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "transport.sqlite3")
+            operation = OperationFactory.create(
+                "round_trip_transport",
+                probe_id=7,
+                metadata={"cycle": self.plan.to_dict()},
+            ).activate()
+            OperationStore(engine).save(operation)
+            DesiredStateStore(engine).save(
+                DesiredState(travel=TravelGoal(SectorCoordinates(2, 0, 0), "segmented")),
+                7,
+            )
+            service = MissionControlDataService(client=object(), data_engine=engine)
+
+            service.clear_automatic_travel_intent(7)
+
+            self.assertIsNone(DesiredStateStore(engine).load(7).travel)
+            self.assertEqual(OperationStore(engine).get(operation.id).state.value, "paused")
+
     def test_unloading_uses_target_free_space_and_protects_return_fuel(self):
         from src.data import DataEngine
         from src.ui.controller import MissionControlDataService
