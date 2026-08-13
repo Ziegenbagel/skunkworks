@@ -20,6 +20,7 @@ Rectangle {
     readonly property real centerY: height * 0.50
     readonly property real orbitAspect: 0.62
     property string sectorLabel: "FCC 0 / 0 / 0"
+    property string connectionState: "connected"
     property double currentEpochMs: Date.now()
     readonly property bool probeInTransit: ["preparing", "accelerating", "cruising", "decelerating", "traveling"].indexOf(String(focusProbe.status || "").toLowerCase()) >= 0
     readonly property bool blackHoleDanger: Boolean(sectorData.blackHoleDanger)
@@ -186,6 +187,7 @@ Rectangle {
             anchors.margins: 15
             spacing: 7
             Label { text: "PROBE IN TRANSIT · " + String(root.focusProbe.status || "traveling").toUpperCase(); color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 22; font.bold: true }
+            Label { width: parent.width; visible: root.connectionState === "stale"; text: "LAST KNOWN TRAVEL TELEMETRY · REFRESH HAS NOT SUCCEEDED"; color: Constants.criticalColor; font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true; wrapMode: Text.Wrap }
             Label { width: parent.width; text: "ORIGIN SECTOR · " + String((root.focusProbe.movement || {}).originLabel || "UNKNOWN") + "    ARRIVAL SECTOR · " + String((root.focusProbe.movement || {}).destinationLabel || "UNKNOWN"); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 16; wrapMode: Text.Wrap }
             Label { width: parent.width; text: "SENSORS · " + String(root.focusProbe.sensorMode || "UNKNOWN").toUpperCase() + "    DEUTERIUM · " + Number(root.focusProbe.fuelPercent || 0).toFixed(2) + "%    VELOCITY C · " + String((root.focusProbe.movement || {}).velocity || root.focusProbe.velocity || "—") + "    HEADING · " + root.headingLabel((root.focusProbe.movement || {}).heading); color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 14; wrapMode: Text.Wrap }
             Label { width: parent.width; text: "REMAINING TIME · " + root.remainingLabel(root.focusProbe.movement || ({})); color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true; wrapMode: Text.Wrap }

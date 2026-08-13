@@ -3345,13 +3345,19 @@ class MissionControlController(QObject):
             self._available_probes = probes
             self.availableProbesChanged.emit()
 
+        # The selector and dashboard must always identify the same accepted
+        # snapshot. Never label an Explorer payload as the requested Hub (or
+        # vice versa) merely because that was the refresh target.
         probe_id = focus_id
-        # A reconnect response for an older request must not steal focus from
-        # the probe the operator explicitly selected while it was in flight.
-        if requested_probe_id is not None and int(requested_probe_id) >= 0:
-            probe_id = int(requested_probe_id) if any(
-                int(item.get("id", -1)) == int(requested_probe_id) for item in probes
-            ) else focus_id
+        if (
+            requested_probe_id is not None
+            and int(requested_probe_id) >= 0
+            and int(requested_probe_id) != focus_id
+        ):
+            self._set_error(
+                f"Requested probe {int(requested_probe_id)} but the API returned "
+                f"probe {focus_id}; retained the returned probe identity."
+            )
         if probe_id != self._focused_probe_id:
             self._focused_probe_id = probe_id
             self.focusedProbeIdChanged.emit()

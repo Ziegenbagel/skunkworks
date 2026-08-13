@@ -169,6 +169,30 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.dashboard["connectionLabel"], "LIVE LINK INTERRUPTED")
         self.assertIn("temporarily unavailable", controller.error)
 
+    def test_refresh_response_cannot_mismatch_selector_and_dashboard_identity(self):
+        class Service:
+            def load(self, probe_id, **_kwargs):
+                return {
+                    "focus": {"probeId": 9, "name": "Explorer"},
+                    "probeOptions": (
+                        {"id": 7, "name": "Hub"},
+                        {"id": 9, "name": "Explorer"},
+                    ),
+                    "connection": "connected",
+                }
+
+        class ImmediatePool:
+            @staticmethod
+            def start(worker):
+                worker.run()
+
+        controller = MissionControlController(Service(), ImmediatePool())
+        controller._start_refresh(7)
+
+        self.assertEqual(controller.focusedProbeId, 9)
+        self.assertEqual(controller.dashboard["focus"]["probeId"], 9)
+        self.assertIn("API returned probe 9", controller.error)
+
     def test_automatic_tick_dispatches_replanning_off_the_ui_thread(self):
         started = []
 

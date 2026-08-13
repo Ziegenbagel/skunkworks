@@ -18,6 +18,8 @@ from src.intelligence.world import (
     WorldModel,
 )
 
+from datetime import datetime
+
 
 class WorldBuilder:
     """
@@ -119,10 +121,14 @@ class WorldBuilder:
         }
         world.snapshot = {
             "probe": probe_name,
-            "last_refresh": "Unavailable",
-            "age": "N/A",
+            # This is still a current focused-probe refresh. Only the detailed
+            # sector view is unavailable while moving/out of coverage; calling
+            # the entire probe snapshot stale hides live movement telemetry.
+            "last_refresh": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "age": "0 sec",
             "age_seconds": 0,
-            "fresh": False,
+            "fresh": True,
+            "sector_available": False,
         }
 
         if mannies is not None:

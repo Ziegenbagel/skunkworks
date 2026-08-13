@@ -280,6 +280,14 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert 'text: "SCANNED"' in galaxy
     assert 'text: "OBSERVED"' not in galaxy
     assert 'text: "UNKNOWN"' not in galaxy
+
+
+def test_transit_panel_labels_failed_refresh_data_as_last_known():
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text()
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+
+    assert "LAST KNOWN TRAVEL TELEMETRY" in sector
+    assert 'connectionState: String(root.dashboardData.connection' in screen
     assert "SCUT TRANSIT BEACONS" in Path("src/ui/qml/components/AutomationSettings.qml").read_text()
 
 

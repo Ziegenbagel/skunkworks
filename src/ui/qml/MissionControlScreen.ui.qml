@@ -382,6 +382,7 @@ Rectangle {
                             previewMode: !root.liveMode
                             sectorData: root.dashboardData.sector || ({})
                             focusProbe: root.focusData
+                            connectionState: String(root.dashboardData.connection || "disconnected")
                         }
                     }
 
