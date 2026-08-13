@@ -44,7 +44,11 @@ class CommandPreparer:
         # model based on caller order.
         tasks = ordered_tasks(tasks)
         prepared = []
-        resource_claims = {}
+        # A non-executable manufacturing goal can still own the raw material
+        # already accumulated for its next unit.  Seed those partial claims
+        # before translating commands so a cheaper, lower-priority recipe
+        # cannot repeatedly spend deliveries mined for the blocked goal.
+        resource_claims = self._goal_resource_claims(tasks)
         item_claims = self._goal_item_claims(tasks)
         for task in tasks:
             # Claims made while evaluating one proposal are provisional.  A
@@ -166,6 +170,64 @@ class CommandPreparer:
         for (item_type, rank), amount in grouped.items():
             claims.setdefault(item_type, []).append((rank, amount))
         return claims
+
+    def _goal_resource_claims(self, tasks):
+        """Seed partial raw-resource claims for blocked production goals.
+
+        ``Prepare Manufacturing`` tasks do not translate into commands, so
+        their normal provisional claims would otherwise be rolled back.  Keep
+        at most the next unit's currently available inputs.  Equal-ranked
+        goals may share them; only lower-ranked work observes the claim.
+        """
+
+        manufacturing = self.translator.operations.manufacturing
+        grouped = {}
+        for task in tasks:
+            if task.action != "Prepare Manufacturing" or not task.target:
+                continue
+            plan = manufacturing.production_plan(
+                task.target,
+                quantity=1,
+                include_operational_constraints=False,
+                use_inventory_items=(task.category == "fleet_assembly"),
+            )
+            if plan is None:
+                continue
+            missing = plan.get("missing_resources", {})
+            if missing and not all(
+                self._resource_has_acquisition_path(resource)
+                for resource, amount in missing.items()
+                if float(amount) > 0
+            ):
+                # Do not strand unrelated inputs behind a goal whose next
+                # unit cannot currently be funded.  A later refresh will seed
+                # the claim again as soon as a source or inbound mining
+                # commitment for every missing resource becomes available.
+                continue
+            resources, _items = manufacturing.available_inputs()
+            rank = task_order_key(task)
+            for resource, required in plan["required_resources"].items():
+                amount = min(
+                    float(required), float(resources.get(resource, 0)),
+                )
+                if amount <= 0:
+                    continue
+                # Several planner entries can describe the same goal
+                # snapshot.  Claim the maximum next-unit amount, not their
+                # sum, to avoid manufacturing artificial scarcity.
+                key = (resource, rank, task.target)
+                grouped[key] = max(grouped.get(key, 0.0), amount)
+
+        claims = {}
+        for (resource, rank, _target), amount in grouped.items():
+            claims.setdefault(resource, []).append((rank, amount))
+        return claims
+
+    def _resource_has_acquisition_path(self, resource):
+        mining = self.translator.operations.mining
+        if mining.best_target(resource) is not None:
+            return True
+        return float(mining.active_commitments().get(resource, 0)) > 0
 
     def _reserve_manufacturing_inputs(
         self, task, resource_claims, item_claims, *, manual=False,

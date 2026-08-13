@@ -429,6 +429,87 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(prepared[1].disposition, "blocked")
         self.assertIn("resource_reserved_by_higher_priority_goal", prepared[1].blockers)
 
+    def test_partial_inputs_for_blocked_high_priority_craft_are_protected(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 1
+        self.operations.manufacturing.recipes._recipes["manny_goal"] = {
+            "id": "manny_goal",
+            "name": "Manny",
+            "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [
+                {"type": "metals", "quantity": 2, "kind": "resource"},
+            ],
+            "output": {"type": "manny", "containerSpace": 0.1},
+        }
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Prepare Manufacturing",
+                reason="Priority-1 Manny awaiting mined metals",
+                target="manny_goal",
+                constraints=("missing_resources",),
+                priority=1,
+            ),
+            Task(
+                action="Craft Item",
+                reason="Cheaper lower-priority container",
+                target="storage_container",
+                priority=2,
+            ),
+        ])
+
+        container = next(
+            item for item in prepared
+            if item.command.reason == "Cheaper lower-priority container"
+        )
+        self.assertEqual(container.disposition, "blocked")
+        self.assertIn(
+            "resource_reserved_by_higher_priority_goal", container.blockers,
+        )
+
+    def test_blocked_goal_releases_other_inputs_when_missing_resource_has_no_source(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["fuel"]["deuterium"] = 0
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 1
+        self.operations.world.sector["resources"][0]["resources"].pop("deuterium")
+        self.operations.manufacturing.recipes._recipes["manny_goal"] = {
+            "id": "manny_goal",
+            "name": "Manny",
+            "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [
+                {"type": "metals", "quantity": 2, "kind": "resource"},
+                {"type": "deuterium", "quantity": 2, "kind": "resource"},
+            ],
+            "output": {"type": "manny", "containerSpace": 0.1},
+        }
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Prepare Manufacturing",
+                reason="Manny has no reachable deuterium",
+                target="manny_goal",
+                constraints=("missing_resources",),
+                priority=1,
+            ),
+            Task(
+                action="Craft Item",
+                reason="Useful lower-priority container",
+                target="storage_container",
+                priority=2,
+            ),
+        ])
+
+        container = next(
+            item for item in prepared
+            if item.command.reason == "Useful lower-priority container"
+        )
+        self.assertNotIn(
+            "resource_reserved_by_higher_priority_goal", container.blockers,
+        )
+        self.assertNotEqual(container.disposition, "blocked")
+
     def test_ordinary_direct_recipe_does_not_consume_stored_tanker_components(self):
         from src.planner.task import Task
 
