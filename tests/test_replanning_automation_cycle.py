@@ -234,10 +234,14 @@ def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
         patch("src.ui.controller.CommandPreparer") as preparer,
     ):
         planner.return_value.tasks.return_value = tasks
+        preparer.return_value.prepare.return_value = (PreparedCommand(Command(
+            CommandType.MANNY_CRAFT, 7, {"recipe": "additional_container"},
+            "Container inputs available", 2, target_id="manny-a",
+        ), "ready"),)
         result = service._prepare_next_cycle_mining(ExecutionPolicy(), set())
 
     assert result is None
-    preparer.assert_not_called()
+    assert preparer.call_count == 1
 
 
 def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():

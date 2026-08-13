@@ -67,17 +67,27 @@ class ExecutionBoundaryTests(unittest.TestCase):
             ProductionGoal("storage_container", 1, priority=5),
         ))
         tasks = Planner(self.operations, desired).tasks()
-        dispatch = MissionControlDataService._dispatch_tasks(tasks)
         prepared = CommandPreparer(
             self.operations,
             1,
-            ExecutionPolicy(max_commands_per_cycle=1),
-        ).prepare(dispatch)
+            ExecutionPolicy(
+                mode=ExecutionMode.AUTOMATIC,
+                live_execution_enabled=True,
+                allowed_command_types=frozenset({
+                    CommandType.MANNY_CRAFT, CommandType.MANNY_MINE,
+                }),
+                max_commands_per_cycle=10,
+            ),
+        ).prepare(tasks)
+        dispatch = MissionControlDataService._dispatch_prepared_commands(prepared)
 
-        self.assertEqual(len(prepared), 1)
-        self.assertEqual(prepared[0].command.source_action, "Craft Item")
-        self.assertEqual(prepared[0].command.payload["recipe"], "storage_container")
-        self.assertFalse(any(task.category in {"fuel", "mining"} for task in dispatch))
+        ready = [item for item in dispatch if item.disposition == "ready"]
+        self.assertEqual(len(ready), 1)
+        self.assertEqual(ready[0].command.source_action, "Craft Item")
+        self.assertEqual(ready[0].command.payload["recipe"], "storage_container")
+        self.assertFalse(any(
+            item.command.type == CommandType.MANNY_MINE for item in dispatch
+        ))
 
     def test_craft_task_becomes_typed_dry_run_command(self):
         prepared = self.prepare(

@@ -37,7 +37,7 @@ from src.snapshot.manager import SnapshotManager
 from src.security import CredentialStore
 from src.planner.planner import Planner
 from src.planner.task import Task
-from src.planner.scheduling import dispatch_tasks, task_order_key
+from src.planner.scheduling import task_order_key
 from src.planner.assembly import PROBE_ASSEMBLY_REQUIREMENTS
 from src.execution import (
     AutomationRuntime, CapabilityDispatcher, CommandPreparer,
@@ -438,10 +438,18 @@ class MissionControlDataService:
                     and task.action in {"Craft Item", "Assemble Probe"}
                 )
             ]
-            dispatchable_tasks = dispatch_tasks(preparation_tasks)
-            self._prepared_commands = CommandPreparer(
-                operations, probe_id, policy,
-            ).prepare(dispatchable_tasks)
+            preparation_policy = replace(
+                policy,
+                max_commands_per_cycle=max(
+                    policy.max_commands_per_cycle, len(preparation_tasks),
+                ),
+            )
+            prepared_commands = CommandPreparer(
+                operations, probe_id, preparation_policy,
+            ).prepare(preparation_tasks)
+            self._prepared_commands = self._dispatch_prepared_commands(
+                prepared_commands
+            )
         return {
             "probeId": probe_id,
             "mode": policy.mode.value,
@@ -473,7 +481,31 @@ class MissionControlDataService:
 
     @classmethod
     def _dispatch_tasks(cls, tasks):
-        return dispatch_tasks(tasks)
+        # Compatibility helper for callers that operate on planner tasks. The
+        # authoritative acquisition decision is made after preflight and
+        # reservation checks by ``_dispatch_prepared_commands``.
+        return sorted(tasks, key=cls._dispatch_order)
+
+    @staticmethod
+    def _dispatch_prepared_commands(prepared):
+        """Hide acquisition only when fabrication is genuinely executable."""
+
+        fabrication_types = {
+            CommandType.MANNY_CRAFT,
+            CommandType.ATOMIC_PRINTER_CRAFT,
+            CommandType.MANNY_ASSEMBLE_PROBE,
+        }
+        actionable_fabrication = any(
+            item.command.type in fabrication_types
+            and item.disposition == "ready"
+            for item in prepared
+        )
+        if not actionable_fabrication:
+            return tuple(prepared)
+        return tuple(
+            item for item in prepared
+            if item.command.type != CommandType.MANNY_MINE
+        )
 
     def _reserve_tanker_delivery_tasks(self, operations, probe_id):
         """Let a same-sector reserve tanker top up its designated hub."""
@@ -1155,22 +1187,29 @@ class MissionControlDataService:
             return None
         desired = DesiredStateStore(self.data_engine).load(self._selected_probe_id)
         planned_tasks = tuple(Planner(self._operations, desired).tasks())
-        fabrication_waiting = any(
-            task.category in {"fleet_assembly", "manufacturing"}
-            and task.action in {"Craft Item", "Assemble Probe", "Prepare Manufacturing"}
-            and (
-                not task.constraints
-                or set(task.constraints) <= {
-                    "fabricator_unavailable", "no_idle_manny",
-                }
-            )
-            for task in planned_tasks
+        preparation_policy = replace(
+            policy,
+            max_commands_per_cycle=max(
+                policy.max_commands_per_cycle, len(planned_tasks),
+            ),
         )
-        if fabrication_waiting:
+        prepared_plan = CommandPreparer(
+            self._operations, self._selected_probe_id, preparation_policy,
+        ).prepare(planned_tasks)
+        fabrication_types = {
+            CommandType.MANNY_CRAFT,
+            CommandType.ATOMIC_PRINTER_CRAFT,
+            CommandType.MANNY_ASSEMBLE_PROBE,
+        }
+        if any(
+            item.command.type in fabrication_types
+            and item.disposition == "ready"
+            for item in prepared_plan
+        ):
             # Never let the mining-only fallback consume capacity needed by a
-            # recipe whose material inputs are already available. This check
-            # is intentionally repeated after every dispatched order because
-            # live Manny state can lag briefly behind the accepted API order.
+            # recipe that remains executable after reservation and preflight.
+            # Planner-level "Craft Item" labels are insufficient here because
+            # fleet-kit claims are applied only during command preparation.
             return None
         mining_tasks = tuple(
             task for task in planned_tasks

@@ -27,20 +27,3 @@ def task_order_key(task):
 
 def ordered_tasks(tasks):
     return sorted(tasks, key=task_order_key)
-
-
-def dispatch_tasks(tasks):
-    """Suppress acquisition only while executable fabrication exists."""
-
-    ordered = ordered_tasks(tasks)
-    actionable_fabrication = any(
-        task.action in {"Craft Item", "Assemble Probe"}
-        and not task.constraints
-        for task in ordered
-    )
-    if not actionable_fabrication:
-        return ordered
-    return [
-        task for task in ordered
-        if task.category not in {"fuel", "mining"}
-    ]
