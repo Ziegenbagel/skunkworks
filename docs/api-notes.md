@@ -12,7 +12,7 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v106 at revision
+Skunkworks supports deployed API v103 through upstream API v107 at revision
 `17d9600`.
 
 The application checks `/api/version` before loading operational state.

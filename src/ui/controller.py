@@ -1562,6 +1562,11 @@ class MissionControlDataService:
             self._selected_probe_id, container_id, rules,
         )
 
+    def reassign_crafting_reservations(self, container_id):
+        return self.capabilities.storage.reassign_crafting_reservations(
+            self._selected_probe_id, container_id,
+        )
+
     def move_storage(self, payload):
         return self.capabilities.storage.move(self._selected_probe_id, payload)
 
@@ -2998,8 +3003,21 @@ class MissionControlController(QObject):
         if code == "storage_container_reserved":
             return (
                 "STORAGE CONTAINER RESERVED · An active crafting task has reserved "
-                "space in this container for its output. Wait for or cancel that craft "
-                "before detaching, dropping, transferring, or emptying the container."
+                "space in this container for its output. Use Reassign Crafting "
+                "Reservations to atomically move those reservations to compatible "
+                "containers before retrying this operation."
+            )
+        if code == "crafting_reservations_cannot_be_reassigned":
+            return (
+                "CRAFTING RESERVATIONS CANNOT BE REASSIGNED · No compatible "
+                "combination of other containers currently has enough free space. "
+                "Nothing was changed."
+            )
+        if code == "probe_already_moving":
+            return (
+                "PROBE ALREADY MOVING · Inter-probe transfers require both the source "
+                "and destination probes to be stationary. Wait for both probes to "
+                "arrive, then send the transfer again."
             )
         if code == "invalid_cargo_reservation":
             return "INVALID CARGO RESERVATION · " + str(
@@ -3034,6 +3052,12 @@ class MissionControlController(QObject):
     def saveStorageRules(self, container_id, rules):
         self._inventory_mutation(
             lambda: self.service.update_container_rules(container_id, self._qt_safe(rules))
+        )
+
+    @Slot(str)
+    def reassignCraftingReservations(self, container_id):
+        self._inventory_mutation(
+            lambda: self.service.reassign_crafting_reservations(container_id)
         )
 
     @Slot("QVariantMap")

@@ -53,12 +53,12 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_accepts_current_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 106})]
+            [FakeResponse({"apiVersion": 107})]
         )
 
         self.assertEqual(
             client.ensure_compatible_api(),
-            106,
+            107,
         )
 
     def test_rejects_older_api(self):
@@ -71,7 +71,7 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_rejects_unreviewed_newer_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 107})]
+            [FakeResponse({"apiVersion": 108})]
         )
 
         with self.assertRaises(ApiCompatibilityError):

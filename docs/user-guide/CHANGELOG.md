@@ -1,5 +1,12 @@
 # Operator Manual Revision History
 
+## API v107 — 2026-08-13
+
+- Reviewed and enabled API v107. Container controls can atomically reassign
+  active crafting-output reservations before detachment or jettison. Moving-
+  probe transfer refusals now explain that both probes must arrive before the
+  operator retries, without additional polling.
+
 ## 0.1 — 2026-08-01
 
 - Added compatibility with the game’s 2026-08-02 crafting-reservation update:

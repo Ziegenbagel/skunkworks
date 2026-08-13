@@ -491,6 +491,27 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertIn("STORAGE CONTAINER RESERVED", message)
         self.assertIn("active crafting task", message)
+        self.assertIn("Reassign Crafting Reservations", message)
+
+    def test_reservation_reassignment_failure_promises_no_partial_change(self):
+        response = requests.Response()
+        response.status_code = 409
+        response._content = b'{"detail":{"error":{"code":"crafting_reservations_cannot_be_reassigned"}}}'
+        message = MissionControlController._inventory_error_message(
+            requests.HTTPError(response=response)
+        )
+        self.assertIn("CANNOT BE REASSIGNED", message)
+        self.assertIn("Nothing was changed", message)
+
+    def test_moving_probe_transfer_error_requires_no_polling_guidance(self):
+        response = requests.Response()
+        response.status_code = 409
+        response._content = b'{"detail":{"error":{"code":"probe_already_moving"}}}'
+        message = MissionControlController._inventory_error_message(
+            requests.HTTPError(response=response)
+        )
+        self.assertIn("PROBE ALREADY MOVING", message)
+        self.assertIn("source and destination", message)
 
     def test_production_includes_idle_mannies_and_order_readiness(self):
         work = MissionControlViewModelBuilder._production(

@@ -474,6 +474,11 @@ ApplicationWindow {
             if (window.backend) window.backend.saveStorageRules(containerId, rules);
         }
 
+        function onCraftingReservationsReassignRequested(containerId) {
+            AudioManager.play("confirm");
+            if (window.backend) window.backend.reassignCraftingReservations(containerId);
+        }
+
         function onStorageMoveRequested(payload) {
             AudioManager.play("confirm");
             if (window.backend) window.backend.moveStorage(payload);

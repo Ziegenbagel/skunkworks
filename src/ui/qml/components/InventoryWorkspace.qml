@@ -12,6 +12,7 @@ Item {
     signal probeRenameRequested(string name)
     signal containerRenameRequested(string containerId, string label)
     signal storageRulesSaveRequested(string containerId, var rules)
+    signal craftingReservationsReassignRequested(string containerId)
     signal storageMoveRequested(var payload)
     signal jettisonRequested(string itemId, real amount, string containerId)
     signal inventoryMannyActionRequested(string action, string mannyId, var payload)
@@ -181,11 +182,16 @@ Item {
                     delegate: Rectangle {
                         id: containerCard; required property var modelData
                         Layout.preferredWidth: (root.width - (containerGrid.columns - 1) * containerGrid.columnSpacing) / containerGrid.columns
-                        implicitHeight: 220; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
+                        implicitHeight: 270; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
                         ColumnLayout {
                             id: containerControls; anchors.fill: parent; anchors.margins: 18; spacing: 10
                             Label { Layout.fillWidth: true; text: String(containerCard.modelData.label || containerCard.modelData.id).toUpperCase() + " · " + Number(containerCard.modelData.usedCapacity || 0).toFixed(2) + " / " + Number(containerCard.modelData.capacity || 0).toFixed(2) + " ECE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true; wrapMode: Text.Wrap }
                             RowLayout { Layout.fillWidth: true; TextField { id: containerLabel; Layout.fillWidth: true; placeholderText: "New container label" } Button { text: "RENAME"; enabled: containerLabel.text.trim().length > 0; onClicked: root.containerRenameRequested(String(containerCard.modelData.id), containerLabel.text) } }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Button { text: "REASSIGN CRAFT RESERVATIONS"; onClicked: root.craftingReservationsReassignRequested(String(containerCard.modelData.id)) }
+                                Label { Layout.fillWidth: true; text: "Atomically moves active crafting-output reservations to other compatible containers. If they cannot all fit, nothing changes."; color: Constants.mutedTextColor; font.pixelSize: 12; wrapMode: Text.Wrap }
+                            }
                             Label { text: "PREFERRED CONTENTS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                             RowLayout {
                                 Layout.fillWidth: true

@@ -50,6 +50,18 @@ class StorageGateway:
             json={"rules": rules},
         )
 
+    def reassign_crafting_reservations(self, probe_id, container_id):
+        """Atomically move all active craft-output reservations elsewhere."""
+
+        return self.client.request(
+            "POST",
+            (
+                f"/api/probe/{probe_id}/storage-containers/"
+                f"{container_id}/crafting-reservations/reassign"
+            ),
+            json={},
+        )
+
     def move(self, probe_id, payload):
         return self.client.request(
             "POST",
