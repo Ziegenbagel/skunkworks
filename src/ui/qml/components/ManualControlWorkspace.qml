@@ -161,7 +161,7 @@ Item {
                         }
                         Label {
                             Layout.fillWidth: true
-                            text: "Required inputs are marked RAW RESOURCE or CRAFTED ITEM exactly as exposed by the game recipe catalog."
+                            text: "Each recipe is expanded into the total raw resources required for one finished item. Crafted intermediates are shown only in the probe assembly reference."
                             color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap
                         }
                         ListView {
@@ -191,10 +191,9 @@ Item {
                                     Label { Layout.fillWidth: true; text: recipeCard.modelData.description || "No description supplied by the game."; color: Constants.mutedTextColor; font.pixelSize: 12; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
                                     Label {
                                         Layout.fillWidth: true; Layout.fillHeight: true
-                                        text: "REQUIRES · " + ((recipeCard.modelData.ingredients || []).length
-                                            ? (recipeCard.modelData.ingredients || []).map(function(item) {
-                                                const kind = String(item.kind || "resource") === "resource" ? "RAW RESOURCE" : "CRAFTED ITEM";
-                                                return Number(item.quantity || 0) + " × " + String(item.name || item.type || "unknown").split("_").join(" ").toUpperCase() + " (" + kind + ")";
+                                        text: "TOTAL RAW RESOURCES · " + ((recipeCard.modelData.rawIngredients || []).length
+                                            ? (recipeCard.modelData.rawIngredients || []).map(function(item) {
+                                                return Number(item.quantity || 0) + " × " + String(item.name || item.type || "unknown").split("_").join(" ").toUpperCase();
                                             }).join("  ·  ")
                                             : "NO INPUTS")
                                         color: Constants.warningColor; font.pixelSize: 13; wrapMode: Text.Wrap

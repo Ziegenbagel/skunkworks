@@ -103,6 +103,20 @@ class ManufacturingServiceTests(unittest.TestCase):
             recipes,
         )
 
+    def test_recipe_manager_expands_crafted_inputs_to_raw_totals(self):
+        recipes = RecipeManager()
+        recipes.load(RECIPES)
+
+        totals = {
+            item["type"]: item["quantity"]
+            for item in recipes.raw_ingredients("electric_motor")
+        }
+
+        self.assertEqual(totals["metals"], 0.4)
+        self.assertEqual(totals["carbon_compounds"], 0.1)
+        self.assertEqual(totals["deuterium"], 0.5)
+        self.assertNotIn("steel_bar", totals)
+
     def test_recursively_synthesizes_missing_components(self):
         plan = self.service.production_plan(
             "electric_motor",

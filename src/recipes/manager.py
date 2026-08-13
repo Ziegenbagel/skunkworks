@@ -30,6 +30,29 @@ class RecipeManager:
 
         return tuple(self._recipes.values())
 
+    def raw_ingredients(self, recipe_id):
+        """Expand a recipe tree into total raw-resource requirements."""
+        totals = {}
+
+        def expand(identifier, multiplier, ancestry):
+            recipe = self.get(identifier)
+            if recipe is None or identifier in ancestry:
+                return
+            for ingredient in recipe.get("ingredients", ()):
+                ingredient_type = ingredient.get("type") or ingredient.get("id")
+                quantity = float(ingredient.get("quantity", 0) or 0) * multiplier
+                kind = str(ingredient.get("kind", "resource"))
+                if kind == "resource":
+                    totals[ingredient_type] = totals.get(ingredient_type, 0) + quantity
+                elif self.get(ingredient_type) is not None:
+                    expand(ingredient_type, quantity, ancestry | {identifier})
+
+        expand(recipe_id, 1, set())
+        return tuple(
+            {"type": resource, "name": resource.replace("_", " ").title(), "quantity": quantity}
+            for resource, quantity in sorted(totals.items())
+        )
+
     def ids(self):
         """
         Return all available recipe IDs.

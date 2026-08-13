@@ -148,8 +148,8 @@ def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
     controller = Path("src/ui/controller.py").read_text()
     assembly = Path("src/planner/assembly.py").read_text()
     assert "CRAFTING REFERENCE · ALL AVAILABLE RECIPES" in manual
-    assert "RAW RESOURCE" in manual
-    assert "CRAFTED ITEM" in manual
+    assert "TOTAL RAW RESOURCES" in manual
+    assert "rawIngredients" in manual
     assert "PROBE ASSEMBLY REQUIREMENTS" in manual
     assert '"probeAssemblies"' in controller
     assert "PROBE_ASSEMBLY_REQUIREMENTS" in assembly
@@ -159,6 +159,17 @@ def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
     assert "MANUAL PROBE ASSEMBLY" in manual
     assert "REVIEW PROBE ASSEMBLY" in manual
     assert "queueManualProbeAssembly" in controller
+
+
+def test_galaxy_map_operational_colors_override_trail_and_resources():
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()
+    hazard = galaxy.index('if (node.hasHazard) return "#ff4d5a";')
+    current = galaxy.index('if (String(node.mapState || "unknown") === "current"')
+    trail = galaxy.index("if (showRecentTrail && recentTrailNodes")
+    resources = galaxy.index("const selected = selectedResources();", trail)
+
+    assert hazard < current < trail < resources
+    assert '{"label":"HAZARD", "color":"#ff4d5a"}' in galaxy
 
 
 def test_remaining_v107_controls_are_exposed_in_their_safe_workspaces():

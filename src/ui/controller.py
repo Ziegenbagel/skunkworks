@@ -297,6 +297,7 @@ class MissionControlDataService:
                 "craftableBy": tuple(recipe.get("craftableBy", ())),
                 "durationSeconds": int(recipe.get("durationSeconds", 0) or 0),
                 "ingredients": tuple(recipe.get("ingredients", ())),
+                "rawIngredients": self.recipes.raw_ingredients(recipe.get("id")),
             } for recipe in sorted(
                 self.recipes.all(),
                 key=lambda item: str(item.get("name") or item.get("id") or "").lower(),
@@ -831,7 +832,11 @@ class MissionControlDataService:
                 if current_sector != source:
                     save_desired(replace(
                         desired,
-                        travel=TravelGoal(source, "segmented"),
+                        travel=TravelGoal(
+                            source,
+                            "segmented",
+                            risk_acknowledged=bool(cycle.get("riskAcknowledged", False)),
+                        ),
                     ))
                     return desired, [], travel_scope()
                 save_phase("loading")
@@ -880,7 +885,11 @@ class MissionControlDataService:
                 if current_sector != destination:
                     save_desired(replace(
                         desired,
-                        travel=TravelGoal(destination, "segmented"),
+                        travel=TravelGoal(
+                            destination,
+                            "segmented",
+                            risk_acknowledged=bool(cycle.get("riskAcknowledged", False)),
+                        ),
                     ))
                     return desired, [], travel_scope()
                 save_phase("unloading")
@@ -952,7 +961,11 @@ class MissionControlDataService:
                 if current_sector != return_point:
                     save_desired(replace(
                         desired,
-                        travel=TravelGoal(return_point, "segmented"),
+                        travel=TravelGoal(
+                            return_point,
+                            "segmented",
+                            risk_acknowledged=bool(cycle.get("riskAcknowledged", False)),
+                        ),
                     ))
                     return desired, [], travel_scope()
                 if cycle.get("repeat", True):
@@ -2416,6 +2429,24 @@ class MissionControlController(QObject):
                     target["riskAcknowledged"] = True
                     automation["travelTarget"] = target
                     self._dashboard["automation"] = automation
+                # Transport legs are regenerated as the durable operation
+                # advances. Persist consent on that operation so destination,
+                # return, and later circuit legs do not ask again unless the
+                # saved route itself is replaced.
+                operation_store = OperationStore(self.service.data_engine)
+                for operation in operation_store.all():
+                    if (
+                        operation.metadata.get("template") == "round_trip_transport"
+                        and operation.state.value == "active"
+                        and int(operation.probe_id or -1) == int(self._focused_probe_id)
+                    ):
+                        cycle = dict(operation.metadata.get("cycle") or {})
+                        cycle["riskAcknowledged"] = True
+                        operation_store.save(replace(
+                            operation,
+                            metadata={**operation.metadata, "cycle": cycle},
+                        ))
+                        break
             except Exception as error:
                 self._set_error(str(error) or type(error).__name__)
                 return

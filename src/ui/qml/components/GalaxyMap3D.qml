@@ -171,6 +171,11 @@ Item {
         );
     }
     function colorFor(node) {
+        // Operational state must remain legible regardless of resource and
+        // trail overlays. Hazards and the live focused sector take priority.
+        if (node.hasHazard) return "#ff4d5a";
+        if (String(node.mapState || "unknown") === "current" || node.isFocused)
+            return "#39ff9a";
         if (showRecentTrail && recentTrailNodes[String(node.id)])
             return "#ff9f1c";
         const selected = selectedResources();
@@ -185,7 +190,6 @@ Item {
             return matches.length > 1 ? "#9d7cff" : resourceColors[matches[0]];
         }
         const state = String(node.mapState || "unknown");
-        if (state === "current") return "#39ff9a";
         if (state === "scanned") return "#36d9ff";
         if (state === "visited") return "#347dff";
         return "#8496a8";
@@ -576,7 +580,7 @@ Item {
         anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 12
         spacing: 18
         Repeater {
-            model: [{"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}, {"label":"GOD SECTOR", "color":"#ffd34d"}]
+            model: [{"label":"HAZARD", "color":"#ff4d5a"}, {"label":"CURRENT", "color":Constants.nominalColor}, {"label":"SCANNED", "color":Constants.cyanColor}, {"label":"VISITED", "color":"#0e6cff"}, {"label":"DEUTERIUM", "color":"#e45cff"}, {"label":"METALS", "color":"#ffffff"}, {"label":"ICE", "color":"#32c5ff"}, {"label":"CARBON", "color":"#34f59a"}, {"label":"MULTIPLE", "color":"#9d7cff"}, {"label":"GOD SECTOR", "color":"#ffd34d"}]
             delegate: Row {
                 required property var modelData; spacing: 8
                 Rectangle { width: 18; height: 18; radius: 9; color: parent.modelData.color }
