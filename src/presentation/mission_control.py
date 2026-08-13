@@ -255,6 +255,13 @@ class MissionControlViewModelBuilder:
             "probeId": world.probe.get("id"),
             "probeName": world.probe.get("name", "Probe"),
             "containers": containers,
+            "emptyAssemblyContainers": tuple(
+                container for container in containers
+                if (
+                    (container.get("kind") == "container" or container.get("type") == "additional_container")
+                    and float(container.get("usedCapacity", 0) or 0) <= 0
+                )
+            ),
             "items": tuple(items),
             "resourcePlacements": tuple(resource_lines),
             "idleMannies": idle_mannies,

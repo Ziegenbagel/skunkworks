@@ -96,6 +96,7 @@
         <file>components/PanelFrame.qml</file>
         <file>components/ProbeSelector.qml</file>
         <file>components/ResourceWorkspace.qml</file>
+        <file>components/SafetyWorkspace.qml</file>
         <file>components/ScutNetworkOverlay.qml</file>
         <file>components/SectorView.qml</file>
         <file>components/StatusPill.qml</file>

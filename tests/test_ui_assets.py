@@ -156,6 +156,22 @@ def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
     assert "GENERIC_COMPONENTS" in assembly
     assert '"Generic Class Probe"' in controller
     assert '"Tanker Class Probe"' in controller
+    assert "MANUAL PROBE ASSEMBLY" in manual
+    assert "REVIEW PROBE ASSEMBLY" in manual
+    assert "queueManualProbeAssembly" in controller
+
+
+def test_remaining_v107_controls_are_exposed_in_their_safe_workspaces():
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+    assert "MAKE DEFAULT" in fleet
+    assert "makeFocusedProbeDefault" in controller
+    assert "TERMINAL PROBE RECOVERY" in safety
+    assert "REVIEW MIND-SNAPSHOT REASSIGNMENT" in safety
+    assert "reassignMindSnapshot" in controller
+    assert 'root.section === "SAFETY"' in navigation
 
 
 def test_automation_queue_names_the_actual_output_for_each_craft():

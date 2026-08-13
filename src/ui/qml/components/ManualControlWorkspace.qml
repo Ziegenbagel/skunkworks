@@ -14,6 +14,7 @@ Item {
     signal repairRequested(string mannyId, real integrityPercent)
     signal upgradeRequested(string mannyId, string improvementId)
     signal miningRequested(string mannyId, var payload)
+    signal probeAssemblyRequested(string mannyId, string model, var containerIds)
     signal containerRenameRequested(string containerId, string label)
     signal storageRulesSaveRequested(string containerId, var rules)
     signal craftingReservationsReassignRequested(string containerId)
@@ -78,6 +79,23 @@ Item {
                                 ComboBox { id: craftManny; Layout.preferredWidth: 280; textRole: "name"; valueRole: "id"; model: (root.dashboardData.crafting || {}).idleMannies || []; enabled: recipe.currentIndex >= 0 && ((((root.dashboardData.crafting || {}).recipes || [])[recipe.currentIndex] || {}).craftableBy || []).indexOf("manny") >= 0 }
                                 Button { text: "QUEUE BUILD"; enabled: recipe.currentIndex >= 0 && (!craftManny.enabled || craftManny.currentIndex >= 0); onClicked: root.craftRequested(String(recipe.currentValue), craftManny.enabled ? String(craftManny.currentValue) : "") }
                             }
+                        }
+                    }
+                    GroupBox {
+                        title: "MANUAL PROBE ASSEMBLY"
+                        Layout.fillWidth: true
+                        GridLayout {
+                            anchors.fill: parent; columns: 4; columnSpacing: 12; rowSpacing: 10
+                            Label { text: "MODEL"; color: Constants.cyanColor; font.bold: true }
+                            ComboBox { id: assemblyModel; textRole: "name"; valueRole: "model"; model: (root.dashboardData.crafting || {}).probeAssemblies || []; Layout.fillWidth: true }
+                            Label { text: "ASSEMBLY MANNY"; color: Constants.cyanColor; font.bold: true }
+                            ComboBox { id: assemblyManny; textRole: "name"; valueRole: "id"; model: (root.dashboardData.crafting || {}).idleMannies || []; Layout.fillWidth: true }
+                            Label { text: "EMPTY CONTAINER 1"; color: Constants.textColor }
+                            ComboBox { id: assemblyContainerOne; textRole: "label"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).emptyAssemblyContainers || []; Layout.fillWidth: true }
+                            Label { text: "EMPTY CONTAINER 2"; color: Constants.textColor }
+                            ComboBox { id: assemblyContainerTwo; textRole: "label"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).emptyAssemblyContainers || []; Layout.fillWidth: true }
+                            Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "Assembly takes three hours and consumes the selected two distinct empty additional containers plus every required model component shown above. Recheck inventory before confirming."; color: Constants.warningColor; wrapMode: Text.Wrap }
+                            Button { text: "REVIEW PROBE ASSEMBLY"; enabled: assemblyModel.count > 0 && assemblyManny.count > 0 && assemblyContainerOne.count >= 2 && String(assemblyContainerOne.currentValue) !== String(assemblyContainerTwo.currentValue); onClicked: assemblyConfirmation.open() }
                         }
                     }
                     GroupBox {
@@ -213,5 +231,12 @@ Item {
                 onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
             }
         }
+    }
+
+    Dialog {
+        id: assemblyConfirmation; anchors.centerIn: parent; modal: true
+        title: "CONFIRM PROBE ASSEMBLY"; standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.probeAssemblyRequested(String(assemblyManny.currentValue), String(assemblyModel.currentValue), [String(assemblyContainerOne.currentValue), String(assemblyContainerTwo.currentValue)])
+        Label { width: 600; text: "This sends a live three-hour assembly order and consumes the two selected empty containers and all required crafted components. Cancelling later leaves consumed ingredients drifting in the assembly sector."; color: Constants.criticalColor; wrapMode: Text.Wrap }
     }
 }

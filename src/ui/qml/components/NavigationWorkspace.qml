@@ -60,6 +60,9 @@ PanelFrame {
     signal manualRepairRequested(string mannyId, real integrityPercent)
     signal manualUpgradeRequested(string mannyId, string improvementId)
     signal manualMiningRequested(string mannyId, var payload)
+    signal manualProbeAssemblyRequested(string mannyId, string model, var containerIds)
+    signal makeDefaultProbeRequested()
+    signal mindSnapshotReassignRequested()
     signal mannyCancelRequested(string mannyId)
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
@@ -217,6 +220,7 @@ PanelFrame {
             onProbeRenameRequested: name => root.probeRenameRequested(name)
             onMannyRenameRequested: (mannyId, name) => root.mannyRenameRequested(mannyId, name)
             onFleetNamingRequested: (policy, applyExisting) => root.fleetNamingRequested(policy, applyExisting)
+            onMakeDefaultRequested: root.makeDefaultProbeRequested()
         }
 
         ManualControlWorkspace {
@@ -229,12 +233,21 @@ PanelFrame {
             onRepairRequested: (mannyId, integrityPercent) => root.manualRepairRequested(mannyId, integrityPercent)
             onUpgradeRequested: (mannyId, improvementId) => root.manualUpgradeRequested(mannyId, improvementId)
             onMiningRequested: (mannyId, payload) => root.manualMiningRequested(mannyId, payload)
+            onProbeAssemblyRequested: (mannyId, model, containerIds) => root.manualProbeAssemblyRequested(mannyId, model, containerIds)
             onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
             onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
             onCraftingReservationsReassignRequested: containerId => root.craftingReservationsReassignRequested(containerId)
             onStorageMoveRequested: payload => root.storageMoveRequested(payload)
             onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
             onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
+        }
+
+        SafetyWorkspace {
+            anchors.fill: parent
+            visible: root.section === "SAFETY"
+            alerts: root.dashboardData.alerts || []
+            recovery: root.dashboardData.terminalRecovery || ({})
+            onMindSnapshotReassignRequested: root.mindSnapshotReassignRequested()
         }
 
         CommunicationsWorkspace {
@@ -254,7 +267,7 @@ PanelFrame {
         }
 
         Column {
-            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES" && root.section !== "FLEET" && root.section !== "COMMUNICATIONS" && root.section !== "MANUAL CONTROL"
+            visible: root.section !== "GALAXY MAP" && root.section !== "SETTINGS" && root.section !== "NAVIGATION" && root.section !== "RESOURCES" && root.section !== "FLEET" && root.section !== "COMMUNICATIONS" && root.section !== "MANUAL CONTROL" && root.section !== "SAFETY"
             anchors.fill: parent
             spacing: 12
 

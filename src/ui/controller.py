@@ -212,6 +212,16 @@ class MissionControlDataService:
         dashboard["defaultProbeId"] = (
             default_probe["id"] if default_probe is not None else None
         )
+        terminal_probe = next((
+            item for item in options
+            if item.get("isDefault") and item.get("status") in {"dead", "trapped_by_black_hole"}
+        ), None)
+        dashboard["terminalRecovery"] = {
+            "available": terminal_probe is not None,
+            "probeId": terminal_probe.get("id") if terminal_probe else None,
+            "probeName": terminal_probe.get("name") if terminal_probe else "",
+            "status": terminal_probe.get("status") if terminal_probe else "",
+        }
         dashboard["syncFailures"] = sync_failures
         dashboard["emergencyStopActive"] = self.data_engine.emergency_stop_active()
         if self._last_scan_result is not None:
@@ -1674,6 +1684,36 @@ class MissionControlDataService:
             {"improvement": improvement_id},
         )
 
+    def manual_assemble_probe(self, manny_id, model, container_ids):
+        if not manny_id:
+            raise ValueError("Select an idle Manny for probe assembly.")
+        if model not in PROBE_ASSEMBLY_REQUIREMENTS:
+            raise ValueError("Select a supported probe model.")
+        container_ids = tuple(str(value) for value in (container_ids or ()))
+        if len(container_ids) != 2 or len(set(container_ids)) != 2:
+            raise ValueError("Select two distinct empty additional containers.")
+        available = {
+            str(item.get("id")) for item in self._operations.world.probe.get("inventory", {}).get("containers", ())
+            if (item.get("kind") == "container" or item.get("type") == "additional_container")
+            and float(item.get("usedCapacity", 0) or 0) <= 0
+        }
+        if not set(container_ids).issubset(available):
+            raise ValueError("One of the selected assembly containers is no longer empty or attached. Refresh and select again.")
+        return self.capabilities.mannies.start_task(
+            self._selected_probe_id, manny_id, "assemble-probe",
+            {"model": model, "containerIds": list(container_ids)},
+        )
+
+    def make_focused_probe_default(self):
+        return self.capabilities.probes.make_default(self._selected_probe_id)
+
+    def reassign_mind_snapshot(self):
+        probes = (getattr(self._operations.world, "fleet", None) or {}).get("probes", ())
+        terminal = next((item for item in probes if item.get("isDefault") and item.get("status") in {"dead", "trapped_by_black_hole"}), None)
+        if terminal is None:
+            raise ValueError("Mind-snapshot reassignment is only available when the default probe is dead or trapped by a black hole.")
+        return self.capabilities.reassign_mind_snapshot()
+
     def scan_sector(self, target):
         response = self.capabilities.galaxy.observe_sector(target["x"], target["y"], target["z"])
         self.data_engine.record_sector_observation(self._selected_probe_id, response)
@@ -2653,6 +2693,20 @@ class MissionControlController(QObject):
             return
         self._set_error("")
         self._start_refresh(self._focused_probe_id)
+
+    @Slot(str, str, "QVariantList")
+    def queueManualProbeAssembly(self, manny_id, model, container_ids):
+        self._inventory_mutation(lambda: self.service.manual_assemble_probe(
+            manny_id, model, self._qt_safe(container_ids),
+        ))
+
+    @Slot()
+    def makeFocusedProbeDefault(self):
+        self._inventory_mutation(self.service.make_focused_probe_default)
+
+    @Slot()
+    def reassignMindSnapshot(self):
+        self._inventory_mutation(self.service.reassign_mind_snapshot)
 
     @Slot(int, str)
     def assignProbeRole(self, probe_id, role):

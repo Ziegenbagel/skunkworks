@@ -335,16 +335,18 @@ storage moves and rules, container detach/drop/recovery, item and resource
 jettison, same-sector transfers, reservation reassignment, alerts, logbooks,
 messages, missions, and probe renaming.
 
-The following operations intentionally remain outside this general inventory
-panel:
+The following operations remain outside the general inventory panel because
+their dedicated controls require stronger context and confirmation:
 
-- `assemble-probe` is reference/automation-only pending a dedicated review that
-  shows the model components and the two distinct empty containers consumed.
-- setting `isDefault` belongs with fleet identity controls and requires explicit
-  presentation of the SCUT/same-sector reachability rule.
-- `mind-snapshot/reassign` is terminal disaster recovery that deletes the dead
-  or trapped probe and resets the reference frame; it belongs in Safety and must
-  only appear when the API advertises its critical recovery action.
+- `assemble-probe` is in Manual Control / Crafting. It requires an idle Manny,
+  a model, and two distinct empty additional containers, and presents the full
+  destructive assembly warning before submission.
+- setting `isDefault` is in Fleet identity controls and is enabled only for a
+  reachable, focused, non-default probe. The confirmation states the shared
+  SCUT/same-sector requirement.
+- `mind-snapshot/reassign` is in Safety. It appears only when the current
+  default probe is reported dead or trapped by a black hole and explicitly
+  warns that the terminal state is deleted and the reference frame reset.
 - batch Manny task endpoints are transport optimizations, not separate player
   features; Skunkworks uses the equivalent reviewed individual actions.
 - account-key and forum administration are account/community concerns rather

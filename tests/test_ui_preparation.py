@@ -809,6 +809,18 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in inventory["refuelStations"]], ["station-1"])
         self.assertEqual([item["id"] for item in inventory["waitingCargoMannies"]], ["manny-waiting"])
 
+    def test_inventory_management_lists_only_empty_additional_assembly_containers(self):
+        world = build_operations().world
+        world.probe["inventory"]["containers"] = [
+            {"id": "probe-core", "kind": "probe", "usedCapacity": 0},
+            {"id": "empty-1", "kind": "container", "usedCapacity": 0},
+            {"id": "used-1", "kind": "container", "usedCapacity": 0.01},
+        ]
+
+        inventory = MissionControlViewModelBuilder._inventory_management(world)
+
+        self.assertEqual([item["id"] for item in inventory["emptyAssemblyContainers"]], ["empty-1"])
+
     def test_galaxy_view_exposes_discovered_nodes_and_neighbor_links(self):
         from src.models.galaxy import GalaxyMap
 

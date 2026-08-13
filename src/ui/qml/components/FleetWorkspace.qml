@@ -23,6 +23,7 @@ Item {
     signal probeRenameRequested(string name)
     signal mannyRenameRequested(string mannyId, string name)
     signal fleetNamingRequested(var policy, bool applyExisting)
+    signal makeDefaultRequested()
     signal repairRequested(string mannyId, real integrityPercent)
     signal upgradeRequested(string mannyId, string improvementId)
     signal miningRequested(string mannyId, var payload)
@@ -104,6 +105,17 @@ Item {
             Label { text: "RENAME FOCUSED PROBE"; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
             TextField { id: probeName; Layout.fillWidth: true; placeholderText: "New probe name" }
             Button { text: "RENAME"; enabled: probeName.text.trim().length > 0; onClicked: root.probeRenameRequested(probeName.text) }
+            Button {
+                text: "MAKE DEFAULT"
+                enabled: root.focusedProbeId >= 0 && root.probes.some(function(item) { return Number(item.id) === root.focusedProbeId && !item.isDefault && item.isReachable; })
+                onClicked: makeDefaultConfirmation.open()
+            }
+        }
+        Label {
+            visible: !root.manualOnly
+            Layout.fillWidth: true
+            text: "Default-probe reassignment requires the current default and focused probe to share a sector or active SCUT network. Unreachable probes cannot be selected."
+            color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap
         }
         GroupBox {
             visible: !root.manualOnly
@@ -278,5 +290,12 @@ Item {
             text: "This sends a live mining order to the selected idle Manny. Confirm the focused probe, mineable object, resource, and amount before continuing."
             color: Constants.textColor; font.pixelSize: 15; wrapMode: Text.Wrap
         }
+    }
+
+    Dialog {
+        id: makeDefaultConfirmation; anchors.centerIn: parent; modal: true
+        title: "CONFIRM DEFAULT PROBE CHANGE"; standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.makeDefaultRequested()
+        Label { width: 560; text: "The focused probe becomes the account's default probe and primary reference for reachable telemetry and default-only controls. Confirm both probes are in the same sector or connected through the same active SCUT network."; color: Constants.textColor; wrapMode: Text.Wrap }
     }
 }

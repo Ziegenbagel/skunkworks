@@ -334,6 +334,24 @@ ApplicationWindow {
                 window.backend.runInventoryMannyAction("mine", mannyId, payload);
         }
 
+        function onManualProbeAssemblyRequested(mannyId, model, containerIds) {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.queueManualProbeAssembly(mannyId, model, containerIds);
+        }
+
+        function onMakeDefaultProbeRequested() {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.makeFocusedProbeDefault();
+        }
+
+        function onMindSnapshotReassignRequested() {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.reassignMindSnapshot();
+        }
+
         function onMannyCancelRequested(mannyId) {
             AudioManager.play("warning");
             if (window.backend)
