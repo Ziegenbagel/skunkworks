@@ -810,6 +810,28 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(view["nodes"], ())
         self.assertEqual(view["focusCoordinates"], {"x": -12, "y": 4, "z": 8})
 
+    def test_build_uses_authoritative_sector_snapshot_coordinates_when_probe_omits_them(self):
+        base = build_operations()
+        base.world.probe["sector"] = None
+        base.world.sector["snapshot"] = {
+            "sector": {
+                "relativeCoordinates": {"x": 1, "y": 1, "z": -2},
+                "objects": [],
+            }
+        }
+
+        view = MissionControlViewModelBuilder(base).build()
+
+        self.assertEqual(view["focus"]["sector"], {"x": 1, "y": 1, "z": -2})
+        self.assertEqual(view["galaxy"]["focusCoordinates"], {"x": 1, "y": 1, "z": -2})
+
+    def test_galaxy_view_does_not_convert_unknown_focus_to_origin(self):
+        base = build_operations()
+
+        view = MissionControlViewModelBuilder(base)._galaxy_view(base.world, {})
+
+        self.assertIsNone(view["focusCoordinates"])
+
     def test_galaxy_view_exposes_resource_hazard_salvage_filters_and_recent_route(self):
         from src.models.galaxy import GalaxyMap
 

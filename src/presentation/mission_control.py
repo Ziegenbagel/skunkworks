@@ -21,7 +21,7 @@ class MissionControlViewModelBuilder:
             "probes": (probe,),
         }
         health = self.operations.health.assess()
-        coordinates = self._coordinates(probe)
+        coordinates = self._coordinates(probe, world.sector)
         findings = tuple(asdict(item) for item in health.findings)
         connection = self._connection_state(probe, world.snapshot)
         health_view = asdict(health)
@@ -468,11 +468,11 @@ class MissionControlViewModelBuilder:
             # existing in the persisted discovery graph. A newly arrived or
             # partially refreshed probe can legitimately have no matching
             # rendered node yet.
-            "focusCoordinates": {
-                "x": int(focus_coordinates.get("x", 0) or 0),
-                "y": int(focus_coordinates.get("y", 0) or 0),
-                "z": int(focus_coordinates.get("z", 0) or 0),
-            },
+            "focusCoordinates": ({
+                "x": int(focus_coordinates["x"]),
+                "y": int(focus_coordinates["y"]),
+                "z": int(focus_coordinates["z"]),
+            } if all(axis in focus_coordinates for axis in ("x", "y", "z")) else None),
             "focusProbeId": world.probe.get("id"),
             "edges": tuple(edges),
             "sectorCount": len(nodes),
@@ -654,9 +654,21 @@ class MissionControlViewModelBuilder:
                      if (identifier := f"{visit['sector_x']}:{visit['sector_y']}:{visit['sector_z']}") in known_ids)
 
     @staticmethod
-    def _coordinates(probe):
+    def _coordinates(probe, world_sector=None):
         sector = probe.get("sector") or {}
-        return sector.get("relative") or sector.get("relativeCoordinates") or {}
+        coordinates = sector.get("relative") or sector.get("relativeCoordinates")
+        if coordinates:
+            return coordinates
+        # Reachable-probe GET /probe records may omit sector coordinates even
+        # though the authoritative GET /probe/{id}/sector response contains
+        # them. Use that live snapshot before declaring the location unknown.
+        snapshot = (world_sector or {}).get("snapshot") or {}
+        snapshot_sector = snapshot.get("sector") or snapshot
+        return (
+            snapshot_sector.get("relative")
+            or snapshot_sector.get("relativeCoordinates")
+            or {}
+        )
 
     @staticmethod
     def _sector_label(coordinates):
