@@ -145,7 +145,7 @@ class CommandPreparer:
             priority=11,
         )
         return tuple(self._reserve_manufacturing_inputs(
-            manual, resource_claims, item_claims,
+            manual, resource_claims, item_claims, manual=True,
         ))
 
     @staticmethod
@@ -167,7 +167,9 @@ class CommandPreparer:
             claims.setdefault(item_type, []).append((rank, amount))
         return claims
 
-    def _reserve_manufacturing_inputs(self, task, resource_claims, item_claims):
+    def _reserve_manufacturing_inputs(
+        self, task, resource_claims, item_claims, *, manual=False,
+    ):
         if task.action not in {"Craft Item", "Prepare Manufacturing"} or not task.target:
             return []
         # The dispatcher starts one craft per proposal. Reserve the inputs for
@@ -180,11 +182,12 @@ class CommandPreparer:
             task.target,
             quantity=1,
             include_operational_constraints=False,
-            # Match the game server, which consumes stored recursive
-            # ingredients before synthesizing missing ones.  Planning a craft
-            # as "raw resources only" made the reservation ledger blind to
-            # exactly the tanker components the live API would take.
-            use_inventory_items=True,
+            # Ordinary game recipes are submitted as one direct recursive
+            # craft. They synthesize nested ingredients from raw resources and
+            # must not be treated as consumers of physical assembly inventory.
+            # Fleet-component work is the exception: that chain deliberately
+            # works with the stored kit allocated to its assembly goal.
+            use_inventory_items=(manual or task.category == "fleet_assembly"),
         )
         if plan is None:
             return []
