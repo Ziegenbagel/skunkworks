@@ -413,6 +413,52 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(prepared[1].disposition, "blocked")
         self.assertIn("resource_reserved_by_higher_priority_goal", prepared[1].blockers)
 
+    def test_blocked_recipe_rolls_back_provisional_claims_for_next_recipe(self):
+        from src.planner.task import Task
+
+        inventory = self.operations.world.probe["inventory"]
+        inventory.setdefault("items", []).append(
+            {"id": "reserved-relay", "type": "scut_relay"}
+        )
+        inventory["resourceStocks"][0]["amount"] = 1
+        self.operations.manufacturing.recipes._recipes["blocked_consumer"] = {
+            "id": "blocked_consumer", "name": "Blocked consumer",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [
+                {"type": "scut_relay", "quantity": 1, "kind": "item"},
+                {"type": "metals", "quantity": 1, "kind": "resource"},
+            ],
+            "output": {"type": "blocked_consumer", "containerSpace": 0.1},
+        }
+        policy = ExecutionPolicy(
+            mode=ExecutionMode.AUTOMATIC,
+            live_execution_enabled=True,
+            allowed_command_types=frozenset({CommandType.MANNY_CRAFT}),
+            max_commands_per_cycle=10,
+        )
+        prepared = CommandPreparer(self.operations, 1, policy).prepare([
+            Task(
+                action="Await Active Production", reason="Protected fleet relay",
+                category="fleet_assembly", target="electric_motor",
+                constraints=("active_production_pending",),
+                reserved_items=(("scut_relay", 1),), priority=2,
+            ),
+            Task(
+                action="Craft Item", reason="Blocked consumer",
+                category="manufacturing", target="blocked_consumer", priority=1,
+            ),
+            Task(
+                action="Craft Item", reason="Viable alternate",
+                category="manufacturing", target="storage_container", priority=2,
+            ),
+        ])
+
+        blocked = next(item for item in prepared if item.command.reason == "Blocked consumer")
+        alternate = next(item for item in prepared if item.command.reason == "Viable alternate")
+        self.assertIn("item_reserved_by_higher_priority_goal", blocked.blockers)
+        self.assertEqual(alternate.disposition, "ready")
+        self.assertNotIn("resource_reserved_by_higher_priority_goal", alternate.blockers)
+
     def test_lower_priority_recipe_cannot_consume_stored_tanker_components(self):
         from src.planner.task import Task
 

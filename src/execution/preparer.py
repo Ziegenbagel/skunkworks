@@ -47,12 +47,25 @@ class CommandPreparer:
         resource_claims = {}
         item_claims = self._goal_item_claims(tasks)
         for task in tasks:
+            # Claims made while evaluating one proposal are provisional.  A
+            # rejected proposal must not poison every candidate behind it.
+            # Seeded assembly-kit claims remain present in these snapshots.
+            resource_snapshot = {
+                resource: list(claims)
+                for resource, claims in resource_claims.items()
+            }
+            item_snapshot = {
+                item_type: list(claims)
+                for item_type, claims in item_claims.items()
+            }
             reservation_blockers = self._reserve_manufacturing_inputs(
                 task, resource_claims, item_claims,
             )
             command = self.translator.translate(task)
 
             if command is None:
+                resource_claims = resource_snapshot
+                item_claims = item_snapshot
                 continue
 
             blockers = list(self.validator.blockers(command))
@@ -81,6 +94,8 @@ class CommandPreparer:
             # retain that temporary claim and starve later valid proposals.
             if blockers:
                 self.translator.release_claim(command)
+                resource_claims = resource_snapshot
+                item_claims = item_snapshot
 
             disposition = self._disposition(
                 command,
