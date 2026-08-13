@@ -22,7 +22,7 @@ def test_automatic_cycle_replans_after_each_successful_order():
         "restore missing input", 1, target_id="manny-b",
     ), "ready")
     queues = iter(((craft,), (mine,), ()))
-    service.automation_view = lambda probe_id=None: setattr(
+    service.automation_view = lambda probe_id=None, **kwargs: setattr(
         service, "_prepared_commands", next(queues)
     ) or {}
     refreshes = []
@@ -69,7 +69,10 @@ def test_failed_craft_tries_next_recipe_before_mining_dependency():
         "craft available container", 2, target_id="manny-b",
     ), "ready")
     queues = iter(((craft,), (craft, alternate), (mine,), ()))
-    service.automation_view = lambda probe_id=None: setattr(
+    exclusions = []
+    service.automation_view = lambda probe_id=None, **kwargs: exclusions.append(
+        frozenset(kwargs.get("excluded_fabrication", ()))
+    ) or setattr(
         service, "_prepared_commands", next(queues)
     ) or {}
     service._refresh_operations = lambda probe_id: None
@@ -102,6 +105,8 @@ def test_failed_craft_tries_next_recipe_before_mining_dependency():
     assert result["results"][1]["status"] == "succeeded"
     assert executed[1][1]["recipe"] == "additional_container"
     assert executed[2][0] == CommandType.MANNY_MINE
+    assert exclusions[0] == frozenset()
+    assert exclusions[1] == frozenset({"manny"})
     assert service._missing_resource_from_failure(
         ExecutionResult("failed", craft.command, response={
             "detail": {"error": {"code": "insufficient_deuterium"}}
@@ -128,7 +133,7 @@ def test_failed_recipe_is_not_retried_on_another_manny_before_mining_fallback():
         "use remaining idle manny", 2, target_id="manny-b",
     ), "ready")
     queues = iter(((craft_a,), (craft_b,), ()))
-    service.automation_view = lambda probe_id=None: setattr(
+    service.automation_view = lambda probe_id=None, **kwargs: setattr(
         service, "_prepared_commands", next(queues)
     ) or {}
     service._refresh_operations = lambda probe_id: None
@@ -170,7 +175,7 @@ def test_successful_recipe_can_use_second_idle_manny_in_same_cycle():
         target_id="manny-b",
     ), "ready")
     queues = iter(((craft_a,), (craft_b,), ()))
-    service.automation_view = lambda probe_id=None: setattr(
+    service.automation_view = lambda probe_id=None, **kwargs: setattr(
         service, "_prepared_commands", next(queues)
     ) or {}
     service._prepare_next_cycle_mining = lambda policy, failed: None

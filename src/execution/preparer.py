@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from .policy import ExecutionMode
 from .preflight import PreflightValidator
 from .translator import TaskCommandTranslator
+from src.planner.scheduling import ordered_tasks, task_order_key
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,11 @@ class CommandPreparer:
         self.journal = journal
 
     def prepare(self, tasks):
+        # Preparation may also be called outside the UI controller.  Always
+        # replay the same scheduler order here so translation, Manny claims,
+        # and input reservations cannot silently invent a second priority
+        # model based on caller order.
+        tasks = ordered_tasks(tasks)
         prepared = []
         resource_claims = {}
         item_claims = self._goal_item_claims(tasks)
@@ -111,7 +117,7 @@ class CommandPreparer:
 
         from src.planner.task import Task
 
-        tasks = tuple(sorted(planned_tasks, key=lambda task: task.priority))
+        tasks = tuple(sorted(planned_tasks, key=task_order_key))
         resource_claims = {}
         item_claims = self._goal_item_claims(tasks)
         for task in tasks:
@@ -137,12 +143,13 @@ class CommandPreparer:
 
         grouped = {}
         for task in tasks:
+            rank = task_order_key(task)
             for item_type, amount in getattr(task, "reserved_items", ()):
-                key = (item_type, task.priority)
+                key = (item_type, rank)
                 grouped[key] = max(grouped.get(key, 0), int(amount))
         claims = {}
-        for (item_type, priority), amount in grouped.items():
-            claims.setdefault(item_type, []).append((priority, amount))
+        for (item_type, rank), amount in grouped.items():
+            claims.setdefault(item_type, []).append((rank, amount))
         return claims
 
     def _reserve_manufacturing_inputs(self, task, resource_claims, item_claims):
@@ -153,6 +160,7 @@ class CommandPreparer:
         # otherwise a large long-term target can strand usable surplus and idle
         # fabricators while protected work is already in progress.
         manufacturing = self.translator.operations.manufacturing
+        task_rank = task_order_key(task)
         plan = manufacturing.production_plan(
             task.target,
             quantity=1,
@@ -172,8 +180,8 @@ class CommandPreparer:
             available = float(resources.get(resource, 0))
             claims = resource_claims.setdefault(resource, [])
             higher_claimed = sum(
-                amount for priority, amount in claims
-                if priority < task.priority
+                amount for rank, amount in claims
+                if rank < task_rank
             )
             available_after_higher = max(0, available - higher_claimed)
             if (
@@ -181,13 +189,13 @@ class CommandPreparer:
                 and available_after_higher + 0.00001 < float(required)
             ):
                 conflicts.append("resource_reserved_by_higher_priority_goal")
-            claims.append((task.priority, min(float(required), available)))
+            claims.append((task_rank, min(float(required), available)))
         for item_type, required in plan["consumed_inventory_items"].items():
             available = int(items.get(item_type, 0))
             claims = item_claims.setdefault(item_type, [])
             higher_claimed = sum(
-                amount for priority, amount in claims
-                if priority <= task.priority
+                amount for rank, amount in claims
+                if rank <= task_rank
             )
             available_after_higher = max(0, available - higher_claimed)
             # A component being built for this assembly goal may need to
@@ -204,7 +212,7 @@ class CommandPreparer:
                 and available_after_higher < int(required)
             ):
                 conflicts.append("item_reserved_by_higher_priority_goal")
-            claims.append((task.priority, min(int(required), available)))
+            claims.append((task_rank, min(int(required), available)))
         return list(dict.fromkeys(conflicts))
 
     def _disposition(self, command, blockers, warnings):

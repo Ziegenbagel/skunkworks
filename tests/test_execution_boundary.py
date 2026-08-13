@@ -439,6 +439,38 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
         self.assertEqual(consumer.disposition, "blocked")
 
+    def test_fleet_assembly_tier_reserves_components_ahead_of_numeric_p1_recipe(self):
+        from src.planner.task import Task
+
+        self.operations.world.probe["inventory"].setdefault("items", []).append(
+            {"id": "relay-for-fleet", "type": "scut_relay"}
+        )
+        self.operations.manufacturing.recipes._recipes["uses_relay"] = {
+            "id": "uses_relay", "name": "Uses relay", "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [{"type": "scut_relay", "quantity": 1, "kind": "item"}],
+            "output": {"type": "uses_relay", "containerSpace": 0.1},
+        }
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Craft Item", reason="Ordinary numeric P1 recipe",
+                category="manufacturing", target="uses_relay", priority=1,
+            ),
+            Task(
+                action="Await Active Production", reason="Fleet numeric P3 claim",
+                category="fleet_assembly", target="electric_motor",
+                constraints=("active_production_pending",),
+                reserved_items=(("scut_relay", 1),), priority=3,
+            ),
+        ])
+
+        consumer = next(
+            item for item in prepared
+            if item.command.reason == "Ordinary numeric P1 recipe"
+        )
+        self.assertEqual(consumer.disposition, "blocked")
+        self.assertIn("item_reserved_by_higher_priority_goal", consumer.blockers)
+
     def test_equal_priority_recipe_cannot_consume_stored_tanker_components(self):
         from src.planner.task import Task
 

@@ -2,6 +2,7 @@
 
 from .task import Task
 from .desired_state import DesiredState
+from .scheduling import ordered_tasks
 from .rules import (
     fuel,
     fleet,
@@ -76,8 +77,4 @@ class Planner:
         if not tasks:
             tasks.extend(idle.plan(self.operations))
 
-        tasks.sort(
-            key=lambda task: task.priority
-        )
-
-        return tasks
+        return ordered_tasks(tasks)

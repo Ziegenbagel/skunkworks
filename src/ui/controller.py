@@ -37,6 +37,7 @@ from src.snapshot.manager import SnapshotManager
 from src.security import CredentialStore
 from src.planner.planner import Planner
 from src.planner.task import Task
+from src.planner.scheduling import dispatch_tasks, task_order_key
 from src.planner.assembly import PROBE_ASSEMBLY_REQUIREMENTS
 from src.execution import (
     AutomationRuntime, CapabilityDispatcher, CommandPreparer,
@@ -394,7 +395,7 @@ class MissionControlDataService:
             raise RuntimeError("Select a probe before updating a message.")
         return self.capabilities.messaging.mark_read(self._selected_probe_id, message_id)
 
-    def automation_view(self, operations=None, probe_id=None):
+    def automation_view(self, operations=None, probe_id=None, excluded_fabrication=()):
         operations = operations or self._operations
         if probe_id is None:
             probe_id = self._selected_probe_id
@@ -428,11 +429,19 @@ class MissionControlDataService:
                     for task in tasks
                 ]
             tasks.extend(transport_tasks)
-            tasks.sort(key=lambda task: task.priority)
-            dispatch_tasks = self._dispatch_tasks(tasks)
+            tasks.sort(key=task_order_key)
+            excluded_fabrication = set(excluded_fabrication)
+            preparation_tasks = [
+                task for task in tasks
+                if not (
+                    task.target in excluded_fabrication
+                    and task.action in {"Craft Item", "Assemble Probe"}
+                )
+            ]
+            dispatchable_tasks = dispatch_tasks(preparation_tasks)
             self._prepared_commands = CommandPreparer(
                 operations, probe_id, policy,
-            ).prepare(dispatch_tasks)
+            ).prepare(dispatchable_tasks)
         return {
             "probeId": probe_id,
             "mode": policy.mode.value,
@@ -460,36 +469,11 @@ class MissionControlDataService:
         Fleet assembly remains the first fabrication tier, ordinary production
         is second, and acquisition runs only after both have been considered.
         """
-        tiers = {
-            "safety": 0,
-            "inventory": 0,
-            "fleet_assembly": 1,
-            "manufacturing": 2,
-            "transport": 3,
-            "travel": 3,
-            "fuel": 4,
-            "mining": 4,
-            "sustainability": 5,
-        }
-        return (tiers.get(task.category, 3), task.priority)
+        return task_order_key(task)
 
     @classmethod
     def _dispatch_tasks(cls, tasks):
-        ordered = sorted(tasks, key=cls._dispatch_order)
-        craftable = any(
-            task.action in {"Craft Item", "Assemble Probe"}
-            and not task.constraints
-            for task in ordered
-        )
-        if not craftable:
-            return ordered
-        # A planning cycle that can fabricate something spends its available
-        # workforce on the fabrication tiers. Mining is reconsidered on the
-        # next authoritative refresh, after active crafts and inputs change.
-        return [
-            task for task in ordered
-            if task.category not in {"fuel", "mining"}
-        ]
+        return dispatch_tasks(tasks)
 
     def _reserve_tanker_delivery_tasks(self, operations, probe_id):
         """Let a same-sector reserve tanker top up its designated hub."""
@@ -1018,12 +1002,16 @@ class MissionControlDataService:
             refresh=self._refresh_operations,
         )
         failed_attempts = set()
+        failed_fabrication = set()
         mining_allocations = {}
         results = []
         for _ in range(policy.max_commands_per_cycle):
             # The previous execution's preflight already refreshed the world.
             # Rebuild the queue from that authoritative post-order state.
-            self.automation_view(probe_id=self._selected_probe_id)
+            self.automation_view(
+                probe_id=self._selected_probe_id,
+                excluded_fabrication=failed_fabrication,
+            )
             prepared = next((
                 item for item in self._prepared_commands
                 if item.command.probe_id == self._selected_probe_id
@@ -1057,6 +1045,18 @@ class MissionControlDataService:
                 # their newly-prepared duplicate claim a Manny, filtered that
                 # command out, and then incorrectly fell through to mining.
                 failed_attempts.add(self._cycle_attempt_key(prepared.command))
+                if prepared.command.type in {
+                    CommandType.MANNY_CRAFT,
+                    CommandType.ATOMIC_PRINTER_CRAFT,
+                    CommandType.MANNY_ASSEMBLE_PROBE,
+                }:
+                    failed_target = (
+                        prepared.command.payload.get("recipe")
+                        or prepared.command.payload.get("model")
+                        or prepared.command.metadata.get("model")
+                    )
+                    if failed_target:
+                        failed_fabrication.add(failed_target)
                 # A rejected goal cannot freeze the priority walk. Replan and
                 # offer every other fabrication goal before resource
                 # acquisition; dependency mining remains available only after
