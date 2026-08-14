@@ -13,11 +13,15 @@ Item {
     property var improvements: []
     property var miningTargets: []
     property var detachedContainers: []
+    property var sameSectorProbes: []
+    property var allMannies: []
+    property real deuterium: 0
     property real maximumMiningOrderAmount: 0.55
     property bool manualOnly: false
     property var mannies: []
     property var namingPolicy: ({})
     property var pendingMiningOrder: ({})
+    property var pendingTransferOrder: ({})
     property double currentEpochMs: Date.now()
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
@@ -27,6 +31,14 @@ Item {
     signal repairRequested(string mannyId, real integrityPercent)
     signal upgradeRequested(string mannyId, string improvementId)
     signal miningRequested(string mannyId, var payload)
+    signal inventoryMannyActionRequested(string action, string mannyId, var payload)
+
+    function selectedIntegerId(combo) {
+        if (!combo || combo.currentIndex < 0 || !combo.model || !combo.model[combo.currentIndex])
+            return -1;
+        const value = Number(combo.model[combo.currentIndex].id);
+        return Number.isInteger(value) && value > 0 ? value : -1;
+    }
 
     function movementSummary(probe) {
         const movement = probe.movement || {};
@@ -307,6 +319,43 @@ Item {
                 }
             }
         }
+        GroupBox {
+            visible: root.manualOnly
+            title: "SAME-SECTOR PROBE TRANSFERS"; Layout.fillWidth: true
+            GridLayout {
+                anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
+                Label { text: "TARGET PROBE"; color: Constants.cyanColor; font.bold: true }
+                ComboBox { id: targetProbe; textRole: "name"; valueRole: "id"; model: root.sameSectorProbes; Layout.fillWidth: true }
+                Label { text: "ACTION MANNY"; color: Constants.cyanColor; font.bold: true }
+                ComboBox { id: transferManny; textRole: "name"; valueRole: "id"; model: root.idleMannies; Layout.fillWidth: true }
+                Label { text: "DEUTERIUM AMOUNT"; color: Constants.textColor }
+                RowLayout {
+                    SpinBox { id: deuteriumAmount; from: 1; to: Math.max(1, Math.floor(root.deuterium * 100) - 1); value: 1; editable: true }
+                    Label { text: "× 0.01 ECE"; color: Constants.mutedTextColor }
+                }
+                Label { Layout.fillWidth: true; text: "SOURCE RESERVE · " + root.deuterium.toFixed(2) + " ECE"; color: Constants.warningColor; wrapMode: Text.Wrap }
+                Button {
+                    text: "REVIEW FUEL TRANSFER"
+                    enabled: root.selectedIntegerId(targetProbe) > 0 && transferManny.count > 0 && root.deuterium > 0.01
+                    onClicked: {
+                        root.pendingTransferOrder = {"action":"transfer-deuterium-to-probe", "mannyId":String(transferManny.currentValue), "payload":{"targetProbeId":root.selectedIntegerId(targetProbe), "amount":Number(deuteriumAmount.value) / 100}};
+                        transferConfirmation.open();
+                    }
+                }
+                Label { text: "TRANSFER MANNY"; color: Constants.textColor }
+                ComboBox { id: reassignManny; textRole: "name"; valueRole: "id"; model: root.allMannies; Layout.fillWidth: true }
+                Label { Layout.fillWidth: true; text: "Transferring a busy Manny cancels its current task."; color: Constants.warningColor; wrapMode: Text.Wrap }
+                Button {
+                    text: "REVIEW MANNY TRANSFER"
+                    enabled: root.selectedIntegerId(targetProbe) > 0 && reassignManny.count > 0
+                    onClicked: {
+                        root.pendingTransferOrder = {"action":"transfer-to-probe", "mannyId":String(reassignManny.currentValue), "payload":{"targetProbeId":root.selectedIntegerId(targetProbe)}};
+                        transferConfirmation.open();
+                    }
+                }
+                Label { Layout.columnSpan: 4; Layout.fillWidth: true; text: targetProbe.count ? "Only probes in the focused probe's current sector are listed. Probe movement blocks transfers until both probes have arrived." : "No other owned probe is currently observed in this sector."; color: Constants.mutedTextColor; font.pixelSize: 14; wrapMode: Text.Wrap }
+            }
+        }
         GridLayout {
             id: fleetGrid
             visible: !root.manualOnly
@@ -347,6 +396,17 @@ Item {
         Label {
             width: 540
             text: "This sends a live mining order to the selected idle Manny. Confirm the focused probe, mineable object, resource, and amount before continuing."
+            color: Constants.textColor; font.pixelSize: 15; wrapMode: Text.Wrap
+        }
+    }
+
+    Dialog {
+        id: transferConfirmation; anchors.centerIn: parent; modal: true
+        title: "CONFIRM SAME-SECTOR TRANSFER"; standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.inventoryMannyActionRequested(String(root.pendingTransferOrder.action), String(root.pendingTransferOrder.mannyId), root.pendingTransferOrder.payload || ({}))
+        Label {
+            width: 560
+            text: "This sends a live same-sector transfer order. Verify the focused probe, target probe, Manny, and fuel amount before continuing. Transferring a busy Manny cancels its current task."
             color: Constants.textColor; font.pixelSize: 15; wrapMode: Text.Wrap
         }
     }

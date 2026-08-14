@@ -191,45 +191,6 @@ Item {
                 }
             }
 
-            GroupBox {
-                title: "MANUAL MINING DESTINATION"; Layout.fillWidth: true
-                GridLayout {
-                    anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
-                    Label { text: "AVAILABLE MANNY"; color: Constants.cyanColor; font.bold: true }
-                    ComboBox { id: miningManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
-                    Label { text: "MINING TARGET"; color: Constants.cyanColor; font.bold: true }
-                    ComboBox { id: miningTarget; textRole: "name"; valueRole: "id"; model: root.inventoryData.miningTargets || []; Layout.fillWidth: true }
-                    Label { text: "RESOURCE"; color: Constants.textColor }
-                    ComboBox { id: miningResource; model: miningTarget.currentIndex >= 0 ? miningTarget.model[miningTarget.currentIndex].resourceTypes : []; Layout.fillWidth: true }
-                    Label { text: "TOTAL ORDER"; color: Constants.textColor }
-                    RowLayout { SpinBox { id: miningAmount; from: 1; to: 55; value: 5; editable: true } Label { text: String(miningResource.currentText) === "deuterium" ? "ECE DEUTERIUM" : "× 0.01 ECE"; color: Constants.mutedTextColor } }
-                    Label { text: "DELIVER TO"; color: Constants.textColor }
-                    ComboBox { id: miningDestination; textRole: "name"; valueRole: "id"; model: [{"id":"", "name":"PROBE · USE CONTAINER ROUTING RULES"}].concat(root.inventoryData.detachedContainers || []); Layout.fillWidth: true }
-                    Label { Layout.columnSpan: 1; Layout.fillWidth: true; text: miningDestination.currentValue ? "Detached containers cannot accept deuterium." : "Resource-specific attached containers are preferred by their saved routing rules; otherwise an unassigned container is used."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
-                    Button { text: "REVIEW MINING ORDER"; enabled: miningManny.count > 0 && miningTarget.count > 0 && miningResource.count > 0; onClicked: { const resource = String(miningResource.currentText); const payload = {"objectId":String(miningTarget.currentValue), "resources":[resource], "targetAmount":Number(miningAmount.value) / 100}; if (miningDestination.currentValue) payload.targetContainerId = String(miningDestination.currentValue); root.pendingOperation = {"kind":"manny", "action":"mine", "mannyId":String(miningManny.currentValue), "payload":payload}; operationConfirmation.open(); } }
-                }
-            }
-
-            GroupBox {
-                title: "SAME-SECTOR PROBE TRANSFERS"; Layout.fillWidth: true
-                GridLayout {
-                    anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
-                    Label { text: "TARGET PROBE"; color: Constants.cyanColor; font.bold: true }
-                    ComboBox { id: targetProbe; textRole: "name"; valueRole: "id"; model: root.inventoryData.sameSectorProbes || []; Layout.fillWidth: true }
-                    Label { text: "ACTION MANNY"; color: Constants.cyanColor; font.bold: true }
-                    ComboBox { id: transferManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
-                    Label { text: "DEUTERIUM AMOUNT"; color: Constants.textColor }
-                    RowLayout { SpinBox { id: deuteriumAmount; from: 1; to: Math.max(1, Math.floor(Number(root.inventoryData.deuterium || 0) * 100) - 1); value: 1; editable: true } Label { text: "× 0.01"; color: Constants.mutedTextColor } }
-                    Label { Layout.columnSpan: 1; Layout.fillWidth: true; text: "SOURCE RESERVE · " + Number(root.inventoryData.deuterium || 0).toFixed(2); color: Constants.warningColor; wrapMode: Text.Wrap }
-                    Button { text: "REVIEW FUEL TRANSFER"; enabled: root.selectedIntegerId(targetProbe) > 0 && transferManny.count > 0 && Number(root.inventoryData.deuterium || 0) > 0.01; onClicked: { root.pendingOperation = {"kind":"manny", "action":"transfer-deuterium-to-probe", "mannyId":String(transferManny.currentValue), "payload":{"targetProbeId":root.selectedIntegerId(targetProbe), "amount":Number(deuteriumAmount.value) / 100}}; operationConfirmation.open(); } }
-                    Label { text: "TRANSFER MANNY"; color: Constants.textColor }
-                    ComboBox { id: reassignManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.mannies || []; Layout.fillWidth: true }
-                    Label { Layout.fillWidth: true; text: "Transferring a busy Manny cancels its current task."; color: Constants.warningColor; wrapMode: Text.Wrap }
-                    Button { text: "REVIEW MANNY TRANSFER"; enabled: root.selectedIntegerId(targetProbe) > 0 && reassignManny.count > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"transfer-to-probe", "mannyId":String(reassignManny.currentValue), "payload":{"targetProbeId":root.selectedIntegerId(targetProbe)}}; operationConfirmation.open(); } }
-                    Label { Layout.columnSpan: 4; Layout.fillWidth: true; text: targetProbe.count ? "Only probes in the focused probe's current sector are listed. Whole containers can be transferred directly with Container Deployment above; individual stored items use jettison and salvage." : "No other owned probe is currently observed in this sector."; color: Constants.mutedTextColor; font.pixelSize: 14; wrapMode: Text.Wrap }
-                }
-            }
-
             Label { text: "CONTAINERS & ROUTING RULES"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
             GridLayout {
                 id: containerGrid; Layout.fillWidth: true; columns: root.width >= 1200 ? 2 : 1; columnSpacing: 18; rowSpacing: 18

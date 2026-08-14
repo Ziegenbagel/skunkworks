@@ -200,16 +200,11 @@ def test_inventory_workspace_exposes_complete_manual_game_controls():
     for control in (
         "MANUAL JETTISON & ITEM HANDOFF",
         "CONTAINER DEPLOYMENT, RECOVERY & PROBE HANDOFF",
-        "SAME-SECTOR PROBE TRANSFERS",
         "detach-storage-container",
         "drop-storage-container",
         "recover-storage-container",
-        "transfer-deuterium-to-probe",
-        "transfer-to-probe",
         '"salvage"',
-        '"mine"',
         '"attach_to_probe"',
-        "MANUAL MINING DESTINATION",
         "SCUT RELAY DEPLOYMENT & SECTOR OPERATIONS",
         '"turn-on-relay"',
         '"install-scut-transit-beacon"',
@@ -219,6 +214,8 @@ def test_inventory_workspace_exposes_complete_manual_game_controls():
         '"drop-manny-cargo"',
     ):
         assert control in workspace
+    assert "MANUAL MINING DESTINATION" not in workspace
+    assert "SAME-SECTOR PROBE TRANSFERS" not in workspace
     assert "CONFIRM LIVE INVENTORY ORDER" in workspace
 
 
@@ -559,7 +556,13 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert "maximumMiningOrderAmount" in fleet
     assert '"targetAmount"' in fleet
     assert 'String(miningResource.currentText) === "deuterium"' in fleet
-    assert '"ECE DEUTERIUM"' in Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
+    assert 'String(miningResource.currentText) === "deuterium"' in fleet
+    assert "SAME-SECTOR PROBE TRANSFERS" in fleet
+    assert '"transfer-deuterium-to-probe"' in fleet
+    assert '"transfer-to-probe"' in fleet
+    assert "TRANSFERS & CONTAINERS" in manual
+    assert "MINING_MAINTENANCE" not in manual
+    assert "TRANSFERS_CONTAINERS" not in manual
     assert "manualMiningRequested" in navigation
     assert "inventoryManagement || {}).miningTargets" in manual
     assert 'runInventoryMannyAction("mine", mannyId, payload)' in app

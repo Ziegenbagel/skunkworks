@@ -235,10 +235,14 @@ Item {
                 improvements: root.dashboardData.probeImprovements || []
                 miningTargets: (root.dashboardData.inventoryManagement || {}).miningTargets || []
                 detachedContainers: (root.dashboardData.inventoryManagement || {}).detachedContainers || []
+                sameSectorProbes: (root.dashboardData.inventoryManagement || {}).sameSectorProbes || []
+                allMannies: (root.dashboardData.inventoryManagement || {}).mannies || []
+                deuterium: Number((root.dashboardData.inventoryManagement || {}).deuterium || 0)
                 maximumMiningOrderAmount: Number((root.dashboardData.automation || {}).maximumMiningOrderAmount || 0.55)
                 onRepairRequested: (mannyId, integrityPercent) => root.repairRequested(mannyId, integrityPercent)
                 onUpgradeRequested: (mannyId, improvementId) => root.upgradeRequested(mannyId, improvementId)
                 onMiningRequested: (mannyId, payload) => root.miningRequested(mannyId, payload)
+                onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
             }
 
             InventoryWorkspace {
