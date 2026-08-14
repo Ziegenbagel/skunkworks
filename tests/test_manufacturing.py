@@ -190,6 +190,18 @@ class ManufacturingServiceTests(unittest.TestCase):
             self.service.can_build("electric_motor")
         )
 
+    def test_sub_milliscale_float_residue_does_not_block_fully_funded_recipe(self):
+        self.world.probe["inventory"]["resourceStocks"] = [
+            {"type": "metals", "amount": 3.78},
+        ]
+
+        missing = self.service._missing_resources(
+            {"metals": 3.7800000000000002},
+            {"metals": 3.78},
+        )
+
+        self.assertEqual(missing, {})
+
     def test_requires_an_available_fabricator(self):
         self.world.mannies["mannies"][0][
             "currentTask"

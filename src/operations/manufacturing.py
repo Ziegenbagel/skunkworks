@@ -510,11 +510,20 @@ class ManufacturingService:
             return 1
 
     def _missing_resources(self, required, available):
-        return {
-            resource: round(amount - available.get(resource, 0), 3)
-            for resource, amount in required.items()
-            if available.get(resource, 0) < amount
-        }
+        # Resource quantities are authoritative to three decimal ECE places.
+        # Comparing the unrounded binary floats first could retain a positive
+        # sub-milliscale residue (for example 3.7800000000000002 required
+        # versus 3.78 onboard), then round its displayed shortage to 0.000.
+        # The non-empty mapping still blocked the craft indefinitely despite
+        # the UI correctly showing every input fully covered.
+        missing = {}
+        for resource, amount in required.items():
+            shortage = round(
+                float(amount) - float(available.get(resource, 0) or 0), 3,
+            )
+            if shortage > 0:
+                missing[resource] = shortage
+        return missing
 
     def _item_counts(self, items):
         counts = {}
