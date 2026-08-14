@@ -1234,6 +1234,7 @@ class MissionControlViewModelBuilder:
                 clause for label in (
                     "tanker component:",
                     "next production unit:",
+                    "remaining production target:",
                     "production target:",
                     "reserve target",
                 )

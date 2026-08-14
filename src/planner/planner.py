@@ -19,13 +19,16 @@ from .rules import (
 class Planner:
     """Generates recommended tasks from the current operational state."""
 
-    def __init__(self, operations, desired_state=None):
+    def __init__(
+        self, operations, desired_state=None, *, dependency_mining_lookahead=False,
+    ):
         self.operations = operations
         self.desired_state = (
             desired_state
             if desired_state is not None
             else DesiredState.empty()
         )
+        self.dependency_mining_lookahead = dependency_mining_lookahead
 
     def tasks(self) -> list[Task]:
         """Return the current recommended task list."""
@@ -63,6 +66,7 @@ class Planner:
             mining.plan(
                 self.operations,
                 self.desired_state,
+                dependency_lookahead=self.dependency_mining_lookahead,
             )
         )
         tasks.extend(

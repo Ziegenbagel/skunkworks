@@ -246,6 +246,50 @@ def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
     assert preparer.call_count == 1
 
 
+def test_dependency_mining_lookahead_waits_for_continuous_idle_grace():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.data_engine = SimpleNamespace()
+    service._operations = SimpleNamespace(
+        mining=SimpleNamespace(idle_mannies=lambda: [object()])
+    )
+    service._dependency_mining_idle_since = {7: 100.0}
+
+    with (
+        patch("src.ui.controller.time.monotonic", return_value=219.9),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch("src.ui.controller.Planner") as planner,
+        patch("src.ui.controller.CommandPreparer") as preparer,
+    ):
+        planner.return_value.tasks.return_value = ()
+        preparer.return_value.prepare.return_value = ()
+        service._prepare_next_cycle_mining(ExecutionPolicy(), set())
+        assert planner.call_args.kwargs["dependency_mining_lookahead"] is False
+
+    with (
+        patch("src.ui.controller.time.monotonic", return_value=220.0),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch("src.ui.controller.Planner") as planner,
+        patch("src.ui.controller.CommandPreparer") as preparer,
+    ):
+        planner.return_value.tasks.return_value = ()
+        preparer.return_value.prepare.return_value = ()
+        service._prepare_next_cycle_mining(ExecutionPolicy(), set())
+        assert planner.call_args.kwargs["dependency_mining_lookahead"] is True
+
+
+def test_dependency_mining_idle_grace_resets_when_no_manny_is_idle():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._dependency_mining_idle_since = {7: 100.0}
+    operations = SimpleNamespace(
+        mining=SimpleNamespace(idle_mannies=lambda: [])
+    )
+
+    service._observe_dependency_mining_idle(7, operations)
+
+    assert 7 not in service._dependency_mining_idle_since
+
+
 def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():
     allocations = {}
 

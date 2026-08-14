@@ -7,7 +7,7 @@ from src.planner.task import Task
 from src.planner.assembly import tanker_component_statuses
 
 
-def plan(operations, desired_state) -> list[Task]:
+def plan(operations, desired_state, *, dependency_lookahead=False) -> list[Task]:
     reserve_shortages = operations.inventory.reserve_shortages(
         desired_state.resources
     )
@@ -33,13 +33,13 @@ def plan(operations, desired_state) -> list[Task]:
         if shortage <= 0:
             continue
 
-        # A desired quantity is a persistent destination, not permission to
-        # reserve the inputs for the entire outstanding batch. Manufacturing
-        # dispatches one unit at a time, so mining should fund the same bounded
-        # scheduling horizon and let the next cycle compare every goal again.
+        # Normal planning funds only the next craft.  The controller may opt
+        # into a larger horizon after Mannys have remained idle through its
+        # grace period; that opportunistic path is still bounded by the live
+        # target, storage capacity, commitments, and per-order maximum.
         production = operations.manufacturing.production_plan(
             goal.recipe_id,
-            quantity=1,
+            quantity=shortage if dependency_lookahead else 1,
             include_operational_constraints=False,
             use_inventory_items=False,
         )
@@ -52,7 +52,11 @@ def plan(operations, desired_state) -> list[Task]:
         ].items():
             fabrication_dependencies[resource_type].append(
                 (goal.priority, float(amount),
-                 f"next production unit: {goal.recipe_id.replace('_', ' ')}")
+                 (
+                     "remaining production target: "
+                     if dependency_lookahead
+                     else "next production unit: "
+                 ) + goal.recipe_id.replace("_", " "))
             )
 
     for goal in desired_state.fleet:
@@ -88,8 +92,8 @@ def plan(operations, desired_state) -> list[Task]:
     # Fund only the highest-priority blocked fabrication horizon for each raw
     # resource. Do not relabel a large lower-priority reserve floor (or every
     # lower-priority recipe) as priority 1 merely because they share metals.
-    # The next refresh rebuilds this from current inventory and advances to the
-    # next goal once the leading dependency is covered.
+    # The next refresh rebuilds the selected horizon from current inventory
+    # and active production, then advances once that need is covered.
     for resource_type, dependencies in fabrication_dependencies.items():
         leading_priority = min(priority for priority, _amount, _reason in dependencies)
         leading = [item for item in dependencies if item[0] == leading_priority]

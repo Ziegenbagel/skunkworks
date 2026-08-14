@@ -51,6 +51,8 @@ from src.reporting import DailyProbeReportService
 class MissionControlDataService:
     """Build one authoritative dashboard snapshot for a selected probe."""
 
+    DEPENDENCY_MINING_IDLE_GRACE_SECONDS = 120
+
     def __init__(
         self,
         client=None,
@@ -78,6 +80,7 @@ class MissionControlDataService:
         self._logbook_cache = {}
         self._fleet_snapshot_cache = None
         self._fleet_snapshot_cached_at = 0.0
+        self._dependency_mining_idle_since = {}
 
     def load(
         self, probe_id=None, include_archival=True, progress=None,
@@ -186,6 +189,7 @@ class MissionControlDataService:
         )
         self._operations = operations
         self._selected_probe_id = selected["id"]
+        self._observe_dependency_mining_idle(selected["id"], operations)
         explorer_scan = self._auto_scan_explorer_arrival(selected["id"], operations)
         if explorer_scan is not None:
             self._last_scan_result = explorer_scan
@@ -1292,7 +1296,14 @@ class MissionControlDataService:
         if getattr(self, "_operations", None) is None:
             return None
         desired = DesiredStateStore(self.data_engine).load(self._selected_probe_id)
-        planned_tasks = tuple(Planner(self._operations, desired).tasks())
+        lookahead = self._dependency_mining_idle_grace_elapsed(
+            self._selected_probe_id,
+        )
+        planned_tasks = tuple(Planner(
+            self._operations,
+            desired,
+            dependency_mining_lookahead=lookahead,
+        ).tasks())
         preparation_policy = replace(
             policy,
             max_commands_per_cycle=max(
@@ -1329,6 +1340,29 @@ class MissionControlDataService:
             if item.disposition == "ready"
             and self._cycle_attempt_key(item.command) not in failed_attempts
         ), None)
+
+    def _observe_dependency_mining_idle(self, probe_id, operations):
+        """Track continuous unused Manny capacity for conservative look-ahead."""
+
+        idle = bool(operations.mining.idle_mannies())
+        key = int(probe_id)
+        timers = getattr(self, "_dependency_mining_idle_since", None)
+        if timers is None:
+            timers = self._dependency_mining_idle_since = {}
+        if idle:
+            timers.setdefault(key, time.monotonic())
+        else:
+            timers.pop(key, None)
+
+    def _dependency_mining_idle_grace_elapsed(self, probe_id):
+        started = getattr(
+            self, "_dependency_mining_idle_since", {},
+        ).get(int(probe_id))
+        return (
+            started is not None
+            and time.monotonic() - started
+            >= self.DEPENDENCY_MINING_IDLE_GRACE_SECONDS
+        )
 
     @staticmethod
     def _missing_resource_from_failure(result):

@@ -165,7 +165,7 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertEqual(mining.target, "asteroid-1")
         self.assertIn("next production unit: storage container", mining.reason)
 
-    def test_large_goal_mines_for_next_unit_not_entire_batch(self):
+    def test_large_goal_mines_for_next_unit_by_default(self):
         tasks = Planner(
             build_operations(metals=0),
             DesiredState(
@@ -178,6 +178,19 @@ class PlannerMissionTests(unittest.TestCase):
         mining = next(task for task in tasks if task.category == "mining")
         self.assertEqual(mining.quantity, 1)
         self.assertIn("Need 1.000 additional metals", mining.reason)
+        self.assertIn("next production unit: storage container", mining.reason)
+
+    def test_idle_lookahead_funds_remaining_batch_with_storage_cap(self):
+        tasks = Planner(
+            build_operations(metals=0),
+            DesiredState(production=(ProductionGoal("storage_container", 100),)),
+            dependency_mining_lookahead=True,
+        ).tasks()
+
+        mining = next(task for task in tasks if task.category == "mining")
+        self.assertEqual(mining.quantity, 5)
+        self.assertIn("Need 100.000 additional metals", mining.reason)
+        self.assertIn("remaining production target: storage container", mining.reason)
 
     def test_dependency_mining_does_not_inherit_lower_reserve_quantity(self):
         tasks = Planner(
