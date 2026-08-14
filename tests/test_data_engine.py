@@ -142,6 +142,42 @@ class DataEngineTests(unittest.TestCase):
         self.assertEqual(record.coordinates.x, 1)
         self.assertEqual(record.observed["sector"]["objects"][0]["type"], "star")
 
+    def test_galaxy_map_reuses_cache_until_explicit_scan_invalidates_it(self):
+        first = self.engine.galaxy_map()
+        self.assertIs(self.engine.galaxy_map(), first)
+
+        self.engine.record_sector_observation(762, {
+            "sector": {
+                "relativeCoordinates": {"x": 4, "y": 2, "z": 2},
+                "knowledgeLevel": "neighbor_scan",
+                "confidence": 0.8,
+                "objects": [],
+            }
+        })
+
+        refreshed = self.engine.galaxy_map()
+        self.assertIsNot(refreshed, first)
+        self.assertEqual(len(refreshed.sectors()), 1)
+
+    def test_galaxy_map_cold_build_uses_latest_observation_per_sector(self):
+        coordinates = {"x": 2, "y": 2, "z": 4}
+        for observed_at, confidence in (
+            ("2026-08-13T10:00:00+00:00", 0.2),
+            ("2026-08-13T11:00:00+00:00", 0.9),
+        ):
+            self.engine.record_sector_observation(762, {
+                "sector": {
+                    "relativeCoordinates": coordinates,
+                    "knowledgeLevel": "neighbor_scan",
+                    "confidence": confidence,
+                    "objects": [],
+                }
+            }, observed_at=observed_at)
+
+        record = self.engine.galaxy_map(max_age_seconds=0).sectors()[0]
+
+        self.assertEqual(record.observed["sector"]["confidence"], 0.9)
+
     def test_action_journal_supports_idempotency_checks(self):
         command = {
             "type": "move_probe",

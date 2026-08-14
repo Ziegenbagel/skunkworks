@@ -79,8 +79,12 @@ Item {
         }
         rows.sort(function(left, right) { return right.seconds - left.seconds; });
         const summaries = [];
-        for (let i = 0; i < Math.min(4, rows.length); ++i)
-            summaries.push(String(rows[i].name).split(/(?=[A-Z])/).join(" ").toUpperCase() + " " + rows[i].seconds.toFixed(1) + " S");
+        for (let i = 0; i < Math.min(4, rows.length); ++i) {
+            const label = rows[i].name === "galaxyMap"
+                        ? "GALAXY MAP"
+                        : String(rows[i].name).split(/(?=[A-Z])/).join(" ").toUpperCase();
+            summaries.push(label + " " + rows[i].seconds.toFixed(1) + " S");
+        }
         return summaries.join("  ·  ");
     }
     function waitingPlans() {

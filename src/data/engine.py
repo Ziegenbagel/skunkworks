@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,6 +17,8 @@ class DataEngine:
     def __init__(self, path="data/skunkworks.sqlite3"):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._galaxy_cache = None
+        self._galaxy_cache_built_at = 0.0
         self._migrate()
 
     def set_preference(self, key, value):
@@ -138,6 +141,7 @@ class DataEngine:
                 snapshot,
                 observed_at or self._now(),
             )
+        self._invalidate_galaxy_cache()
 
     def sync_visits(self, payload, probe_id=None):
         """Upsert fleet-wide or per-probe visited-sector history."""
@@ -175,6 +179,7 @@ class DataEngine:
                         visit.get("visitCount", 0),
                     ),
                 )
+        self._invalidate_galaxy_cache()
 
     def record_records(
         self,
@@ -641,10 +646,23 @@ class DataEngine:
             "SELECT * FROM archive_reports ORDER BY created_at DESC, id", ()
         )
 
-    def galaxy_map(self):
-        """Rebuild the in-memory map from durable visit and observation data."""
+    def galaxy_map(self, max_age_seconds=300):
+        """Return cartography, reusing it briefly between telemetry refreshes.
+
+        A focused-probe refresh records another detailed snapshot of its current
+        sector, but that does not materially change fleet-scale cartography.
+        Explicit scans and visit-history synchronization invalidate this cache.
+        """
 
         from src.intelligence.galaxy import GalaxyMapBuilder
+
+        now = time.monotonic()
+        if (
+            self._galaxy_cache is not None
+            and max_age_seconds > 0
+            and now - self._galaxy_cache_built_at < max_age_seconds
+        ):
+            return self._galaxy_cache
 
         fleet_history = {
             "visitedSectors": [
@@ -673,8 +691,15 @@ class DataEngine:
 
             observations = connection.execute(
                 """
-                SELECT * FROM sector_observations
-                ORDER BY observed_at DESC
+                SELECT * FROM (
+                    SELECT sector_observations.*,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY sector_x, sector_y, sector_z
+                               ORDER BY observed_at DESC, id DESC
+                           ) AS observation_rank
+                    FROM sector_observations
+                )
+                WHERE observation_rank = 1
                 """
             ).fetchall()
 
@@ -682,25 +707,19 @@ class DataEngine:
             fleet_history,
             probe_histories,
         )
-        seen = set()
-
         for row in observations:
-            coordinates = (
-                row["sector_x"],
-                row["sector_y"],
-                row["sector_z"],
-            )
-
-            if coordinates in seen:
-                continue
-
-            seen.add(coordinates)
             galaxy.record_observation(
                 json.loads(row["payload_json"]),
                 probe_id=row["probe_id"],
             )
 
+        self._galaxy_cache = galaxy
+        self._galaxy_cache_built_at = now
         return galaxy
+
+    def _invalidate_galaxy_cache(self):
+        self._galaxy_cache = None
+        self._galaxy_cache_built_at = 0.0
 
     def schema_version(self):
         with self._connect() as connection:
