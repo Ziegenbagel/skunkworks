@@ -326,6 +326,29 @@ def test_waiting_fabrication_suppresses_background_mining_until_idle_grace():
     assert view["queue"] == []
 
 
+def test_authoritative_queue_enables_dependency_lookahead_after_idle_grace():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.data_engine = SimpleNamespace(emergency_stop_active=lambda: False)
+    service._dependency_mining_idle_since = {7: 100.0}
+
+    with (
+        patch("src.ui.controller.time.monotonic", return_value=220.0),
+        patch("src.ui.controller.ExecutionPolicyStore.load", return_value=ExecutionPolicy()),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch.object(service, "_reconcile_completed_autonomous_travel", side_effect=lambda _o, _p, d: d),
+        patch.object(service, "_reconcile_transport_operation", return_value=(SimpleNamespace(), [], None)),
+        patch.object(service, "_reserve_tanker_delivery_tasks", return_value=[]),
+        patch("src.ui.controller.Planner") as planner,
+        patch("src.ui.controller.CommandPreparer") as preparer,
+    ):
+        planner.return_value.tasks.return_value = []
+        preparer.return_value.prepare.return_value = ()
+        service.automation_view(SimpleNamespace(), 7)
+
+    assert planner.call_args.kwargs["dependency_mining_lookahead"] is True
+
+
 def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():
     allocations = {}
 

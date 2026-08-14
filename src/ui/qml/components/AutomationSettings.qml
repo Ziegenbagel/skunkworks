@@ -69,8 +69,7 @@ Item {
         return false;
     }
     function waitingPlans() {
-        if (hasUnblockedCommand()) return [];
-        return (runtimeData.planning || []).slice(0, 8);
+        return runtimeData.planning || [];
     }
     function executionPolicyPayload() {
         const allowed = [];
@@ -338,7 +337,7 @@ Item {
                         }
                     }
                     Label { visible: !root.hasUnblockedCommand(); text: "NO UNBLOCKED COMMAND IS READY · REVIEW THE PLANNER STATUS BELOW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
-                    Label { visible: root.waitingPlans().length > 0; text: "PLANNER STATUS · WHY HIGHER-PRIORITY ORDERS ARE WAITING"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { visible: root.waitingPlans().length > 0; text: "COMPLETE PLANNER STATUS · ALL PRIORITIES AND WAITING GOALS"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                     Repeater {
                         model: root.waitingPlans()
                         delegate: Rectangle {

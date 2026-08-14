@@ -40,20 +40,26 @@ def plan(operations, desired_state) -> list[Task]:
             )
             continue
 
-        inbound_parts = []
-        for resource, missing in production["missing_resources"].items():
-            committed = float(active_commitments.get(resource, 0) or 0)
-            if committed <= 0:
-                continue
-            covered = min(float(missing), committed)
-            uncovered = max(0.0, float(missing) - committed)
-            inbound_parts.append(
-                f"{resource.replace('_', ' ')} {covered:.3f} ECE inbound, "
-                f"{uncovered:.3f} ECE uncovered"
+        available_resources, _available_items = (
+            operations.manufacturing.available_inputs()
+        )
+        resource_parts = []
+        for resource, required in production["required_resources"].items():
+            onboard = min(
+                float(required), float(available_resources.get(resource, 0) or 0),
             )
-        inbound_note = (
-            " Active mining commitments: " + "; ".join(inbound_parts) + "."
-            if inbound_parts else ""
+            missing = max(0.0, float(required) - onboard)
+            committed = float(active_commitments.get(resource, 0) or 0)
+            inbound = min(missing, committed)
+            uncovered = max(0.0, float(missing) - committed)
+            resource_parts.append(
+                f"{resource.replace('_', ' ')}: {float(required):.3f} ECE required, "
+                f"{onboard:.3f} onboard, {inbound:.3f} inbound, "
+                f"{uncovered:.3f} still uncovered"
+            )
+        resource_note = (
+            " Next unit resources — " + "; ".join(resource_parts) + "."
+            if resource_parts else ""
         )
 
         tasks.append(
@@ -71,7 +77,7 @@ def plan(operations, desired_state) -> list[Task]:
                     "are reconsidered after each planning cycle."
                     " Ordinary recipes are submitted as one direct game recipe; "
                     "Skunkworks does not create surplus intermediate inventory."
-                    + inbound_note
+                    + resource_note
                 ),
                 category="manufacturing",
                 target=goal.recipe_id,

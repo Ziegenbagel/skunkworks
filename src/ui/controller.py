@@ -462,6 +462,9 @@ class MissionControlDataService:
             tasks = Planner(
                 operations,
                 desired,
+                dependency_mining_lookahead=(
+                    self._dependency_mining_idle_grace_elapsed(probe_id)
+                ),
             ).tasks()
             if transport_scope:
                 tasks = [
