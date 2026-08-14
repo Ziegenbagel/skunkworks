@@ -344,6 +344,47 @@ Goal: make the release reproducible, supportable, and trustworthy.
 - Changelog, license, packaging, and release artifacts.
 - Release-candidate soak period.
 
+#### Active pre-release checklist
+
+This is the short operational checklist for deciding when the 1.0 candidate is
+ready. The detailed Mission 24–26 requirements above remain authoritative.
+
+- [ ] Run several days of crafting-automation soak testing with deliberately
+  varied priority arrangements, including equal priorities, unavailable
+  resources, deliveries that unblock a higher-priority goal, idle Mannys,
+  restarts, and external game changes. Confirm that each cycle reevaluates
+  from the highest priority and neither starves eligible work nor over-mines.
+- [ ] Complete the remaining visual-polish pass: clipped or overflowing text,
+  responsive panel sizing, column alignment, full-page scrolling, readable
+  durations, consistent labels, and correct control placement at supported
+  window sizes and display scaling levels.
+- [ ] Exercise every routine manual and automated operation in Observe Only,
+  Require Approval, and Automatic modes, verifying the intended permissions,
+  confirmations, explanations, and emergency-stop behavior.
+- [ ] Regress travel, beacon travel, auto-transport, tanker refill chains,
+  mining limits, crafting reservations, probe assembly, container handling,
+  scanning, galaxy-map focus, refresh scheduling, startup, and safe shutdown.
+- [ ] Verify API v107 parity and user-facing handling for every supported API
+  success, conflict, moving-probe refusal, stale response, and recovery path.
+- [ ] Pass persistence, migration, clean-profile, backup/restore, interrupted
+  refresh, restart, and ambiguous-command reconciliation tests.
+- [ ] Meet startup, refresh, galaxy-map, probe-switching, memory, and shutdown
+  performance targets with both the current fleet and large synthetic data.
+- [ ] Finish user documentation, first-run guidance, troubleshooting,
+  diagnostics, changelog, licenses, privacy review, and release notes.
+- [ ] Immediately before packaging, audit every bundled asset on Windows,
+  macOS, and Linux: case-sensitive names, path separators, Qt resource URLs,
+  fonts and fallbacks, image/SVG rendering, audio formats and codecs, icons,
+  licenses, filename characters, executable permissions, and missing-asset
+  behavior. Run a clean build and visual/audio smoke test on each OS so no
+  platform-specific asset can prevent startup or break the interface.
+- [ ] Build, sign, notarize where applicable, and publish the self-contained
+  Windows, macOS, and Linux packages with version metadata and checksums.
+- [ ] Perform clean-machine install, first-run onboarding, launch, update,
+  rollback, uninstall, and diagnostic-log acceptance tests for every package.
+- [ ] Approve the release candidate only after the soak period has no critical
+  defects, unexplained mutations, or unresolved release-blocking regressions.
+
 Release gate: no critical defects, no unexplained mutations, successful
 recovery tests, complete documentation, and reproducible installation.
 
