@@ -240,7 +240,10 @@ Item {
                 id: transportAutomationScroll
                 clip: true
                 contentWidth: availableWidth
+                contentHeight: transportAutomationContent.implicitHeight
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                 ColumnLayout {
+                    id: transportAutomationContent
                     width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 16
                     Rectangle {
                         visible: !root.transportEligible; Layout.fillWidth: true; implicitHeight: roleWarning.implicitHeight + 32

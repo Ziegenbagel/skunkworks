@@ -64,8 +64,31 @@ class DataEngine:
         probe = world.probe
         sector = probe.get("sector") or {}
         relative = sector.get("relative") or {}
+        coordinates = (
+            relative.get("x"),
+            relative.get("y"),
+            relative.get("z"),
+        )
+        sector_changed = False
 
         with self._connect() as connection:
+            previous = connection.execute(
+                """
+                SELECT sector_x, sector_y, sector_z
+                FROM probe_state_history
+                WHERE probe_id = ?
+                ORDER BY observed_at DESC, id DESC
+                LIMIT 1
+                """,
+                (probe["id"],),
+            ).fetchone()
+            sector_changed = (
+                None not in coordinates
+                and (
+                    previous is None
+                    or tuple(previous) != coordinates
+                )
+            )
             connection.execute(
                 """
                 INSERT INTO probe_state_history (
@@ -130,6 +153,9 @@ class DataEngine:
                         ),
                     )
 
+        if sector_changed:
+            self._invalidate_galaxy_cache()
+
     def record_sector_observation(self, probe_id, observation, observed_at=None):
         """Persist one explicit galaxy-map scan for later cartography."""
 
@@ -152,9 +178,26 @@ class DataEngine:
             else f"probe:{probe_id}"
         )
 
+        changed = False
         with self._connect() as connection:
             for visit in payload.get("visitedSectors", []):
                 coordinates = visit["relativeCoordinates"]
+                existing = connection.execute(
+                    """
+                    SELECT first_visited_at, last_visited_at, visit_count
+                    FROM sector_visits
+                    WHERE scope = ? AND sector_x = ? AND sector_y = ? AND sector_z = ?
+                    """,
+                    (scope, coordinates["x"], coordinates["y"], coordinates["z"]),
+                ).fetchone()
+                incoming = (
+                    visit.get("firstVisitedAt"),
+                    visit.get("lastVisitedAt"),
+                    visit.get("visitCount", 0),
+                )
+                if existing is not None and tuple(existing) == incoming:
+                    continue
+                changed = True
                 connection.execute(
                     """
                     INSERT INTO sector_visits (
@@ -179,7 +222,8 @@ class DataEngine:
                         visit.get("visitCount", 0),
                     ),
                 )
-        self._invalidate_galaxy_cache()
+        if changed:
+            self._invalidate_galaxy_cache()
 
     def record_records(
         self,
@@ -646,8 +690,8 @@ class DataEngine:
             "SELECT * FROM archive_reports ORDER BY created_at DESC, id", ()
         )
 
-    def galaxy_map(self, max_age_seconds=300):
-        """Return cartography, reusing it briefly between telemetry refreshes.
+    def galaxy_map(self, max_age_seconds=None):
+        """Return cartography until a scan or fleet arrival changes it.
 
         A focused-probe refresh records another detailed snapshot of its current
         sector, but that does not materially change fleet-scale cartography.
@@ -659,8 +703,13 @@ class DataEngine:
         now = time.monotonic()
         if (
             self._galaxy_cache is not None
-            and max_age_seconds > 0
-            and now - self._galaxy_cache_built_at < max_age_seconds
+            and (
+                max_age_seconds is None
+                or (
+                    max_age_seconds > 0
+                    and now - self._galaxy_cache_built_at < max_age_seconds
+                )
+            )
         ):
             return self._galaxy_cache
 

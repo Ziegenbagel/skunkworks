@@ -545,7 +545,7 @@ Item {
 
     Rectangle {
         anchors.left: parent.left; anchors.top: parent.top; anchors.leftMargin: 12; anchors.topMargin: 94
-        width: 520; height: 280; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
+        width: 520; height: 300; clip: true; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 10; spacing: 5
             ComboBox { Layout.fillWidth: true; model: root.visibleNodes; textRole: "label"; onActivated: root.selectedNode = root.visibleNodes[currentIndex] }
@@ -553,17 +553,32 @@ Item {
             Label { Layout.fillWidth: true; text: root.selectedNode ? (root.isGodSector(root.selectedNode) ? "GOD SECTOR · ALL FOUR RESOURCES    " : "") + "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode && root.isGodSector(root.selectedNode) ? "#ffd34d" : root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true }
             Label { Layout.fillWidth: true; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
             ScrollView {
+                id: sectorObjectsScroll
                 visible: root.selectedNode && (root.selectedNode.objects || []).length > 0
-                Layout.fillWidth: true; Layout.preferredHeight: 62; clip: true
-                Row {
-                    spacing: 10
+                Layout.fillWidth: true; Layout.preferredHeight: 76; clip: true
+                contentWidth: availableWidth
+                contentHeight: sectorObjectFlow.implicitHeight
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                Flow {
+                    id: sectorObjectFlow
+                    width: Math.max(1, sectorObjectsScroll.availableWidth)
+                    spacing: 8
                     Repeater {
                         model: root.selectedNode ? (root.selectedNode.objects || []) : []
                         delegate: Row {
                             id: objectDetail
-                            required property var modelData; spacing: 4
+                            required property var modelData
+                            width: Math.min(240, sectorObjectFlow.width)
+                            spacing: 4
                             Image { width: 28; height: 28; source: objectDetail.modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(objectDetail.modelData.type, objectDetail.modelData); fillMode: Image.PreserveAspectFit }
-                            Label { anchors.verticalCenter: parent.verticalCenter; text: (objectDetail.modelData.estimated ? "EST. " : "") + String(objectDetail.modelData.name || objectDetail.modelData.type).toUpperCase(); color: objectDetail.modelData.estimated ? Constants.warningColor : Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+                            Label {
+                                width: Math.max(1, objectDetail.width - 32)
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: (objectDetail.modelData.estimated ? "EST. " : "") + String(objectDetail.modelData.name || objectDetail.modelData.type).toUpperCase()
+                                color: objectDetail.modelData.estimated ? Constants.warningColor : Constants.textColor
+                                font.family: Constants.technicalFont; font.pixelSize: 12
+                                elide: Text.ElideRight
+                            }
                         }
                     }
                 }

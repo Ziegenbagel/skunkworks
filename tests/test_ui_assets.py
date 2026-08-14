@@ -470,6 +470,7 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "CANCEL AUTO-TRAVEL TARGET" in navigation
     assert "scanSummary" in navigation
     assert "transportAutomationScroll.availableWidth" in navigation
+    assert "contentHeight: transportAutomationContent.implicitHeight" in navigation
     assert 'TabButton { text: "TRANSPORT AUTOMATION"' not in navigation
 
 
@@ -577,7 +578,10 @@ def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets
     assert 'TabButton { text: "MINING AND MAINTENANCE" }' in manual
     assert 'TabButton { text: "TRANSFERS AND CONTAINERS" }' in manual
     assert 'TabButton { text: "GENERAL & AUTOMATION" }' not in settings
-    assert settings.index('title: "RESOURCE & SAFETY FLOORS"') < settings.index('title: "LIVE TARGET STATUS"')
+    floors = settings.index('title: "RESOURCE & SAFETY FLOORS"')
+    save = settings.index('text: "SAVE AUTOMATION TARGETS"')
+    live = settings.index('title: "LIVE TARGET STATUS"')
+    assert floors < save < live
     assert "settingsData.liveTargetStatus" in settings
     assert "settingsData.fleetStatus" not in settings
 

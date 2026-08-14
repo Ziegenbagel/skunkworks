@@ -488,6 +488,8 @@ Item {
                 }
             }
 
+            Button { text: "SAVE AUTOMATION TARGETS"; Layout.alignment: Qt.AlignRight; onClicked: root.saveRequested(root.payload()) }
+
             GroupBox {
                 title: "LIVE TARGET STATUS"; Layout.fillWidth: true
                 ColumnLayout {
@@ -530,8 +532,6 @@ Item {
                     }
                 }
             }
-
-            Button { text: "SAVE AUTOMATION TARGETS"; Layout.alignment: Qt.AlignRight; onClicked: root.saveRequested(root.payload()) }
 
             GroupBox {
                 title: "REFRESH DIAGNOSTICS"; Layout.fillWidth: true

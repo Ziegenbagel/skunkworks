@@ -94,7 +94,10 @@ class DataEngineTests(unittest.TestCase):
         }
 
         self.engine.sync_visits(payload, probe_id=762)
+        cached = self.engine.galaxy_map()
         self.engine.sync_visits(payload, probe_id=762)
+
+        self.assertIs(self.engine.galaxy_map(), cached)
 
         visits = self.engine.visits(762)
         self.assertEqual(len(visits), 1)
@@ -102,6 +105,27 @@ class DataEngineTests(unittest.TestCase):
 
         galaxy = self.engine.galaxy_map()
         self.assertEqual(len(galaxy.sectors()), 1)
+
+    def test_probe_arrival_invalidates_galaxy_map_but_same_sector_does_not(self):
+        def record(x, observed_at):
+            self.engine.record_world(SimpleNamespace(
+                probe={
+                    "id": 762,
+                    "name": "Beta",
+                    "model": "generic",
+                    "status": "idle",
+                    "sector": {"relative": {"x": x, "y": 0, "z": 0}},
+                },
+                sector={"snapshot": None, "resources": []},
+            ), observed_at=observed_at)
+
+        record(1, "2026-08-14T10:00:00+00:00")
+        cached = self.engine.galaxy_map()
+        record(1, "2026-08-14T10:01:00+00:00")
+        self.assertIs(self.engine.galaxy_map(), cached)
+
+        record(2, "2026-08-14T10:02:00+00:00")
+        self.assertIsNot(self.engine.galaxy_map(), cached)
 
     def test_event_records_are_updated_not_duplicated(self):
         self.engine.record_records(
