@@ -8,6 +8,7 @@ Item {
     id: root
     property var settingsData: ({})
     property var runtimeData: ({})
+    property var refreshDiagnostics: ({})
     property var availableProbes: []
     property var credentialData: ({})
     property int focusedProbeId: -1
@@ -67,6 +68,20 @@ Item {
                 return true;
         }
         return false;
+    }
+    function refreshTimingSummary() {
+        const diagnostics = refreshDiagnostics || {};
+        const stages = diagnostics.stages || {};
+        const rows = [];
+        for (const name in stages) {
+            if (name !== "total")
+                rows.push({"name": name, "seconds": Number(stages[name] || 0)});
+        }
+        rows.sort(function(left, right) { return right.seconds - left.seconds; });
+        const summaries = [];
+        for (let i = 0; i < Math.min(4, rows.length); ++i)
+            summaries.push(String(rows[i].name).split(/(?=[A-Z])/).join(" ").toUpperCase() + " " + rows[i].seconds.toFixed(1) + " S");
+        return summaries.join("  ·  ");
     }
     function waitingPlans() {
         return runtimeData.planning || [];
@@ -196,11 +211,14 @@ Item {
     }
 
     ScrollView {
+        id: generalAutomationScroll
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: settingsTabs.bottom; anchors.bottom: parent.bottom
         visible: settingsTabs.currentIndex === 0; clip: true
+        contentWidth: availableWidth
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
         ColumnLayout {
-            width: root.width - 24; spacing: 14
+            width: generalAutomationScroll.availableWidth; spacing: 14
             GroupBox {
                 title: "ACCOUNT & API CREDENTIAL"; Layout.fillWidth: true
                 ColumnLayout {
@@ -488,6 +506,34 @@ Item {
             }
 
             Button { text: "SAVE AUTOMATION TARGETS"; Layout.alignment: Qt.AlignRight; onClicked: root.saveRequested(root.payload()) }
+
+            GroupBox {
+                title: "REFRESH DIAGNOSTICS"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 5
+                    Label {
+                        Layout.fillWidth: true
+                        text: Number((root.refreshDiagnostics || {}).elapsedSeconds || 0) > 0
+                              ? "LAST REFRESH · " + Number(root.refreshDiagnostics.elapsedSeconds).toFixed(1) + " S"
+                              : "REFRESH TIMING WILL APPEAR AFTER THE NEXT COMPLETED REFRESH"
+                        color: Number((root.refreshDiagnostics || {}).elapsedSeconds || 0) >= 30 ? Constants.warningColor : Constants.cyanColor
+                        font.family: Constants.technicalFont; font.bold: true
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.refreshTimingSummary().length > 0
+                        text: "SLOWEST STAGES · " + root.refreshTimingSummary()
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: Boolean((root.refreshDiagnostics || {}).reusedFleetIndex)
+                              ? "FLEET INDEX REUSED · redundant fleet discovery was skipped"
+                              : "FLEET INDEX REFRESHED"
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                    }
+                }
+            }
 
             GroupBox {
                 title: "HELP & DOCUMENTATION"; Layout.fillWidth: true

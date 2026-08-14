@@ -66,21 +66,27 @@ Item {
     function remainingLabel(movement) {
         if (Number(movement.arrivalEpochMs || 0) > 0) {
             const seconds = Math.max(0, Math.floor((Number(movement.arrivalEpochMs) - root.currentEpochMs) / 1000));
-            return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S";
+            return readableDuration(seconds);
         }
         const raw = movement.remainingTime;
         if (raw !== undefined && raw !== null) {
             if (typeof raw === "number") {
                 const seconds = Math.max(0, Math.floor(raw));
-                return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S";
+                return readableDuration(seconds);
             }
             return String(raw);
         }
         if (movement.estimatedArrival) {
             const seconds = Math.max(0, Math.floor((Date.parse(movement.estimatedArrival) - Date.now()) / 1000));
-            if (!isNaN(seconds)) return Math.floor(seconds / 60) + " MIN " + (seconds % 60) + " S";
+            if (!isNaN(seconds)) return readableDuration(seconds);
         }
         return "AWAITING TELEMETRY";
+    }
+    function readableDuration(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        return (hours > 0 ? hours + " HR " : "") + minutes + " MIN " + remainder + " S";
     }
     function headingLabel(heading) {
         if (!heading) return "—";

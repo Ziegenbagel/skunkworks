@@ -9,6 +9,7 @@ Item {
     property var dashboardData: ({})
     property var probes: []
     property int focusedProbeId: -1
+    readonly property bool manualCommandsEnabled: String((dashboardData.automationRuntime || {}).mode || "observe") !== "observe"
 
     signal craftRequested(string recipeId, string mannyId)
     signal repairRequested(string mannyId, real integrityPercent)
@@ -22,6 +23,16 @@ Item {
     signal jettisonRequested(string itemId, real amount, string containerId)
     signal inventoryMannyActionRequested(string action, string mannyId, var payload)
 
+    function readableDuration(secondsValue) {
+        const seconds = Math.max(0, Math.round(Number(secondsValue || 0)));
+        if (!seconds)
+            return "TIME UNKNOWN";
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        return (hours > 0 ? hours + " HR " : "") + minutes + " MIN " + remainder + " S";
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 10
@@ -31,6 +42,15 @@ Item {
             font.family: Constants.displayFont
             font.pixelSize: 19
             font.bold: true
+        }
+        Label {
+            visible: !root.manualCommandsEnabled
+            Layout.fillWidth: true
+            text: "OBSERVE ONLY · MANUAL GAME COMMANDS ARE DISABLED. SELECT REQUIRE APPROVAL OR AUTOMATIC TO USE MANUAL CONTROL."
+            color: Constants.warningColor
+            font.family: Constants.technicalFont
+            font.bold: true
+            wrapMode: Text.Wrap
         }
         Label {
             Layout.fillWidth: true
@@ -47,6 +67,7 @@ Item {
             TabButton { text: "TRANSFERS & CONTAINERS" }
         }
         StackLayout {
+            enabled: root.manualCommandsEnabled
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: tabs.currentIndex
@@ -185,7 +206,7 @@ Item {
                                     RowLayout {
                                         Layout.fillWidth: true
                                         Label { Layout.fillWidth: true; text: String(recipeCard.modelData.name || recipeCard.modelData.id).toUpperCase(); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true; elide: Text.ElideRight }
-                                        Label { text: Number(recipeCard.modelData.durationSeconds || 0) > 0 ? Math.ceil(Number(recipeCard.modelData.durationSeconds) / 60) + " MIN" : "TIME UNKNOWN"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+                                        Label { text: root.readableDuration(recipeCard.modelData.durationSeconds); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
                                     }
                                     Label { Layout.fillWidth: true; text: "FABRICATOR · " + (recipeCard.modelData.craftableBy || []).map(function(value) { return String(value).split("_").join(" ").toUpperCase(); }).join(" / "); color: Constants.mutedTextColor; font.pixelSize: 12; elide: Text.ElideRight }
                                     Label { Layout.fillWidth: true; text: recipeCard.modelData.description || "No description supplied by the game."; color: Constants.mutedTextColor; font.pixelSize: 12; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }

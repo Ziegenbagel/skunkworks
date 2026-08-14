@@ -154,28 +154,34 @@ class MissionControlDataService:
         )
         if should_sync_history:
             report(62, "Synchronizing fleet history")
-            sync_failures = HistorySynchronizer(
-                self.data_engine,
-                self.capabilities,
-            ).sync(
-                world,
-                selected_id,
-                reachable=selected.get("isReachable", True),
+            sync_failures = timed(
+                "historySync",
+                lambda: HistorySynchronizer(
+                    self.data_engine,
+                    self.capabilities,
+                ).sync(
+                    world,
+                    selected_id,
+                    reachable=selected.get("isReachable", True),
+                ),
             )
             self._history_sync_at[selected_id] = now
         else:
-            self.data_engine.record_world(world)
+            timed("recordWorld", lambda: self.data_engine.record_world(world))
             sync_failures = {}
-        world.galaxy = self.data_engine.galaxy_map()
+        world.galaxy = timed("galaxyMap", self.data_engine.galaxy_map)
         report(76, "Evaluating hazards and automation")
         cached_hazards = self._hazard_cache.get(selected_id)
         if cached_hazards and now - cached_hazards[0] < 60:
             world.hazard_context = cached_hazards[1]
         else:
-            world.hazard_context = HazardContextLoader(self.capabilities).load(
-                world,
-                selected_id,
-                reachable=selected.get("isReachable", True),
+            world.hazard_context = timed(
+                "hazards",
+                lambda: HazardContextLoader(self.capabilities).load(
+                    world,
+                    selected_id,
+                    reachable=selected.get("isReachable", True),
+                ),
             )
             self._hazard_cache[selected_id] = (now, world.hazard_context)
 
@@ -194,10 +200,13 @@ class MissionControlDataService:
         if explorer_scan is not None:
             self._last_scan_result = explorer_scan
             world.galaxy = self.data_engine.galaxy_map()
-        dashboard = MissionControlViewModelBuilder(
-            operations,
-            self.data_engine,
-        ).build()
+        dashboard = timed(
+            "dashboard",
+            lambda: MissionControlViewModelBuilder(
+                operations,
+                self.data_engine,
+            ).build(),
+        )
         report(92, "Preparing mission-control displays")
         dashboard["apiVersion"] = self.api_version
         dashboard["appVersion"] = self._app_version()
@@ -279,7 +288,10 @@ class MissionControlDataService:
         except (TypeError, ValueError, json.JSONDecodeError):
             automation["namingPolicy"] = {}
         dashboard["automation"] = automation
-        dashboard["automationRuntime"] = self.automation_view(operations, selected["id"])
+        dashboard["automationRuntime"] = timed(
+            "automationPlanning",
+            lambda: self.automation_view(operations, selected["id"]),
+        )
         timings["total"] = round(time.monotonic() - load_started, 3)
         dashboard["refreshDiagnostics"] = {
             "elapsedSeconds": timings["total"],
@@ -2696,13 +2708,23 @@ class MissionControlController(QObject):
         # Every scheduled cycle is followed by an authoritative focused-probe
         # refresh, including idle cycles, so queue/readiness changes appear in
         # the UI without the operator pressing Refresh.
-        self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
+        # The fleet worker has just refreshed the account index. Re-fetching
+        # player + fleet immediately adds two serial API calls without making
+        # focused telemetry any newer, so reuse the controller's recent index
+        # when available.
+        self._start_refresh(
+            self._focused_probe_id if self._focused_probe_id >= 0 else None,
+            prefer_cached_fleet=True,
+        )
 
     @Slot(str)
     def _reject_fleet_automation(self, message):
         self._fleet_automation_worker = None
         self._set_error("Fleet automation cycle failed: " + message)
-        self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
+        self._start_refresh(
+            self._focused_probe_id if self._focused_probe_id >= 0 else None,
+            prefer_cached_fleet=True,
+        )
 
     def _start_compatibility_check(self):
         if self.service is None or self._compatibility_worker is not None:
@@ -2835,6 +2857,8 @@ class MissionControlController(QObject):
 
     @Slot(str, str)
     def queueManualCraft(self, recipe_id, manny_id):
+        if not self._require_manual_control():
+            return
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before queuing a manual build.")
             return
@@ -2848,6 +2872,8 @@ class MissionControlController(QObject):
 
     @Slot(str, float)
     def queueManualRepair(self, manny_id, integrity_percent):
+        if not self._require_manual_control():
+            return
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before ordering repairs.")
             return
@@ -2861,6 +2887,8 @@ class MissionControlController(QObject):
 
     @Slot(str, str)
     def queueManualUpgrade(self, manny_id, improvement_id):
+        if not self._require_manual_control():
+            return
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before ordering an upgrade.")
             return
@@ -2874,6 +2902,8 @@ class MissionControlController(QObject):
 
     @Slot(str, str, "QVariantList")
     def queueManualProbeAssembly(self, manny_id, model, container_ids):
+        if not self._require_manual_control():
+            return
         self._inventory_mutation(lambda: self.service.manual_assemble_probe(
             manny_id, model, self._qt_safe(container_ids),
         ))
@@ -2947,6 +2977,8 @@ class MissionControlController(QObject):
 
     @Slot(bool)
     def executeTravel(self, risk_acknowledged=False):
+        if not self._require_manual_control():
+            return
         preview = self._dashboard.get("travelPreview")
         if not preview or self.service is None:
             self._set_error("Preview a route before confirming travel.")
@@ -2962,6 +2994,8 @@ class MissionControlController(QObject):
 
     @Slot()
     def cancelTravel(self):
+        if not self._require_manual_control():
+            return
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before cancelling movement.")
             return
@@ -2975,6 +3009,8 @@ class MissionControlController(QObject):
 
     @Slot(int, int, int)
     def scanSector(self, x, y, z):
+        if not self._require_manual_control():
+            return
         if self.service is None:
             self._set_error("Refresh live account data before scanning.")
             return
@@ -3006,6 +3042,8 @@ class MissionControlController(QObject):
 
     @Slot()
     def scanNeighboringSectors(self):
+        if not self._require_manual_control():
+            return
         if self.service is None:
             self._set_error("Refresh live account data before scanning.")
             return
@@ -3222,6 +3260,8 @@ class MissionControlController(QObject):
         self.dashboardChanged.emit()
 
     def _inventory_mutation(self, callback):
+        if not self._require_manual_control():
+            return
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Refresh a focused probe before changing inventory.")
             return
@@ -3232,6 +3272,20 @@ class MissionControlController(QObject):
             return
         self._set_error("")
         self._start_refresh(self._focused_probe_id)
+
+    def _require_manual_control(self):
+        """Observe Only is a hard read-only boundary for operator commands."""
+        if self._focused_probe_id < 0:
+            self._set_error("Select and refresh a probe before issuing a manual command.")
+            return False
+        policy = ExecutionPolicyStore().load(self._focused_probe_id)
+        if policy.mode == ExecutionMode.OBSERVE:
+            self._set_error(
+                "OBSERVE ONLY · Manual game commands are disabled. Select "
+                "Require Approval or Automatic execution mode to use manual control."
+            )
+            return False
+        return True
 
     @staticmethod
     def _inventory_error_message(error):
@@ -3334,6 +3388,8 @@ class MissionControlController(QObject):
         self._message_mutation(lambda: self.service.mark_message_read(message_id))
 
     def _message_mutation(self, callback):
+        if not self._require_manual_control():
+            return
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Refresh a focused probe before using communications.")
             return
@@ -3396,6 +3452,8 @@ class MissionControlController(QObject):
         self.dashboardChanged.emit()
 
     def _logbook_mutation(self, callback, action, page_id=None, payload=None):
+        if not self._require_manual_control():
+            return
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Refresh a focused probe before editing its logbook.")
             return

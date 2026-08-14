@@ -7,6 +7,7 @@ from unittest.mock import patch
 import requests
 
 from src.data import DataEngine
+from src.execution import ExecutionMode
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
 from src.presentation import MissionControlViewModelBuilder
@@ -339,15 +340,36 @@ class UiPreparationTests(unittest.TestCase):
         controller._focused_probe_id = 7
         controller._fleet_automation_worker = object()
         refreshes = []
-        controller._start_refresh = lambda probe_id: refreshes.append(probe_id)
+        controller._start_refresh = lambda probe_id, **kwargs: refreshes.append(
+            (probe_id, kwargs)
+        )
 
         controller._accept_fleet_automation(({
             "probeId": 7,
             "result": {"status": "idle", "message": "No order ready"},
         },))
 
-        self.assertEqual(refreshes, [7])
+        self.assertEqual(refreshes, [(7, {"prefer_cached_fleet": True})])
         self.assertIsNone(controller._fleet_automation_worker)
+
+    def test_observe_only_rejects_manual_game_commands(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        policy = type("Policy", (), {"mode": ExecutionMode.OBSERVE})()
+
+        with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=policy):
+            allowed = controller._require_manual_control()
+
+        self.assertFalse(allowed)
+        self.assertIn("OBSERVE ONLY", controller.error)
+
+    def test_approval_and_automatic_modes_allow_manual_game_commands(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        for mode in (ExecutionMode.APPROVE, ExecutionMode.AUTOMATIC):
+            policy = type("Policy", (), {"mode": mode})()
+            with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=policy):
+                self.assertTrue(controller._require_manual_control())
 
     def test_manual_automation_cycle_is_dispatched_off_the_ui_thread(self):
         started = []

@@ -145,6 +145,7 @@ PanelFrame {
             visible: root.section === "SETTINGS"
             settingsData: root.dashboardData.automation || ({})
             runtimeData: root.dashboardData.automationRuntime || ({})
+            refreshDiagnostics: root.dashboardData.refreshDiagnostics || ({})
             credentialData: root.dashboardData.credentials || ({})
             availableProbes: root.availableProbes
             focusedProbeId: root.focusedProbeId
