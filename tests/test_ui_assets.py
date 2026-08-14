@@ -534,6 +534,18 @@ def test_fleet_workspace_restores_manny_naming_and_owns_auto_naming():
     assert "FLEET AUTO-NAMING" not in settings
 
 
+def test_safety_workspace_wraps_large_alerts_in_a_full_page_scroll():
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
+
+    assert "id: safetyPageScroll" in safety
+    assert "anchors.fill: parent" in safety
+    assert "ScrollBar.horizontal.policy: ScrollBar.AlwaysOff" in safety
+    assert "Layout.preferredHeight: alertDetails.implicitHeight + 36" in safety
+    assert "Text.WrapAtWordBoundaryOrAnywhere" in safety
+    assert "font.pixelSize: 17" in safety
+    assert "font.pixelSize: 16" in safety
+
+
 def test_fleet_workspace_exposes_quick_manual_mining_orders():
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
     navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()

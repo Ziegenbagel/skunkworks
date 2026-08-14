@@ -10,39 +10,63 @@ Item {
     property var recovery: ({})
     signal mindSnapshotReassignRequested()
 
-    ColumnLayout {
-        anchors.fill: parent; spacing: 14
-        GroupBox {
-            visible: Boolean(root.recovery.available)
-            title: "CRITICAL · TERMINAL PROBE RECOVERY"; Layout.fillWidth: true
-            ColumnLayout {
-                anchors.fill: parent; spacing: 10
-                Label { Layout.fillWidth: true; text: String(root.recovery.probeName || "Default probe").toUpperCase() + " · " + String(root.recovery.status || "terminal").split("_").join(" ").toUpperCase(); color: Constants.criticalColor; font.bold: true; font.pixelSize: 18; wrapMode: Text.Wrap }
-                Label { Layout.fillWidth: true; text: "The game permits reassignment of the last stable mind snapshot to a fresh probe chassis. This deletes the terminal probe state and resets the local coordinate reference frame so the new origin becomes FCC 0 / 0 / 0."; color: Constants.warningColor; wrapMode: Text.Wrap }
-                Button { text: "REVIEW MIND-SNAPSHOT REASSIGNMENT"; onClicked: recoveryConfirmation.open() }
+    ScrollView {
+        id: safetyPageScroll
+        anchors.fill: parent
+        clip: true
+        contentWidth: availableWidth
+        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+        ColumnLayout {
+            width: Math.max(1, safetyPageScroll.availableWidth - 12)
+            spacing: 14
+
+            GroupBox {
+                visible: Boolean(root.recovery.available)
+                title: "CRITICAL · TERMINAL PROBE RECOVERY"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 10
+                    Label { Layout.fillWidth: true; text: String(root.recovery.probeName || "Default probe").toUpperCase() + " · " + String(root.recovery.status || "terminal").split("_").join(" ").toUpperCase(); color: Constants.criticalColor; font.bold: true; font.pixelSize: 19; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+                    Label { Layout.fillWidth: true; text: "The game permits reassignment of the last stable mind snapshot to a fresh probe chassis. This deletes the terminal probe state and resets the local coordinate reference frame so the new origin becomes FCC 0 / 0 / 0."; color: Constants.warningColor; font.pixelSize: 16; lineHeight: 1.25; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+                    Button { text: "REVIEW MIND-SNAPSHOT REASSIGNMENT"; onClicked: recoveryConfirmation.open() }
+                }
             }
-        }
-        ScrollView {
-            id: safetyScroll
-            Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-            contentWidth: availableWidth
-            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-            ColumnLayout {
-                width: Math.max(1, safetyScroll.availableWidth - 12); spacing: 10
-                Repeater {
-                    model: root.alerts
-                    delegate: Rectangle {
-                        id: alertCard; required property var modelData
-                        Layout.fillWidth: true; Layout.preferredHeight: alertDetails.implicitHeight + 28
-                        color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
-                        ColumnLayout { id: alertDetails; anchors.fill: parent; anchors.margins: 14
-                            Label { Layout.fillWidth: true; text: alertCard.modelData.codeLabel || "SAFETY ALERT"; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
-                            Label { Layout.fillWidth: true; text: alertCard.modelData.summary || ""; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+
+            Repeater {
+                model: root.alerts
+                delegate: Rectangle {
+                    id: alertCard; required property var modelData
+                    Layout.fillWidth: true
+                    Layout.minimumHeight: 86
+                    Layout.preferredHeight: alertDetails.implicitHeight + 36
+                    color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
+                    ColumnLayout {
+                        id: alertDetails
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        spacing: 8
+                        Label {
+                            Layout.fillWidth: true
+                            text: alertCard.modelData.codeLabel || "SAFETY ALERT"
+                            color: Constants.warningColor
+                            font.family: Constants.technicalFont
+                            font.bold: true
+                            font.pixelSize: 17
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: alertCard.modelData.summary || ""
+                            color: Constants.mutedTextColor
+                            font.family: Constants.bodyFont
+                            font.pixelSize: 16
+                            lineHeight: 1.3
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         }
                     }
                 }
-                Label { visible: root.alerts.length === 0 && !root.recovery.available; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: "No active safety findings."; color: Constants.nominalColor }
             }
+            Label { visible: root.alerts.length === 0 && !root.recovery.available; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: "No active safety findings."; color: Constants.nominalColor; font.pixelSize: 16 }
         }
     }
 
