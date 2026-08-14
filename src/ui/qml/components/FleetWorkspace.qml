@@ -118,8 +118,15 @@ Item {
         onTriggered: root.currentEpochMs = Date.now()
     }
 
-    ColumnLayout {
-        anchors.fill: parent; spacing: 14
+    ScrollView {
+        id: fleetPageScroll
+        anchors.fill: parent
+        clip: true
+        contentWidth: availableWidth
+
+        ColumnLayout {
+        width: Math.max(1, fleetPageScroll.availableWidth)
+        spacing: 14
         Label { visible: !root.manualOnly; text: "FLEET & PROBE IDENTITY"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
         RowLayout {
             visible: !root.manualOnly
@@ -300,40 +307,36 @@ Item {
                 }
             }
         }
-        ScrollView {
-            id: fleetScroll
+        GridLayout {
+            id: fleetGrid
             visible: !root.manualOnly
-            Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-            contentWidth: availableWidth
-            GridLayout {
-                id: fleetGrid
-                width: Math.max(1, fleetScroll.availableWidth)
-                columns: fleetScroll.availableWidth >= 1050 ? 2 : 1
-                columnSpacing: 18; rowSpacing: 18
-                Repeater {
-                    model: root.probes
-                    delegate: Rectangle {
-                        id: probeCard; required property var modelData
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 300
-                        Layout.preferredWidth: Math.max(300, (fleetGrid.width - (fleetGrid.columns - 1) * fleetGrid.columnSpacing) / fleetGrid.columns)
-                        // Keep the grid stable as probes enter and leave transit.
-                        // This is the traveling-card height plus buffer for wrapped
-                        // telemetry on narrower windows.
-                        Layout.minimumHeight: 210
-                        Layout.preferredHeight: 210
-                        Layout.maximumHeight: 210
-                        color: probeCard.modelData.id === root.focusedProbeId ? Constants.selectedColor : Constants.raisedColor; border.color: probeCard.modelData.id === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor; radius: 4
-                        ColumnLayout { anchors.fill: parent; anchors.margins: 18
-                            Label { Layout.fillWidth: true; text: probeCard.modelData.name + (probeCard.modelData.id === root.focusedProbeId ? " · FOCUSED" : ""); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true }
-                            Label { Layout.fillWidth: true; text: String(probeCard.modelData.model || "generic").split("_").join(" ").toUpperCase() + " · " + String(probeCard.modelData.status || "unknown").toUpperCase(); color: Constants.mutedTextColor; font.pixelSize: 15 }
-                            Label { Layout.fillWidth: true; text: probeCard.modelData.sectorLabel || "SECTOR UNKNOWN"; color: Constants.cyanColor; font.pixelSize: 14 }
-                            Label { visible: root.movementSummary(probeCard.modelData) !== ""; Layout.fillWidth: true; text: root.movementSummary(probeCard.modelData); color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 13; wrapMode: Text.Wrap }
-                        }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.probeSelected(Number(probeCard.modelData.id)) }
+            Layout.fillWidth: true
+            columns: fleetPageScroll.availableWidth >= 1050 ? 2 : 1
+            columnSpacing: 18; rowSpacing: 18
+            Repeater {
+                model: root.probes
+                delegate: Rectangle {
+                    id: probeCard; required property var modelData
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 300
+                    Layout.preferredWidth: Math.max(300, (fleetGrid.width - (fleetGrid.columns - 1) * fleetGrid.columnSpacing) / fleetGrid.columns)
+                    // Keep the grid stable as probes enter and leave transit.
+                    // This is the traveling-card height plus buffer for wrapped
+                    // telemetry on narrower windows.
+                    Layout.minimumHeight: 210
+                    Layout.preferredHeight: 210
+                    Layout.maximumHeight: 210
+                    color: probeCard.modelData.id === root.focusedProbeId ? Constants.selectedColor : Constants.raisedColor; border.color: probeCard.modelData.id === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor; radius: 4
+                    ColumnLayout { anchors.fill: parent; anchors.margins: 18
+                        Label { Layout.fillWidth: true; text: probeCard.modelData.name + (probeCard.modelData.id === root.focusedProbeId ? " · FOCUSED" : ""); color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 17; font.bold: true }
+                        Label { Layout.fillWidth: true; text: String(probeCard.modelData.model || "generic").split("_").join(" ").toUpperCase() + " · " + String(probeCard.modelData.status || "unknown").toUpperCase(); color: Constants.mutedTextColor; font.pixelSize: 15 }
+                        Label { Layout.fillWidth: true; text: probeCard.modelData.sectorLabel || "SECTOR UNKNOWN"; color: Constants.cyanColor; font.pixelSize: 14 }
+                        Label { visible: root.movementSummary(probeCard.modelData) !== ""; Layout.fillWidth: true; text: root.movementSummary(probeCard.modelData); color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 13; wrapMode: Text.Wrap }
                     }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.probeSelected(Number(probeCard.modelData.id)) }
                 }
             }
+        }
         }
     }
 

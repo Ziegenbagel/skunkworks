@@ -528,6 +528,9 @@ def test_fleet_workspace_restores_manny_naming_and_owns_auto_naming():
     assert "INFER FROM DEFAULT PROBE" in fleet
     assert "EXAMPLE PROBE" in fleet
     assert "{number:02d} gives 01, 02, 03" in fleet
+    assert "id: fleetPageScroll" in fleet
+    assert "width: Math.max(1, fleetPageScroll.availableWidth)" in fleet
+    assert "id: fleetScroll" not in fleet
     assert "FLEET AUTO-NAMING" not in settings
 
 
