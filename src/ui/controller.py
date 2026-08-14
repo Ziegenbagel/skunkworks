@@ -52,6 +52,12 @@ class MissionControlDataService:
     """Build one authoritative dashboard snapshot for a selected probe."""
 
     DEPENDENCY_MINING_IDLE_GRACE_SECONDS = 120
+    # Refresh and fleet-cycle workers intentionally create short-lived service
+    # objects.  Idle grace is process state, not snapshot state: resetting it
+    # with each worker means a continuously idle Manny can never become
+    # eligible for dependency look-ahead.  Share the clock across those
+    # services while keeping it scoped to the running application.
+    _shared_dependency_mining_idle_since = {}
 
     def __init__(
         self,
@@ -80,7 +86,9 @@ class MissionControlDataService:
         self._logbook_cache = {}
         self._fleet_snapshot_cache = None
         self._fleet_snapshot_cached_at = 0.0
-        self._dependency_mining_idle_since = {}
+        self._dependency_mining_idle_since = (
+            self._shared_dependency_mining_idle_since
+        )
 
     def load(
         self, probe_id=None, include_archival=True, progress=None,
@@ -1794,6 +1802,7 @@ class MissionControlDataService:
         if conflicts:
             labels = {
                 "item_reserved_by_higher_priority_goal": "crafted items",
+                "item_reserved_by_assembly_goal": "completed probe-assembly components",
                 "resource_reserved_by_higher_priority_goal": "raw resources",
             }
             protected = " and ".join(labels.get(item, item) for item in conflicts)

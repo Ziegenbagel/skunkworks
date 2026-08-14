@@ -293,7 +293,55 @@ class CommandPreparer:
             ):
                 conflicts.append("item_reserved_by_higher_priority_goal")
             claims.append((task_rank, min(int(required), available)))
+
+        # The game may satisfy a recursively submitted recipe from matching
+        # physical components already in inventory before synthesizing those
+        # components from raw resources.  A raw-resource production plan alone
+        # therefore cannot protect a completed probe-assembly kit.  Treat every
+        # stored item allocated to an assembly goal as a hard floor: unrelated
+        # crafts (including numerically higher-priority ones) may proceed only
+        # when enough surplus copies exist for their recursive item inputs.
+        if task.action == "Craft Item":
+            recursive_items = self._recursive_item_requirements(task.target)
+            for item_type, required in recursive_items.items():
+                claims = item_claims.get(item_type, ())
+                hard_floor = max((amount for _rank, amount in claims), default=0)
+                if hard_floor <= 0:
+                    continue
+                available = int(items.get(item_type, 0))
+                if available - hard_floor < int(required):
+                    conflicts.append("item_reserved_by_assembly_goal")
         return list(dict.fromkeys(conflicts))
+
+    def _recursive_item_requirements(self, recipe_id):
+        """Return physical item inputs the server could consume for one craft."""
+
+        recipes = self.translator.operations.manufacturing.recipes
+        required = {}
+
+        def walk(current, multiplier, ancestors):
+            if current in ancestors:
+                return
+            recipe = recipes.get(current)
+            if recipe is None:
+                return
+            branch = ancestors | {current}
+            for ingredient in recipe.get("ingredients", ()):
+                kind = ingredient.get(
+                    "kind",
+                    "item" if ingredient.get("unit") == "item" else "resource",
+                )
+                if kind != "item":
+                    continue
+                item_type = ingredient.get("type")
+                amount = int(ingredient.get("quantity", 0) or 0) * multiplier
+                if not item_type or amount <= 0:
+                    continue
+                required[item_type] = required.get(item_type, 0) + amount
+                walk(item_type, amount, branch)
+
+        walk(recipe_id, 1, set())
+        return required
 
     def _disposition(self, command, blockers, warnings):
         if blockers:

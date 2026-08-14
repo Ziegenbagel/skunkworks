@@ -290,6 +290,28 @@ def test_dependency_mining_idle_grace_resets_when_no_manny_is_idle():
     assert 7 not in service._dependency_mining_idle_since
 
 
+def test_dependency_mining_idle_grace_survives_new_service_workers():
+    MissionControlDataService._shared_dependency_mining_idle_since.clear()
+    first = MissionControlDataService.__new__(MissionControlDataService)
+    first._dependency_mining_idle_since = (
+        MissionControlDataService._shared_dependency_mining_idle_since
+    )
+    second = MissionControlDataService.__new__(MissionControlDataService)
+    second._dependency_mining_idle_since = (
+        MissionControlDataService._shared_dependency_mining_idle_since
+    )
+    operations = SimpleNamespace(
+        mining=SimpleNamespace(idle_mannies=lambda: [object()])
+    )
+
+    with patch("src.ui.controller.time.monotonic", return_value=100.0):
+        first._observe_dependency_mining_idle(7, operations)
+    with patch("src.ui.controller.time.monotonic", return_value=220.0):
+        assert second._dependency_mining_idle_grace_elapsed(7) is True
+
+    MissionControlDataService._shared_dependency_mining_idle_since.clear()
+
+
 def test_waiting_fabrication_suppresses_background_mining_until_idle_grace():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7
