@@ -2259,7 +2259,11 @@ class MissionControlController(QObject):
         self._startup_watchdog.setInterval(45_000)
         self._startup_watchdog.timeout.connect(self._release_slow_startup)
         self._automation_timer = QTimer(self)
-        self._automation_timer.setSingleShot(True)
+        # This is a wall-clock heartbeat, not a refresh-completion delay.
+        # A single-shot timer rearmed by every dashboard refresh can be
+        # postponed forever when refreshes happen more often than once per
+        # minute, leaving READY commands visible but never dispatched.
+        self._automation_timer.setSingleShot(False)
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
         self._automation_after_refresh = False
@@ -3680,10 +3684,10 @@ class MissionControlController(QObject):
         if self._automation_tick_pending:
             QTimer.singleShot(0, self._automation_tick)
             return
-        # Anchor the next visible automatic refresh to the end of this one.
-        # A single-shot deadline avoids accumulated phase drift and overlap.
-        if self.credentialConfigured and not self._shutting_down:
-            self._automation_timer.start(60_000)
+        # The repeating heartbeat owns its deadline. Finishing an unrelated
+        # refresh must not move that deadline; an overlapping tick is retained
+        # above and runs immediately when the controller becomes idle.
+        self._ensure_automation_heartbeat()
 
     def _release_slow_startup(self):
         """Never let a slow or wedged first request trap the whole UI."""

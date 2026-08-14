@@ -290,7 +290,7 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(refreshes, [(7, {"prefer_cached_fleet": True})])
         self.assertTrue(controller._automation_after_refresh)
 
-    def test_finished_refresh_dispatches_cycle_then_rearms_from_completion(self):
+    def test_finished_refresh_dispatches_cycle_without_moving_heartbeat_deadline(self):
         class Credentials:
             @staticmethod
             def get():
@@ -311,9 +311,15 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(callbacks, [controller._dispatch_fleet_automation])
 
         callbacks.clear()
-        with patch.object(controller._automation_timer, "start") as start:
+        with patch.object(controller._automation_timer, "isActive", return_value=True), \
+             patch.object(controller._automation_timer, "start") as start:
             controller._finish_refresh()
-        start.assert_called_once_with(60_000)
+        start.assert_not_called()
+
+    def test_automation_heartbeat_is_repeating_so_refreshes_cannot_starve_cycles(self):
+        controller = MissionControlController()
+
+        self.assertFalse(controller._automation_timer.isSingleShot())
 
     def test_finished_refresh_runs_queued_automation_tick(self):
         controller = MissionControlController()
