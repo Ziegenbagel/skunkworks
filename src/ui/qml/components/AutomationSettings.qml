@@ -6,8 +6,6 @@ import ".."
 
 Item {
     id: root
-    readonly property real targetNameColumnWidth: Math.max(360, width * 0.34)
-    readonly property real targetQuantityColumnWidth: Math.max(300, width * 0.29)
     property var settingsData: ({})
     property var runtimeData: ({})
     property var refreshDiagnostics: ({})
@@ -383,9 +381,9 @@ Item {
             GroupBox {
                 title: "FLEET ASSEMBLY TARGETS"; Layout.fillWidth: true
                 GridLayout {
-                    anchors.fill: parent; columns: 3; columnSpacing: 18; rowSpacing: 10
-                    Label { Layout.preferredWidth: root.targetNameColumnWidth; text: "AUTOMATION TARGET"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
-                    Label { Layout.preferredWidth: root.targetQuantityColumnWidth; text: "DESIRED QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    anchors.fill: parent; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
+                    Label { text: "AUTOMATION TARGET"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { text: "DESIRED QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "GENERIC PROBES"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: genericTarget; from: 0; to: 99; editable: true; value: Number((root.settingsData.fleetTargets || {}).generic || 0) }
@@ -440,9 +438,9 @@ Item {
             GroupBox {
                 title: "RESOURCE & SAFETY FLOORS"; Layout.fillWidth: true
                 GridLayout {
-                    anchors.fill: parent; columns: 3; columnSpacing: 18; rowSpacing: 10
-                    Label { Layout.preferredWidth: root.targetNameColumnWidth; text: "AUTOMATION FLOOR"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
-                    Label { Layout.preferredWidth: root.targetQuantityColumnWidth; text: "MINIMUM QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    anchors.fill: parent; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
+                    Label { text: "AUTOMATION FLOOR"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
+                    Label { text: "MINIMUM QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "MAX PER MANNY MINING ORDER"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     SpinBox {

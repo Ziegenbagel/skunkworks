@@ -585,10 +585,9 @@ def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets
 def test_automation_target_panels_share_quantity_and_priority_columns():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
 
-    assert "readonly property real targetNameColumnWidth" in settings
-    assert "readonly property real targetQuantityColumnWidth" in settings
-    assert settings.count("Layout.preferredWidth: root.targetNameColumnWidth") == 2
-    assert settings.count("Layout.preferredWidth: root.targetQuantityColumnWidth") == 2
+    assert settings.count("columns: 3; uniformCellWidths: true") == 2
+    assert "targetNameColumnWidth" not in settings
+    assert "targetQuantityColumnWidth" not in settings
 
 
 def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
