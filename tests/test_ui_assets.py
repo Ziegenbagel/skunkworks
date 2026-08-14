@@ -158,6 +158,8 @@ def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
     assert '"Tanker Class Probe"' in controller
     assert "MANUAL PROBE ASSEMBLY" in manual
     assert "REVIEW PROBE ASSEMBLY" in manual
+    assert "consumes the selected assembly Manny" in manual
+    assert "installed aboard the newly assembled probe" in manual
     assert "queueManualProbeAssembly" in controller
 
 

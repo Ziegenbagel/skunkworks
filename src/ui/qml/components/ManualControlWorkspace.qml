@@ -115,7 +115,7 @@ Item {
                             ComboBox { id: assemblyContainerOne; textRole: "label"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).emptyAssemblyContainers || []; Layout.fillWidth: true }
                             Label { text: "EMPTY CONTAINER 2"; color: Constants.textColor }
                             ComboBox { id: assemblyContainerTwo; textRole: "label"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).emptyAssemblyContainers || []; Layout.fillWidth: true }
-                            Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "Assembly takes three hours and consumes the selected two distinct empty additional containers plus every required model component shown above. Recheck inventory before confirming."; color: Constants.warningColor; wrapMode: Text.Wrap }
+                            Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "Assembly takes three hours and consumes the selected two distinct empty additional containers plus every required model component shown above. It also consumes the selected assembly Manny from this probe and installs that Manny aboard the newly assembled probe. Recheck inventory before confirming."; color: Constants.warningColor; wrapMode: Text.Wrap }
                             Button { text: "REVIEW PROBE ASSEMBLY"; enabled: assemblyModel.count > 0 && assemblyManny.count > 0 && assemblyContainerOne.count >= 2 && String(assemblyContainerOne.currentValue) !== String(assemblyContainerTwo.currentValue); onClicked: assemblyConfirmation.open() }
                         }
                     }
@@ -257,6 +257,6 @@ Item {
         id: assemblyConfirmation; anchors.centerIn: parent; modal: true
         title: "CONFIRM PROBE ASSEMBLY"; standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.probeAssemblyRequested(String(assemblyManny.currentValue), String(assemblyModel.currentValue), [String(assemblyContainerOne.currentValue), String(assemblyContainerTwo.currentValue)])
-        Label { width: 600; text: "This sends a live three-hour assembly order and consumes the two selected empty containers and all required crafted components. Cancelling later leaves consumed ingredients drifting in the assembly sector."; color: Constants.criticalColor; wrapMode: Text.Wrap }
+        Label { width: 600; text: "This sends a live three-hour assembly order and consumes the two selected empty containers, all required crafted components, and the selected assembly Manny. That Manny is installed aboard the newly assembled probe and will no longer remain on the current probe. Cancelling later leaves consumed ingredients drifting in the assembly sector."; color: Constants.criticalColor; wrapMode: Text.Wrap }
     }
 }
