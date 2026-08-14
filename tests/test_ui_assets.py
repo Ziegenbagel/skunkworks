@@ -582,6 +582,15 @@ def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets
     assert "settingsData.fleetStatus" not in settings
 
 
+def test_automation_target_panels_share_quantity_and_priority_columns():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+
+    assert "readonly property real targetNameColumnWidth" in settings
+    assert "readonly property real targetQuantityColumnWidth" in settings
+    assert settings.count("Layout.preferredWidth: root.targetNameColumnWidth") == 2
+    assert settings.count("Layout.preferredWidth: root.targetQuantityColumnWidth") == 2
+
+
 def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     logbook = Path("src/ui/qml/components/LogbookWorkspace.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()
