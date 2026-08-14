@@ -1,20 +1,11 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import ".."
 
 Item {
     id: root
     property var ledgerData: ({})
-    property var inventoryData: ({})
-    signal probeRenameRequested(string name)
-    signal containerRenameRequested(string containerId, string label)
-    signal storageRulesSaveRequested(string containerId, var rules)
-    signal craftingReservationsReassignRequested(string containerId)
-    signal storageMoveRequested(var payload)
-    signal jettisonRequested(string itemId, real amount, string containerId)
-    signal inventoryMannyActionRequested(string action, string mannyId, var payload)
     readonly property var categories: [
         {"key": "probe", "title": "PROBE STORAGE", "description": "Resources aboard the selected probe, separated by storage container."},
         {"key": "drifting", "title": "DRIFTING CONTAINERS", "description": "Visible detached containers floating in the current sector."},
@@ -38,24 +29,14 @@ Item {
         return (ledgerData.rows || []).filter(row => categoryFor(row) === key);
     }
 
-    ColumnLayout {
-        anchors.fill: parent; spacing: 10
-        TabBar {
-            id: resourceTabs; Layout.fillWidth: true
-            TabButton { text: "RESOURCE OVERVIEW" }
-            TabButton { text: "INVENTORY & CONTAINERS" }
-        }
-        StackLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true
-            currentIndex: resourceTabs.currentIndex
+    ScrollView {
+        id: resourceScroll
+        anchors.fill: parent
+        clip: true
 
-            ScrollView {
-                id: resourceScroll
-                clip: true
-
-                Column {
-                    width: resourceScroll.availableWidth
-                    spacing: 20
+        Column {
+            width: resourceScroll.availableWidth
+            spacing: 20
 
             Label {
                 text: "SECTOR RESOURCE LEDGER"
@@ -162,19 +143,6 @@ Item {
                     font.pixelSize: 13
                     wrapMode: Text.Wrap
                 }
-            }
-                }
-            }
-
-            InventoryWorkspace {
-                inventoryData: root.inventoryData
-                onProbeRenameRequested: name => root.probeRenameRequested(name)
-                onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
-                onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
-                onCraftingReservationsReassignRequested: containerId => root.craftingReservationsReassignRequested(containerId)
-                onStorageMoveRequested: payload => root.storageMoveRequested(payload)
-                onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
-                onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
             }
         }
     }

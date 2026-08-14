@@ -199,14 +199,6 @@ PanelFrame {
             anchors.fill: parent
             visible: root.section === "RESOURCES"
             ledgerData: root.dashboardData.resourceLedger || ({})
-            inventoryData: root.dashboardData.inventoryManagement || ({})
-            onProbeRenameRequested: name => root.probeRenameRequested(name)
-            onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
-            onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
-            onCraftingReservationsReassignRequested: containerId => root.craftingReservationsReassignRequested(containerId)
-            onStorageMoveRequested: payload => root.storageMoveRequested(payload)
-            onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
-            onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
         }
 
         FleetWorkspace {

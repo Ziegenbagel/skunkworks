@@ -496,6 +496,8 @@ def test_settings_exposes_safe_application_shutdown():
 def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     inventory = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
     resources = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text()
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
 
     assert "RENAME FOCUSED PROBE" in fleet
@@ -505,7 +507,15 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "MOVE STOCK BETWEEN CONTAINERS" in inventory
     assert "STORED ITEMS & EQUIPMENT" in inventory
     assert "CONFIRM STORAGE TRANSFER" in inventory
-    assert "INVENTORY & CONTAINERS" in resources
+    assert "InventoryWorkspace" not in resources
+    assert "TabBar" not in resources
+    assert "inventoryData" not in resources
+    assert "TRANSFERS & CONTAINERS" in manual
+    assert "InventoryWorkspace" in manual
+    assert "onStorageRulesSaveRequested" in navigation
+    assert "onCraftingReservationsReassignRequested" in navigation
+    assert "onStorageMoveRequested" in navigation
+    assert "onJettisonRequested" in navigation
     assert "replaceAll(" not in inventory
 
 
@@ -515,6 +525,9 @@ def test_fleet_workspace_restores_manny_naming_and_owns_auto_naming():
 
     assert "RENAME MANNY" in fleet
     assert "FLEET AUTO-NAMING" in fleet
+    assert "INFER FROM DEFAULT PROBE" in fleet
+    assert "EXAMPLE PROBE" in fleet
+    assert "{number:02d} gives 01, 02, 03" in fleet
     assert "FLEET AUTO-NAMING" not in settings
 
 

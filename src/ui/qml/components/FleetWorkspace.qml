@@ -94,6 +94,22 @@ Item {
         return String(heading);
     }
 
+    function namingExample(template, manny) {
+        const prefix = namingPrefix.text.trim() || "SKUNKWORKS";
+        let probe = probeNamingTemplate.text || "{prefix}-{number:02d}";
+        probe = probe.replace(/\{prefix\}/g, prefix)
+                     .replace(/\{model\}/g, "explorer")
+                     .replace(/\{number:02d\}/g, "01")
+                     .replace(/\{number\}/g, "1")
+                     .replace(/\{probe\}/g, "Probe");
+        let output = String(template || "");
+        return output.replace(/\{prefix\}/g, prefix)
+                     .replace(/\{probe\}/g, probe)
+                     .replace(/\{model\}/g, "explorer")
+                     .replace(/\{number:02d\}/g, "01")
+                     .replace(/\{number\}/g, "1");
+    }
+
     Timer {
         interval: 1000
         running: root.visible
@@ -126,16 +142,50 @@ Item {
         GroupBox {
             visible: !root.manualOnly
             title: "FLEET AUTO-NAMING · DEFAULT PROBE CONTROLS"; Layout.fillWidth: true
-            GridLayout {
-                anchors.fill: parent; columns: 6; columnSpacing: 10
-                CheckBox { id: namingEnabled; text: "AUTO-NAME NEW"; checked: Boolean(root.namingPolicy.enabled) }
-                CheckBox { id: inferNaming; text: "INFER PREFIX"; checked: Boolean(root.namingPolicy.inferPrefix) }
-                TextField { id: namingPrefix; placeholderText: "Fleet prefix"; text: String(root.namingPolicy.prefix || "SKUNKWORKS"); Layout.preferredWidth: 180 }
-                TextField { id: probeNamingTemplate; placeholderText: "Probe template"; text: String(root.namingPolicy.probeTemplate || "{prefix}-{number:02d}"); Layout.fillWidth: true }
-                TextField { id: mannyNamingTemplate; placeholderText: "Manny template"; text: String(root.namingPolicy.mannyTemplate || "{probe}-M{number:02d}"); Layout.fillWidth: true }
-                Button { text: "SAVE"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"inferPrefix":inferNaming.checked,"prefix":namingPrefix.text,"probeTemplate":probeNamingTemplate.text,"mannyTemplate":mannyNamingTemplate.text}, false) }
-                Label { Layout.columnSpan: 5; Layout.fillWidth: true; text: "Templates: {prefix}, {probe}, {model}, {number} or {number:02d}. Inference uses the default probe name and removes its trailing number."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                Button { text: "APPLY EXISTING"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"inferPrefix":inferNaming.checked,"prefix":namingPrefix.text,"probeTemplate":probeNamingTemplate.text,"mannyTemplate":mannyNamingTemplate.text}, true) }
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 9
+
+                Label {
+                    Layout.fillWidth: true
+                    text: "Auto-name New applies the saved pattern only to probes and Mannys discovered after you save it. Apply to Existing Fleet previews the same convention by renaming assets already in the fleet."
+                    color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 13; wrapMode: Text.Wrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 16
+                    CheckBox { id: namingEnabled; text: "AUTO-NAME NEW ASSETS"; checked: Boolean(root.namingPolicy.enabled) }
+                    CheckBox { id: inferNaming; text: "INFER FROM DEFAULT PROBE"; checked: Boolean(root.namingPolicy.inferPrefix) }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "Inference runs when saved. It removes a trailing number and a recognized role such as Hub, Explorer, or Tanker from the default probe name."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap
+                    }
+                }
+                GridLayout {
+                    Layout.fillWidth: true; columns: 3; columnSpacing: 12; rowSpacing: 7
+                    Label { text: "FLEET PREFIX"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    TextField { id: namingPrefix; placeholderText: "Example: Ziegenbagel Skunkworks"; text: String(root.namingPolicy.prefix || "SKUNKWORKS"); Layout.fillWidth: true }
+                    Label { text: "Used wherever {prefix} appears."; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+
+                    Label { text: "PROBE TEMPLATE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    TextField { id: probeNamingTemplate; placeholderText: "{prefix}-{number:02d}"; text: String(root.namingPolicy.probeTemplate || "{prefix}-{number:02d}"); Layout.fillWidth: true }
+                    Label { text: "EXAMPLE PROBE · " + root.namingExample(probeNamingTemplate.text, false); color: Constants.textColor; font.family: Constants.technicalFont }
+
+                    Label { text: "MANNY TEMPLATE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    TextField { id: mannyNamingTemplate; placeholderText: "{probe}-M{number:02d}"; text: String(root.namingPolicy.mannyTemplate || "{probe}-M{number:02d}"); Layout.fillWidth: true }
+                    Label { text: "EXAMPLE MANNY · " + root.namingExample(mannyNamingTemplate.text, true); color: Constants.textColor; font.family: Constants.technicalFont }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: "AVAILABLE FIELDS · {prefix} is the fleet prefix · {probe} is the owning probe name · {model} is the probe model · {number} gives 1, 2, 3 · {number:02d} gives 01, 02, 03. Example: {prefix}-{model}-{number:02d}."
+                    color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Button { text: "SAVE NAMING SETTINGS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"inferPrefix":inferNaming.checked,"prefix":namingPrefix.text,"probeTemplate":probeNamingTemplate.text,"mannyTemplate":mannyNamingTemplate.text}, false) }
+                    Button { text: "APPLY TO EXISTING FLEET"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"inferPrefix":inferNaming.checked,"prefix":namingPrefix.text,"probeTemplate":probeNamingTemplate.text,"mannyTemplate":mannyNamingTemplate.text}, true) }
+                    Label { Layout.fillWidth: true; text: "Apply Existing renames immediately and cannot infer your preferred wording beyond the saved pattern."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                }
             }
         }
         RowLayout {

@@ -2012,6 +2012,39 @@ class MissionControlDataService:
             "maxDeuterium": probe.get("maxDeuterium", probe.get("maxFuel", 100)),
         }
 
+    @staticmethod
+    def _infer_fleet_prefix(probes):
+        """Infer a reusable fleet prefix from the default probe's display name.
+
+        Probe names commonly end in both an ordinal and a role label.  Keeping
+        either suffix makes inferred templates compound into names such as
+        ``Skunkworks Hub-01``.  Prefer the default probe as the fleet identity
+        source, then remove only well-known terminal role words and ordinals.
+        """
+
+        probes = list(probes or ())
+        if not probes:
+            return ""
+        reference = next((probe for probe in probes if probe.get("isDefault")), probes[0])
+        name = str(reference.get("name") or "").strip()
+        if not name:
+            return ""
+        name = re.sub(r"(?:\s*[-_#]\s*|\s+)\d+\s*$", "", name).strip("-_ ")
+        role_suffixes = (
+            "deuterium reserve", "reserve tanker", "tanker transport",
+            "deuterium tanker", "default probe", "generic probe",
+            "explorer", "transport", "tanker", "reserve", "default",
+            "hub", "probe",
+        )
+        role_pattern = "|".join(re.escape(value) for value in role_suffixes)
+        inferred = re.sub(
+            rf"(?:\s*[-_]\s*|\s+)(?:{role_pattern})\s*$",
+            "",
+            name,
+            flags=re.IGNORECASE,
+        ).strip("-_ ")
+        return inferred or name
+
     def save_fleet_naming_policy(self, policy, apply_existing=False):
         """Persist a naming scheme and rename either existing or newly seen assets."""
 
@@ -2031,9 +2064,7 @@ class MissionControlDataService:
         seen_manny_ids = {str(value) for value in seen.get("mannies", ())}
         prefix = str(policy.get("prefix") or "SKUNKWORKS").strip()
         if policy.get("inferPrefix") and probes:
-            reference_probe = next((probe for probe in probes if probe.get("isDefault")), probes[0])
-            current_name = str(reference_probe.get("name") or "").strip()
-            inferred = re.sub(r"(?:[-_ ]?\d+)+$", "", current_name).strip("-_ ")
+            inferred = self._infer_fleet_prefix(probes)
             if inferred:
                 prefix = inferred
                 policy["prefix"] = prefix
@@ -2527,6 +2558,14 @@ class MissionControlController(QObject):
     def _accept_fleet_naming(self, result):
         self._naming_worker = None
         self._set_error("")
+        # Show an inferred prefix immediately instead of waiting for the next
+        # (potentially slow) account refresh to rebuild automation settings.
+        policy = dict((result or {}).get("policy") or {})
+        if policy:
+            automation = dict(self._dashboard.get("automation") or {})
+            automation["namingPolicy"] = self._qt_safe(policy)
+            self._dashboard["automation"] = automation
+            self.dashboardChanged.emit()
         self._start_refresh(
             self._focused_probe_id if self._focused_probe_id >= 0 else None,
             prefer_cached_fleet=True,
