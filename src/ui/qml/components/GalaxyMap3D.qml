@@ -428,9 +428,10 @@ Item {
     }
 
     Rectangle {
-        anchors.left: parent.left; anchors.top: parent.top
-        anchors.leftMargin: 12; anchors.topMargin: 384
-        width: 560; height: root.filtersExpanded ? Math.min(440, Math.max(220, parent.height - 396)) : 48
+        anchors.left: parent.left; anchors.top: sectorDetailPanel.bottom
+        anchors.leftMargin: 12; anchors.topMargin: 12
+        width: Math.min(560, parent.width - 24)
+        height: root.filtersExpanded ? Math.min(440, Math.max(48, parent.height - y - 12)) : 48
         color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: Constants.lineColor
         clip: true
         Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -544,14 +545,18 @@ Item {
     }
 
     Rectangle {
+        id: sectorDetailPanel
         anchors.left: parent.left; anchors.top: parent.top; anchors.leftMargin: 12; anchors.topMargin: 94
-        width: 520; height: 300; clip: true; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
+        width: Math.min(560, parent.width - 24)
+        height: Math.min(parent.height - 166, Math.max(300, sectorDetailLayout.implicitHeight + 20))
+        clip: true; color: Qt.rgba(0.03, 0.08, 0.12, 0.94); border.color: root.selectedNode ? root.colorFor(root.selectedNode) : Constants.lineColor
         ColumnLayout {
+            id: sectorDetailLayout
             anchors.fill: parent; anchors.margins: 10; spacing: 5
             ComboBox { Layout.fillWidth: true; model: root.visibleNodes; textRole: "label"; onActivated: root.selectedNode = root.visibleNodes[currentIndex] }
-            Label { text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-            Label { Layout.fillWidth: true; text: root.selectedNode ? (root.isGodSector(root.selectedNode) ? "GOD SECTOR · ALL FOUR RESOURCES    " : "") + "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode && root.isGodSector(root.selectedNode) ? "#ffd34d" : root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true }
-            Label { Layout.fillWidth: true; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? (root.isGodSector(root.selectedNode) ? "GOD SECTOR · ALL FOUR RESOURCES    " : "") + "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode && root.isGodSector(root.selectedNode) ? "#ffd34d" : root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
             ScrollView {
                 id: sectorObjectsScroll
                 visible: root.selectedNode && (root.selectedNode.objects || []).length > 0
@@ -583,7 +588,7 @@ Item {
                     }
                 }
             }
-            Label { Layout.fillWidth: true; text: root.selectedNode ? "OBSERVED BY PROBES · " + ((root.selectedNode.probeIds || []).join(", ") || "NONE") + (root.selectedNode.lastVisitedAt ? "    LAST VISIT · " + root.selectedNode.lastVisitedAt : "") : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
+            Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? "OBSERVED BY PROBES · " + ((root.selectedNode.probeIds || []).join(", ") || "NONE") + (root.selectedNode.lastVisitedAt ? "    LAST VISIT · " + root.selectedNode.lastVisitedAt : "") : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {
                 Label { Layout.fillWidth: true; text: root.selectedNode ? "KNOWLEDGE " + String(root.selectedNode.knowledgeLevel).toUpperCase() + " · " + Math.round(root.selectedNode.confidence * 100) + "% CONFIDENCE" : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
                 Button { text: "SCAN / REFRESH"; enabled: root.selectedNode !== null; onClicked: if (root.selectedNode) root.scanRequested(root.selectedNode.x, root.selectedNode.y, root.selectedNode.z) }
