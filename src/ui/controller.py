@@ -264,6 +264,83 @@ class MissionControlDataService:
             }
             for goal in desired_state.fleet
         ]
+        live_target_status = []
+        for goal in desired_state.fleet:
+            current = model_counts.get(goal.model, 0)
+            remaining = max(0, goal.quantity - current)
+            live_target_status.append({
+                "category": "FLEET",
+                "label": goal.model.replace("_", " ").upper(),
+                "priority": goal.priority,
+                "met": remaining == 0,
+                "statusText": (
+                    f"{current} current / {goal.quantity} target · "
+                    f"{remaining} remaining to assemble"
+                ),
+            })
+        for goal in desired_state.production:
+            current = operations.manufacturing.inventory_count(goal.recipe_id)
+            remaining = max(0, goal.quantity - current)
+            recipe = self.recipes.get(goal.recipe_id) or {}
+            label = recipe.get("name") or goal.recipe_id.replace("_", " ").title()
+            live_target_status.append({
+                "category": "PRODUCTION",
+                "label": str(label).upper(),
+                "priority": goal.priority,
+                "met": remaining == 0,
+                "statusText": (
+                    f"{current} stored or active / {goal.quantity} target · "
+                    f"{remaining} remaining to produce"
+                ),
+            })
+        for goal in desired_state.resources:
+            current = float(operations.inventory.resource_amount(goal.resource_type))
+            remaining = max(0.0, goal.minimum_amount - current)
+            live_target_status.append({
+                "category": "RESOURCE FLOOR",
+                "label": goal.resource_type.replace("_", " ").upper(),
+                "priority": goal.priority,
+                "met": remaining <= 0.000001,
+                "statusText": (
+                    f"{current:g} ECE onboard / {goal.minimum_amount:g} ECE minimum · "
+                    f"{remaining:g} ECE below target"
+                    if remaining > 0.000001
+                    else f"{current:g} ECE onboard / {goal.minimum_amount:g} ECE minimum · target met"
+                ),
+            })
+        fuel_percent = float(dashboard.get("probe", {}).get("fuelPercent", 0) or 0)
+        live_target_status.append({
+            "category": "SAFETY FLOOR", "label": "FUEL",
+            "priority": desired_state.fuel.priority,
+            "met": fuel_percent >= desired_state.fuel.minimum_percent,
+            "statusText": (
+                f"{fuel_percent:g}% current / {desired_state.fuel.minimum_percent:g}% minimum"
+            ),
+        })
+        free_capacity = float(dashboard.get("probe", {}).get("inventoryFree", 0) or 0)
+        live_target_status.append({
+            "category": "SAFETY FLOOR", "label": "FREE CAPACITY",
+            "priority": desired_state.inventory.priority,
+            "met": free_capacity >= desired_state.inventory.minimum_free_capacity,
+            "statusText": (
+                f"{free_capacity:g} ECE free / {desired_state.inventory.minimum_free_capacity:g} ECE minimum"
+            ),
+        })
+        integrity = float(dashboard.get("probe", {}).get("integrityPercent", 100) or 0)
+        repair_enabled = desired_state.repair.trigger_percent > 0
+        live_target_status.append({
+            "category": "SAFETY", "label": "PROBE INTEGRITY",
+            "priority": desired_state.repair.priority,
+            "met": not repair_enabled or integrity > desired_state.repair.trigger_percent,
+            "statusText": (
+                f"{integrity:g}% current · repair at or below {desired_state.repair.trigger_percent:g}% · restore to {desired_state.repair.target_percent:g}%"
+                if repair_enabled else f"{integrity:g}% current · automatic repair disabled"
+            ),
+        })
+        automation["liveTargetStatus"] = sorted(
+            live_target_status,
+            key=lambda row: (row["priority"], row["category"], row["label"]),
+        )
         automation["probeRoles"] = {
             str(row["asset_id"]): row["role"]
             for row in FleetRoleService(self.data_engine).all("probe")

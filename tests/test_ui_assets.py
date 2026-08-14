@@ -509,7 +509,7 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "InventoryWorkspace" not in resources
     assert "TabBar" not in resources
     assert "inventoryData" not in resources
-    assert "TRANSFERS & CONTAINERS" in manual
+    assert "TRANSFERS AND CONTAINERS" in manual
     assert "InventoryWorkspace" in manual
     assert "onStorageRulesSaveRequested" in navigation
     assert "onCraftingReservationsReassignRequested" in navigation
@@ -560,12 +560,26 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert "SAME-SECTOR PROBE TRANSFERS" in fleet
     assert '"transfer-deuterium-to-probe"' in fleet
     assert '"transfer-to-probe"' in fleet
-    assert "TRANSFERS & CONTAINERS" in manual
+    assert "TRANSFERS AND CONTAINERS" in manual
+    assert "MINING AND MAINTENANCE" in manual
     assert "MINING_MAINTENANCE" not in manual
     assert "TRANSFERS_CONTAINERS" not in manual
     assert "manualMiningRequested" in navigation
     assert "inventoryManagement || {}).miningTargets" in manual
     assert 'runInventoryMannyAction("mine", mannyId, payload)' in app
+
+
+def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
+
+    assert 'TabButton { text: "GENERAL AUTOMATION" }' in settings
+    assert 'TabButton { text: "MINING AND MAINTENANCE" }' in manual
+    assert 'TabButton { text: "TRANSFERS AND CONTAINERS" }' in manual
+    assert 'TabButton { text: "GENERAL & AUTOMATION" }' not in settings
+    assert settings.index('title: "RESOURCE & SAFETY FLOORS"') < settings.index('title: "LIVE TARGET STATUS"')
+    assert "settingsData.liveTargetStatus" in settings
+    assert "settingsData.fleetStatus" not in settings
 
 
 def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():

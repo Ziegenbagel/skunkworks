@@ -210,7 +210,7 @@ Item {
     TabBar {
         id: settingsTabs
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        TabButton { text: "GENERAL & AUTOMATION" }
+        TabButton { text: "GENERAL AUTOMATION" }
         TabButton { text: "PROBE ROLE SETTINGS" }
     }
 
@@ -436,27 +436,6 @@ Item {
             }
 
             GroupBox {
-                title: "LIVE TARGET STATUS"; Layout.fillWidth: true
-                Column {
-                    width: parent.width; spacing: 6
-                    Repeater {
-                        model: root.settingsData.fleetStatus || []
-                        delegate: Label {
-                            required property var modelData
-                            text: "P" + modelData.priority + "  ·  " + String(modelData.model).split("_").join(" ").toUpperCase() + "  ·  " + modelData.current + " CURRENT / " + modelData.target + " TARGET  ·  " + modelData.shortage + " TO ASSEMBLE"
-                            color: modelData.shortage > 0 ? Constants.warningColor : Constants.nominalColor
-                            font.family: Constants.technicalFont
-                        }
-                    }
-                    Label {
-                        visible: !(root.settingsData.fleetStatus || []).length
-                        text: "SAVE FLEET TARGETS, THEN REFRESH TO CALCULATE LIVE SHORTAGES"
-                        color: Constants.mutedTextColor; font.family: Constants.technicalFont
-                    }
-                }
-            }
-
-            GroupBox {
                 title: "RESOURCE & SAFETY FLOORS"; Layout.fillWidth: true
                 GridLayout {
                     anchors.fill: parent; columns: 3; columnSpacing: 18; rowSpacing: 10
@@ -506,6 +485,49 @@ Item {
                     Label { text: "REPAIR TARGET %"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: repairTarget; from: 1; to: 100; editable: true; value: Number(root.settingsData.repairTargetPercent || 100) }
                     Label { text: "RESTORES TO THIS LEVEL"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                }
+            }
+
+            GroupBox {
+                title: "LIVE TARGET STATUS"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 7
+                    Repeater {
+                        model: root.settingsData.liveTargetStatus || []
+                        delegate: Rectangle {
+                            id: targetStatusRow
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: targetStatusDetails.implicitHeight + 16
+                            color: Constants.raisedColor
+                            border.color: Constants.lineColor
+                            radius: 2
+                            ColumnLayout {
+                                id: targetStatusDetails
+                                anchors.fill: parent; anchors.margins: 8; spacing: 3
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: "P" + targetStatusRow.modelData.priority + " · " + targetStatusRow.modelData.category + " · " + targetStatusRow.modelData.label
+                                    color: targetStatusRow.modelData.met ? Constants.nominalColor : Constants.warningColor
+                                    font.family: Constants.technicalFont; font.bold: true
+                                    wrapMode: Text.Wrap
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: targetStatusRow.modelData.statusText
+                                    color: Constants.mutedTextColor
+                                    font.family: Constants.technicalFont
+                                    wrapMode: Text.Wrap
+                                }
+                            }
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: !(root.settingsData.liveTargetStatus || []).length
+                        text: "SAVE AUTOMATION TARGETS, THEN REFRESH TO CALCULATE LIVE STATUS"
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                    }
                 }
             }
 

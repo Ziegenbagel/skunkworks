@@ -63,8 +63,8 @@ Item {
             id: tabs
             Layout.fillWidth: true
             TabButton { text: "CRAFTING" }
-            TabButton { text: "MINING & MAINTENANCE" }
-            TabButton { text: "TRANSFERS & CONTAINERS" }
+            TabButton { text: "MINING AND MAINTENANCE" }
+            TabButton { text: "TRANSFERS AND CONTAINERS" }
         }
         StackLayout {
             enabled: root.manualCommandsEnabled
