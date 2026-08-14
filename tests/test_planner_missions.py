@@ -284,6 +284,25 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertIn("0.550 is already committed", carbon.reason)
         self.assertEqual(carbon.quantity, 5)
 
+    def test_blocked_manufacturing_explains_inbound_resource_coverage(self):
+        operations = build_operations(metals=0)
+        operations.world.mannies["mannies"][0].update({
+            "currentTask": "mining",
+            "canReceiveOrders": False,
+            "task": {
+                "resourceType": "metals",
+                "targetAmount": 0.75,
+                "depositedAmount": 0,
+            },
+        })
+        task = next(task for task in Planner(
+            operations,
+            DesiredState(production=(ProductionGoal("storage_container", 1),)),
+        ).tasks() if task.category == "manufacturing")
+
+        self.assertIn("metals 0.750 ECE inbound", task.reason)
+        self.assertIn("0.250 ECE uncovered", task.reason)
+
     def test_deuterium_active_commitment_converts_api_fraction_to_tank_ece(self):
         operations = build_operations()
         operations.world.mannies["mannies"][0].update({

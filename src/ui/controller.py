@@ -491,6 +491,25 @@ class MissionControlDataService:
             self._prepared_commands = self._dispatch_prepared_commands(
                 prepared_commands,
             )
+            waiting_fabrication = any(
+                task.action in {"Prepare Manufacturing", "Prepare Probe Assembly"}
+                for task in tasks
+            )
+            if (
+                waiting_fabrication
+                and not self._dependency_mining_idle_grace_elapsed(probe_id)
+            ):
+                # Reserve-floor work must not immediately consume every idle
+                # Manny and thereby make the dependency look-ahead grace
+                # impossible to reach.  Next-unit dependency mining remains
+                # eligible; only unrelated background acquisition waits.
+                self._prepared_commands = tuple(
+                    item for item in self._prepared_commands
+                    if not (
+                        item.command.type == CommandType.MANNY_MINE
+                        and item.command.metadata.get("backgroundWork", False)
+                    )
+                )
         return {
             "probeId": probe_id,
             "mode": policy.mode.value,

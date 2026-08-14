@@ -290,6 +290,42 @@ def test_dependency_mining_idle_grace_resets_when_no_manny_is_idle():
     assert 7 not in service._dependency_mining_idle_since
 
 
+def test_waiting_fabrication_suppresses_background_mining_until_idle_grace():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.data_engine = SimpleNamespace(emergency_stop_active=lambda: False)
+    service._dependency_mining_idle_since = {7: 100.0}
+    operations = SimpleNamespace()
+    waiting = Task(
+        action="Prepare Manufacturing", reason="await metal",
+        category="manufacturing", target="manny", priority=1,
+    )
+    background_command = Command(
+        CommandType.MANNY_MINE, 7,
+        {"objectId": "ice", "resources": ["ice"], "targetAmount": 0.25},
+        "reserve ice", 3, target_id="manny-a",
+        metadata={"backgroundWork": True},
+    )
+
+    with (
+        patch("src.ui.controller.time.monotonic", return_value=150.0),
+        patch("src.ui.controller.ExecutionPolicyStore.load", return_value=ExecutionPolicy()),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch.object(service, "_reconcile_completed_autonomous_travel", side_effect=lambda _o, _p, d: d),
+        patch.object(service, "_reconcile_transport_operation", return_value=(SimpleNamespace(), [], None)),
+        patch.object(service, "_reserve_tanker_delivery_tasks", return_value=[]),
+        patch("src.ui.controller.Planner") as planner,
+        patch("src.ui.controller.CommandPreparer") as preparer,
+    ):
+        planner.return_value.tasks.return_value = [waiting]
+        preparer.return_value.prepare.return_value = (
+            PreparedCommand(background_command, "ready"),
+        )
+        view = service.automation_view(operations, 7)
+
+    assert view["queue"] == []
+
+
 def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():
     allocations = {}
 

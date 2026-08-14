@@ -6,6 +6,7 @@ from src.planner.task import Task
 
 def plan(operations, desired_state) -> list[Task]:
     tasks = []
+    active_commitments = operations.mining.active_commitments()
 
     for goal in desired_state.production:
         stored = operations.manufacturing.inventory_count(
@@ -39,6 +40,22 @@ def plan(operations, desired_state) -> list[Task]:
             )
             continue
 
+        inbound_parts = []
+        for resource, missing in production["missing_resources"].items():
+            committed = float(active_commitments.get(resource, 0) or 0)
+            if committed <= 0:
+                continue
+            covered = min(float(missing), committed)
+            uncovered = max(0.0, float(missing) - committed)
+            inbound_parts.append(
+                f"{resource.replace('_', ' ')} {covered:.3f} ECE inbound, "
+                f"{uncovered:.3f} ECE uncovered"
+            )
+        inbound_note = (
+            " Active mining commitments: " + "; ".join(inbound_parts) + "."
+            if inbound_parts else ""
+        )
+
         tasks.append(
             Task(
                 action=(
@@ -54,6 +71,7 @@ def plan(operations, desired_state) -> list[Task]:
                     "are reconsidered after each planning cycle."
                     " Ordinary recipes are submitted as one direct game recipe; "
                     "Skunkworks does not create surplus intermediate inventory."
+                    + inbound_note
                 ),
                 category="manufacturing",
                 target=goal.recipe_id,
