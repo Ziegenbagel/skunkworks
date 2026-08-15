@@ -294,6 +294,18 @@ requiring the game website.
 Goal: safely extend the one-command runtime into durable fleet operations.
 
 - Durable scheduler and fleet-wide work queue.
+- Account-wide API request budget driven by live rate-limit headers, with a
+  configurable safety reserve below the game's reported ceiling.
+- Priority-aware request scheduling: preserve capacity for emergency stops,
+  command preflight, active-operation telemetry, and time-sensitive orders;
+  defer background refreshes, archival sync, discovery scans, and other stale-
+  tolerant reads until request pressure falls.
+- Shared accounting for reads, mutation orders, retries, and every probe's
+  per-cycle command allowance so per-probe settings cannot collectively exceed
+  the account budget.
+- Fairness and starvation protection for deferred work, plus operator-visible
+  remaining capacity, deferred-request counts, and the reason each request is
+  running or waiting.
 - Dependency-aware concurrency.
 - One active execution lease per assigned asset.
 - Restart, crash, and ambiguous-result recovery.
