@@ -1,6 +1,37 @@
 from src.ui.controller import MissionControlController, MissionControlDataService
 
 
+class _Preferences:
+    def __init__(self):
+        self.values = {}
+
+    def get_preference(self, key, default=None):
+        return self.values.get(key, default)
+
+    def set_preference(self, key, value):
+        self.values[key] = value
+
+
+class _NamingCapabilities:
+    def __init__(self):
+        self.renamed_mannies = []
+        self.probes = type("Probes", (), {
+            "list": lambda inner: {"probes": [
+                {"id": 1, "name": "Hub One"},
+                {"id": 2, "name": "Miner Two"},
+            ]},
+        })()
+        self.mannies = type("Mannies", (), {
+            "list": lambda inner, probe_id: {"mannies": [
+                {"id": "m2", "name": "Old Two"},
+                {"id": "m1", "name": "Old One"},
+            ]},
+            "rename": lambda inner, probe_id, manny_id, name: self.renamed_mannies.append(
+                (probe_id, manny_id, name)
+            ),
+        })()
+
+
 def test_fleet_prefix_inference_removes_default_role_and_ordinal():
     probes = [
         {"id": 2, "name": "Demo Explorer - 1", "isDefault": False},
@@ -18,6 +49,25 @@ def test_fleet_prefix_inference_preserves_meaningful_words():
 
 def test_fleet_prefix_inference_handles_empty_probe_list():
     assert MissionControlDataService._infer_fleet_prefix([]) == ""
+
+
+def test_manny_naming_policy_is_probe_scoped_and_never_renames_probe():
+    preferences = _Preferences()
+    service = MissionControlDataService(client=object(), data_engine=preferences)
+    service.capabilities = _NamingCapabilities()
+
+    result = service.save_probe_manny_naming_policy(
+        2, {"enabled": True, "mannyTemplate": "{probe} Manny {number:02d}"}, True,
+    )
+
+    assert result["probeId"] == 2
+    assert result["renamedMannies"] == 2
+    assert service.capabilities.renamed_mannies == [
+        (2, "m1", "Miner Two Manny 01"),
+        (2, "m2", "Miner Two Manny 02"),
+    ]
+    assert "probe_manny_naming_policy:2" in preferences.values
+    assert "probe_manny_naming_policy:1" not in preferences.values
 
 
 def test_successful_naming_result_updates_visible_policy_before_refresh(monkeypatch):

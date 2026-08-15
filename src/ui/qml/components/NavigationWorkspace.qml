@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import ".."
 
 PanelFrame {
@@ -15,6 +16,7 @@ PanelFrame {
     // for its full telemetry, countdown, and recall control without nested
     // card scrolling or content-driven layout calculations.
     readonly property int standardProductionCardHeight: 500
+    property string productionSort: "name"
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)
@@ -106,16 +108,30 @@ PanelFrame {
                         "title": item.displayText,
                         "detail": item.detailText
                     }));
-        if (section === "PRODUCTION")
-            return (dashboardData.production || []).map(item => ({
+        if (section === "PRODUCTION") {
+            const rows = (dashboardData.production || []).map(item => ({
                         "title": item.displayText,
                         "detail": item.detailText,
+                        "asset": item.asset || "",
+                        "taskType": item.taskType || "idle",
+                        "state": String(item.taskType || "idle").toLowerCase() === "idle" ? "idle" : "active",
                         "etaEpochMs": item.etaEpochMs || 0,
                         "mannyId": item.id || "",
                         "cancellable": item.taskType !== "idle"
                             && String(item.asset || "").toLowerCase().indexOf("printer") < 0
                             && String(item.taskType || "").toLowerCase().indexOf("transfer") < 0
                     }));
+            return rows.sort(function(left, right) {
+                let comparison = 0;
+                if (root.productionSort === "task")
+                    comparison = root.productionTaskLabel(left.taskType).localeCompare(root.productionTaskLabel(right.taskType));
+                else if (root.productionSort === "state")
+                    comparison = (left.state === "active" ? 0 : 1) - (right.state === "active" ? 0 : 1);
+                else
+                    comparison = String(left.asset).localeCompare(String(right.asset));
+                return comparison || String(left.asset).localeCompare(String(right.asset));
+            });
+        }
         if (section === "SAFETY")
             return (dashboardData.alerts || []).map(item => ({
                         "title": item.codeLabel,
@@ -127,6 +143,18 @@ PanelFrame {
                         "detail": item.observedAt || "Recorded event"
                     }));
         return [];
+    }
+
+    function productionTaskLabel(taskType) {
+        const normalized = String(taskType || "idle").toLowerCase().replace(/-/g, "_");
+        if (normalized === "idle") return "Idle";
+        if (normalized.indexOf("min") >= 0) return "Mining";
+        if (normalized.indexOf("craft") >= 0 || normalized.indexOf("print") >= 0) return "Crafting";
+        if (normalized.indexOf("repair") >= 0) return "Repair";
+        if (normalized.indexOf("assembl") >= 0) return "Assembly";
+        if (normalized.indexOf("transfer") >= 0) return "Transfer";
+        if (normalized.indexOf("travel") >= 0 || normalized.indexOf("move") >= 0) return "Travel";
+        return normalized.replace(/_/g, " ").replace(/\b\w/g, function(letter) { return letter.toUpperCase(); });
     }
 
     contentItem: Item {
@@ -264,12 +292,32 @@ PanelFrame {
             anchors.fill: parent
             spacing: 12
 
-            Label {
+            RowLayout {
                 width: parent.width
-                text: root.section + " · LIVE ACCOUNT DATA"
-                color: Constants.cyanColor
-                font.family: Constants.technicalFont
-                font.pixelSize: 14
+                Label {
+                    text: root.section + " · LIVE ACCOUNT DATA"
+                    color: Constants.cyanColor
+                    font.family: Constants.technicalFont
+                    font.pixelSize: 14
+                }
+                Item { Layout.fillWidth: true }
+                Label {
+                    visible: root.section === "PRODUCTION"
+                    text: "SORT MANNYS"
+                    color: Constants.mutedTextColor
+                    font.family: Constants.technicalFont
+                }
+                ComboBox {
+                    visible: root.section === "PRODUCTION"
+                    Layout.preferredWidth: 190
+                    textRole: "text"; valueRole: "value"
+                    model: [
+                        {"text": "NAME", "value": "name"},
+                        {"text": "TASK", "value": "task"},
+                        {"text": "STATE", "value": "state"}
+                    ]
+                    onActivated: root.productionSort = String(currentValue)
+                }
             }
 
             Rectangle {

@@ -368,7 +368,9 @@ class MissionControlDataService:
         ]
         try:
             automation["namingPolicy"] = json.loads(
-                self.data_engine.get_preference("fleet_naming_policy", "{}")
+                self.data_engine.get_preference(
+                    f"probe_manny_naming_policy:{selected['id']}", "{}"
+                )
             )
         except (TypeError, ValueError, json.JSONDecodeError):
             automation["namingPolicy"] = {}
@@ -2122,66 +2124,55 @@ class MissionControlDataService:
         ).strip("-_ ")
         return inferred or name
 
-    def save_fleet_naming_policy(self, policy, apply_existing=False):
-        """Persist a naming scheme and rename either existing or newly seen assets."""
+    def save_probe_manny_naming_policy(
+        self, probe_id, policy, apply_existing=False,
+    ):
+        """Persist and apply a Manny naming scheme for one owning probe."""
 
+        probe_id = int(probe_id)
         policy = dict(policy or {})
         policy.setdefault("enabled", False)
-        policy.setdefault("inferPrefix", False)
-        policy.setdefault("prefix", "SKUNKWORKS")
-        policy.setdefault("probeTemplate", "{prefix}-{number:02d}")
         policy.setdefault("mannyTemplate", "{probe}-M{number:02d}")
         response = self.capabilities.probes.list()
         probes = list(response.get("probes", ()))
+        probe = next(
+            (item for item in probes if int(item.get("id", -1)) == probe_id),
+            None,
+        )
+        if probe is None:
+            raise ValueError("The focused probe is no longer available.")
+        policy_key = f"probe_manny_naming_policy:{probe_id}"
+        seen_key = f"probe_manny_naming_seen:{probe_id}"
         try:
-            seen = json.loads(self.data_engine.get_preference("fleet_naming_seen") or "{}")
+            seen = json.loads(self.data_engine.get_preference(seen_key) or "[]")
         except (TypeError, ValueError):
-            seen = {}
-        seen_probe_ids = {str(value) for value in seen.get("probes", ())}
-        seen_manny_ids = {str(value) for value in seen.get("mannies", ())}
-        prefix = str(policy.get("prefix") or "SKUNKWORKS").strip()
-        if policy.get("inferPrefix") and probes:
-            inferred = self._infer_fleet_prefix(probes)
-            if inferred:
-                prefix = inferred
-                policy["prefix"] = prefix
-                self.data_engine.set_preference("fleet_naming_policy", json.dumps(policy))
-
-        renamed_probes = 0
+            seen = []
+        seen_manny_ids = {str(value) for value in seen}
         renamed_mannies = 0
-        current_probe_ids = set()
         current_manny_ids = set()
-        for number, probe in enumerate(sorted(probes, key=lambda row: int(row["id"])), 1):
-            probe_key = str(probe["id"])
-            current_probe_ids.add(probe_key)
+        manny_response = self.capabilities.mannies.list(probe_id)
+        mannies = sorted(
+            manny_response.get("mannies", ()),
+            key=lambda item: str(item.get("id", "")),
+        )
+        for manny_number, manny in enumerate(mannies, 1):
+            manny_key = str(manny["id"])
+            current_manny_ids.add(manny_key)
             values = {
-                "prefix": prefix,
-                "number": number,
-                "model": str(probe.get("model") or "generic").replace("_", "-"),
-                "probe": str(probe.get("name") or f"Probe-{number}"),
+                "probe": str(probe.get("name") or f"Probe-{probe_id}"),
+                "number": manny_number,
             }
-            new_probe_name = str(policy["probeTemplate"]).format_map(values).strip()
-            rename_probe = apply_existing or (seen_probe_ids and probe_key not in seen_probe_ids)
-            if rename_probe and new_probe_name and new_probe_name != probe.get("name"):
-                self.capabilities.probes.update(probe["id"], name=new_probe_name)
-                renamed_probes += 1
-            values["probe"] = (new_probe_name if rename_probe else values["probe"])
-            manny_response = self.capabilities.mannies.list(probe["id"])
-            for manny_number, manny in enumerate(manny_response.get("mannies", ()), 1):
-                manny_key = f"{probe_key}:{manny['id']}"
-                current_manny_ids.add(manny_key)
-                manny_values = dict(values, number=manny_number)
-                new_manny_name = str(policy["mannyTemplate"]).format_map(manny_values).strip()
-                rename_manny = apply_existing or (seen_manny_ids and manny_key not in seen_manny_ids)
-                if rename_manny and new_manny_name and new_manny_name != manny.get("name"):
-                    self.capabilities.mannies.rename(probe["id"], manny["id"], new_manny_name)
-                    renamed_mannies += 1
-        self.data_engine.set_preference("fleet_naming_policy", json.dumps(policy))
-        self.data_engine.set_preference("fleet_naming_seen", json.dumps({
-            "probes": sorted(current_probe_ids), "mannies": sorted(current_manny_ids),
-        }))
+            new_manny_name = str(policy["mannyTemplate"]).format_map(values).strip()
+            rename_manny = apply_existing or (
+                bool(seen_manny_ids) and manny_key not in seen_manny_ids
+            )
+            if rename_manny and new_manny_name and new_manny_name != manny.get("name"):
+                self.capabilities.mannies.rename(probe_id, manny["id"], new_manny_name)
+                renamed_mannies += 1
+        self.data_engine.set_preference(policy_key, json.dumps(policy))
+        self.data_engine.set_preference(seen_key, json.dumps(sorted(current_manny_ids)))
         return {
-            "status": "applied", "renamedProbes": renamed_probes,
+            "status": "applied", "probeId": probe_id,
             "renamedMannies": renamed_mannies, "policy": policy,
         }
 
@@ -2256,8 +2247,9 @@ class _CompatibilityWorker(QRunnable):
 
 
 class _FleetNamingWorker(QRunnable):
-    def __init__(self, policy, apply_existing, service_factory=MissionControlDataService):
+    def __init__(self, probe_id, policy, apply_existing, service_factory=MissionControlDataService):
         super().__init__()
+        self.probe_id = int(probe_id)
         self.policy = dict(policy or {})
         self.apply_existing = bool(apply_existing)
         self.service_factory = service_factory
@@ -2266,7 +2258,9 @@ class _FleetNamingWorker(QRunnable):
     def run(self):
         try:
             service = self.service_factory()
-            result = service.save_fleet_naming_policy(self.policy, self.apply_existing)
+            result = service.save_probe_manny_naming_policy(
+                self.probe_id, self.policy, self.apply_existing,
+            )
         except Exception as error:
             traceback.print_exc()
             _safe_emit(self.signals.failed, str(error) or type(error).__name__)
@@ -2619,13 +2613,14 @@ class MissionControlController(QObject):
 
     @Slot("QVariantMap", bool)
     def saveFleetNamingPolicy(self, policy, apply_existing=False):
-        default_probe_id = self._dashboard.get("defaultProbeId")
-        if default_probe_id is None or int(self._focused_probe_id) != int(default_probe_id):
-            self._set_error("Fleet auto-naming can only be configured while the main/default probe is focused.")
+        if self._focused_probe_id < 0:
+            self._set_error("Select a probe before configuring Manny auto-naming.")
             return
         if self._naming_worker is not None:
             return
-        worker = _FleetNamingWorker(self._qt_safe(policy), apply_existing)
+        worker = _FleetNamingWorker(
+            self._focused_probe_id, self._qt_safe(policy), apply_existing,
+        )
         worker.signals.succeeded.connect(self._accept_fleet_naming)
         worker.signals.failed.connect(self._reject_fleet_naming)
         self._naming_worker = worker
@@ -3695,13 +3690,15 @@ class MissionControlController(QObject):
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
         if (
             naming_policy.get("enabled")
-            and payload.get("defaultProbeId") is not None
-            and int(payload.get("focusedProbeId", self._focused_probe_id)) == int(payload["defaultProbeId"])
             and self._naming_worker is None
             and time.monotonic() - self._naming_last_audit >= 300
         ):
             self._naming_last_audit = time.monotonic()
-            naming_worker = _FleetNamingWorker(naming_policy, False)
+            naming_worker = _FleetNamingWorker(
+                payload.get("focusedProbeId", self._focused_probe_id),
+                naming_policy,
+                False,
+            )
             naming_worker.signals.succeeded.connect(self._accept_fleet_naming_audit)
             naming_worker.signals.failed.connect(self._reject_fleet_naming)
             self._naming_worker = naming_worker

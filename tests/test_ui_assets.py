@@ -528,19 +528,32 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "replaceAll(" not in inventory
 
 
-def test_fleet_workspace_restores_manny_naming_and_owns_auto_naming():
+def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
 
     assert "RENAME MANNY" in fleet
-    assert "FLEET AUTO-NAMING" in fleet
-    assert "INFER FROM DEFAULT PROBE" in fleet
-    assert "EXAMPLE PROBE" in fleet
+    assert "MANNY AUTO-NAMING · FOCUSED PROBE" in fleet
+    assert "AUTO-NAME NEW MANNYS" in fleet
+    assert "APPLY TO EXISTING MANNYS" in fleet
+    assert "INFER FROM DEFAULT PROBE" not in fleet
+    assert "PROBE TEMPLATE" not in fleet
     assert "{number:02d} gives 01, 02, 03" in fleet
     assert "id: fleetPageScroll" in fleet
     assert "width: Math.max(1, fleetPageScroll.availableWidth)" in fleet
     assert "id: fleetScroll" not in fleet
-    assert "FLEET AUTO-NAMING" not in settings
+    assert "MANNY AUTO-NAMING" not in settings
+
+
+def test_production_workspace_offers_name_task_and_state_sorting():
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+
+    assert 'property string productionSort: "name"' in navigation
+    assert '"text": "NAME", "value": "name"' in navigation
+    assert '"text": "TASK", "value": "task"' in navigation
+    assert '"text": "STATE", "value": "state"' in navigation
+    assert "function productionTaskLabel(taskType)" in navigation
+    assert 'left.state === "active"' in navigation
 
 
 def test_safety_workspace_wraps_large_alerts_in_a_full_page_scroll():
