@@ -108,7 +108,8 @@ Item {
 
     function namingExample(template) {
         const probe = String(root.probeData.name || "Focused Probe");
-        const number = String(1).padStart(numberDigits.value, "0");
+        const number = sequenceStyle.currentValue === "letters"
+            ? "A" : String(1).padStart(numberDigits.value, "0");
         let output = String(template || "");
         return output.replace(/\{probe\}/g, probe)
                      .replace(/\{number(?::0*\d+d)?\}/g, number);
@@ -189,19 +190,27 @@ Item {
                     TextField { id: mannyNamingTemplate; placeholderText: "{probe}-M{number}"; text: root.simpleMannyTemplate(); Layout.fillWidth: true }
                     Label { text: "EXAMPLE MANNY · " + root.namingExample(mannyNamingTemplate.text); color: Constants.textColor; font.family: Constants.technicalFont }
 
-                    Label { text: "TOTAL NUMBER DIGITS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    SpinBox { id: numberDigits; from: 1; to: 6; editable: true; value: root.namingDigits() }
-                    Label { text: "1 → 1   ·   2 → 01   ·   3 → 001"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                    Label { text: "SEQUENCE STYLE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    ComboBox {
+                        id: sequenceStyle; textRole: "text"; valueRole: "value"
+                        model: [{"text":"NUMERIC", "value":"numeric"}, {"text":"LETTERS", "value":"letters"}]
+                        currentIndex: String(root.namingPolicy.sequenceStyle || "numeric") === "letters" ? 1 : 0
+                    }
+                    Label { text: sequenceStyle.currentValue === "letters" ? "A … Z, Aa, Ab … Az, Ba …" : "1, 2, 3 … with optional leading zeroes"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+
+                    Label { visible: sequenceStyle.currentValue === "numeric"; text: "TOTAL NUMBER DIGITS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    SpinBox { visible: sequenceStyle.currentValue === "numeric"; id: numberDigits; from: 1; to: 6; editable: true; value: root.namingDigits() }
+                    Label { visible: sequenceStyle.currentValue === "numeric"; text: "1 → 1   ·   2 → 01   ·   3 → 001"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "FORMAT FIELDS · {probe} inserts the focused probe name · {number} inserts the Manny sequence number using Total Number Digits above."
+                    text: "FORMAT FIELDS · {probe} inserts the focused probe name · {number} inserts the numeric or letter sequence selected above."
                     color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Button { text: "SAVE NAMING SETTINGS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"mannyTemplate":mannyNamingTemplate.text,"numberDigits":numberDigits.value}, false) }
-                    Button { text: "APPLY TO EXISTING MANNYS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"mannyTemplate":mannyNamingTemplate.text,"numberDigits":numberDigits.value}, true) }
+                    Button { text: "SAVE NAMING SETTINGS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"mannyTemplate":mannyNamingTemplate.text,"numberDigits":numberDigits.value,"sequenceStyle":sequenceStyle.currentValue}, false) }
+                    Button { text: "APPLY TO EXISTING MANNYS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"mannyTemplate":mannyNamingTemplate.text,"numberDigits":numberDigits.value,"sequenceStyle":sequenceStyle.currentValue}, true) }
                     Label { Layout.fillWidth: true; text: "Apply Existing renames this focused probe's Mannys immediately."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 }
             }

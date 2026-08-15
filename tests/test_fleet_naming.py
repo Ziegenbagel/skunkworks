@@ -87,6 +87,15 @@ def test_legacy_number_token_migrates_its_visible_width():
     assert service.capabilities.renamed_mannies[0] == (1, "m1", "Manny-001")
 
 
+def test_letter_sequence_rolls_from_z_to_aa():
+    values = [
+        MissionControlDataService._letter_sequence(number)
+        for number in (1, 26, 27, 28, 52, 53)
+    ]
+
+    assert values == ["A", "Z", "Aa", "Ab", "Az", "Ba"]
+
+
 def test_successful_naming_result_updates_visible_policy_before_refresh(monkeypatch):
     controller = MissionControlController.__new__(MissionControlController)
     controller._naming_worker = object()

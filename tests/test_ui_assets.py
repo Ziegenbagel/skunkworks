@@ -541,6 +541,8 @@ def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
     assert "TOTAL NUMBER DIGITS" in fleet
     assert "3 → 001" in fleet
     assert '"numberDigits":numberDigits.value' in fleet
+    assert '"sequenceStyle":sequenceStyle.currentValue' in fleet
+    assert "A … Z, Aa, Ab … Az, Ba …" in fleet
     assert "id: fleetPageScroll" in fleet
     assert "width: Math.max(1, fleetPageScroll.availableWidth)" in fleet
     assert "id: fleetScroll" not in fleet

@@ -2133,6 +2133,9 @@ class MissionControlDataService:
         policy = dict(policy or {})
         policy.setdefault("enabled", False)
         policy.setdefault("mannyTemplate", "{probe}-M{number}")
+        policy["sequenceStyle"] = (
+            "letters" if policy.get("sequenceStyle") == "letters" else "numeric"
+        )
         legacy_number = re.search(
             r"\{number:([0-9]+)d\}", str(policy["mannyTemplate"]),
         )
@@ -2169,9 +2172,14 @@ class MissionControlDataService:
                 "probe": str(probe.get("name") or f"Probe-{probe_id}"),
                 "number": manny_number,
             }
+            sequence_value = (
+                self._letter_sequence(manny_number)
+                if policy["sequenceStyle"] == "letters"
+                else str(manny_number).zfill(policy["numberDigits"])
+            )
             template = re.sub(
                 r"\{number(?::0*\d+d)?\}",
-                str(manny_number).zfill(policy["numberDigits"]),
+                sequence_value,
                 str(policy["mannyTemplate"]),
             )
             new_manny_name = template.replace("{probe}", values["probe"]).strip()
@@ -2187,6 +2195,20 @@ class MissionControlDataService:
             "status": "applied", "probeId": probe_id,
             "renamedMannies": renamed_mannies, "policy": policy,
         }
+
+    @staticmethod
+    def _letter_sequence(number):
+        """Return A..Z, Aa..Az, Ba.. for a one-based sequence number."""
+
+        number = int(number)
+        if number < 1:
+            raise ValueError("Letter sequence numbers must be positive.")
+        characters = []
+        while number:
+            number, remainder = divmod(number - 1, 26)
+            characters.append(chr(ord("a") + remainder))
+        value = "".join(reversed(characters))
+        return value[0].upper() + value[1:]
 
 
 class _WorkerSignals(QObject):
