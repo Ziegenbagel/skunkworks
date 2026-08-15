@@ -7,7 +7,12 @@ import ".."
 Item {
     id: root
     property bool roleSettingsOnly: false
-    readonly property real roleSettingsContentHeight: transportAutomationContent.implicitHeight
+    readonly property real transportContentExtent: Math.max(
+        transportAutomationContent.implicitHeight,
+        transportAutomationContent.childrenRect.y + transportAutomationContent.childrenRect.height
+    )
+    readonly property real roleSettingsContentHeight: transportContentExtent
+        + transportAutomationScroll.topPadding + transportAutomationScroll.bottomPadding
     readonly property var activeTravelTarget: (root.automationData || {}).travelTarget || ({})
     property var navigationData: ({})
     property var travelPreview: ({})
@@ -241,9 +246,12 @@ Item {
                 id: transportAutomationScroll
                 clip: true
                 contentWidth: availableWidth
-                contentHeight: transportAutomationContent.implicitHeight
+                contentHeight: root.transportContentExtent
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                ScrollBar.vertical.policy: root.roleSettingsOnly ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded
+                // The parent role-settings view normally grows to fit this content. Keep
+                // a fallback scrollbar for late/dynamic layout changes so the final rows
+                // can never become unreachable.
+                ScrollBar.vertical.policy: ScrollBar.AsNeeded
                 ColumnLayout {
                     id: transportAutomationContent
                     width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 16

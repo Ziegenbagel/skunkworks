@@ -90,7 +90,7 @@ Item {
                 Item {
                     Layout.fillWidth: true
                     Layout.minimumWidth: roleScroll.availableWidth
-                    Layout.preferredHeight: Math.max(730, Math.ceil(transportRoleControl.roleSettingsContentHeight) + 8)
+                    Layout.preferredHeight: Math.max(730, Math.ceil(transportRoleControl.roleSettingsContentHeight) + 24)
                     Layout.minimumHeight: Layout.preferredHeight
                     visible: root.focusedRole === "transport" || root.focusedRole === "deuterium_tanker"
                 NavigationControl {
