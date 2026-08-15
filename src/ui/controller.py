@@ -2132,7 +2132,14 @@ class MissionControlDataService:
         probe_id = int(probe_id)
         policy = dict(policy or {})
         policy.setdefault("enabled", False)
-        policy.setdefault("mannyTemplate", "{probe}-M{number:02d}")
+        policy.setdefault("mannyTemplate", "{probe}-M{number}")
+        legacy_number = re.search(
+            r"\{number:([0-9]+)d\}", str(policy["mannyTemplate"]),
+        )
+        default_digits = len(legacy_number.group(1)) if legacy_number else 2
+        policy["numberDigits"] = max(
+            1, min(6, int(policy.get("numberDigits", default_digits))),
+        )
         response = self.capabilities.probes.list()
         probes = list(response.get("probes", ()))
         probe = next(
@@ -2162,7 +2169,12 @@ class MissionControlDataService:
                 "probe": str(probe.get("name") or f"Probe-{probe_id}"),
                 "number": manny_number,
             }
-            new_manny_name = str(policy["mannyTemplate"]).format_map(values).strip()
+            template = re.sub(
+                r"\{number(?::0*\d+d)?\}",
+                str(manny_number).zfill(policy["numberDigits"]),
+                str(policy["mannyTemplate"]),
+            )
+            new_manny_name = template.replace("{probe}", values["probe"]).strip()
             rename_manny = apply_existing or (
                 bool(seen_manny_ids) and manny_key not in seen_manny_ids
             )

@@ -108,10 +108,22 @@ Item {
 
     function namingExample(template) {
         const probe = String(root.probeData.name || "Focused Probe");
+        const number = String(1).padStart(numberDigits.value, "0");
         let output = String(template || "");
         return output.replace(/\{probe\}/g, probe)
-                     .replace(/\{number:02d\}/g, "01")
-                     .replace(/\{number\}/g, "1");
+                     .replace(/\{number(?::0*\d+d)?\}/g, number);
+    }
+
+    function simpleMannyTemplate() {
+        return String(root.namingPolicy.mannyTemplate || "{probe}-M{number}")
+            .replace(/\{number(?::0*\d+d)?\}/g, "{number}");
+    }
+
+    function namingDigits() {
+        if (root.namingPolicy.numberDigits !== undefined)
+            return Math.max(1, Math.min(6, Number(root.namingPolicy.numberDigits)));
+        const legacy = String(root.namingPolicy.mannyTemplate || "").match(/\{number:([0-9]+)d\}/);
+        return legacy ? Math.max(1, Math.min(6, legacy[1].length)) : 2;
     }
 
     Timer {
@@ -173,19 +185,23 @@ Item {
                 }
                 GridLayout {
                     Layout.fillWidth: true; columns: 3; columnSpacing: 12; rowSpacing: 7
-                    Label { text: "MANNY TEMPLATE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    TextField { id: mannyNamingTemplate; placeholderText: "{probe}-M{number:02d}"; text: String(root.namingPolicy.mannyTemplate || "{probe}-M{number:02d}"); Layout.fillWidth: true }
+                    Label { text: "NAME FORMAT"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    TextField { id: mannyNamingTemplate; placeholderText: "{probe}-M{number}"; text: root.simpleMannyTemplate(); Layout.fillWidth: true }
                     Label { text: "EXAMPLE MANNY · " + root.namingExample(mannyNamingTemplate.text); color: Constants.textColor; font.family: Constants.technicalFont }
+
+                    Label { text: "TOTAL NUMBER DIGITS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                    SpinBox { id: numberDigits; from: 1; to: 6; editable: true; value: root.namingDigits() }
+                    Label { text: "1 → 1   ·   2 → 01   ·   3 → 001"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                 }
                 Label {
                     Layout.fillWidth: true
-                    text: "AVAILABLE FIELDS · {probe} is the focused probe name · {number} gives 1, 2, 3 · {number:02d} gives 01, 02, 03."
+                    text: "FORMAT FIELDS · {probe} inserts the focused probe name · {number} inserts the Manny sequence number using Total Number Digits above."
                     color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Button { text: "SAVE NAMING SETTINGS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"mannyTemplate":mannyNamingTemplate.text}, false) }
-                    Button { text: "APPLY TO EXISTING MANNYS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"mannyTemplate":mannyNamingTemplate.text}, true) }
+                    Button { text: "SAVE NAMING SETTINGS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"mannyTemplate":mannyNamingTemplate.text,"numberDigits":numberDigits.value}, false) }
+                    Button { text: "APPLY TO EXISTING MANNYS"; onClicked: root.fleetNamingRequested({"enabled":namingEnabled.checked,"mannyTemplate":mannyNamingTemplate.text,"numberDigits":numberDigits.value}, true) }
                     Label { Layout.fillWidth: true; text: "Apply Existing renames this focused probe's Mannys immediately."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 }
             }

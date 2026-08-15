@@ -57,17 +57,34 @@ def test_manny_naming_policy_is_probe_scoped_and_never_renames_probe():
     service.capabilities = _NamingCapabilities()
 
     result = service.save_probe_manny_naming_policy(
-        2, {"enabled": True, "mannyTemplate": "{probe} Manny {number:02d}"}, True,
+        2, {
+            "enabled": True,
+            "mannyTemplate": "{probe} Manny {number}",
+            "numberDigits": 3,
+        }, True,
     )
 
     assert result["probeId"] == 2
     assert result["renamedMannies"] == 2
     assert service.capabilities.renamed_mannies == [
-        (2, "m1", "Miner Two Manny 01"),
-        (2, "m2", "Miner Two Manny 02"),
+        (2, "m1", "Miner Two Manny 001"),
+        (2, "m2", "Miner Two Manny 002"),
     ]
     assert "probe_manny_naming_policy:2" in preferences.values
     assert "probe_manny_naming_policy:1" not in preferences.values
+
+
+def test_legacy_number_token_migrates_its_visible_width():
+    preferences = _Preferences()
+    service = MissionControlDataService(client=object(), data_engine=preferences)
+    service.capabilities = _NamingCapabilities()
+
+    result = service.save_probe_manny_naming_policy(
+        1, {"mannyTemplate": "Manny-{number:002d}"}, True,
+    )
+
+    assert result["policy"]["numberDigits"] == 3
+    assert service.capabilities.renamed_mannies[0] == (1, "m1", "Manny-001")
 
 
 def test_successful_naming_result_updates_visible_policy_before_refresh(monkeypatch):

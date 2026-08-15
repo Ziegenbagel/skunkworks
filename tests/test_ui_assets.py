@@ -538,7 +538,9 @@ def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
     assert "APPLY TO EXISTING MANNYS" in fleet
     assert "INFER FROM DEFAULT PROBE" not in fleet
     assert "PROBE TEMPLATE" not in fleet
-    assert "{number:02d} gives 01, 02, 03" in fleet
+    assert "TOTAL NUMBER DIGITS" in fleet
+    assert "3 → 001" in fleet
+    assert '"numberDigits":numberDigits.value' in fleet
     assert "id: fleetPageScroll" in fleet
     assert "width: Math.max(1, fleetPageScroll.availableWidth)" in fleet
     assert "id: fleetScroll" not in fleet
