@@ -7,6 +7,7 @@ import ".."
 Item {
     id: root
     property bool roleSettingsOnly: false
+    readonly property real roleSettingsContentHeight: transportAutomationContent.implicitHeight
     readonly property var activeTravelTarget: (root.automationData || {}).travelTarget || ({})
     property var navigationData: ({})
     property var travelPreview: ({})
@@ -242,6 +243,7 @@ Item {
                 contentWidth: availableWidth
                 contentHeight: transportAutomationContent.implicitHeight
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                ScrollBar.vertical.policy: root.roleSettingsOnly ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded
                 ColumnLayout {
                     id: transportAutomationContent
                     width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 16

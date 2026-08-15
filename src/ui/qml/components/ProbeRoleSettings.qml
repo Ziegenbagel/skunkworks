@@ -49,7 +49,9 @@ Item {
             id: roleScroll
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
             contentWidth: availableWidth
+            contentHeight: roleSettingsContent.implicitHeight
             ColumnLayout {
+                id: roleSettingsContent
                 width: Math.max(1, roleScroll.availableWidth); spacing: 14
                 GroupBox {
                     visible: root.canManageRoles
@@ -88,9 +90,11 @@ Item {
                 Item {
                     Layout.fillWidth: true
                     Layout.minimumWidth: roleScroll.availableWidth
-                    Layout.preferredHeight: 730
+                    Layout.preferredHeight: Math.max(730, Math.ceil(transportRoleControl.roleSettingsContentHeight) + 8)
+                    Layout.minimumHeight: Layout.preferredHeight
                     visible: root.focusedRole === "transport" || root.focusedRole === "deuterium_tanker"
                 NavigationControl {
+                    id: transportRoleControl
                     anchors.fill: parent
                     roleSettingsOnly: true
                     automationData: root.settingsData
