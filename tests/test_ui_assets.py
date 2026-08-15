@@ -477,6 +477,8 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "contentHeight: roleSettingsContent.implicitHeight" in role_settings
     assert "transportRoleControl.transportContentExtent" in role_settings
     assert "ScrollBar.vertical.policy: ScrollBar.AlwaysOn" in role_settings
+    assert navigation.index("Repeater {\n                        model: root.automationData.transportCycles") < navigation.index("Saved cycles are durable planned Operations")
+    assert "width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 10" in navigation
     assert "Layout.preferredHeight: 730" not in role_settings
     assert 'TabButton { text: "TRANSPORT AUTOMATION"' not in navigation
 

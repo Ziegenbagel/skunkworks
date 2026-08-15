@@ -258,7 +258,7 @@ Item {
                     ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded
                 ColumnLayout {
                     id: transportAutomationContent
-                    width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 16
+                    width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 10
                     Rectangle {
                         visible: !root.transportEligible; Layout.fillWidth: true; implicitHeight: roleWarning.implicitHeight + 32
                         color: Constants.raisedColor; border.color: Constants.warningColor; radius: 4
@@ -267,7 +267,7 @@ Item {
                     GroupBox {
                         visible: root.transportEligible; title: "RECURRING ROUND-TRIP LOGISTICS"; Layout.fillWidth: true
                         GridLayout {
-                            anchors.fill: parent; columns: 4; columnSpacing: 18; rowSpacing: 12
+                            anchors.fill: parent; columns: 4; columnSpacing: 18; rowSpacing: 8
                             Label { text: "RESOURCE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                             ComboBox { id: resourceType; textRole: "text"; valueRole: "value"; model: root.tankerEligible ? [{"text":"DEUTERIUM", "value":"deuterium"}, {"text":"METALS", "value":"metals"}, {"text":"ICE", "value":"ice"}, {"text":"CARBON COMPOUNDS", "value":"carbon_compounds"}] : [{"text":"METALS", "value":"metals"}, {"text":"ICE", "value":"ice"}, {"text":"CARBON COMPOUNDS", "value":"carbon_compounds"}] }
                             CheckBox { id: repeatCycle; text: "REPEAT UNTIL PAUSED"; checked: true }
@@ -337,7 +337,6 @@ Item {
                         }
                     }
                     Button { visible: root.transportEligible; text: "SAVE PLANNED ROUND-TRIP OPERATION"; enabled: root.validTransportCoordinates && unloadThreshold.value <= loadThreshold.value; Layout.alignment: Qt.AlignRight; onClicked: root.transportCycleRequested(root.transportPayload()) }
-                    Label { visible: root.transportEligible; Layout.fillWidth: true; text: "Saved cycles are durable planned Operations. Automatic execution remains subject to the execution policy, command allowlist, fresh SCUT/source observations, load and unload thresholds, and return-fuel safety checks."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap }
                     Repeater {
                         model: root.automationData.transportCycles || []
                         delegate: Rectangle {
@@ -362,6 +361,7 @@ Item {
                             }
                         }
                     }
+                    Label { visible: root.transportEligible; Layout.fillWidth: true; text: "Saved cycles are durable planned Operations. Automatic execution remains subject to the execution policy, command allowlist, fresh SCUT/source observations, load and unload thresholds, and return-fuel safety checks."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap }
                 }
             }
 
