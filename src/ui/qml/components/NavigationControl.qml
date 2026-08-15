@@ -242,15 +242,20 @@ Item {
 
             ScrollView {
                 id: transportAutomationScroll
-                clip: true
+                clip: !root.roleSettingsOnly
                 contentWidth: availableWidth
                 contentHeight: root.transportContentExtent
+                Binding {
+                    target: transportAutomationScroll.contentItem
+                    property: "interactive"
+                    value: !root.roleSettingsOnly
+                }
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                // In role settings this is the sole scroller for the transport form.
-                // Keep its scrollbar visible so the controls below the fold are both
-                // reachable and visibly discoverable.
+                // ProbeRoleSettings owns scrolling when this control is embedded there.
+                // Disabling this nested Flickable prevents it from trapping the wheel
+                // while its bottom rows remain outside its viewport.
                 ScrollBar.vertical.policy: root.roleSettingsOnly
-                    ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+                    ? ScrollBar.AlwaysOff : ScrollBar.AsNeeded
                 ColumnLayout {
                     id: transportAutomationContent
                     width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 16

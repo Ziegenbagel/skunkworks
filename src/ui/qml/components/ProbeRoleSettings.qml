@@ -50,6 +50,8 @@ Item {
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
             contentWidth: availableWidth
             contentHeight: roleSettingsContent.implicitHeight
+            ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+            ScrollBar.vertical.policy: ScrollBar.AlwaysOn
             ColumnLayout {
                 id: roleSettingsContent
                 width: Math.max(1, roleScroll.availableWidth); spacing: 14
@@ -90,10 +92,13 @@ Item {
                 Item {
                     Layout.fillWidth: true
                     Layout.minimumWidth: roleScroll.availableWidth
-                    // Give the embedded transport form a viewport instead of expanding
-                    // it beyond this page's viewport. NavigationControl owns scrolling
-                    // for the form, including dynamic saved-route rows at the bottom.
-                    Layout.preferredHeight: Math.max(730, roleScroll.availableHeight - 48)
+                    // Expand the embedded form to its complete laid-out height. The
+                    // enclosing roleScroll is the only vertical scroller on this page.
+                    Layout.preferredHeight: Math.max(
+                        730,
+                        Math.ceil(transportRoleControl.transportContentExtent)
+                            + 24
+                    )
                     Layout.minimumHeight: Layout.preferredHeight
                     visible: root.focusedRole === "transport" || root.focusedRole === "deuterium_tanker"
                 NavigationControl {
