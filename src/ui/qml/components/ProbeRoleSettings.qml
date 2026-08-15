@@ -90,7 +90,10 @@ Item {
                 Item {
                     Layout.fillWidth: true
                     Layout.minimumWidth: roleScroll.availableWidth
-                    Layout.preferredHeight: Math.max(730, Math.ceil(transportRoleControl.roleSettingsContentHeight) + 24)
+                    // Give the embedded transport form a viewport instead of expanding
+                    // it beyond this page's viewport. NavigationControl owns scrolling
+                    // for the form, including dynamic saved-route rows at the bottom.
+                    Layout.preferredHeight: Math.max(730, roleScroll.availableHeight - 48)
                     Layout.minimumHeight: Layout.preferredHeight
                     visible: root.focusedRole === "transport" || root.focusedRole === "deuterium_tanker"
                 NavigationControl {

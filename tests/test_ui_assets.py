@@ -471,11 +471,10 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "scanSummary" in navigation
     assert "transportAutomationScroll.availableWidth" in navigation
     assert "contentHeight: root.transportContentExtent" in navigation
-    assert "roleSettingsContentHeight: transportContentExtent" in navigation
     assert "transportAutomationContent.childrenRect.height" in navigation
-    assert "ScrollBar.vertical.policy: ScrollBar.AsNeeded" in navigation
+    assert "? ScrollBar.AlwaysOn : ScrollBar.AsNeeded" in navigation
     assert "contentHeight: roleSettingsContent.implicitHeight" in role_settings
-    assert "transportRoleControl.roleSettingsContentHeight" in role_settings
+    assert "roleScroll.availableHeight - 48" in role_settings
     assert "Layout.preferredHeight: 730" not in role_settings
     assert 'TabButton { text: "TRANSPORT AUTOMATION"' not in navigation
 

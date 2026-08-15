@@ -11,8 +11,6 @@ Item {
         transportAutomationContent.implicitHeight,
         transportAutomationContent.childrenRect.y + transportAutomationContent.childrenRect.height
     )
-    readonly property real roleSettingsContentHeight: transportContentExtent
-        + transportAutomationScroll.topPadding + transportAutomationScroll.bottomPadding
     readonly property var activeTravelTarget: (root.automationData || {}).travelTarget || ({})
     property var navigationData: ({})
     property var travelPreview: ({})
@@ -248,10 +246,11 @@ Item {
                 contentWidth: availableWidth
                 contentHeight: root.transportContentExtent
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                // The parent role-settings view normally grows to fit this content. Keep
-                // a fallback scrollbar for late/dynamic layout changes so the final rows
-                // can never become unreachable.
-                ScrollBar.vertical.policy: ScrollBar.AsNeeded
+                // In role settings this is the sole scroller for the transport form.
+                // Keep its scrollbar visible so the controls below the fold are both
+                // reachable and visibly discoverable.
+                ScrollBar.vertical.policy: root.roleSettingsOnly
+                    ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
                 ColumnLayout {
                     id: transportAutomationContent
                     width: Math.max(1, transportAutomationScroll.availableWidth); spacing: 16
