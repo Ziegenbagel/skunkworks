@@ -545,15 +545,16 @@ def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
     assert "MANNY AUTO-NAMING" not in settings
 
 
-def test_production_workspace_offers_name_task_and_state_sorting():
+def test_production_workspace_offers_name_task_and_remaining_time_sorting():
     navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
 
     assert 'property string productionSort: "name"' in navigation
     assert '"text": "NAME", "value": "name"' in navigation
     assert '"text": "TASK", "value": "task"' in navigation
-    assert '"text": "STATE", "value": "state"' in navigation
+    assert '"text": "REMAINING TIME", "value": "remaining"' in navigation
     assert "function productionTaskLabel(taskType)" in navigation
-    assert 'left.state === "active"' in navigation
+    assert "function productionCompletionKey(row)" in navigation
+    assert "Number.MAX_SAFE_INTEGER" in navigation
 
 
 def test_safety_workspace_wraps_large_alerts_in_a_full_page_scroll():

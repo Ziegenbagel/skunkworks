@@ -114,7 +114,6 @@ PanelFrame {
                         "detail": item.detailText,
                         "asset": item.asset || "",
                         "taskType": item.taskType || "idle",
-                        "state": String(item.taskType || "idle").toLowerCase() === "idle" ? "idle" : "active",
                         "etaEpochMs": item.etaEpochMs || 0,
                         "mannyId": item.id || "",
                         "cancellable": item.taskType !== "idle"
@@ -125,8 +124,8 @@ PanelFrame {
                 let comparison = 0;
                 if (root.productionSort === "task")
                     comparison = root.productionTaskLabel(left.taskType).localeCompare(root.productionTaskLabel(right.taskType));
-                else if (root.productionSort === "state")
-                    comparison = (left.state === "active" ? 0 : 1) - (right.state === "active" ? 0 : 1);
+                else if (root.productionSort === "remaining")
+                    comparison = root.productionCompletionKey(left) - root.productionCompletionKey(right);
                 else
                     comparison = String(left.asset).localeCompare(String(right.asset));
                 return comparison || String(left.asset).localeCompare(String(right.asset));
@@ -155,6 +154,13 @@ PanelFrame {
         if (normalized.indexOf("transfer") >= 0) return "Transfer";
         if (normalized.indexOf("travel") >= 0 || normalized.indexOf("move") >= 0) return "Travel";
         return normalized.replace(/_/g, " ").replace(/\b\w/g, function(letter) { return letter.toUpperCase(); });
+    }
+
+    function productionCompletionKey(row) {
+        const completion = Number(row.etaEpochMs || 0);
+        if (completion > 0) return completion;
+        return String(row.taskType || "idle").toLowerCase() === "idle"
+            ? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER - 1;
     }
 
     contentItem: Item {
@@ -314,7 +320,7 @@ PanelFrame {
                     model: [
                         {"text": "NAME", "value": "name"},
                         {"text": "TASK", "value": "task"},
-                        {"text": "STATE", "value": "state"}
+                        {"text": "REMAINING TIME", "value": "remaining"}
                     ]
                     onActivated: root.productionSort = String(currentValue)
                 }
