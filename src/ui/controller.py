@@ -2130,6 +2130,8 @@ class MissionControlDataService:
         """Persist and apply a Manny naming scheme for one owning probe."""
 
         probe_id = int(probe_id)
+        if probe_id <= 0:
+            raise ValueError("Select a valid probe before configuring Manny auto-naming.")
         policy = dict(policy or {})
         policy.setdefault("enabled", False)
         policy.setdefault("mannyTemplate", "{probe}-M{number}")
@@ -3832,9 +3834,12 @@ class MissionControlController(QObject):
             self._initial_automation_cycle_pending = False
             self._automation_after_refresh = True
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
+        accepted_focus = dict(payload.get("focus", {}))
+        accepted_probe_id = int(accepted_focus.get("probeId", -1))
         unseen_mannies = self._unseen_manny_ids(payload)
         if (
             naming_policy.get("enabled")
+            and accepted_probe_id > 0
             and self._naming_worker is None
             and (
                 unseen_mannies
@@ -3843,8 +3848,8 @@ class MissionControlController(QObject):
         ):
             self._naming_last_audit = time.monotonic()
             naming_worker = _FleetNamingWorker(
-                payload.get("focusedProbeId", self._focused_probe_id),
-                payload.get("focus", {}).get("name", ""),
+                accepted_probe_id,
+                accepted_focus.get("name", ""),
                 naming_policy,
                 False,
             )
@@ -3945,8 +3950,13 @@ class MissionControlController(QObject):
     def _unseen_manny_ids(self, payload):
         """Return focused-probe Mannys absent from its persisted naming history."""
 
-        probe_id = int(payload.get("focusedProbeId", self._focused_probe_id))
-        if probe_id < 0:
+        probe_id = int(
+            payload.get("focus", {}).get(
+                "probeId",
+                payload.get("focusedProbeId", self._focused_probe_id),
+            )
+        )
+        if probe_id <= 0:
             return ()
         try:
             seen = json.loads(

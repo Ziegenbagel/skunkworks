@@ -178,6 +178,34 @@ def test_refresh_detects_unseen_manny_without_waiting_for_periodic_audit():
     assert unseen == ("m3",)
 
 
+def test_refresh_uses_nested_focus_id_during_startup():
+    controller = MissionControlController.__new__(MissionControlController)
+    controller._focused_probe_id = -1
+    controller.settings_engine = _Preferences()
+    controller.settings_engine.set_preference(
+        "probe_manny_naming_seen:644", '["m1"]',
+    )
+
+    unseen = controller._unseen_manny_ids({
+        "focus": {"probeId": 644, "name": "Hub"},
+        "inventoryManagement": {"mannies": [{"id": "m1"}, {"id": "m2"}]},
+    })
+
+    assert unseen == ("m2",)
+
+
+def test_invalid_probe_id_is_rejected_before_any_api_request():
+    service = MissionControlDataService(client=object(), data_engine=_Preferences())
+    service.capabilities = _NamingCapabilities()
+
+    try:
+        service.save_probe_manny_naming_policy(-1, {}, False)
+    except ValueError as error:
+        assert "valid probe" in str(error)
+    else:
+        raise AssertionError("Invalid probe ID should not reach the API.")
+
+
 def test_apply_existing_breaks_name_swap_conflicts_with_temporary_name():
     preferences = _Preferences()
     service = MissionControlDataService(client=object(), data_engine=preferences)
