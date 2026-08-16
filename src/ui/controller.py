@@ -2157,17 +2157,24 @@ class MissionControlDataService:
             seen = json.loads(self.data_engine.get_preference(seen_key) or "[]")
         except (TypeError, ValueError):
             seen = []
-        seen_manny_ids = {str(value) for value in seen}
+        seen_order = [str(value) for value in seen]
+        seen_manny_ids = set(seen_order)
         renamed_mannies = 0
-        current_manny_ids = set()
+        newly_seen_ids = []
         manny_response = self.capabilities.mannies.list(probe_id)
         mannies = sorted(
             manny_response.get("mannies", ()),
             key=lambda item: str(item.get("id", "")),
         )
-        for manny_number, manny in enumerate(mannies, 1):
+        for sorted_number, manny in enumerate(mannies, 1):
             manny_key = str(manny["id"])
-            current_manny_ids.add(manny_key)
+            is_new = manny_key not in seen_manny_ids
+            if is_new:
+                newly_seen_ids.append(manny_key)
+            manny_number = (
+                sorted_number if apply_existing
+                else len(seen_order) + len(newly_seen_ids)
+            )
             values = {
                 "probe": str(probe.get("name") or f"Probe-{probe_id}"),
                 "number": manny_number,
@@ -2183,14 +2190,16 @@ class MissionControlDataService:
                 str(policy["mannyTemplate"]),
             )
             new_manny_name = template.replace("{probe}", values["probe"]).strip()
-            rename_manny = apply_existing or (
-                bool(seen_manny_ids) and manny_key not in seen_manny_ids
-            )
+            rename_manny = apply_existing or (bool(seen_manny_ids) and is_new)
             if rename_manny and new_manny_name and new_manny_name != manny.get("name"):
                 self.capabilities.mannies.rename(probe_id, manny["id"], new_manny_name)
                 renamed_mannies += 1
         self.data_engine.set_preference(policy_key, json.dumps(policy))
-        self.data_engine.set_preference(seen_key, json.dumps(sorted(current_manny_ids)))
+        if apply_existing or not seen_order:
+            persisted_order = [str(manny["id"]) for manny in mannies]
+        else:
+            persisted_order = seen_order + newly_seen_ids
+        self.data_engine.set_preference(seen_key, json.dumps(persisted_order))
         return {
             "status": "applied", "probeId": probe_id,
             "renamedMannies": renamed_mannies, "policy": policy,
@@ -3722,10 +3731,14 @@ class MissionControlController(QObject):
             self._initial_automation_cycle_pending = False
             self._automation_after_refresh = True
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
+        unseen_mannies = self._unseen_manny_ids(payload)
         if (
             naming_policy.get("enabled")
             and self._naming_worker is None
-            and time.monotonic() - self._naming_last_audit >= 300
+            and (
+                unseen_mannies
+                or time.monotonic() - self._naming_last_audit >= 300
+            )
         ):
             self._naming_last_audit = time.monotonic()
             naming_worker = _FleetNamingWorker(
@@ -3826,6 +3839,27 @@ class MissionControlController(QObject):
             self.focusedProbeIdChanged.emit()
         self.dashboardChanged.emit()
         self._finish_refresh()
+
+    def _unseen_manny_ids(self, payload):
+        """Return focused-probe Mannys absent from its persisted naming history."""
+
+        probe_id = int(payload.get("focusedProbeId", self._focused_probe_id))
+        if probe_id < 0:
+            return ()
+        try:
+            seen = json.loads(
+                self.settings_engine.get_preference(
+                    f"probe_manny_naming_seen:{probe_id}", "[]",
+                ) or "[]"
+            )
+        except (TypeError, ValueError, json.JSONDecodeError):
+            seen = []
+        seen_ids = {str(value) for value in seen}
+        current = payload.get("inventoryManagement", {}).get("mannies", ())
+        return tuple(
+            str(item.get("id")) for item in current
+            if item.get("id") is not None and str(item.get("id")) not in seen_ids
+        )
 
     @Slot(object)
     def _accept_fleet_naming_audit(self, result):

@@ -27,6 +27,9 @@
       "mode": "automatic",
       "liveExecutionEnabled": true,
       "allowedCommandTypes": [
+        "atomic_printer_craft",
+        "manny_assemble_probe",
+        "manny_craft",
         "manny_mine",
         "manny_repair",
         "move_probe"

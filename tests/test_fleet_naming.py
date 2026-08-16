@@ -15,6 +15,10 @@ class _Preferences:
 class _NamingCapabilities:
     def __init__(self):
         self.renamed_mannies = []
+        self.manny_rows = [
+            {"id": "m2", "name": "Old Two"},
+            {"id": "m1", "name": "Old One"},
+        ]
         self.probes = type("Probes", (), {
             "list": lambda inner: {"probes": [
                 {"id": 1, "name": "Hub One"},
@@ -22,10 +26,7 @@ class _NamingCapabilities:
             ]},
         })()
         self.mannies = type("Mannies", (), {
-            "list": lambda inner, probe_id: {"mannies": [
-                {"id": "m2", "name": "Old Two"},
-                {"id": "m1", "name": "Old One"},
-            ]},
+            "list": lambda inner, probe_id: {"mannies": self.manny_rows},
             "rename": lambda inner, probe_id, manny_id, name: self.renamed_mannies.append(
                 (probe_id, manny_id, name)
             ),
@@ -94,6 +95,43 @@ def test_letter_sequence_rolls_from_z_to_aa():
     ]
 
     assert values == ["A", "Z", "Aa", "Ab", "Az", "Ba"]
+
+
+def test_new_manny_appends_to_sequence_even_when_its_id_sorts_first():
+    preferences = _Preferences()
+    service = MissionControlDataService(client=object(), data_engine=preferences)
+    service.capabilities = _NamingCapabilities()
+    policy = {
+        "enabled": True,
+        "mannyTemplate": "DemoHub - {number}",
+        "sequenceStyle": "letters",
+    }
+    service.save_probe_manny_naming_policy(1, policy, True)
+    service.capabilities.renamed_mannies.clear()
+    service.capabilities.manny_rows.append({"id": "a0", "name": "manny-1"})
+
+    result = service.save_probe_manny_naming_policy(1, policy, False)
+
+    assert result["renamedMannies"] == 1
+    assert service.capabilities.renamed_mannies == [(1, "a0", "DemoHub - C")]
+
+
+def test_refresh_detects_unseen_manny_without_waiting_for_periodic_audit():
+    controller = MissionControlController.__new__(MissionControlController)
+    controller._focused_probe_id = 1
+    controller.settings_engine = _Preferences()
+    controller.settings_engine.set_preference(
+        "probe_manny_naming_seen:1", '["m1", "m2"]',
+    )
+
+    unseen = controller._unseen_manny_ids({
+        "focusedProbeId": 1,
+        "inventoryManagement": {
+            "mannies": [{"id": "m1"}, {"id": "m2"}, {"id": "m3"}],
+        },
+    })
+
+    assert unseen == ("m3",)
 
 
 def test_successful_naming_result_updates_visible_policy_before_refresh(monkeypatch):
