@@ -543,6 +543,9 @@ def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
     assert '"numberDigits":numberDigits.value' in fleet
     assert '"sequenceStyle":sequenceStyle.currentValue' in fleet
     assert "A … Z, Aa, Ab … Az, Ba …" in fleet
+    assert "function syncNamingControls()" in fleet
+    assert "onNamingPolicyChanged: Qt.callLater(root.syncNamingControls)" in fleet
+    assert "onFocusedProbeIdChanged: Qt.callLater(root.syncNamingControls)" in fleet
     assert "id: fleetPageScroll" in fleet
     assert "width: Math.max(1, fleetPageScroll.availableWidth)" in fleet
     assert "id: fleetScroll" not in fleet

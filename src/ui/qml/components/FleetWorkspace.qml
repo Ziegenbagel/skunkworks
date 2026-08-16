@@ -127,6 +127,17 @@ Item {
         return legacy ? Math.max(1, Math.min(6, legacy[1].length)) : 2;
     }
 
+    function syncNamingControls() {
+        namingEnabled.checked = Boolean(root.namingPolicy.enabled);
+        mannyNamingTemplate.text = root.simpleMannyTemplate();
+        sequenceStyle.currentIndex = String(root.namingPolicy.sequenceStyle || "numeric") === "letters" ? 1 : 0;
+        numberDigits.value = root.namingDigits();
+    }
+
+    onNamingPolicyChanged: Qt.callLater(root.syncNamingControls)
+    onFocusedProbeIdChanged: Qt.callLater(root.syncNamingControls)
+    Component.onCompleted: root.syncNamingControls()
+
     Timer {
         interval: 1000
         running: root.visible
@@ -177,7 +188,7 @@ Item {
                 }
                 RowLayout {
                     Layout.fillWidth: true; spacing: 16
-                    CheckBox { id: namingEnabled; text: "AUTO-NAME NEW MANNYS"; checked: Boolean(root.namingPolicy.enabled) }
+                    CheckBox { id: namingEnabled; text: "AUTO-NAME NEW MANNYS" }
                     Label {
                         Layout.fillWidth: true
                         text: "The focused probe's current name is substituted wherever {probe} appears."
@@ -187,19 +198,18 @@ Item {
                 GridLayout {
                     Layout.fillWidth: true; columns: 3; columnSpacing: 12; rowSpacing: 7
                     Label { text: "NAME FORMAT"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    TextField { id: mannyNamingTemplate; placeholderText: "{probe}-M{number}"; text: root.simpleMannyTemplate(); Layout.fillWidth: true }
+                    TextField { id: mannyNamingTemplate; placeholderText: "{probe}-M{number}"; Layout.fillWidth: true }
                     Label { text: "EXAMPLE MANNY · " + root.namingExample(mannyNamingTemplate.text); color: Constants.textColor; font.family: Constants.technicalFont }
 
                     Label { text: "SEQUENCE STYLE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     ComboBox {
                         id: sequenceStyle; textRole: "text"; valueRole: "value"
                         model: [{"text":"NUMERIC", "value":"numeric"}, {"text":"LETTERS", "value":"letters"}]
-                        currentIndex: String(root.namingPolicy.sequenceStyle || "numeric") === "letters" ? 1 : 0
                     }
                     Label { text: sequenceStyle.currentValue === "letters" ? "A … Z, Aa, Ab … Az, Ba …" : "1, 2, 3 … with optional leading zeroes"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
 
                     Label { visible: sequenceStyle.currentValue === "numeric"; text: "TOTAL NUMBER DIGITS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    SpinBox { visible: sequenceStyle.currentValue === "numeric"; id: numberDigits; from: 1; to: 6; editable: true; value: root.namingDigits() }
+                    SpinBox { visible: sequenceStyle.currentValue === "numeric"; id: numberDigits; from: 1; to: 6; editable: true }
                     Label { visible: sequenceStyle.currentValue === "numeric"; text: "1 → 1   ·   2 → 01   ·   3 → 001"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                 }
                 Label {
