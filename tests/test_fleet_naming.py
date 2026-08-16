@@ -99,6 +99,26 @@ def test_manny_naming_policy_is_probe_scoped_and_never_renames_probe():
     assert "probe_manny_naming_policy:1" not in preferences.values
 
 
+def test_naming_uses_accepted_focus_when_fleet_index_omits_probe():
+    preferences = _Preferences()
+    service = MissionControlDataService(client=object(), data_engine=preferences)
+    service.capabilities = _NamingCapabilities()
+    service.capabilities.probes = type("IncompleteProbes", (), {
+        "list": lambda inner: {"probes": [{"id": 1, "name": "Hub One"}]},
+    })()
+
+    result = service.save_probe_manny_naming_policy(
+        2,
+        {"mannyTemplate": "Tanker - {number}", "sequenceStyle": "letters"},
+        True,
+        probe_name="Fuel Tanker",
+    )
+
+    assert result["probeId"] == 2
+    assert "probe_manny_naming_policy:2" in preferences.values
+    assert service.capabilities.renamed_mannies[0] == (2, "m1", "Tanker - A")
+
+
 def test_legacy_number_token_migrates_its_visible_width():
     preferences = _Preferences()
     service = MissionControlDataService(client=object(), data_engine=preferences)

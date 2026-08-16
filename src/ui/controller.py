@@ -2125,7 +2125,7 @@ class MissionControlDataService:
         return inferred or name
 
     def save_probe_manny_naming_policy(
-        self, probe_id, policy, apply_existing=False,
+        self, probe_id, policy, apply_existing=False, probe_name=None,
     ):
         """Persist and apply a Manny naming scheme for one owning probe."""
 
@@ -2143,14 +2143,21 @@ class MissionControlDataService:
         policy["numberDigits"] = max(
             1, min(6, int(policy.get("numberDigits", default_digits))),
         )
-        response = self.capabilities.probes.list()
-        probes = list(response.get("probes", ()))
-        probe = next(
-            (item for item in probes if int(item.get("id", -1)) == probe_id),
-            None,
-        )
-        if probe is None:
-            raise ValueError("The focused probe is no longer available.")
+        resolved_probe_name = str(probe_name or "").strip()
+        if not resolved_probe_name:
+            try:
+                response = self.capabilities.probes.get(probe_id)
+                probe = response.get("probe", response)
+            except AttributeError:
+                response = self.capabilities.probes.list()
+                probe = next((
+                    item for item in response.get("probes", ())
+                    if int(item.get("id", -1)) == probe_id
+                ), None)
+            if probe is not None:
+                resolved_probe_name = str(probe.get("name") or "").strip()
+        if not resolved_probe_name:
+            resolved_probe_name = f"Probe-{probe_id}"
         policy_key = f"probe_manny_naming_policy:{probe_id}"
         seen_key = f"probe_manny_naming_seen:{probe_id}"
         pending_key = f"probe_manny_naming_pending:{probe_id}"
@@ -2190,7 +2197,7 @@ class MissionControlDataService:
                 )
             )
             values = {
-                "probe": str(probe.get("name") or f"Probe-{probe_id}"),
+                "probe": resolved_probe_name,
                 "number": manny_number,
             }
             sequence_value = (
@@ -2380,9 +2387,10 @@ class _CompatibilityWorker(QRunnable):
 
 
 class _FleetNamingWorker(QRunnable):
-    def __init__(self, probe_id, policy, apply_existing, service_factory=MissionControlDataService):
+    def __init__(self, probe_id, probe_name, policy, apply_existing, service_factory=MissionControlDataService):
         super().__init__()
         self.probe_id = int(probe_id)
+        self.probe_name = str(probe_name or "")
         self.policy = dict(policy or {})
         self.apply_existing = bool(apply_existing)
         self.service_factory = service_factory
@@ -2393,6 +2401,7 @@ class _FleetNamingWorker(QRunnable):
             service = self.service_factory()
             result = service.save_probe_manny_naming_policy(
                 self.probe_id, self.policy, self.apply_existing,
+                probe_name=self.probe_name,
             )
         except Exception as error:
             traceback.print_exc()
@@ -2752,7 +2761,9 @@ class MissionControlController(QObject):
         if self._naming_worker is not None:
             return
         worker = _FleetNamingWorker(
-            self._focused_probe_id, self._qt_safe(policy), apply_existing,
+            self._focused_probe_id,
+            self._dashboard.get("focus", {}).get("name", ""),
+            self._qt_safe(policy), apply_existing,
         )
         worker.signals.succeeded.connect(self._accept_fleet_naming)
         worker.signals.failed.connect(self._reject_fleet_naming)
@@ -3833,6 +3844,7 @@ class MissionControlController(QObject):
             self._naming_last_audit = time.monotonic()
             naming_worker = _FleetNamingWorker(
                 payload.get("focusedProbeId", self._focused_probe_id),
+                payload.get("focus", {}).get("name", ""),
                 naming_policy,
                 False,
             )
