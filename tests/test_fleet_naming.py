@@ -1,3 +1,5 @@
+import requests
+
 from src.ui.controller import MissionControlController, MissionControlDataService
 
 
@@ -31,6 +33,28 @@ class _NamingCapabilities:
                 (probe_id, manny_id, name)
             ),
         })()
+
+
+class _ConflictNamingCapabilities(_NamingCapabilities):
+    def __init__(self):
+        super().__init__()
+        self.manny_rows = [
+            {"id": "m1", "name": "Hub - B"},
+            {"id": "m2", "name": "Hub - A"},
+        ]
+
+        def rename(inner, probe_id, manny_id, name):
+            if any(
+                item["id"] != manny_id and item["name"] == name
+                for item in self.manny_rows
+            ):
+                response = type("Response", (), {"status_code": 409})()
+                raise requests.HTTPError("conflict", response=response)
+            item = next(row for row in self.manny_rows if row["id"] == manny_id)
+            item["name"] = name
+            self.renamed_mannies.append((probe_id, manny_id, name))
+
+        self.mannies.rename = rename.__get__(self.mannies, type(self.mannies))
 
 
 def test_fleet_prefix_inference_removes_default_role_and_ordinal():
@@ -132,6 +156,29 @@ def test_refresh_detects_unseen_manny_without_waiting_for_periodic_audit():
     })
 
     assert unseen == ("m3",)
+
+
+def test_apply_existing_breaks_name_swap_conflicts_with_temporary_name():
+    preferences = _Preferences()
+    service = MissionControlDataService(client=object(), data_engine=preferences)
+    service.capabilities = _ConflictNamingCapabilities()
+
+    result = service.save_probe_manny_naming_policy(
+        1,
+        {
+            "enabled": True,
+            "mannyTemplate": "Hub - {number}",
+            "sequenceStyle": "letters",
+        },
+        True,
+    )
+
+    assert result["renamedMannies"] == 2
+    assert result["deferredMannies"] == 0
+    assert [item["name"] for item in service.capabilities.manny_rows] == [
+        "Hub - A", "Hub - B",
+    ]
+    assert any("SKW-TMP" in call[2] for call in service.capabilities.renamed_mannies)
 
 
 def test_successful_naming_result_updates_visible_policy_before_refresh(monkeypatch):

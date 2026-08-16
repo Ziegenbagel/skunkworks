@@ -2153,12 +2153,21 @@ class MissionControlDataService:
             raise ValueError("The focused probe is no longer available.")
         policy_key = f"probe_manny_naming_policy:{probe_id}"
         seen_key = f"probe_manny_naming_seen:{probe_id}"
+        pending_key = f"probe_manny_naming_pending:{probe_id}"
         try:
             seen = json.loads(self.data_engine.get_preference(seen_key) or "[]")
         except (TypeError, ValueError):
             seen = []
         seen_order = [str(value) for value in seen]
         seen_manny_ids = set(seen_order)
+        try:
+            pending_ids = {
+                str(value) for value in json.loads(
+                    self.data_engine.get_preference(pending_key) or "[]"
+                )
+            }
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pending_ids = set()
         renamed_mannies = 0
         newly_seen_ids = []
         manny_response = self.capabilities.mannies.list(probe_id)
@@ -2166,6 +2175,8 @@ class MissionControlDataService:
             manny_response.get("mannies", ()),
             key=lambda item: str(item.get("id", "")),
         )
+        rename_plan = []
+        desired_names = set()
         for sorted_number, manny in enumerate(mannies, 1):
             manny_key = str(manny["id"])
             is_new = manny_key not in seen_manny_ids
@@ -2173,7 +2184,10 @@ class MissionControlDataService:
                 newly_seen_ids.append(manny_key)
             manny_number = (
                 sorted_number if apply_existing
-                else len(seen_order) + len(newly_seen_ids)
+                else (
+                    len(seen_order) + len(newly_seen_ids)
+                    if is_new else seen_order.index(manny_key) + 1
+                )
             )
             values = {
                 "probe": str(probe.get("name") or f"Probe-{probe_id}"),
@@ -2190,19 +2204,95 @@ class MissionControlDataService:
                 str(policy["mannyTemplate"]),
             )
             new_manny_name = template.replace("{probe}", values["probe"]).strip()
-            rename_manny = apply_existing or (bool(seen_manny_ids) and is_new)
+            if new_manny_name in desired_names:
+                raise ValueError(
+                    "The Manny name format produces duplicate names. Include "
+                    "{number} so every Manny receives a unique name."
+                )
+            desired_names.add(new_manny_name)
+            rename_manny = (
+                apply_existing
+                or (bool(seen_manny_ids) and is_new)
+                or manny_key in pending_ids
+            )
             if rename_manny and new_manny_name and new_manny_name != manny.get("name"):
-                self.capabilities.mannies.rename(probe_id, manny["id"], new_manny_name)
-                renamed_mannies += 1
+                rename_plan.append({
+                    "id": manny_key,
+                    "target": new_manny_name,
+                    "current": str(manny.get("name") or ""),
+                })
+        # Save the policy before applying optional mutations. A temporary game
+        # conflict must not discard the operator's selected naming settings.
         self.data_engine.set_preference(policy_key, json.dumps(policy))
+        deferred_ids = set()
+        occupied = {
+            str(manny.get("name") or ""): str(manny["id"])
+            for manny in mannies if manny.get("name")
+        }
+        remaining = {item["id"]: item for item in rename_plan}
+        temporary_counter = 0
+        while remaining:
+            progressed = False
+            for manny_key, item in list(remaining.items()):
+                holder = occupied.get(item["target"])
+                if holder is not None and holder != manny_key:
+                    if holder not in remaining:
+                        deferred_ids.add(manny_key)
+                        del remaining[manny_key]
+                        progressed = True
+                    continue
+                try:
+                    self.capabilities.mannies.rename(
+                        probe_id, manny_key, item["target"],
+                    )
+                except requests.HTTPError as error:
+                    if error.response is None or error.response.status_code != 409:
+                        raise
+                    deferred_ids.add(manny_key)
+                    del remaining[manny_key]
+                    progressed = True
+                    continue
+                occupied.pop(item["current"], None)
+                occupied[item["target"]] = manny_key
+                del remaining[manny_key]
+                renamed_mannies += 1
+                progressed = True
+            if progressed:
+                continue
+            # The remaining items form a rename cycle. Move one participant to
+            # a unique temporary name, freeing its old name for the next pass.
+            manny_key, item = next(iter(remaining.items()))
+            while True:
+                temporary_counter += 1
+                temporary_name = f"SKW-TMP-{probe_id}-{temporary_counter}"
+                if temporary_name not in occupied and temporary_name not in desired_names:
+                    break
+            try:
+                self.capabilities.mannies.rename(
+                    probe_id, manny_key, temporary_name,
+                )
+            except requests.HTTPError as error:
+                if error.response is None or error.response.status_code != 409:
+                    raise
+                deferred_ids.add(manny_key)
+                del remaining[manny_key]
+                continue
+            occupied.pop(item["current"], None)
+            occupied[temporary_name] = manny_key
+            item["current"] = temporary_name
         if apply_existing or not seen_order:
             persisted_order = [str(manny["id"]) for manny in mannies]
         else:
             persisted_order = seen_order + newly_seen_ids
         self.data_engine.set_preference(seen_key, json.dumps(persisted_order))
+        self.data_engine.set_preference(
+            pending_key, json.dumps(sorted(deferred_ids)),
+        )
         return {
             "status": "applied", "probeId": probe_id,
-            "renamedMannies": renamed_mannies, "policy": policy,
+            "renamedMannies": renamed_mannies,
+            "deferredMannies": len(deferred_ids),
+            "policy": policy,
         }
 
     @staticmethod
