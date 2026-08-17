@@ -78,6 +78,17 @@ PanelFrame {
         return pad(hours) + ":" + pad(minutes) + ":" + pad(remainder);
     }
 
+    function productionTimingLabel(row) {
+        const eta = Number(row.etaEpochMs || 0);
+        if (eta <= 0) return "";
+        if (eta > root.currentEpochMs)
+            return "COUNTDOWN  ·  " + root.countdown(eta);
+        const overdue = root.countdown(root.currentEpochMs + (root.currentEpochMs - eta));
+        if (Boolean(row.storageBlockRisk))
+            return "BLOCKED · INSUFFICIENT PROBE STORAGE · OVERDUE " + overdue;
+        return "OVERDUE  ·  " + overdue;
+    }
+
     Timer {
         interval: 1000
         running: root.visible && root.section === "PRODUCTION"
@@ -115,6 +126,7 @@ PanelFrame {
                         "asset": item.asset || "",
                         "taskType": item.taskType || "idle",
                         "etaEpochMs": item.etaEpochMs || 0,
+                        "storageBlockRisk": Boolean(item.storageBlockRisk),
                         "mannyId": item.id || "",
                         "cancellable": item.taskType !== "idle"
                             && String(item.asset || "").toLowerCase().indexOf("printer") < 0
@@ -391,8 +403,10 @@ PanelFrame {
                             Label {
                                 visible: Number(sectionRow.modelData.etaEpochMs || 0) > 0
                                 width: parent.width
-                                text: "COUNTDOWN  ·  " + root.countdown(sectionRow.modelData.etaEpochMs)
-                                color: Constants.cyanColor
+                                text: root.productionTimingLabel(sectionRow.modelData)
+                                color: Boolean(sectionRow.modelData.storageBlockRisk)
+                                    && Number(sectionRow.modelData.etaEpochMs || 0) <= root.currentEpochMs
+                                    ? Constants.warningColor : Constants.cyanColor
                                 font.family: Constants.technicalFont
                                 font.pixelSize: 16
                                 font.bold: true

@@ -132,7 +132,9 @@ def plan(operations, desired_state, *, dependency_lookahead=False) -> list[Task]
         if operations.world.probe["status"] != "idle":
             constraints.append("probe_unavailable")
 
-        free_capacity = operations.inventory.free_capacity()
+        free_capacity = operations.inventory.mining_return_capacity(
+            active_commitments
+        )
         if resource_type != "deuterium" and free_capacity <= 0:
             constraints.append("insufficient_probe_storage")
 

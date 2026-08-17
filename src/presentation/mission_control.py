@@ -1075,6 +1075,8 @@ class MissionControlViewModelBuilder:
         automation_reasons = automation_reasons or {}
         work = []
         printer_assistance_tasks = []
+        inventory = probe.get("inventory", {}) or {}
+        storage_free = float(inventory.get("freeCapacity", 0) or 0)
         for manny in (mannies or {}).get("mannies", ()):
             task_type = manny.get("currentTask")
             if not task_type:
@@ -1103,6 +1105,17 @@ class MissionControlViewModelBuilder:
                 manny.get("taskStartTime")
             )
             operation = MissionControlViewModelBuilder._task_name(task_type, task)
+            normalized_task = str(task_type).lower().replace("-", "_")
+            target_amount = float(task.get("targetAmount", 0) or 0)
+            deposited_amount = float(task.get("depositedAmount", 0) or 0)
+            return_capacity_required = (
+                max(0.0, target_amount - deposited_amount) + 0.05
+                if normalized_task == "mining" else 0.0
+            )
+            storage_block_risk = (
+                return_capacity_required > 0
+                and storage_free + 0.000001 < return_capacity_required
+            )
             automation_reason = automation_reasons.get(str(manny.get("id")))
             reason_line = (
                 f"Automation reason: {automation_reason}"
@@ -1119,6 +1132,9 @@ class MissionControlViewModelBuilder:
                 "etaEpochMs": eta_view["epochMs"],
                 "startedAt": started_view["label"],
                 "startedAtEpochMs": started_view["epochMs"],
+                "storageFree": storage_free,
+                "returnCapacityRequired": return_capacity_required,
+                "storageBlockRisk": storage_block_risk,
                 "automationReason": automation_reason or "",
                 "displayText": f"{manny.get('name', 'MANNY')} · {operation.upper()}    {progress:.0f}%",
                 "detailText": MissionControlViewModelBuilder._task_details(
@@ -1127,6 +1143,11 @@ class MissionControlViewModelBuilder:
                 ) + (
                     f"\nStarted: {started_view['label']}"
                     if started_view["epochMs"] else ""
+                ) + (
+                    "\nStorage warning: Insufficient probe storage for this Manny "
+                    f"and its remaining cargo ({return_capacity_required:.3f} ECE required; "
+                    f"{storage_free:.3f} ECE free)."
+                    if storage_block_risk else ""
                 ) + "\n" + reason_line,
             })
 

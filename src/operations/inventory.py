@@ -2,6 +2,9 @@
 
 
 class InventoryService:
+    # A Manny occupies this much probe storage when aboard.  Keep one berth
+    # free so an outbound miner can always return, even if its cargo is empty.
+    MANNY_BERTH_CAPACITY = 0.05
     def __init__(self, world):
         self.world = world
 
@@ -27,6 +30,22 @@ class InventoryService:
         return self.world.probe["inventory"].get(
             "freeCapacity",
             0,
+        )
+
+    def mining_return_capacity(self, active_commitments=None):
+        """Capacity safe to promise to another non-fuel mining order."""
+
+        commitments = active_commitments or {}
+        inbound_cargo = sum(
+            max(0.0, float(amount or 0))
+            for resource, amount in commitments.items()
+            if resource != "deuterium"
+        )
+        return max(
+            0.0,
+            float(self.free_capacity() or 0)
+            - inbound_cargo
+            - self.MANNY_BERTH_CAPACITY,
         )
 
     def reserve_shortages(self, goals):

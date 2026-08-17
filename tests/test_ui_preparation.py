@@ -589,6 +589,23 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("IDLE · READY", work[0]["displayText"])
         self.assertIn("Can receive automation order: No", work[1]["detailText"])
 
+    def test_overdue_mining_exposes_storage_return_deadlock(self):
+        work = MissionControlViewModelBuilder._production(
+            {"inventory": {"freeCapacity": 0.02, "items": []}},
+            {"mannies": [{
+                "id": "miner",
+                "name": "Miner",
+                "currentTask": "mining",
+                "taskProgressPercent": 100,
+                "taskEstimatedEndTime": "2020-01-01T00:00:00+00:00",
+                "task": {"targetAmount": 0.248, "depositedAmount": 0},
+            }]},
+        )
+
+        self.assertTrue(work[0]["storageBlockRisk"])
+        self.assertAlmostEqual(work[0]["returnCapacityRequired"], 0.298)
+        self.assertIn("Insufficient probe storage", work[0]["detailText"])
+
     def test_atomic_printer_names_the_recipe_it_is_crafting(self):
         work = MissionControlViewModelBuilder._production(
             {"inventory": {"items": [{

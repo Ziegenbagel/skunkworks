@@ -188,7 +188,7 @@ class PlannerMissionTests(unittest.TestCase):
         ).tasks()
 
         mining = next(task for task in tasks if task.category == "mining")
-        self.assertEqual(mining.quantity, 5)
+        self.assertEqual(mining.quantity, 4.95)
         self.assertIn("Need 100.000 additional metals", mining.reason)
         self.assertIn("remaining production target: storage container", mining.reason)
 
@@ -282,7 +282,7 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertEqual(mining[0].resource_type, "ice")
         carbon = next(task for task in mining if task.resource_type == "carbon_compounds")
         self.assertIn("0.550 is already committed", carbon.reason)
-        self.assertEqual(carbon.quantity, 5)
+        self.assertEqual(carbon.quantity, 4.4)
 
     def test_blocked_manufacturing_explains_inbound_resource_coverage(self):
         operations = build_operations(metals=0)
@@ -384,6 +384,28 @@ class PlannerMissionTests(unittest.TestCase):
 
         self.assertEqual(command.payload["targetAmount"], 0.20)
         self.assertEqual(command.metadata["plannedMiningWorkers"], 1)
+
+    def test_mining_preserves_return_berth_and_inbound_cargo_capacity(self):
+        operations = build_operations(metals=0, free_capacity=0.24)
+        operations.world.mannies["mannies"].append({
+            "id": 102,
+            "currentTask": "mining",
+            "task": {
+                "resourceType": "metals",
+                "targetAmount": 0.20,
+                "depositedAmount": 0,
+            },
+            "canReceiveOrders": False,
+        })
+
+        tasks = Planner(
+            operations,
+            DesiredState(resources=(ResourceGoal("metals", 1, priority=2),)),
+        ).tasks()
+        mining = next(task for task in tasks if task.category == "mining")
+
+        self.assertIn("insufficient_probe_storage", mining.constraints)
+        self.assertEqual(mining.quantity, 0)
 
     def test_fuel_refill_uses_exact_uncovered_deficit_and_probe_maximum(self):
         operations = build_operations(fuel=78)
