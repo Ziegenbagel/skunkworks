@@ -202,6 +202,22 @@ class ManufacturingServiceTests(unittest.TestCase):
 
         self.assertEqual(missing, {})
 
+    def test_real_four_decimal_shortage_rounds_up_to_actionable_mining_amount(self):
+        missing = self.service._missing_resources(
+            {"metals": 3.78},
+            {"metals": 3.7798},
+        )
+
+        self.assertEqual(missing, {"metals": 0.001})
+
+    def test_deuterium_shortage_rounds_up_to_api_deliverable_tank_amount(self):
+        missing = self.service._missing_resources(
+            {"deuterium": 0.86},
+            {"deuterium": 0.8598},
+        )
+
+        self.assertEqual(missing, {"deuterium": 0.01})
+
     def test_requires_an_available_fabricator(self):
         self.world.mannies["mannies"][0][
             "currentTask"

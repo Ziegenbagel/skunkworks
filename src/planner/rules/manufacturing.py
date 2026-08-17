@@ -48,14 +48,16 @@ def plan(operations, desired_state) -> list[Task]:
             onboard = min(
                 float(required), float(available_resources.get(resource, 0) or 0),
             )
-            missing = max(0.0, float(required) - onboard)
+            missing = float(
+                production["missing_resources"].get(resource, 0) or 0
+            )
             committed = float(active_commitments.get(resource, 0) or 0)
             inbound = min(missing, committed)
             uncovered = max(0.0, float(missing) - committed)
             resource_parts.append(
-                f"{resource.replace('_', ' ')}: {float(required):.3f} ECE required, "
-                f"{onboard:.3f} onboard, {inbound:.3f} inbound, "
-                f"{uncovered:.3f} still uncovered"
+                f"{resource.replace('_', ' ')}: {float(required):.4f} ECE required, "
+                f"{onboard:.4f} onboard, {inbound:.4f} inbound, "
+                f"{uncovered:.4f} still uncovered"
             )
         resource_note = (
             " Next unit resources — " + "; ".join(resource_parts) + "."

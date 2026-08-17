@@ -300,9 +300,9 @@ class PlannerMissionTests(unittest.TestCase):
             DesiredState(production=(ProductionGoal("storage_container", 1),)),
         ).tasks() if task.category == "manufacturing")
 
-        self.assertIn("metals: 1.000 ECE required", task.reason)
-        self.assertIn("0.000 onboard, 0.750 inbound", task.reason)
-        self.assertIn("0.250 still uncovered", task.reason)
+        self.assertIn("metals: 1.0000 ECE required", task.reason)
+        self.assertIn("0.0000 onboard, 0.7500 inbound", task.reason)
+        self.assertIn("0.2500 still uncovered", task.reason)
 
     def test_deuterium_active_commitment_converts_api_fraction_to_tank_ece(self):
         operations = build_operations()

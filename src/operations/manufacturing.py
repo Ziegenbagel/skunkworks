@@ -1,4 +1,5 @@
 from math import ceil
+from decimal import Decimal, ROUND_CEILING, ROUND_HALF_UP
 
 
 class ManufacturingService:
@@ -510,19 +511,29 @@ class ManufacturingService:
             return 1
 
     def _missing_resources(self, required, available):
-        # Resource quantities are authoritative to three decimal ECE places.
-        # Comparing the unrounded binary floats first could retain a positive
-        # sub-milliscale residue (for example 3.7800000000000002 required
-        # versus 3.78 onboard), then round its displayed shortage to 0.000.
-        # The non-empty mapping still blocked the craft indefinitely despite
-        # the UI correctly showing every input fully covered.
+        # Live resource stocks are authoritative to four decimal ECE places.
+        # Recipe recursion can introduce binary-float noise, so normalize both
+        # sides to that precision before comparison. Any genuine shortage must
+        # then round *up* to an amount the mining API can deliver; rounding a
+        # 0.0002 deficit down to zero falsely declares a craft fully funded.
         missing = {}
         for resource, amount in required.items():
-            shortage = round(
-                float(amount) - float(available.get(resource, 0) or 0), 3,
+            precision = Decimal("0.0001")
+            required_amount = Decimal(str(amount)).quantize(
+                precision, rounding=ROUND_HALF_UP,
+            )
+            available_amount = Decimal(str(
+                available.get(resource, 0) or 0
+            )).quantize(precision, rounding=ROUND_HALF_UP)
+            exact_shortage = required_amount - available_amount
+            actionable_increment = Decimal(
+                "0.01" if resource == "deuterium" else "0.001"
+            )
+            shortage = exact_shortage.quantize(
+                actionable_increment, rounding=ROUND_CEILING,
             )
             if shortage > 0:
-                missing[resource] = shortage
+                missing[resource] = float(shortage)
         return missing
 
     def _item_counts(self, items):
