@@ -163,6 +163,18 @@ def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
     assert "queueManualProbeAssembly" in controller
 
 
+def test_manual_crafting_reservation_conflict_offers_override_and_cancel():
+    app = Path("src/ui/qml/App.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+
+    assert 'title: "AUTOMATION RESERVATION CONFLICT"' in app
+    assert 'text: "OVERRIDE"' in app
+    assert 'text: "CANCEL"' in app
+    assert "overrideManualCraft()" in app
+    assert "cancelManualCraftOverride()" in app
+    assert "override_reservations=True" in controller
+
+
 def test_galaxy_map_operational_colors_override_trail_and_resources():
     galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()
     hazard = galaxy.index('if (node.hasHazard) return "#ff4d5a";')

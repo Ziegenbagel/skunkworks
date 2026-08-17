@@ -11,7 +11,11 @@ from src.execution import ExecutionMode
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
 from src.presentation import MissionControlViewModelBuilder
-from src.ui.controller import MissionControlController, _FleetAutomationWorker
+from src.ui.controller import (
+    ManualCraftReservationConflict,
+    MissionControlController,
+    _FleetAutomationWorker,
+)
 from tests.test_planner_missions import build_operations
 
 
@@ -370,6 +374,40 @@ class UiPreparationTests(unittest.TestCase):
             policy = type("Policy", (), {"mode": mode})()
             with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=policy):
                 self.assertTrue(controller._require_manual_control())
+
+    def test_manual_craft_conflict_waits_for_explicit_one_order_override(self):
+        calls = []
+
+        class Service:
+            @staticmethod
+            def manual_craft(recipe_id, manny_id, override_reservations=False):
+                calls.append((recipe_id, manny_id, override_reservations))
+                if not override_reservations:
+                    raise ManualCraftReservationConflict("Reserved resources")
+
+        controller = MissionControlController(service=Service())
+        controller._focused_probe_id = 7
+        controller._require_manual_control = lambda: True
+        controller._start_refresh = lambda probe_id: calls.append(("refresh", probe_id))
+
+        controller.queueManualCraft("container", "manny-a")
+
+        self.assertEqual(controller.error, "")
+        self.assertEqual(controller.manualCraftOverride["recipeId"], "container")
+        controller.overrideManualCraft()
+        self.assertEqual(calls[1], ("container", "manny-a", True))
+        self.assertEqual(calls[2], ("refresh", 7))
+        self.assertEqual(controller.manualCraftOverride, {})
+
+    def test_manual_craft_override_can_be_cancelled_without_dispatch(self):
+        controller = MissionControlController()
+        controller._manual_craft_override = {
+            "probeId": 7, "recipeId": "container", "mannyId": "manny-a",
+        }
+
+        controller.cancelManualCraftOverride()
+
+        self.assertEqual(controller.manualCraftOverride, {})
 
     def test_manual_automation_cycle_is_dispatched_off_the_ui_thread(self):
         started = []

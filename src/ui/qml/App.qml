@@ -85,6 +85,49 @@ ApplicationWindow {
         }
     }
 
+    Dialog {
+        id: manualCraftOverrideDialog
+        z: 880
+        anchors.centerIn: parent
+        modal: true
+        closePolicy: Popup.NoAutoClose
+        visible: window.backend !== null
+            && Object.keys(window.backend.manualCraftOverride || ({})).length > 0
+        title: "AUTOMATION RESERVATION CONFLICT"
+
+        contentItem: ColumnLayout {
+            width: 620
+            spacing: 14
+            Label {
+                Layout.fillWidth: true
+                text: window.backend ? String((window.backend.manualCraftOverride || {}).message || "") : ""
+                color: Constants.warningColor
+                font.pixelSize: 15
+                wrapMode: Text.Wrap
+            }
+            Label {
+                Layout.fillWidth: true
+                text: "Overriding may consume resources reserved for a higher-priority automation goal and delay or block that goal. The override applies only to this one manual build."
+                color: Constants.textColor
+                font.pixelSize: 14
+                wrapMode: Text.Wrap
+            }
+        }
+
+        footer: DialogButtonBox {
+            Button {
+                text: "OVERRIDE"
+                DialogButtonBox.buttonRole: DialogButtonBox.AcceptRole
+                onClicked: if (window.backend) window.backend.overrideManualCraft()
+            }
+            Button {
+                text: "CANCEL"
+                DialogButtonBox.buttonRole: DialogButtonBox.RejectRole
+                onClicked: if (window.backend) window.backend.cancelManualCraftOverride()
+            }
+        }
+    }
+
     Rectangle {
         id: unavailableOverlay
         anchors.fill: parent

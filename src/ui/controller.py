@@ -48,6 +48,10 @@ from src.diagnostics import diagnostic_log_directory, log_handled_error
 from src.reporting import DailyProbeReportService
 
 
+class ManualCraftReservationConflict(ValueError):
+    """A manual build may proceed only after an explicit operator override."""
+
+
 class MissionControlDataService:
     """Build one authoritative dashboard snapshot for a selected probe."""
 
@@ -1866,7 +1870,7 @@ class MissionControlDataService:
             self._selected_probe_id, manny_id, action, payload,
         )
 
-    def manual_craft(self, recipe_id, manny_id):
+    def manual_craft(self, recipe_id, manny_id, override_reservations=False):
         recipe = self.recipes.get(recipe_id)
         if recipe is None:
             raise ValueError(f"Unknown crafting recipe: {recipe_id}")
@@ -1878,17 +1882,17 @@ class MissionControlDataService:
         conflicts = CommandPreparer(
             self._operations, self._selected_probe_id, policy,
         ).manual_manufacturing_blockers(recipe_id, planned_tasks)
-        if conflicts:
+        if conflicts and not override_reservations:
             labels = {
                 "item_reserved_by_higher_priority_goal": "crafted items",
                 "item_reserved_by_assembly_goal": "completed probe-assembly components",
                 "resource_reserved_by_higher_priority_goal": "raw resources",
             }
             protected = " and ".join(labels.get(item, item) for item in conflicts)
-            raise ValueError(
+            raise ManualCraftReservationConflict(
                 f"Manual build blocked: {protected} required by this recipe are "
                 "allocated to a higher-priority automation goal. Lower that goal, "
-                "wait for surplus inputs, or change its target before crafting manually."
+                "wait for surplus inputs, or explicitly override this reservation."
             )
         craftable_by = tuple(recipe.get("craftableBy", ()))
         if "manny" in craftable_by:
@@ -2500,6 +2504,7 @@ class MissionControlController(QObject):
     credentialMessageChanged = Signal()
     startupLoadingChanged = Signal()
     loadingProgressChanged = Signal()
+    manualCraftOverrideChanged = Signal()
 
     def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
         super().__init__()
@@ -2511,6 +2516,7 @@ class MissionControlController(QObject):
         self._focused_probe_id = -1
         self._refreshing = False
         self._error = ""
+        self._manual_craft_override = {}
         self._emergency_stop = False
         self._worker = None
         self._pending_probe_id = None
@@ -2615,6 +2621,10 @@ class MissionControlController(QObject):
     @Property(str, notify=errorChanged)
     def error(self):
         return self._error
+
+    @Property("QVariantMap", notify=manualCraftOverrideChanged)
+    def manualCraftOverride(self):
+        return self._manual_craft_override
 
     @Property(bool, notify=emergencyStopChanged)
     def emergencyStopActive(self):
@@ -3130,11 +3140,54 @@ class MissionControlController(QObject):
             return
         try:
             self.service.manual_craft(recipe_id, manny_id)
+        except ManualCraftReservationConflict as error:
+            self._manual_craft_override = {
+                "probeId": self._focused_probe_id,
+                "recipeId": recipe_id,
+                "mannyId": manny_id,
+                "message": str(error),
+            }
+            self.manualCraftOverrideChanged.emit()
+            self._set_error("")
+            return
         except Exception as error:
             self._set_error(str(error) or type(error).__name__)
             return
         self._set_error("")
         self._start_refresh(self._focused_probe_id)
+
+    @Slot()
+    def overrideManualCraft(self):
+        pending = dict(self._manual_craft_override)
+        if not pending:
+            return
+        if int(pending.get("probeId", -1)) != self._focused_probe_id:
+            self._clear_manual_craft_override()
+            self._set_error("The focused probe changed. Queue the manual build again.")
+            return
+        try:
+            self.service.manual_craft(
+                str(pending.get("recipeId", "")),
+                str(pending.get("mannyId", "")),
+                override_reservations=True,
+            )
+        except Exception as error:
+            self._clear_manual_craft_override()
+            self._set_error(str(error) or type(error).__name__)
+            return
+        self._clear_manual_craft_override()
+        self._set_error("")
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot()
+    def cancelManualCraftOverride(self):
+        self._clear_manual_craft_override()
+
+    def _clear_manual_craft_override(self):
+        if not self._manual_craft_override:
+            return
+        self._manual_craft_override = {}
+        self.manualCraftOverrideChanged.emit()
 
     @Slot(str, float)
     def queueManualRepair(self, manny_id, integrity_percent):
