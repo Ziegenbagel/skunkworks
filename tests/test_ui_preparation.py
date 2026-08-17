@@ -409,6 +409,32 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(controller.manualCraftOverride, {})
 
+    def test_manual_craft_override_surfaces_game_validation_detail(self):
+        response = requests.Response()
+        response.status_code = 422
+        response._content = (
+            b'{"detail":{"error":{"code":"insufficient_resources",'
+            b'"message":"Not enough inputs","missingResources":{"metals":0.4}}}}'
+        )
+
+        class Service:
+            @staticmethod
+            def manual_craft(*_args, **_kwargs):
+                raise requests.HTTPError(response=response)
+
+        controller = MissionControlController(service=Service())
+        controller._focused_probe_id = 7
+        controller._manual_craft_override = {
+            "probeId": 7, "recipeId": "manny", "mannyId": "manny-a",
+        }
+
+        controller.overrideManualCraft()
+
+        self.assertIn("insufficient_resources", controller.error)
+        self.assertIn("Not enough inputs", controller.error)
+        self.assertIn("metals: 0.4", controller.error)
+        self.assertEqual(controller.errorContext, "command")
+
     def test_manual_automation_cycle_is_dispatched_off_the_ui_thread(self):
         started = []
 

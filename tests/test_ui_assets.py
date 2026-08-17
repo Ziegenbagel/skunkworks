@@ -173,6 +173,8 @@ def test_manual_crafting_reservation_conflict_offers_override_and_cancel():
     assert "overrideManualCraft()" in app
     assert "cancelManualCraftOverride()" in app
     assert "override_reservations=True" in controller
+    assert "COMMAND REJECTED · LIVE SNAPSHOT RETAINED" in app
+    assert 'errorContext !== "command"' in app
 
 
 def test_galaxy_map_operational_colors_override_trail_and_resources():

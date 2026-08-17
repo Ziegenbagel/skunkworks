@@ -63,7 +63,9 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 spacing: 2
                 Label {
-                    text: "LIVE LINK INTERRUPTED · SHOWING LAST SUCCESSFUL SNAPSHOT"
+                    text: window.backend && window.backend.errorContext === "command"
+                        ? "COMMAND REJECTED · LIVE SNAPSHOT RETAINED"
+                        : "LIVE LINK INTERRUPTED · SHOWING LAST SUCCESSFUL SNAPSHOT"
                     color: Constants.warningColor
                     font.family: Constants.technicalFont
                     font.bold: true
@@ -78,6 +80,7 @@ ApplicationWindow {
                 }
             }
             Button {
+                visible: !window.backend || window.backend.errorContext !== "command"
                 text: window.backend && window.backend.refreshing ? "RETRYING…" : "RETRY NOW"
                 enabled: window.backend && !window.backend.refreshing
                 onClicked: window.backend.refresh()

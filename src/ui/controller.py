@@ -2516,6 +2516,7 @@ class MissionControlController(QObject):
         self._focused_probe_id = -1
         self._refreshing = False
         self._error = ""
+        self._error_context = ""
         self._manual_craft_override = {}
         self._emergency_stop = False
         self._worker = None
@@ -2621,6 +2622,10 @@ class MissionControlController(QObject):
     @Property(str, notify=errorChanged)
     def error(self):
         return self._error
+
+    @Property(str, notify=errorChanged)
+    def errorContext(self):
+        return self._error_context
 
     @Property("QVariantMap", notify=manualCraftOverrideChanged)
     def manualCraftOverride(self):
@@ -3173,7 +3178,10 @@ class MissionControlController(QObject):
             )
         except Exception as error:
             self._clear_manual_craft_override()
-            self._set_error(str(error) or type(error).__name__)
+            self._set_error(
+                "MANUAL BUILD REJECTED · " + self._http_error_message(error),
+                context="command",
+            )
             return
         self._clear_manual_craft_override()
         self._set_error("")
@@ -3645,6 +3653,51 @@ class MissionControlController(QObject):
             )
         if code or message:
             return " · ".join(str(value) for value in (code, message) if value)
+        return str(error) or type(error).__name__
+
+    @staticmethod
+    def _http_error_message(error):
+        """Extract the game's validation reason instead of hiding it behind HTTP status."""
+
+        response = getattr(error, "response", None)
+        payload = None
+        if response is not None:
+            try:
+                payload = response.json()
+            except (TypeError, ValueError):
+                payload = None
+        detail = payload.get("detail", payload) if isinstance(payload, dict) else payload
+        if isinstance(detail, dict):
+            business = detail.get("error", detail)
+            if isinstance(business, dict):
+                code = business.get("code")
+                message = business.get("message") or business.get("msg")
+                missing = business.get("missingResources") or business.get("missing_resources")
+                parts = [str(value) for value in (code, message) if value]
+                if isinstance(missing, dict) and missing:
+                    parts.append("Missing " + ", ".join(
+                        f"{resource.replace('_', ' ')}: {amount}"
+                        for resource, amount in missing.items()
+                    ))
+                if parts:
+                    return " · ".join(parts)
+        if isinstance(detail, list):
+            messages = []
+            for item in detail:
+                if not isinstance(item, dict):
+                    messages.append(str(item))
+                    continue
+                location = ".".join(str(value) for value in item.get("loc", ()) if value != "body")
+                message = str(item.get("msg") or item.get("message") or item)
+                messages.append(f"{location}: {message}" if location else message)
+            if messages:
+                return " · ".join(messages)
+        if isinstance(detail, str) and detail.strip():
+            return detail.strip()
+        if response is not None:
+            body = str(getattr(response, "text", "") or "").strip()
+            if body:
+                return body[:500]
         return str(error) or type(error).__name__
 
     @Slot(str)
@@ -4131,10 +4184,11 @@ class MissionControlController(QObject):
         self._loading_status = str(status)
         self.loadingProgressChanged.emit()
 
-    def _set_error(self, value):
-        if value == self._error:
+    def _set_error(self, value, context=""):
+        if value == self._error and context == self._error_context:
             return
         if value:
             log_handled_error(value)
         self._error = value
+        self._error_context = context if value else ""
         self.errorChanged.emit()
