@@ -57,6 +57,13 @@ API v112 adds probe-scoped deletion for both persistent alerts and damage
 warnings. Skunkworks exposes both operations through the probe gateway while
 retaining the existing ownership boundary enforced by the game.
 
+Manual Control exposes asteroid operations without attempting to predict game
+outcomes. Local impacts require a separate irreversible/destructive
+confirmation and accept a target speed from 0.01c through 0.50c. Sector
+transfer accepts player-relative FCC coordinates and leaves direct-neighbor
+validation authoritative to the game. The current API exposes no cancellation
+route for an accepted asteroid trajectory.
+
 ## Observation 001
 
 ### Endpoint

@@ -386,6 +386,12 @@ ApplicationWindow {
                 window.backend.queueManualProbeAssembly(mannyId, model, containerIds);
         }
 
+        function onAsteroidTrajectoryRequested(asteroidId, payload) {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.launchAsteroidTrajectory(asteroidId, payload);
+        }
+
         function onMakeDefaultProbeRequested() {
             AudioManager.play("warning");
             if (window.backend)

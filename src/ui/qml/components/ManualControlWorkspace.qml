@@ -22,6 +22,8 @@ Item {
     signal storageMoveRequested(var payload)
     signal jettisonRequested(string itemId, real amount, string containerId)
     signal inventoryMannyActionRequested(string action, string mannyId, var payload)
+    signal asteroidTrajectoryRequested(string asteroidId, var payload)
+    property var pendingAsteroidAction: ({})
 
     function readableDuration(secondsValue) {
         const seconds = Math.max(0, Math.round(Number(secondsValue || 0)));
@@ -65,6 +67,7 @@ Item {
             TabButton { text: "CRAFTING" }
             TabButton { text: "MINING AND MAINTENANCE" }
             TabButton { text: "TRANSFERS AND CONTAINERS" }
+            TabButton { text: "ASTEROID CONTROL" }
         }
         StackLayout {
             enabled: root.manualCommandsEnabled
@@ -254,6 +257,83 @@ Item {
                 onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
                 onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
             }
+
+            Item {
+                ScrollView {
+                    id: asteroidControls
+                    anchors.fill: parent
+                    contentWidth: availableWidth
+                    clip: true
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ColumnLayout {
+                        width: Math.max(1, asteroidControls.availableWidth - 12)
+                        spacing: 14
+
+                        Label { Layout.fillWidth: true; text: "MOTORIZED ASTEROID OPERATIONS · API v112"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                        Label { Layout.fillWidth: true; text: "These are direct one-time game commands. Motorization and refueling consume resources immediately. Launching consumes the asteroid's full binary fuel tank and cannot be cancelled through the current API."; color: Constants.warningColor; font.pixelSize: 14; wrapMode: Text.Wrap }
+
+                        GroupBox {
+                            title: "INSTALL ASTEROID PROPULSION"
+                            Layout.fillWidth: true
+                            GridLayout {
+                                anchors.fill: parent; columns: 3; columnSpacing: 12; rowSpacing: 10
+                                Label { text: "IDLE MANNY"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: motorizeManny; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).idleMannies || [] }
+                                Item { Layout.preferredWidth: 1 }
+                                Label { text: "ASTEROID"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: motorizeTarget; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).motorizationTargets || [] }
+                                Button { text: "REVIEW INSTALLATION"; enabled: Boolean((root.dashboardData.inventoryManagement || {}).asteroidMotorizationAvailable) && motorizeManny.count > 0 && motorizeTarget.count > 0; onClicked: { root.pendingAsteroidAction = {"action":"motorize-asteroid", "mannyId":String(motorizeManny.currentValue), "objectId":String(motorizeTarget.currentValue)}; asteroidTaskConfirmation.open(); } }
+                                Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "Requires Distributed Thrust Anchoring. The game consumes 1 Deuterium Engine, 4 Steel Bars, 2 Steel Plates, and 0.2 ECE Deuterium, then sends the Manny out to install propulsion."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                                Label { visible: !Boolean((root.dashboardData.inventoryManagement || {}).asteroidMotorizationAvailable); Layout.columnSpan: 3; Layout.fillWidth: true; text: "LOCKED · DISTRIBUTED THRUST ANCHORING IS NOT CURRENTLY AVAILABLE TO THIS PROBE OWNER."; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
+                            }
+                        }
+
+                        GroupBox {
+                            title: "REFUEL MOTORIZED ASTEROID"
+                            Layout.fillWidth: true
+                            RowLayout {
+                                anchors.fill: parent; spacing: 12
+                                ComboBox { id: refuelManny; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).idleMannies || [] }
+                                ComboBox { id: refuelTarget; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).refuelAsteroidTargets || [] }
+                                Button { text: "REVIEW REFUEL"; enabled: refuelManny.count > 0 && refuelTarget.count > 0; onClicked: { root.pendingAsteroidAction = {"action":"refuel-motorized-asteroid", "mannyId":String(refuelManny.currentValue), "objectId":String(refuelTarget.currentValue)}; asteroidTaskConfirmation.open(); } }
+                            }
+                        }
+
+                        GroupBox {
+                            title: "LAUNCH MOTORIZED ASTEROID"
+                            Layout.fillWidth: true
+                            GridLayout {
+                                anchors.fill: parent; columns: 4; columnSpacing: 12; rowSpacing: 10
+                                Label { text: "ASTEROID"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: launchAsteroid; Layout.fillWidth: true; Layout.columnSpan: 3; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).launchableAsteroids || [] }
+                                Label { text: "MODE"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: launchMode; textRole: "text"; valueRole: "value"; model: [{"text":"MOVE TO NEIGHBORING SECTOR", "value":"sector_transfer"}, {"text":"IMPACT LOCAL OBJECT", "value":"system_impact"}]; Layout.fillWidth: true }
+                                Label { visible: launchMode.currentValue === "system_impact"; text: "TARGET"; color: Constants.criticalColor; font.bold: true }
+                                ComboBox { id: impactTarget; visible: launchMode.currentValue === "system_impact"; Layout.fillWidth: true; textRole: "label"; valueRole: "id"; model: ((root.dashboardData.inventoryManagement || {}).asteroidImpactTargets || []).filter(function(item) { return String(item.id) !== String(launchAsteroid.currentValue); }) }
+                                Label { visible: launchMode.currentValue === "system_impact"; text: "TARGET SPEED"; color: Constants.criticalColor; font.bold: true }
+                                RowLayout { visible: launchMode.currentValue === "system_impact"; Layout.columnSpan: 3; SpinBox { id: impactSpeed; from: 1; to: 50; value: 10; editable: true } Label { text: (Number(impactSpeed.value) / 100).toFixed(2) + " c"; color: Constants.textColor } }
+                                Label { visible: launchMode.currentValue === "sector_transfer"; text: "NEIGHBOR FCC"; color: Constants.cyanColor; font.bold: true }
+                                RowLayout { visible: launchMode.currentValue === "sector_transfer"; Layout.columnSpan: 3; Label { text: "X" } SpinBox { id: transferX; from: -1000000; to: 1000000; editable: true } Label { text: "Y" } SpinBox { id: transferY; from: -1000000; to: 1000000; editable: true } Label { text: "Z" } SpinBox { id: transferZ; from: -1000000; to: 1000000; editable: true } }
+                                Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: launchMode.currentValue === "system_impact" ? "DANGER: this deliberately accelerates the asteroid toward the selected local object. The game may report damage, destruction, fragmentation, a miss, or no effect; Skunkworks cannot predict the result." : "The destination must be a directly neighboring valid FCC sector. Transfer advances one sector per 24 hours and may end in capture, loss, or another terminal outcome."; color: launchMode.currentValue === "system_impact" ? Constants.criticalColor : Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
+                                Button { text: "REVIEW LAUNCH"; enabled: launchAsteroid.count > 0 && (launchMode.currentValue !== "system_impact" || impactTarget.count > 0); onClicked: asteroidLaunchConfirmation.open() }
+                            }
+                        }
+
+                        GroupBox {
+                            title: "DETECTED ACTIVE TRAJECTORIES"
+                            Layout.fillWidth: true
+                            ColumnLayout {
+                                anchors.fill: parent
+                                Label { visible: ((root.dashboardData.inventoryManagement || {}).asteroidTrajectories || []).length === 0; text: "No active motorized-asteroid trajectory is visible in the current detailed sector scan."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                                Repeater {
+                                    model: (root.dashboardData.inventoryManagement || {}).asteroidTrajectories || []
+                                    delegate: Label { required property var modelData; Layout.fillWidth: true; text: String(modelData.id || "TRAJECTORY") + " · " + String(modelData.mode || "unknown").split("_").join(" ").toUpperCase() + " · " + String(modelData.status || "unknown").split("_").join(" ").toUpperCase() + (modelData.estimatedCompletionAt ? " · ETA " + String(modelData.estimatedCompletionAt) : ""); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -262,5 +342,19 @@ Item {
         title: "CONFIRM PROBE ASSEMBLY"; standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.probeAssemblyRequested(String(assemblyManny.currentValue), String(assemblyModel.currentValue), [String(assemblyContainerOne.currentValue), String(assemblyContainerTwo.currentValue)])
         Label { width: 600; text: "This sends a live three-hour assembly order and consumes the two selected empty containers, all required crafted components, and the selected assembly Manny. That Manny is installed aboard the newly assembled probe and will no longer remain on the current probe. Cancelling later leaves consumed ingredients drifting in the assembly sector."; color: Constants.criticalColor; wrapMode: Text.Wrap }
+    }
+    Dialog {
+        id: asteroidTaskConfirmation; anchors.centerIn: parent; modal: true
+        title: root.pendingAsteroidAction.action === "motorize-asteroid" ? "CONFIRM ASTEROID MOTORIZATION" : "CONFIRM ASTEROID REFUEL"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.inventoryMannyActionRequested(String(root.pendingAsteroidAction.action), String(root.pendingAsteroidAction.mannyId), {"objectId":String(root.pendingAsteroidAction.objectId)})
+        Label { width: 620; text: root.pendingAsteroidAction.action === "motorize-asteroid" ? "This consumes the documented propulsion components and 0.2 ECE Deuterium, then sends the selected Manny outside the probe." : "This immediately consumes 0.2 ECE Deuterium and sends the selected Manny to refill the asteroid's binary motor tank."; color: Constants.warningColor; wrapMode: Text.Wrap }
+    }
+    Dialog {
+        id: asteroidLaunchConfirmation; anchors.centerIn: parent; modal: true
+        title: launchMode.currentValue === "system_impact" ? "CONFIRM DESTRUCTIVE ASTEROID IMPACT" : "CONFIRM ASTEROID SECTOR TRANSFER"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.asteroidTrajectoryRequested(String(launchAsteroid.currentValue), launchMode.currentValue === "system_impact" ? {"mode":"system_impact", "targetObjectId":String(impactTarget.currentValue), "targetSpeedC":Number(impactSpeed.value) / 100} : {"mode":"sector_transfer", "target":{"x":transferX.value, "y":transferY.value, "z":transferZ.value}})
+        Label { width: 660; text: launchMode.currentValue === "system_impact" ? "IRREVERSIBLE: launch this asteroid toward the selected local object. The outcome is resolved by the game and may damage or destroy assets. Skunkworks cannot cancel the trajectory or predict its result." : "IRREVERSIBLE: consume the asteroid's full fuel tank and begin transfer to the entered neighboring FCC sector. Confirm the coordinates carefully."; color: Constants.criticalColor; font.bold: true; wrapMode: Text.Wrap }
     }
 }

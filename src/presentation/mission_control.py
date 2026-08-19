@@ -170,6 +170,11 @@ class MissionControlViewModelBuilder:
         inactive_scut_relays = []
         active_scut_relays = []
         refuel_stations = []
+        motorization_targets = []
+        refuel_asteroid_targets = []
+        launchable_asteroids = []
+        impact_targets = []
+        asteroid_trajectories = []
         seen_targets = set()
         seen_recoverable = set()
         seen_bookmarks = set()
@@ -180,6 +185,32 @@ class MissionControlViewModelBuilder:
                 target_type = str(value.get("type", "")).lower()
                 target_kind = "planet" if "planet" in target_type else "asteroid" if "asteroid" in target_type else ""
                 target_id = str(value.get("id", ""))
+                if target_id and target_type in {"star", "planet", "asteroid", "probe"}:
+                    impact_targets.append({
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or target_id,
+                        "label": (
+                            f"{value.get('name') or value.get('summary') or target_id}"
+                            f" · {target_type.replace('_', ' ').upper()}"
+                        ),
+                        "type": target_type,
+                    })
+                if target_type == "asteroid" and target_id:
+                    asteroid = {
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or target_id,
+                        "motorized": bool(value.get("motorized", False)),
+                        "motorFuelStatus": value.get("motorFuelStatus"),
+                        "trajectory": value.get("trajectory"),
+                    }
+                    if not asteroid["motorized"]:
+                        motorization_targets.append(asteroid)
+                    elif asteroid["trajectory"]:
+                        asteroid_trajectories.append(asteroid["trajectory"])
+                    elif asteroid["motorFuelStatus"] == "empty":
+                        refuel_asteroid_targets.append(asteroid)
+                    elif asteroid["motorFuelStatus"] == "full":
+                        launchable_asteroids.append(asteroid)
                 if target_kind and target_id and target_id not in seen_targets:
                     seen_targets.add(target_id)
                     sector_targets.append({
@@ -276,6 +307,18 @@ class MissionControlViewModelBuilder:
             "inactiveScutRelays": tuple(inactive_scut_relays),
             "activeScutRelaysWithoutBeacon": tuple(active_scut_relays),
             "refuelStations": tuple(refuel_stations),
+            "motorizationTargets": tuple({item["id"]: item for item in motorization_targets}.values()),
+            "refuelAsteroidTargets": tuple({item["id"]: item for item in refuel_asteroid_targets}.values()),
+            "launchableAsteroids": tuple({item["id"]: item for item in launchable_asteroids}.values()),
+            "asteroidImpactTargets": tuple({item["id"]: item for item in impact_targets}.values()),
+            "asteroidTrajectories": tuple({item.get("id"): item for item in asteroid_trajectories if item}.values()),
+            "asteroidMotorizationAvailable": any(
+                improvement.get("id") == "distributed_thrust_anchoring"
+                and improvement.get("available", False)
+                for improvement in (
+                    ((getattr(world, "hazard_context", None) or {}).get("improvements") or {}).get("improvements", ())
+                )
+            ),
             "waitingCargoMannies": tuple(
                 manny for manny in all_mannies
                 if (

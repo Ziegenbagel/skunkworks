@@ -614,6 +614,27 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert 'runInventoryMannyAction("mine", mannyId, payload)' in app
 
 
+def test_manual_control_exposes_v112_motorized_asteroid_workflows():
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+
+    assert 'TabButton { text: "ASTEROID CONTROL" }' in manual
+    assert "INSTALL ASTEROID PROPULSION" in manual
+    assert "REFUEL MOTORIZED ASTEROID" in manual
+    assert "LAUNCH MOTORIZED ASTEROID" in manual
+    assert '"motorize-asteroid"' in manual
+    assert '"refuel-motorized-asteroid"' in manual
+    assert '"sector_transfer"' in manual
+    assert '"system_impact"' in manual
+    assert "CONFIRM DESTRUCTIVE ASTEROID IMPACT" in manual
+    assert "Skunkworks cannot cancel the trajectory or predict its result" in manual
+    assert "asteroidTrajectoryRequested" in navigation
+    assert "onAsteroidTrajectoryRequested" in app
+    assert "def launchAsteroidTrajectory" in controller
+
+
 def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
     manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()

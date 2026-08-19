@@ -6,6 +6,9 @@
   deletion, motorized-asteroid Manny tasks, asteroid trajectory launch and
   local telemetry routes, and support for the additive motorization and
   improvement-capability fields introduced in API v108–v111.
+- Added Manual Control / Asteroid Control for propulsion installation,
+  refueling, neighboring-sector transfer, explicitly confirmed local impacts,
+  and active trajectory telemetry from detailed sector scans.
 
 ## API v107 — 2026-08-13
 

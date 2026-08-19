@@ -928,6 +928,33 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in inventory["refuelStations"]], ["station-1"])
         self.assertEqual([item["id"] for item in inventory["waitingCargoMannies"]], ["manny-waiting"])
 
+    def test_inventory_management_exposes_v112_motorized_asteroid_controls(self):
+        world = build_operations().world
+        trajectory = {
+            "id": "atr_123", "asteroidId": "rock-moving",
+            "mode": "sector_transfer", "status": "crossing_sector",
+        }
+        world.sector["snapshot"] = {"sector": {"objects": [{
+            "id": "system-1", "type": "solar_system", "bookmarkTargets": [
+                {"id": "star-1", "type": "star", "name": "Primary"},
+                {"id": "rock-new", "type": "asteroid", "name": "New Rock"},
+                {"id": "rock-empty", "type": "asteroid", "name": "Empty Motor", "motorized": True, "motorFuelStatus": "empty"},
+                {"id": "rock-full", "type": "asteroid", "name": "Full Motor", "motorized": True, "motorFuelStatus": "full"},
+                {"id": "rock-moving", "type": "asteroid", "name": "Moving Rock", "motorized": True, "motorFuelStatus": "empty", "trajectory": trajectory},
+            ],
+        }]}}
+
+        inventory = MissionControlViewModelBuilder._inventory_management(world)
+
+        self.assertEqual([item["id"] for item in inventory["motorizationTargets"]], ["rock-new"])
+        self.assertEqual([item["id"] for item in inventory["refuelAsteroidTargets"]], ["rock-empty"])
+        self.assertEqual([item["id"] for item in inventory["launchableAsteroids"]], ["rock-full"])
+        self.assertEqual(inventory["asteroidTrajectories"], (trajectory,))
+        self.assertEqual(
+            {item["id"] for item in inventory["asteroidImpactTargets"]},
+            {"star-1", "rock-new", "rock-empty", "rock-full", "rock-moving"},
+        )
+
     def test_inventory_management_lists_only_empty_additional_assembly_containers(self):
         world = build_operations().world
         world.probe["inventory"]["containers"] = [

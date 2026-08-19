@@ -438,7 +438,9 @@ class MissionControlDataService:
             "durationSeconds": int(improvement.get("durationSeconds", 0) or 0),
             "ingredients": tuple(improvement.get("ingredients", ())),
         } for improvement in improvements_response.get("improvements", ())
-          if improvement.get("available", False) and not improvement.get("done", False))
+          if improvement.get("available", False)
+          and not improvement.get("done", False)
+          and improvement.get("installableOnProbe", True))
         if include_archival and bool(selected.get("isDefault")):
             daily_result = {"created": [], "failures": []}
             if self.data_engine.get_preference("auto_game_logbook", "false") == "true":
@@ -1862,6 +1864,8 @@ class MissionControlDataService:
             "transfer-deuterium-to-probe",
             "transfer-to-probe",
             "mine",
+            "motorize-asteroid",
+            "refuel-motorized-asteroid",
             "recall",
         }
         if action not in allowed:
@@ -1956,6 +1960,26 @@ class MissionControlDataService:
         return self.capabilities.mannies.start_task(
             self._selected_probe_id, manny_id, "assemble-probe",
             {"model": model, "containerIds": list(container_ids)},
+        )
+
+    def launch_asteroid_trajectory(self, asteroid_id, payload):
+        if not asteroid_id:
+            raise ValueError("Select a full motorized asteroid.")
+        mode = str((payload or {}).get("mode", ""))
+        if mode == "system_impact":
+            if not payload.get("targetObjectId"):
+                raise ValueError("Select a local impact target.")
+            speed = float(payload.get("targetSpeedC", 0) or 0)
+            if not 0 < speed <= 0.5:
+                raise ValueError("Impact speed must be greater than 0 and no more than 0.5c.")
+        elif mode == "sector_transfer":
+            target = payload.get("target") or {}
+            if not all(axis in target for axis in ("x", "y", "z")):
+                raise ValueError("Enter all three neighboring-sector coordinates.")
+        else:
+            raise ValueError("Select an asteroid trajectory mode.")
+        return self.capabilities.probes.launch_asteroid_trajectory(
+            self._selected_probe_id, asteroid_id, payload,
         )
 
     def make_focused_probe_default(self):
@@ -3749,6 +3773,12 @@ class MissionControlController(QObject):
     def runInventoryMannyAction(self, action, manny_id, payload):
         self._inventory_mutation(lambda: self.service.inventory_manny_action(
             action, manny_id, self._qt_safe(payload),
+        ))
+
+    @Slot(str, "QVariantMap")
+    def launchAsteroidTrajectory(self, asteroid_id, payload):
+        self._inventory_mutation(lambda: self.service.launch_asteroid_trajectory(
+            asteroid_id, self._qt_safe(payload),
         ))
 
     @Slot("QVariantMap")
