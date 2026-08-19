@@ -441,6 +441,29 @@ class MissionControlDataService:
           if improvement.get("available", False)
           and not improvement.get("done", False)
           and improvement.get("installableOnProbe", True))
+        owned_probe_ids = {
+            int(item.get("id")) for item in probe_data.get("probes", ())
+            if item.get("id") is not None
+        }
+        dashboard["blueprintSharing"] = {
+            "blueprints": tuple({
+                "id": improvement.get("id"),
+                "name": improvement.get("name") or str(improvement.get("id", "")).replace("_", " ").title(),
+                "description": improvement.get("description", ""),
+            } for improvement in improvements_response.get("improvements", ())
+              if improvement.get("available", False)),
+            "networks": tuple({
+                "id": int(network.get("id")),
+                "name": network.get("name") or f"SCUT Network {network.get('id')}",
+                "recipients": tuple({
+                    "id": int(candidate.get("id")),
+                    "name": candidate.get("name") or f"Probe {candidate.get('id')}",
+                } for candidate in network.get("probes", ())
+                  if candidate.get("id") is not None
+                  and int(candidate.get("id")) not in owned_probe_ids),
+            } for response in world.hazard_context.get("scutNetworks", ())
+              if (network := response.get("network") or {}).get("id") is not None),
+        }
         if include_archival and bool(selected.get("isDefault")):
             daily_result = {"created": [], "failures": []}
             if self.data_engine.get_preference("auto_game_logbook", "false") == "true":
@@ -1980,6 +2003,45 @@ class MissionControlDataService:
             raise ValueError("Select an asteroid trajectory mode.")
         return self.capabilities.probes.launch_asteroid_trajectory(
             self._selected_probe_id, asteroid_id, payload,
+        )
+
+    def share_improvement_blueprint(
+        self, network_id, improvement_id, recipient_probe_id,
+    ):
+        if not improvement_id:
+            raise ValueError("Select a known improvement blueprint.")
+        network_id = int(network_id)
+        recipient_probe_id = int(recipient_probe_id)
+        improvements = (
+            (self._operations.world.hazard_context.get("improvements") or {})
+            .get("improvements", ())
+        ) if self._operations else ()
+        known = {
+            str(item.get("id")) for item in improvements
+            if item.get("available", False)
+        }
+        if improvement_id not in known:
+            raise ValueError("That blueprint is not currently known. Refresh and choose again.")
+        networks = tuple(
+            (response.get("network") or {})
+            for response in self._operations.world.hazard_context.get("scutNetworks", ())
+        ) if self._operations else ()
+        network = next((item for item in networks if int(item.get("id", -1)) == network_id), None)
+        if network is None:
+            raise ValueError("That SCUT network is no longer available. Refresh and choose again.")
+        owned_ids = {
+            int(item.get("id")) for item in (
+                (getattr(self._operations.world, "fleet", None) or {}).get("probes", ())
+            ) if item.get("id") is not None
+        }
+        recipients = {
+            int(item.get("id")) for item in network.get("probes", ())
+            if item.get("id") is not None and int(item.get("id")) not in owned_ids
+        }
+        if recipient_probe_id not in recipients:
+            raise ValueError("Select another player's probe in the chosen active SCUT network.")
+        return self.capabilities.probes.share_improvement_blueprint(
+            self._selected_probe_id, improvement_id, recipient_probe_id,
         )
 
     def make_focused_probe_default(self):
@@ -3779,6 +3841,14 @@ class MissionControlController(QObject):
     def launchAsteroidTrajectory(self, asteroid_id, payload):
         self._inventory_mutation(lambda: self.service.launch_asteroid_trajectory(
             asteroid_id, self._qt_safe(payload),
+        ))
+
+    @Slot(int, str, int)
+    def shareImprovementBlueprint(
+        self, network_id, improvement_id, recipient_probe_id,
+    ):
+        self._inventory_mutation(lambda: self.service.share_improvement_blueprint(
+            network_id, improvement_id, recipient_probe_id,
         ))
 
     @Slot("QVariantMap")

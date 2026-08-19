@@ -635,6 +635,19 @@ def test_manual_control_exposes_v112_motorized_asteroid_workflows():
     assert "def launchAsteroidTrajectory" in controller
 
 
+def test_manual_control_exposes_v113_scut_blueprint_sharing():
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text()
+
+    assert "SCUT BLUEPRINT SHARING" in manual
+    assert "SHARE IMPROVEMENT BLUEPRINT · API v113" in manual
+    assert "improvementBlueprintShareRequested" in manual
+    assert "blueprintSharingPage.selectedNetwork.recipients" in manual
+    assert "improvementBlueprintShareRequested" in navigation
+    assert "shareImprovementBlueprint" in app
+
+
 def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
     manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()

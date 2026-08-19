@@ -392,6 +392,12 @@ ApplicationWindow {
                 window.backend.launchAsteroidTrajectory(asteroidId, payload);
         }
 
+        function onImprovementBlueprintShareRequested(networkId, improvementId, recipientProbeId) {
+            AudioManager.play("confirm");
+            if (window.backend)
+                window.backend.shareImprovementBlueprint(networkId, improvementId, recipientProbeId);
+        }
+
         function onMakeDefaultProbeRequested() {
             AudioManager.play("warning");
             if (window.backend)

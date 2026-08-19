@@ -376,7 +376,7 @@ ready. The detailed Mission 24–26 requirements above remain authoritative.
 - [ ] Regress travel, beacon travel, auto-transport, tanker refill chains,
   mining limits, crafting reservations, probe assembly, container handling,
   scanning, galaxy-map focus, refresh scheduling, startup, and safe shutdown.
-- [ ] Verify API v112 parity and user-facing handling for every supported API
+- [ ] Verify API v113 parity and user-facing handling for every supported API
   success, conflict, moving-probe refusal, stale response, and recovery path.
 - [ ] Pass persistence, migration, clean-profile, backup/restore, interrupted
   refresh, restart, and ambiguous-command reconciliation tests.

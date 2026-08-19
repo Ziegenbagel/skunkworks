@@ -64,6 +64,7 @@ PanelFrame {
     signal manualMiningRequested(string mannyId, var payload)
     signal manualProbeAssemblyRequested(string mannyId, string model, var containerIds)
     signal asteroidTrajectoryRequested(string asteroidId, var payload)
+    signal improvementBlueprintShareRequested(int networkId, string improvementId, int recipientProbeId)
     signal makeDefaultProbeRequested()
     signal mindSnapshotReassignRequested()
     signal mannyCancelRequested(string mannyId)
@@ -281,6 +282,7 @@ PanelFrame {
             onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
             onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
             onAsteroidTrajectoryRequested: (asteroidId, payload) => root.asteroidTrajectoryRequested(asteroidId, payload)
+            onImprovementBlueprintShareRequested: (networkId, improvementId, recipientProbeId) => root.improvementBlueprintShareRequested(networkId, improvementId, recipientProbeId)
         }
 
         SafetyWorkspace {

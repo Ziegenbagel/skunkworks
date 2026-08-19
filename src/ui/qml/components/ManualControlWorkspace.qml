@@ -23,6 +23,7 @@ Item {
     signal jettisonRequested(string itemId, real amount, string containerId)
     signal inventoryMannyActionRequested(string action, string mannyId, var payload)
     signal asteroidTrajectoryRequested(string asteroidId, var payload)
+    signal improvementBlueprintShareRequested(int networkId, string improvementId, int recipientProbeId)
     property var pendingAsteroidAction: ({})
 
     function readableDuration(secondsValue) {
@@ -68,6 +69,7 @@ Item {
             TabButton { text: "MINING AND MAINTENANCE" }
             TabButton { text: "TRANSFERS AND CONTAINERS" }
             TabButton { text: "ASTEROID CONTROL" }
+            TabButton { text: "SCUT BLUEPRINT SHARING" }
         }
         StackLayout {
             enabled: root.manualCommandsEnabled
@@ -334,6 +336,41 @@ Item {
                     }
                 }
             }
+            Item {
+                id: blueprintSharingPage
+                readonly property var sharing: root.dashboardData.blueprintSharing || ({})
+                readonly property var selectedNetwork: ((sharing.networks || [])[blueprintNetwork.currentIndex] || ({}))
+                ScrollView {
+                    id: blueprintSharingScroll
+                    anchors.fill: parent
+                    contentWidth: availableWidth
+                    clip: true
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ColumnLayout {
+                        width: Math.max(1, blueprintSharingScroll.availableWidth - 12)
+                        spacing: 14
+                        Label { Layout.fillWidth: true; text: "SHARE IMPROVEMENT BLUEPRINT · API v113"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                        Label { Layout.fillWidth: true; text: "Copy one blueprint you know to the owner of another player's probe. Both the focused probe and recipient must share coverage from the selected active SCUT network. Same-sector proximity alone is not sufficient."; color: Constants.mutedTextColor; font.pixelSize: 14; wrapMode: Text.Wrap }
+                        GroupBox {
+                            title: "BLUEPRINT TRANSFER"
+                            Layout.fillWidth: true
+                            GridLayout {
+                                anchors.fill: parent; columns: 3; columnSpacing: 12; rowSpacing: 10
+                                Label { text: "SCUT NETWORK"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: blueprintNetwork; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: blueprintSharingPage.sharing.networks || [] }
+                                Label { text: "KNOWN BLUEPRINT"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: sharedBlueprint; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: blueprintSharingPage.sharing.blueprints || [] }
+                                Label { text: "RECIPIENT PROBE"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: blueprintRecipient; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: blueprintSharingPage.selectedNetwork.recipients || [] }
+                                Label { Layout.columnSpan: 2; Layout.fillWidth: true; text: "Sharing is idempotent: repeating a completed transfer does not duplicate the recipient's persistent blueprint-shared alert."; color: Constants.warningColor; wrapMode: Text.Wrap }
+                                Button { text: "REVIEW BLUEPRINT SHARE"; enabled: blueprintNetwork.count > 0 && sharedBlueprint.count > 0 && blueprintRecipient.count > 0; onClicked: blueprintShareConfirmation.open() }
+                            }
+                        }
+                        Label { visible: (blueprintSharingPage.sharing.networks || []).length === 0; Layout.fillWidth: true; text: "NO ACTIVE SCUT NETWORK DETAILS ARE AVAILABLE FOR THE FOCUSED PROBE."; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
+                        Label { visible: (blueprintSharingPage.sharing.blueprints || []).length === 0; Layout.fillWidth: true; text: "NO KNOWN IMPROVEMENT BLUEPRINTS ARE AVAILABLE TO SHARE."; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
+                    }
+                }
+            }
         }
     }
 
@@ -356,5 +393,11 @@ Item {
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.asteroidTrajectoryRequested(String(launchAsteroid.currentValue), launchMode.currentValue === "system_impact" ? {"mode":"system_impact", "targetObjectId":String(impactTarget.currentValue), "targetSpeedC":Number(impactSpeed.value) / 100} : {"mode":"sector_transfer", "target":{"x":transferX.value, "y":transferY.value, "z":transferZ.value}})
         Label { width: 660; text: launchMode.currentValue === "system_impact" ? "IRREVERSIBLE: launch this asteroid toward the selected local object. The outcome is resolved by the game and may damage or destroy assets. Skunkworks cannot cancel the trajectory or predict its result." : "IRREVERSIBLE: consume the asteroid's full fuel tank and begin transfer to the entered neighboring FCC sector. Confirm the coordinates carefully."; color: Constants.criticalColor; font.bold: true; wrapMode: Text.Wrap }
+    }
+    Dialog {
+        id: blueprintShareConfirmation; anchors.centerIn: parent; modal: true
+        title: "CONFIRM SCUT BLUEPRINT SHARE"; standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.improvementBlueprintShareRequested(Number(blueprintNetwork.currentValue), String(sharedBlueprint.currentValue), Number(blueprintRecipient.currentValue))
+        Label { width: 640; text: "This copies the selected blueprint to the player who owns the recipient probe. Your blueprint is retained. The recipient gains it account-wide and receives a persistent notification."; color: Constants.warningColor; wrapMode: Text.Wrap }
     }
 }

@@ -12,7 +12,7 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v112, verified
+Skunkworks supports deployed API v103 through upstream API v113, verified
 against the live contract on 2026-08-19.
 
 The application checks `/api/version` before loading operational state.
@@ -56,6 +56,13 @@ can remain separate from probe upgrades.
 API v112 adds probe-scoped deletion for both persistent alerts and damage
 warnings. Skunkworks exposes both operations through the probe gateway while
 retaining the existing ownership boundary enforced by the game.
+
+API v113 adds improvement-blueprint sharing between players. The sender and
+recipient probes must participate in the same active SCUT network; merely
+sharing a sector is insufficient. Skunkworks exposes this as a confirmed manual
+action and only offers known blueprints and non-owned recipient probes observed
+on the selected network. Repeating an already completed share is safe and does
+not create a duplicate persistent alert.
 
 Manual Control exposes asteroid operations without attempting to predict game
 outcomes. Local impacts require a separate irreversible/destructive

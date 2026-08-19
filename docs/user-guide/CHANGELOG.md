@@ -1,5 +1,12 @@
 # Operator Manual Revision History
 
+## API v113 — 2026-08-19
+
+- Reviewed and enabled API v113. Added Manual Control → SCUT Blueprint Sharing
+  for sending a known improvement blueprint to another player's probe on the
+  same active SCUT network, with recipient filtering and confirmation before
+  the live command is sent.
+
 ## API v112 — 2026-08-19
 
 - Reviewed and enabled API v112. Added probe-scoped alert and damage-warning

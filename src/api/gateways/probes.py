@@ -57,6 +57,20 @@ class ProbeGateway:
             f"/api/probe/{probe_id}/probe-improvements-available",
         )
 
+    def share_improvement_blueprint(
+        self, probe_id, improvement_id, recipient_probe_id,
+    ):
+        """Share a known blueprint over common active SCUT coverage (API v113+)."""
+
+        return self.client.request(
+            "POST",
+            (
+                f"/api/probe/{probe_id}/probe-improvement-blueprints/"
+                f"{improvement_id}/share"
+            ),
+            json={"recipientProbeId": int(recipient_probe_id)},
+        )
+
     def scut_network(self, probe_id, network_id):
         return self.client.request(
             "GET",

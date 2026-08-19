@@ -63,6 +63,17 @@ class ApiGatewayTests(unittest.TestCase):
             ("DELETE", "/api/probe/42/damage-warnings/9", {}),
         ])
 
+    def test_v113_blueprint_sharing_is_probe_scoped(self):
+        self.api.probes.share_improvement_blueprint(
+            42, "distributed_thrust_anchoring", 314,
+        )
+
+        self.assertEqual(self.client.calls[-1], (
+            "POST",
+            "/api/probe/42/probe-improvement-blueprints/distributed_thrust_anchoring/share",
+            {"json": {"recipientProbeId": 314}},
+        ))
+
     def test_v111_asteroid_operations_use_documented_routes(self):
         self.api.mannies.start_task(
             42, "mny_1", "motorize-asteroid", {"objectId": "asteroid-1"},
