@@ -6,6 +6,8 @@ class MannyGateway:
         {
             "repair",
             "mine",
+            "motorize-asteroid",
+            "refuel-motorized-asteroid",
             "craft",
             "salvage",
             "install-bookmark",

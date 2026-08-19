@@ -54,6 +54,36 @@ class ApiGatewayTests(unittest.TestCase):
             "GET", "/api/probe/42/messages", {"params": {"status": "unread"}},
         ))
 
+    def test_v112_alert_deletion_is_probe_scoped(self):
+        self.api.probes.delete_alert(42, 7)
+        self.api.probes.delete_damage_warning(42, 9)
+
+        self.assertEqual(self.client.calls, [
+            ("DELETE", "/api/probe/42/alerts/7", {}),
+            ("DELETE", "/api/probe/42/damage-warnings/9", {}),
+        ])
+
+    def test_v111_asteroid_operations_use_documented_routes(self):
+        self.api.mannies.start_task(
+            42, "mny_1", "motorize-asteroid", {"objectId": "asteroid-1"},
+        )
+        self.api.mannies.start_task(
+            42, "mny_2", "refuel-motorized-asteroid", {"objectId": "asteroid-2"},
+        )
+        self.api.probes.launch_asteroid_trajectory(
+            42,
+            "asteroid-1",
+            {"mode": "sector_transfer", "target": {"x": 1, "y": 0, "z": 0}},
+        )
+        self.api.probes.asteroid_trajectory(42, "atr_123")
+
+        self.assertEqual([call[1] for call in self.client.calls], [
+            "/api/probe/42/mannies/mny_1/motorize-asteroid",
+            "/api/probe/42/mannies/mny_2/refuel-motorized-asteroid",
+            "/api/probe/42/asteroids/asteroid-1/trajectories",
+            "/api/probe/42/asteroid-trajectories/atr_123",
+        ])
+
     def test_manny_task_uses_target_probe(self):
         self.api.mannies.start_task(
             42,

@@ -78,6 +78,14 @@ class ProbeGateway:
             json=changes,
         )
 
+    def delete_alert(self, probe_id, alert_id):
+        """Delete one persistent alert owned by the selected probe (API v112+)."""
+
+        return self.client.request(
+            "DELETE",
+            f"/api/probe/{probe_id}/alerts/{alert_id}",
+        )
+
     def damage_warnings(self, probe_id):
         return self.client.request(
             "GET",
@@ -97,6 +105,40 @@ class ProbeGateway:
                 f"{warning_id}"
             ),
             json=changes,
+        )
+
+    def delete_damage_warning(self, probe_id, warning_id):
+        """Delete one damage warning owned by the selected probe (API v112+)."""
+
+        return self.client.request(
+            "DELETE",
+            (
+                f"/api/probe/{probe_id}/damage-warnings/"
+                f"{warning_id}"
+            ),
+        )
+
+    def launch_asteroid_trajectory(self, probe_id, asteroid_id, payload):
+        """Launch a motorized asteroid on a v111 trajectory."""
+
+        return self.client.request(
+            "POST",
+            (
+                f"/api/probe/{probe_id}/asteroids/"
+                f"{asteroid_id}/trajectories"
+            ),
+            json=payload,
+        )
+
+    def asteroid_trajectory(self, probe_id, trajectory_id):
+        """Read locally detectable telemetry for a v111 asteroid trajectory."""
+
+        return self.client.request(
+            "GET",
+            (
+                f"/api/probe/{probe_id}/asteroid-trajectories/"
+                f"{trajectory_id}"
+            ),
         )
 
     def logbook_pages(self, probe_id, limit=100, offset=0):

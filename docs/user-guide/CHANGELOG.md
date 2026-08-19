@@ -1,5 +1,12 @@
 # Operator Manual Revision History
 
+## API v112 — 2026-08-19
+
+- Reviewed and enabled API v112. Added probe-scoped alert and damage-warning
+  deletion, motorized-asteroid Manny tasks, asteroid trajectory launch and
+  local telemetry routes, and support for the additive motorization and
+  improvement-capability fields introduced in API v108–v111.
+
 ## API v107 — 2026-08-13
 
 - Reviewed and enabled API v107. Container controls can atomically reassign

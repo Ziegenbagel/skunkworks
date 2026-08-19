@@ -137,7 +137,7 @@ class MissionControlDataService:
         report(30, "Loading focused probe telemetry")
         details = timed("focusedProbe", lambda: self.client.get_probe(selected["id"]))
         probe = dict(details.get("probe", details))
-        # The requested fleet row is the selection authority. API v107 may
+        # The requested fleet row is the selection authority. API v112 may
         # return compact probe telemetry whose embedded identity is absent or
         # stale while the probe-specific sector endpoint is current. Letting
         # that identity replace the requested row produces a split dashboard:

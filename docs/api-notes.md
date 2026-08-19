@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v107 at revision
-`17d9600`.
+Skunkworks supports deployed API v103 through upstream API v112, verified
+against the live contract on 2026-08-19.
 
 The application checks `/api/version` before loading operational state.
 Authenticated routes are rate limited to 60 requests per sliding 60-second
@@ -44,6 +44,18 @@ reject a container whose space is reserved for active crafting output with HTTP
 invalid before completion, the game terminates the Manny task, releases the
 reservation, and preserves `invalid_cargo_reservation` as the failure reason.
 Manny list and detail responses also expose nullable ISO 8601 `taskStartTime`.
+
+API v108–v111 add persistent motorized asteroids. The Manny gateway accepts
+`motorize-asteroid` and `refuel-motorized-asteroid`; the probe gateway can
+launch `system_impact` or `sector_transfer` trajectories and request locally
+detectable trajectory telemetry. Detailed sector objects are allowed to expose
+`motorized`, binary `motorFuelStatus`, and embedded `trajectory` data. API v109
+also marks improvements with `installableOnProbe`, so asteroid-only blueprints
+can remain separate from probe upgrades.
+
+API v112 adds probe-scoped deletion for both persistent alerts and damage
+warnings. Skunkworks exposes both operations through the probe gateway while
+retaining the existing ownership boundary enforced by the game.
 
 ## Observation 001
 
