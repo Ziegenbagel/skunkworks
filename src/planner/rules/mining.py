@@ -35,8 +35,19 @@ def plan(operations, desired_state, *, dependency_lookahead=False) -> list[Task]
 
         # Normal planning funds only the next craft.  The controller may opt
         # into a larger horizon after Mannys have remained idle through its
-        # grace period; that opportunistic path is still bounded by the live
-        # target, storage capacity, commitments, and per-order maximum.
+        # grace period, but only when that next craft is genuinely blocked on
+        # raw resources.  If one unit is already craftable, manufacturing must
+        # consume those inputs and replan before mining for later units.  This
+        # prevents a large production target from continuously sending spare
+        # Mannys mining even though the immediate craft is ready.
+        next_unit = operations.manufacturing.production_plan(
+            goal.recipe_id,
+            quantity=1,
+            include_operational_constraints=False,
+            use_inventory_items=False,
+        )
+        if next_unit is None or not next_unit["missing_resources"]:
+            continue
         production = operations.manufacturing.production_plan(
             goal.recipe_id,
             quantity=shortage if dependency_lookahead else 1,

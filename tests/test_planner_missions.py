@@ -192,6 +192,23 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertIn("Need 100.000 additional metals", mining.reason)
         self.assertIn("remaining production target: storage container", mining.reason)
 
+    def test_idle_lookahead_does_not_mine_when_next_unit_is_craftable(self):
+        tasks = Planner(
+            build_operations(metals=1),
+            DesiredState(production=(ProductionGoal("storage_container", 100),)),
+            dependency_mining_lookahead=True,
+        ).tasks()
+
+        self.assertTrue(any(
+            task.category == "manufacturing" and task.action == "Craft Item"
+            for task in tasks
+        ))
+        self.assertFalse(any(
+            task.category == "mining"
+            and "production target" in task.reason
+            for task in tasks
+        ))
+
     def test_dependency_mining_does_not_inherit_lower_reserve_quantity(self):
         tasks = Planner(
             build_operations(metals=0),
