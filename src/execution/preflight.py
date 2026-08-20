@@ -38,6 +38,20 @@ class PreflightValidator:
                 self._move_blockers(command)
             )
 
+        if command.type == CommandType.MANNY_REPAIR:
+            repair_percent = max(
+                0.0, float(command.payload.get("integrityPercent", 0) or 0),
+            )
+            # The authoritative game rule currently consumes 0.01 ECE metals
+            # per integrity point. Reject an impossible repair locally instead
+            # of repeatedly submitting the same 422 response every cycle.
+            required_metals = repair_percent * 0.01
+            available_metals = float(
+                self.operations.inventory.resource_amount("metals") or 0
+            )
+            if available_metals + 0.00001 < required_metals:
+                blockers.append("insufficient_repair_metals")
+
         if command.type in {
             CommandType.MANNY_CRAFT,
             CommandType.MANNY_MINE,

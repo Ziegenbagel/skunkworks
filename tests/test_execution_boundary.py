@@ -112,6 +112,22 @@ class ExecutionBoundaryTests(unittest.TestCase):
             "dry_run",
         )
 
+    def test_repair_is_blocked_locally_when_metals_cannot_fund_it(self):
+        self.operations.world.probe["inventory"]["resourceStocks"][0]["amount"] = 0.1
+        manny_id = self.operations.world.mannies["mannies"][0]["id"]
+        command = Command(
+            CommandType.MANNY_REPAIR,
+            1,
+            {"integrityPercent": 50},
+            "Repair damaged transport",
+            1,
+            target_id=manny_id,
+        )
+
+        blockers = PreflightValidator(self.operations, 1).blockers(command)
+
+        self.assertIn("insufficient_repair_metals", blockers)
+
     def test_repeat_craft_identity_advances_after_inventory_changes(self):
         from src.planner.task import Task
 
