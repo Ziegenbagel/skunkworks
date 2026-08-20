@@ -421,6 +421,28 @@ class DataEngine:
             (domain, probe_id),
         )
 
+    def delete_record(self, domain, external_id, probe_id=None):
+        """Remove one synchronized event after the game deletes it."""
+
+        with self._connect() as connection:
+            if probe_id is None:
+                connection.execute(
+                    "DELETE FROM event_records WHERE domain = ? AND external_id = ?",
+                    (domain, str(external_id)),
+                )
+            else:
+                connection.execute(
+                    """
+                    DELETE FROM event_records
+                    WHERE domain = ? AND external_id = ? AND probe_id = ?
+                    """,
+                    (domain, str(external_id), int(probe_id)),
+                )
+            connection.execute(
+                "DELETE FROM event_state WHERE domain = ? AND external_id = ?",
+                (domain, str(external_id)),
+            )
+
     def record_action(
         self,
         fingerprint,

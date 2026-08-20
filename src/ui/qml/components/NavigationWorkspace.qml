@@ -67,6 +67,7 @@ PanelFrame {
     signal improvementBlueprintShareRequested(int networkId, string improvementId, int recipientProbeId)
     signal makeDefaultProbeRequested()
     signal mindSnapshotReassignRequested()
+    signal alertDeleteRequested(string alertId, string domain)
     signal mannyCancelRequested(string mannyId)
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
@@ -291,6 +292,7 @@ PanelFrame {
             alerts: root.dashboardData.alerts || []
             recovery: root.dashboardData.terminalRecovery || ({})
             onMindSnapshotReassignRequested: root.mindSnapshotReassignRequested()
+            onAlertDeleteRequested: (alertId, domain) => root.alertDeleteRequested(alertId, domain)
         }
 
         CommunicationsWorkspace {

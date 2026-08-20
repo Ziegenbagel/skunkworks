@@ -1137,8 +1137,20 @@ class UiPreparationTests(unittest.TestCase):
             "relativeCoordinates": {"x": 0, "y": 0, "z": 0},
             "knowledgeLevel": "detailed", "confidence": 1,
             "objects": [{
-                "id": "mine", "type": "asteroid", "mannyMineable": True,
-                "resourceAmounts": {"metals": 3.5, "ice": 0},
+                "id": "system", "type": "solar_system",
+                "minableTargets": [{
+                    "id": "mine", "type": "asteroid", "mannyMineable": True,
+                    "resourceAmounts": {"metals": 3.5, "ice": 0},
+                }],
+            }, {
+                "id": "wandering", "type": "asteroid", "mannyMineable": True,
+                "resourceAmounts": {"deuterium": 2.0},
+            }, {
+                "id": "system-depleted", "type": "solar_system",
+                "minableTargets": [{
+                    "id": "empty", "type": "asteroid", "mannyMineable": True,
+                    "resourceAmounts": {"ice": 0},
+                }],
             }],
         }}, probe_id=base.world.probe["id"])
         galaxy.record_observation({"sector": {
@@ -1156,6 +1168,8 @@ class UiPreparationTests(unittest.TestCase):
         view = builder._galaxy_view(base.world, builder._coordinates(base.world.probe))
 
         self.assertEqual(view["nodes"][0]["resourceTypes"], ["metals"])
+        self.assertNotIn("deuterium", view["nodes"][0]["resourceTypes"])
+        self.assertNotIn("ice", view["nodes"][0]["resourceTypes"])
         self.assertTrue(view["nodes"][1]["hasHazard"])
         self.assertTrue(view["nodes"][1]["hasDetachedContainers"])
         self.assertEqual(view["recentTrail"][0]["from"], "0:0:0")

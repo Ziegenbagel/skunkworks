@@ -88,6 +88,31 @@ ApplicationWindow {
         }
     }
 
+    Rectangle {
+        id: operationNotice
+        z: 860
+        visible: window.backend !== null
+            && String(window.backend.operationNotice || "").length > 0
+        anchors.top: parent.top
+        anchors.topMargin: 88
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width - 48, noticeLabel.implicitWidth + 60)
+        height: 54
+        color: "#073325"
+        border.color: Constants.nominalColor
+        border.width: 2
+        radius: 4
+        Label {
+            id: noticeLabel
+            anchors.centerIn: parent
+            text: window.backend ? "✓  " + window.backend.operationNotice : ""
+            color: Constants.nominalColor
+            font.family: Constants.technicalFont
+            font.bold: true
+            font.pixelSize: 14
+        }
+    }
+
     Dialog {
         id: manualCraftOverrideDialog
         z: 880
@@ -408,6 +433,12 @@ ApplicationWindow {
             AudioManager.play("warning");
             if (window.backend)
                 window.backend.reassignMindSnapshot();
+        }
+
+        function onAlertDeleteRequested(alertId, domain) {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.deleteAlert(alertId, domain);
         }
 
         function onMannyCancelRequested(mannyId) {

@@ -92,6 +92,7 @@ class MissionControlDataService:
         self._logbook_page_probes = {}
         self._history_sync_at = {}
         self._hazard_cache = {}
+        self._reserve_target_cache = {}
         self._logbook_cache = {}
         self._fleet_snapshot_cache = None
         self._fleet_snapshot_cached_at = 0.0
@@ -569,6 +570,22 @@ class MissionControlDataService:
             raise RuntimeError("Select a probe before updating a message.")
         return self.capabilities.messaging.mark_read(self._selected_probe_id, message_id)
 
+    def delete_alert(self, alert_id, domain="alerts"):
+        if self._selected_probe_id is None:
+            raise RuntimeError("Select a probe before deleting an alert.")
+        if domain == "damage_warnings":
+            result = self.capabilities.probes.delete_damage_warning(
+                self._selected_probe_id, alert_id,
+            )
+        elif domain == "alerts":
+            result = self.capabilities.probes.delete_alert(
+                self._selected_probe_id, alert_id,
+            )
+        else:
+            raise ValueError("Only game alerts and damage warnings can be deleted.")
+        self.data_engine.delete_record(domain, alert_id, self._selected_probe_id)
+        return result
+
     def automation_view(self, operations=None, probe_id=None, excluded_fabrication=()):
         operations = operations or self._operations
         if probe_id is None:
@@ -727,11 +744,17 @@ class MissionControlDataService:
             target_probe_id = legacy_hub["asset_id"] if legacy_hub else None
         if target_probe_id in {None, ""} or int(target_probe_id) == int(probe_id):
             return []
-        try:
-            response = self.client.get_probe(int(target_probe_id))
-            target = response.get("probe", response)
-        except Exception:
-            return []
+        target_id = int(target_probe_id)
+        cached_target = self._reserve_target_cache.get(target_id)
+        if cached_target and time.monotonic() - cached_target[0] < 60:
+            target = cached_target[1]
+        else:
+            try:
+                response = self.client.get_probe(target_id)
+                target = response.get("probe", response)
+            except Exception:
+                return []
+            self._reserve_target_cache[target_id] = (time.monotonic(), target)
         protected = float(
             metadata.get("protectedDeuterium", metadata.get("reserve", 0)) or 0
         )
@@ -2610,6 +2633,7 @@ class MissionControlController(QObject):
     startupLoadingChanged = Signal()
     loadingProgressChanged = Signal()
     manualCraftOverrideChanged = Signal()
+    operationNoticeChanged = Signal()
 
     def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
         super().__init__()
@@ -2623,6 +2647,7 @@ class MissionControlController(QObject):
         self._error = ""
         self._error_context = ""
         self._manual_craft_override = {}
+        self._operation_notice = ""
         self._emergency_stop = False
         self._worker = None
         self._pending_probe_id = None
@@ -2637,6 +2662,12 @@ class MissionControlController(QObject):
         self._startup_watchdog.setSingleShot(True)
         self._startup_watchdog.setInterval(45_000)
         self._startup_watchdog.timeout.connect(self._release_slow_startup)
+        self._operation_notice_timer = QTimer(self)
+        self._operation_notice_timer.setSingleShot(True)
+        self._operation_notice_timer.setInterval(5000)
+        self._operation_notice_timer.timeout.connect(
+            lambda: self._set_operation_notice("")
+        )
         self._automation_timer = QTimer(self)
         # This is a wall-clock heartbeat, not a refresh-completion delay.
         # A single-shot timer rearmed by every dashboard refresh can be
@@ -2757,6 +2788,30 @@ class MissionControlController(QObject):
     def credentialMessage(self):
         return self._credential_message
 
+    @Property(str, notify=operationNoticeChanged)
+    def operationNotice(self):
+        return getattr(self, "_operation_notice", "")
+
+    def _set_operation_notice(self, message):
+        message = str(message or "")
+        timer = getattr(self, "_operation_notice_timer", None)
+        if message == getattr(self, "_operation_notice", ""):
+            if message and timer is not None:
+                timer.start()
+            return
+        self._operation_notice = message
+        try:
+            self.operationNoticeChanged.emit()
+        except RuntimeError:
+            # Some service-level tests construct the controller without Qt's
+            # QObject initializer; the notice must not break the saved action.
+            pass
+        if timer is not None:
+            if message:
+                timer.start()
+            else:
+                timer.stop()
+
     @Slot()
     def start(self):
         if self.onboardingRequired:
@@ -2783,6 +2838,7 @@ class MissionControlController(QObject):
         self.service = None
         self.credentialsChanged.emit()
         self._set_credential_message("API key saved securely in the operating-system credential vault.")
+        self._set_operation_notice("API KEY SAVED SECURELY")
         self._update_credential_dashboard()
 
     @Slot()
@@ -2874,6 +2930,7 @@ class MissionControlController(QObject):
         self._dashboard["automationRuntime"] = self._qt_safe(runtime)
         self._configure_automation_timer(runtime)
         self._set_error("")
+        self._set_operation_notice("EXECUTION POLICY SAVED")
         self.dashboardChanged.emit()
 
     @Slot("QVariantMap", bool)
@@ -2897,6 +2954,7 @@ class MissionControlController(QObject):
     def _accept_fleet_naming(self, result):
         self._naming_worker = None
         self._set_error("")
+        self._set_operation_notice("MANNY NAMING SETTINGS SAVED")
         # Show an inferred prefix immediately instead of waiting for the next
         # (potentially slow) account refresh to rebuild automation settings.
         policy = dict((result or {}).get("policy") or {})
@@ -3243,6 +3301,7 @@ class MissionControlController(QObject):
         self._dashboard["automationRuntime"] = self._qt_safe(runtime)
         self._configure_automation_timer(runtime)
         self._set_error("")
+        self._set_operation_notice("AUTOMATION TARGETS SAVED")
         self.dashboardChanged.emit()
         # A saved goal is an explicit request to replan. Refresh authoritative
         # inventory/task state first, then let automatic mode evaluate without
@@ -3401,6 +3460,7 @@ class MissionControlController(QObject):
         automation["probeRoleSettings"] = role_settings
         self._dashboard["automation"] = automation
         self._set_error("")
+        self._set_operation_notice("PROBE ROLE SETTINGS SAVED")
         self.dashboardChanged.emit()
 
     @Slot(int, int, int, str)
@@ -3573,6 +3633,7 @@ class MissionControlController(QObject):
         }
         self._dashboard["automation"] = automation
         self._set_error("")
+        self._set_operation_notice("AUTO-TRAVEL DESTINATION SAVED")
         self.dashboardChanged.emit()
         runtime = self._dashboard.get("automationRuntime", {})
         if (
@@ -3629,6 +3690,7 @@ class MissionControlController(QObject):
         automation["transportCycles"] = cycles
         self._dashboard["automation"] = automation
         self._set_error("")
+        self._set_operation_notice("ROUND-TRIP OPERATION SAVED")
         self.dashboardChanged.emit()
 
     @Slot(str)
@@ -3703,7 +3765,7 @@ class MissionControlController(QObject):
         self._set_error("")
         self.dashboardChanged.emit()
 
-    def _inventory_mutation(self, callback):
+    def _inventory_mutation(self, callback, success_message=""):
         if not self._require_manual_control():
             return
         if self.service is None or self._focused_probe_id < 0:
@@ -3715,6 +3777,8 @@ class MissionControlController(QObject):
             self._set_error(self._inventory_error_message(error))
             return
         self._set_error("")
+        if success_message:
+            self._set_operation_notice(success_message)
         self._start_refresh(self._focused_probe_id)
 
     def _require_manual_control(self):
@@ -3841,7 +3905,15 @@ class MissionControlController(QObject):
     @Slot(str, "QVariantMap")
     def saveStorageRules(self, container_id, rules):
         self._inventory_mutation(
-            lambda: self.service.update_container_rules(container_id, self._qt_safe(rules))
+            lambda: self.service.update_container_rules(container_id, self._qt_safe(rules)),
+            "CONTAINER CONTENT RULE SAVED",
+        )
+
+    @Slot(str, str)
+    def deleteAlert(self, alert_id, domain):
+        self._inventory_mutation(
+            lambda: self.service.delete_alert(alert_id, domain),
+            "ALERT DELETED",
         )
 
     @Slot(str)
@@ -3992,6 +4064,10 @@ class MissionControlController(QObject):
         self._dashboard["logbook"] = logbook
         if hasattr(self.service, "_logbook_cache"):
             self.service._logbook_cache.pop(self._focused_probe_id, None)
+        if action == "create":
+            self._set_operation_notice("LOGBOOK PAGE CREATED")
+        elif action == "update":
+            self._set_operation_notice("LOGBOOK CHANGES SAVED")
         self.dashboardChanged.emit()
 
     @Slot(bool)

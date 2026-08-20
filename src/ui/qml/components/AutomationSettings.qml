@@ -72,6 +72,19 @@ Item {
     function refreshTimingSummary() {
         const diagnostics = refreshDiagnostics || {};
         const stages = diagnostics.stages || {};
+        const labels = {
+            "initialize": "API & RECIPE CHECKS",
+            "player": "ACCOUNT DETAILS",
+            "fleet": "FLEET LIST DOWNLOAD",
+            "focusedProbe": "FOCUSED PROBE DETAILS",
+            "mannies": "MANNY TASK DETAILS",
+            "historySync": "HISTORY SYNCHRONIZATION",
+            "recordWorld": "LOCAL SNAPSHOT STORAGE",
+            "galaxyMap": "GALAXY MAP CACHE",
+            "hazards": "SAFETY & SCUT DATA",
+            "dashboard": "BUILDING SCREEN DATA",
+            "automationPlanning": "AUTOMATION & TANKER CHECKS"
+        };
         const rows = [];
         for (const name in stages) {
             if (name !== "total")
@@ -80,9 +93,8 @@ Item {
         rows.sort(function(left, right) { return right.seconds - left.seconds; });
         const summaries = [];
         for (let i = 0; i < Math.min(4, rows.length); ++i) {
-            const label = rows[i].name === "galaxyMap"
-                        ? "GALAXY MAP"
-                        : String(rows[i].name).split(/(?=[A-Z])/).join(" ").toUpperCase();
+            const label = labels[rows[i].name]
+                        || String(rows[i].name).split(/(?=[A-Z])/).join(" ").toUpperCase();
             summaries.push(label + " " + rows[i].seconds.toFixed(1) + " S");
         }
         return summaries.join("  ·  ");
@@ -554,8 +566,8 @@ Item {
                     Label {
                         Layout.fillWidth: true
                         text: Boolean((root.refreshDiagnostics || {}).reusedFleetIndex)
-                              ? "FLEET INDEX REUSED · redundant fleet discovery was skipped"
-                              : "FLEET INDEX REFRESHED"
+                              ? "FLEET LIST CACHE USED · SKIPPED A DUPLICATE GAME API REQUEST"
+                              : "FLEET LIST DOWNLOADED FROM THE GAME API"
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont
                     }
                 }

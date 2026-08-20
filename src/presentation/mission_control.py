@@ -674,7 +674,14 @@ class MissionControlViewModelBuilder:
 
     @classmethod
     def _galaxy_resource_types(cls, sector, objects):
-        """Return confirmed resource types without treating unknown sectors as empty."""
+        """Return filterable resources from durable, non-depleted sources.
+
+        Direct asteroid objects are the game's finite wandering asteroids. They
+        remain visible in sector details, but are deliberately excluded from
+        galaxy-wide resource filters. Persistent solar-system targets are
+        represented by nested ``minableTargets`` entries and remain eligible
+        only while their authoritative remaining amount is positive.
+        """
         found = set()
 
         def collect(value):
@@ -696,12 +703,19 @@ class MissionControlViewModelBuilder:
                     elif item:
                         found.add(cls._normalized_resource_type(item))
 
-        candidates = [sector, *objects]
+        candidates = [
+            object_ for object_ in objects
+            if str(object_.get("type") or object_.get("kind") or "").casefold()
+            != "asteroid"
+        ]
         candidates.extend(
             target
             for object_ in objects
             for target in (object_.get("minableTargets", ()) or ())
-            if isinstance(target, dict)
+            if isinstance(target, dict) and any(
+                float(amount or 0) > 0
+                for amount in (target.get("resourceAmounts") or {}).values()
+            )
         )
         for candidate in candidates:
             for key in (
@@ -1080,7 +1094,10 @@ class MissionControlViewModelBuilder:
                 continue
             payload = event.get("payload", {})
             alerts.append({
-                "code": str(event.get("id", "event")),
+                "id": str(event.get("id", "event")),
+                "domain": event["domain"],
+                "deletable": True,
+                "code": str(payload.get("code") or event.get("id", "event")),
                 "severity": payload.get("severity", event.get("priority", "warning")),
                 "summary": payload.get("title") or payload.get("message") or payload.get("summary") or event["domain"].replace("_", " ").title(),
                 "illustrationImageUrl": payload.get("illustrationImageUrl"),

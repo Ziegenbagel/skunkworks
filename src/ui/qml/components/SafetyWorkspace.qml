@@ -8,7 +8,9 @@ Item {
     id: root
     property var alerts: []
     property var recovery: ({})
+    property var pendingAlert: ({})
     signal mindSnapshotReassignRequested()
+    signal alertDeleteRequested(string alertId, string domain)
 
     ScrollView {
         id: safetyPageScroll
@@ -72,6 +74,15 @@ Item {
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
                         }
+                        Button {
+                            visible: Boolean(alertCard.modelData.deletable)
+                            text: "DELETE ALERT"
+                            Layout.alignment: Qt.AlignRight
+                            onClicked: {
+                                root.pendingAlert = alertCard.modelData;
+                                deleteAlertConfirmation.open();
+                            }
+                        }
                     }
                 }
             }
@@ -84,5 +95,14 @@ Item {
         title: "CONFIRM TERMINAL MIND-SNAPSHOT RECOVERY"; standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.mindSnapshotReassignRequested()
         Label { width: 620; text: "IRREVERSIBLE: the dead or black-hole-trapped default probe is deleted, a fresh chassis receives the last stable mind snapshot, and all relative coordinates are reset around a new FCC 0 / 0 / 0 origin."; color: Constants.criticalColor; font.bold: true; wrapMode: Text.Wrap }
+    }
+    Dialog {
+        id: deleteAlertConfirmation; anchors.centerIn: parent; modal: true
+        title: "DELETE ALERT"; standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.alertDeleteRequested(
+            String(root.pendingAlert.id || ""),
+            String(root.pendingAlert.domain || "alerts")
+        )
+        Label { width: 520; text: "Permanently delete this alert from the game and Skunkworks history? This cannot be undone."; color: Constants.warningColor; wrapMode: Text.Wrap }
     }
 }

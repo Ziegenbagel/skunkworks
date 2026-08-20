@@ -22,6 +22,11 @@ class DailyProbeReportService:
         cutoff = self._latest_cutoff(self._now())
         start = cutoff - timedelta(days=1)
         role_map = {str(key): value for key, value in dict(roles or {}).items()}
+        probe_names = {
+            str(item["id"]): item.get("name") or f"Probe {item['id']}"
+            for item in probes
+        }
+        self._probe_names = probe_names
         created = []
         failures = []
         for probe in probes:
@@ -52,7 +57,7 @@ class DailyProbeReportService:
             created.append({"probeId": probe_id, "pageId": page_id, "title": title})
         return {"created": created, "failures": failures}
 
-    def build(self, probe, role, start, end):
+    def build(self, probe, role, start, end, probe_names=None):
         probe_id = int(probe["id"])
         actions = self._actions(probe_id, start, end)
         lines = [
@@ -62,7 +67,9 @@ class DailyProbeReportService:
             f"Reporting window: {self._stamp(start)} to {self._stamp(end)}",
             "",
         ]
-        lines.extend(self._role_summary(role, actions))
+        lines.extend(self._role_summary(
+            role, actions, probe_names or getattr(self, "_probe_names", {}),
+        ))
         if role == "explorer":
             lines.extend(self._explorer_summary(probe_id, start, end))
         lines.extend(self._common_summary(actions))
@@ -131,7 +138,7 @@ class DailyProbeReportService:
             })
         return actions
 
-    def _role_summary(self, role, actions):
+    def _role_summary(self, role, actions, probe_names=None):
         types = Counter(item["type"] for item in actions)
         mining = [item for item in actions if item["type"] == "manny_mine" and not self._is_transfer(item)]
         transfers = [item for item in actions if self._is_transfer(item)]
@@ -142,9 +149,9 @@ class DailyProbeReportService:
         if role == "hub":
             lines.extend(self._craft_breakdown(craft_actions))
             lines.extend(self._mining_breakdown(mining))
-            lines.extend(self._transfer_breakdown(transfers))
+            lines.extend(self._transfer_breakdown(transfers, probe_names))
         elif role in {"transport", "deuterium_tanker", "deuterium_reserve"}:
-            lines.extend(self._transfer_breakdown(transfers))
+            lines.extend(self._transfer_breakdown(transfers, probe_names))
             lines.extend(self._mining_breakdown(mining))
             lines.extend(self._travel_breakdown(actions))
         elif role in {"miner", "builder_support"}:
@@ -362,17 +369,23 @@ class DailyProbeReportService:
         return lines
 
     @staticmethod
-    def _transfer_breakdown(actions):
+    def _transfer_breakdown(actions, probe_names=None):
+        probe_names = {str(key): value for key, value in (probe_names or {}).items()}
         targets = defaultdict(lambda: {"orders": 0, "amount": 0.0})
         for item in actions:
             payload = item["command"].get("payload") or {}
             target = str(payload.get("targetProbeId") or "unknown probe")
-            targets[target]["orders"] += 1
-            targets[target]["amount"] += DailyProbeReportService._number(payload.get("amount"))
+            label = str(
+                payload.get("targetProbeName")
+                or probe_names.get(target)
+                or ("Unknown probe" if target == "unknown probe" else f"Probe {target}")
+            )
+            targets[label]["orders"] += 1
+            targets[label]["amount"] += DailyProbeReportService._number(payload.get("amount"))
         if not targets:
             return ["- Deuterium transfers: no orders dispatched."]
         return ["- Deuterium transfer orders dispatched:"] + [
-            f"  - To probe {target}: {record['orders']} order(s), {record['amount']:.3f} ECE requested"
+            f"  - To {target}: {record['orders']} order(s), {record['amount']:.3f} ECE requested"
             for target, record in sorted(targets.items())
         ]
 

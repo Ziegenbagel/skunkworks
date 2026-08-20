@@ -75,6 +75,29 @@ class DailyProbeReportTests(unittest.TestCase):
         self.assertEqual(created[0][1]["title"], "Skunkworks Daily Report · 2026-08-09")
         self.assertEqual(len(self.engine.archive_reports()), 1)
 
+    def test_transfer_targets_use_probe_names_instead_of_internal_ids(self):
+        self.engine.record_action(
+            "transfer-1",
+            {
+                "type": "manny_mine",
+                "probeId": 762,
+                "payload": {"targetProbeId": 314, "amount": 0.75},
+                "metadata": {"transportTransfer": True},
+            },
+            "succeeded",
+            observed_at="2026-08-09T20:00:00+00:00",
+        )
+
+        content = self.reporter.build(
+            {"id": 762, "name": "Reserve"}, "deuterium_reserve",
+            datetime(2026, 8, 8, 17, 0, tzinfo=self.now.tzinfo),
+            datetime(2026, 8, 9, 17, 0, tzinfo=self.now.tzinfo),
+            {"314": "Explorer One"},
+        )
+
+        self.assertIn("To Explorer One", content)
+        self.assertNotIn("To probe 314", content)
+
     def test_daily_page_remains_new_until_opened(self):
         page = {"id": 4, "title": "Skunkworks Daily Report · 2026-08-09"}
         annotated = self.reporter.annotate_page(page, 762)

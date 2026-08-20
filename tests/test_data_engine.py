@@ -151,6 +151,18 @@ class DataEngineTests(unittest.TestCase):
             "read",
         )
 
+    def test_deleted_alert_is_removed_from_the_local_snapshot(self):
+        self.engine.record_records(
+            "alerts",
+            [{"id": "alert-4", "message": "Resolved"}],
+            probe_id=762,
+            observed_at="first",
+        )
+
+        self.engine.delete_record("alerts", "alert-4", probe_id=762)
+
+        self.assertEqual(self.engine.records("alerts", probe_id=762), [])
+
     def test_explicit_map_scan_is_persisted_as_sector_detail(self):
         self.engine.record_sector_observation(762, {
             "sector": {

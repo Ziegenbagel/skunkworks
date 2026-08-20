@@ -533,7 +533,7 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "InventoryWorkspace" not in resources
     assert "TabBar" not in resources
     assert "inventoryData" not in resources
-    assert "TRANSFERS AND CONTAINERS" in manual
+    assert "CARGO & TRANSFERS" in manual
     assert "InventoryWorkspace" in manual
     assert "onStorageRulesSaveRequested" in navigation
     assert "onCraftingReservationsReassignRequested" in navigation
@@ -605,8 +605,8 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert "SAME-SECTOR PROBE TRANSFERS" in fleet
     assert '"transfer-deuterium-to-probe"' in fleet
     assert '"transfer-to-probe"' in fleet
-    assert "TRANSFERS AND CONTAINERS" in manual
-    assert "MINING AND MAINTENANCE" in manual
+    assert "CARGO & TRANSFERS" in manual
+    assert "MANNY FIELD OPERATIONS" in manual
     assert "MINING_MAINTENANCE" not in manual
     assert "TRANSFERS_CONTAINERS" not in manual
     assert "manualMiningRequested" in navigation
@@ -620,7 +620,7 @@ def test_manual_control_exposes_v112_motorized_asteroid_workflows():
     app = Path("src/ui/qml/App.qml").read_text()
     controller = Path("src/ui/controller.py").read_text()
 
-    assert 'TabButton { text: "ASTEROID CONTROL" }' in manual
+    assert 'TabButton { text: "INFRASTRUCTURE & NETWORKS" }' in manual
     assert "INSTALL ASTEROID PROPULSION" in manual
     assert "REFUEL MOTORIZED ASTEROID" in manual
     assert "LAUNCH MOTORIZED ASTEROID" in manual
@@ -640,10 +640,10 @@ def test_manual_control_exposes_v113_scut_blueprint_sharing():
     navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()
 
-    assert "SCUT BLUEPRINT SHARING" in manual
+    assert "INFRASTRUCTURE & NETWORKS" in manual
     assert "SHARE IMPROVEMENT BLUEPRINT · API v113" in manual
     assert "improvementBlueprintShareRequested" in manual
-    assert "blueprintSharingPage.selectedNetwork.recipients" in manual
+    assert "root.blueprintSharing.networks" in manual
     assert "improvementBlueprintShareRequested" in navigation
     assert "shareImprovementBlueprint" in app
 
@@ -659,13 +659,32 @@ def test_api_v114_alert_images_and_v115_anatiform_sculpt_are_visible():
     assert '"sculpt-duck-asteroid"' in controller
 
 
+def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+
+    assert "DELETE ALERT" in safety
+    assert "alertDeleteRequested" in safety
+    assert "alertDeleteRequested" in navigation
+    assert "deleteAlert(alertId, domain)" in app
+    assert "def deleteAlert" in controller
+    assert "operationNotice" in app
+    assert "AUTOMATION & TANKER CHECKS" in settings
+    assert "FOCUSED PROBE DETAILS" in settings
+    assert "MANNY TASK DETAILS" in settings
+    assert "FLEET LIST CACHE USED" in settings
+
+
 def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
     manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
 
     assert 'TabButton { text: "GENERAL AUTOMATION" }' in settings
-    assert 'TabButton { text: "MINING AND MAINTENANCE" }' in manual
-    assert 'TabButton { text: "TRANSFERS AND CONTAINERS" }' in manual
+    assert 'TabButton { text: "MANNY FIELD OPERATIONS" }' in manual
+    assert 'TabButton { text: "CARGO & TRANSFERS" }' in manual
     assert 'TabButton { text: "GENERAL & AUTOMATION" }' not in settings
     floors = settings.index('title: "RESOURCE & SAFETY FLOORS"')
     save = settings.index('text: "SAVE AUTOMATION TARGETS"')

@@ -10,6 +10,7 @@ Item {
     property var probes: []
     property int focusedProbeId: -1
     readonly property bool manualCommandsEnabled: String((dashboardData.automationRuntime || {}).mode || "observe") !== "observe"
+    readonly property var blueprintSharing: dashboardData.blueprintSharing || ({})
 
     signal craftRequested(string recipeId, string mannyId)
     signal repairRequested(string mannyId, real integrityPercent)
@@ -65,11 +66,10 @@ Item {
         TabBar {
             id: tabs
             Layout.fillWidth: true
-            TabButton { text: "CRAFTING" }
-            TabButton { text: "MINING AND MAINTENANCE" }
-            TabButton { text: "TRANSFERS AND CONTAINERS" }
-            TabButton { text: "ASTEROID CONTROL" }
-            TabButton { text: "SCUT BLUEPRINT SHARING" }
+            TabButton { text: "PRODUCTION & ASSEMBLY" }
+            TabButton { text: "MANNY FIELD OPERATIONS" }
+            TabButton { text: "CARGO & TRANSFERS" }
+            TabButton { text: "INFRASTRUCTURE & NETWORKS" }
         }
         StackLayout {
             enabled: root.manualCommandsEnabled
@@ -348,22 +348,7 @@ Item {
                                 }
                             }
                         }
-                    }
-                }
-            }
-            Item {
-                id: blueprintSharingPage
-                readonly property var sharing: root.dashboardData.blueprintSharing || ({})
-                readonly property var selectedNetwork: ((sharing.networks || [])[blueprintNetwork.currentIndex] || ({}))
-                ScrollView {
-                    id: blueprintSharingScroll
-                    anchors.fill: parent
-                    contentWidth: availableWidth
-                    clip: true
-                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                    ColumnLayout {
-                        width: Math.max(1, blueprintSharingScroll.availableWidth - 12)
-                        spacing: 14
+
                         Label { Layout.fillWidth: true; text: "SHARE IMPROVEMENT BLUEPRINT · API v113"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
                         Label { Layout.fillWidth: true; text: "Copy one blueprint you know to the owner of another player's probe. Both the focused probe and recipient must share coverage from the selected active SCUT network. Same-sector proximity alone is not sufficient."; color: Constants.mutedTextColor; font.pixelSize: 14; wrapMode: Text.Wrap }
                         GroupBox {
@@ -372,17 +357,17 @@ Item {
                             GridLayout {
                                 anchors.fill: parent; columns: 3; columnSpacing: 12; rowSpacing: 10
                                 Label { text: "SCUT NETWORK"; color: Constants.cyanColor; font.bold: true }
-                                ComboBox { id: blueprintNetwork; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: blueprintSharingPage.sharing.networks || [] }
+                                ComboBox { id: blueprintNetwork; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: root.blueprintSharing.networks || [] }
                                 Label { text: "KNOWN BLUEPRINT"; color: Constants.cyanColor; font.bold: true }
-                                ComboBox { id: sharedBlueprint; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: blueprintSharingPage.sharing.blueprints || [] }
+                                ComboBox { id: sharedBlueprint; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: root.blueprintSharing.blueprints || [] }
                                 Label { text: "RECIPIENT PROBE"; color: Constants.cyanColor; font.bold: true }
-                                ComboBox { id: blueprintRecipient; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: blueprintSharingPage.selectedNetwork.recipients || [] }
+                                ComboBox { id: blueprintRecipient; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: (((root.blueprintSharing.networks || [])[blueprintNetwork.currentIndex] || {}).recipients || []) }
                                 Label { Layout.columnSpan: 2; Layout.fillWidth: true; text: "Sharing is idempotent: repeating a completed transfer does not duplicate the recipient's persistent blueprint-shared alert."; color: Constants.warningColor; wrapMode: Text.Wrap }
                                 Button { text: "REVIEW BLUEPRINT SHARE"; enabled: blueprintNetwork.count > 0 && sharedBlueprint.count > 0 && blueprintRecipient.count > 0; onClicked: blueprintShareConfirmation.open() }
                             }
                         }
-                        Label { visible: (blueprintSharingPage.sharing.networks || []).length === 0; Layout.fillWidth: true; text: "NO ACTIVE SCUT NETWORK DETAILS ARE AVAILABLE FOR THE FOCUSED PROBE."; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
-                        Label { visible: (blueprintSharingPage.sharing.blueprints || []).length === 0; Layout.fillWidth: true; text: "NO KNOWN IMPROVEMENT BLUEPRINTS ARE AVAILABLE TO SHARE."; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
+                        Label { visible: (root.blueprintSharing.networks || []).length === 0; Layout.fillWidth: true; text: "NO ACTIVE SCUT NETWORK DETAILS ARE AVAILABLE FOR THE FOCUSED PROBE."; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
+                        Label { visible: (root.blueprintSharing.blueprints || []).length === 0; Layout.fillWidth: true; text: "NO KNOWN IMPROVEMENT BLUEPRINTS ARE AVAILABLE TO SHARE."; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
                     }
                 }
             }
