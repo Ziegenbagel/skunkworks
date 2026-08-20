@@ -350,31 +350,33 @@ PanelFrame {
                 color: Constants.lineColor
             }
 
-            ScrollView {
-                id: sectionScroll
+            GridView {
+                id: sectionGrid
                 width: parent.width
                 height: parent.height - 42
                 clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: root.sectionRows()
+                readonly property int columnCount: width >= 1050 ? 2 : 1
+                readonly property int cardSpacing: 18
+                cellWidth: width / columnCount
+                cellHeight: (root.section === "PRODUCTION"
+                             ? root.standardProductionCardHeight
+                             : 260) + cardSpacing
+                // GridView creates delegates only around the viewport. This
+                // keeps long Manny rosters from laying out every large card on
+                // each countdown tick or dashboard refresh.
+                cacheBuffer: cellHeight
 
-                Grid {
-                    id: sectionGrid
-                    // A fixed-width Grid avoids the layout feedback loop that
-                    // previously caused high CPU use. Production cards also use
-                    // one mining-sized height so the two-column queue stays even.
-                    width: sectionScroll.availableWidth
-                    columns: sectionScroll.availableWidth >= 1050 ? 2 : 1
-                    spacing: 18
-
-                    Repeater {
-                        model: root.sectionRows()
-                        delegate: Rectangle {
+                delegate: Rectangle {
                             id: sectionRow
                             required property var modelData
                             required property int index
-                            width: (sectionGrid.width - (sectionGrid.columns - 1) * sectionGrid.spacing) / sectionGrid.columns
+                            width: sectionGrid.cellWidth - sectionGrid.cardSpacing
                             height: root.section === "PRODUCTION"
                                 ? root.standardProductionCardHeight
-                                : detailsColumn.implicitHeight + 40
+                                : Math.min(detailsColumn.implicitHeight + 40,
+                                           sectionGrid.cellHeight - sectionGrid.cardSpacing)
                             clip: root.section === "PRODUCTION"
                             color: rowMouse.containsMouse ? Constants.selectedColor : index % 2 ? Constants.panelColor : Constants.raisedColor
                             border.color: modelData.probeId === root.focusedProbeId ? Constants.cyanColor : Constants.lineColor
@@ -434,20 +436,19 @@ PanelFrame {
                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: root.probeSelected(Number(sectionRow.modelData.probeId))
                             }
-                        }
-                    }
+                }
 
-                    Label {
-                        visible: root.sectionRows().length === 0
-                        width: sectionGrid.width
-                        horizontalAlignment: Text.AlignHCenter
-                        text: "No live " + root.section.toLowerCase() + " records are currently available."
-                        color: Constants.mutedTextColor
-                        font.family: Constants.technicalFont
-                        font.pixelSize: 14
-                    }
+                Label {
+                    anchors.centerIn: parent
+                    visible: sectionGrid.count === 0
+                    width: sectionGrid.width
+                    horizontalAlignment: Text.AlignHCenter
+                    text: "No live " + root.section.toLowerCase() + " records are currently available."
+                    color: Constants.mutedTextColor
+                    font.family: Constants.technicalFont
+                    font.pixelSize: 14
                 }
             }
-        }
     }
+}
 }

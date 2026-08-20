@@ -3284,6 +3284,13 @@ class MissionControlController(QObject):
             return
         if probe_id == self._focused_probe_id:
             return
+        # A deliberate probe change is itself a fresh telemetry boundary.
+        # Restart the automation heartbeat here so an old account-wide timer
+        # cannot force another full refresh a few seconds after the newly
+        # selected probe finishes loading. Background refreshes intentionally
+        # do not move this deadline, so automation cannot be starved.
+        if self._automation_timer.isActive():
+            self._automation_timer.start(60_000)
         self._start_refresh(probe_id, prefer_cached_fleet=True)
 
     @Slot(bool)

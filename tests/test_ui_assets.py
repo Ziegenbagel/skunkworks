@@ -735,13 +735,13 @@ def test_settings_exposes_operator_manual_and_change_log_links():
     assert "def openChangeLog" in controller
 
 
-def test_live_section_grid_uses_stable_scroll_view_width():
-    """Wrapped task cards must not feed their measured size back into the grid."""
+def test_live_section_grid_virtualizes_large_manny_rosters():
+    """Long production lists must create only viewport-adjacent task cards."""
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
 
-    assert "width: sectionScroll.availableWidth" in workspace
-    assert "Grid {\n                    id: sectionGrid" in workspace
-    assert "GridLayout {\n                    id: sectionGrid" not in workspace
+    assert "GridView {\n                id: sectionGrid" in workspace
+    assert "cacheBuffer: cellHeight" in workspace
+    assert "Repeater {\n                        model: root.sectionRows()" not in workspace
     assert "Layout.preferredWidth: (root.width" not in workspace
 
 

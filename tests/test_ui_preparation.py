@@ -154,6 +154,22 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(service.requests, [(7, False), (9, True)])
 
+    def test_probe_switch_restarts_automation_heartbeat(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+
+        with patch.object(
+            controller._automation_timer, "isActive", return_value=True,
+        ), patch.object(
+            controller._automation_timer, "start",
+        ) as start, patch.object(
+            controller, "_start_refresh",
+        ) as refresh:
+            controller.selectProbe(9)
+
+        start.assert_called_once_with(60_000)
+        refresh.assert_called_once_with(9, prefer_cached_fleet=True)
+
     def test_failed_refresh_retains_snapshot_and_marks_it_stale(self):
         class Service:
             fail = False
