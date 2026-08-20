@@ -297,15 +297,20 @@ class CommandPreparer:
         # The game may satisfy a recursively submitted recipe from matching
         # physical components already in inventory before synthesizing those
         # components from raw resources.  A raw-resource production plan alone
-        # therefore cannot protect a completed probe-assembly kit.  Treat every
-        # stored item allocated to an assembly goal as a hard floor: unrelated
-        # crafts (including numerically higher-priority ones) may proceed only
-        # when enough surplus copies exist for their recursive item inputs.
+        # therefore cannot protect a completed probe-assembly kit.  Treat the
+        # stored items allocated to equal- or higher-priority assembly work as
+        # a hard floor.  A numerically higher-priority craft is intentionally
+        # allowed to consume inventory claimed by a lower-priority goal; that
+        # is the meaning of the user's global priority ordering, and the lower
+        # goal will rebuild its kit on a later planning cycle.
         if task.action == "Craft Item":
             recursive_items = self._recursive_item_requirements(task.target)
             for item_type, required in recursive_items.items():
                 claims = item_claims.get(item_type, ())
-                hard_floor = max((amount for _rank, amount in claims), default=0)
+                hard_floor = max((
+                    amount for rank, amount in claims
+                    if rank <= task_rank
+                ), default=0)
                 if hard_floor <= 0:
                     continue
                 available = int(items.get(item_type, 0))

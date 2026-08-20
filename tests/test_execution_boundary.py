@@ -547,7 +547,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(consumer.disposition, "blocked")
         self.assertIn("item_reserved_by_assembly_goal", consumer.blockers)
 
-    def test_fleet_assembly_inventory_is_not_borrowed_by_direct_numeric_p1_recipe(self):
+    def test_numeric_p1_recipe_can_borrow_inventory_from_numeric_p3_fleet_goal(self):
         from src.planner.task import Task
 
         self.operations.world.probe["inventory"].setdefault("items", []).append(
@@ -576,8 +576,8 @@ class ExecutionBoundaryTests(unittest.TestCase):
             item for item in prepared
             if item.command.reason == "Ordinary numeric P1 recipe"
         )
-        self.assertEqual(consumer.disposition, "blocked")
-        self.assertIn("item_reserved_by_assembly_goal", consumer.blockers)
+        self.assertEqual(consumer.disposition, "dry_run")
+        self.assertNotIn("item_reserved_by_assembly_goal", consumer.blockers)
 
     def test_equal_priority_direct_recipe_synthesizes_instead_of_consuming_tanker_component(self):
         from src.planner.task import Task
@@ -660,6 +660,51 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertIn("item_reserved_by_assembly_goal", manny.blockers)
         self.assertNotIn("item_reserved_by_higher_priority_goal", manny.blockers)
         self.assertNotIn("resource_reserved_by_higher_priority_goal", manny.blockers)
+
+    def test_priority_two_manny_craft_outranks_priority_three_tanker_kit(self):
+        from src.planner.task import Task
+
+        inventory = self.operations.world.probe["inventory"]
+        inventory.setdefault("items", []).append(
+            {"id": "relay-for-lower-tanker", "type": "scut_relay"}
+        )
+        inventory["resourceStocks"][0]["amount"] = 2
+        self.operations.manufacturing.recipes._recipes["scut_relay"] = {
+            "id": "scut_relay", "name": "SCUT relay",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [
+                {"type": "metals", "quantity": 1, "kind": "resource"},
+            ],
+            "output": {"type": "scut_relay", "containerSpace": 0.1},
+        }
+        self.operations.manufacturing.recipes._recipes["manny"] = {
+            "id": "manny", "name": "Manny",
+            "craftableBy": ["manny"], "durationSeconds": 60,
+            "ingredients": [
+                {"type": "scut_relay", "quantity": 1, "kind": "item"},
+            ],
+            "output": {"type": "manny", "containerSpace": 0.1},
+        }
+
+        prepared = CommandPreparer(self.operations, 1, self.policy).prepare([
+            Task(
+                action="Craft Item", reason="Priority two Manny production",
+                category="manufacturing", target="manny", priority=2,
+            ),
+            Task(
+                action="Await Active Production", reason="Priority three tanker kit",
+                category="fleet_assembly", target="electric_motor",
+                constraints=("active_production_pending",),
+                reserved_items=(("scut_relay", 1),), priority=3,
+            ),
+        ])
+
+        manny = next(
+            item for item in prepared
+            if item.command.reason == "Priority two Manny production"
+        )
+        self.assertEqual(manny.disposition, "dry_run")
+        self.assertNotIn("item_reserved_by_assembly_goal", manny.blockers)
 
     def test_tanker_component_cannot_consume_completed_kit_dependency(self):
         from src.planner.task import Task
