@@ -1102,7 +1102,11 @@ class MissionControlViewModelBuilder:
                 "summary": payload.get("title") or payload.get("message") or payload.get("summary") or event["domain"].replace("_", " ").title(),
                 "illustrationImageUrl": payload.get("illustrationImageUrl"),
                 "entity_id": payload.get("probeId"),
-                "observedAt": event.get("observedAt", ""),
+                "observedAt": (
+                    payload.get("createdAt")
+                    or payload.get("updatedAt")
+                    or event.get("observedAt", "")
+                ),
             })
         return tuple(alerts)
 
@@ -1113,7 +1117,10 @@ class MissionControlViewModelBuilder:
             reverse=True,
         )
         source = received if received else findings
-        return self._alert_views(tuple(source)[:3])
+        # Mission Control limits its own preview to three cards. Safety needs
+        # the complete game collection for the focused probe, including
+        # acknowledged historical alerts that remain deletable.
+        return self._alert_views(tuple(source))
 
     @staticmethod
     def _alert_views(alerts):

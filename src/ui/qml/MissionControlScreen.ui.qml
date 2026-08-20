@@ -404,7 +404,7 @@ Rectangle {
                                 fillMode: Image.PreserveAspectFit
                             }
                             Repeater {
-                                model: root.dashboardData.alerts && root.dashboardData.alerts.length ? root.dashboardData.alerts : [
+                                model: root.dashboardData.alerts && root.dashboardData.alerts.length ? root.dashboardData.alerts.slice(0, 3) : [
                                     {
                                         "summary": "No active alerts",
                                         "severity": "nominal",
@@ -416,8 +416,7 @@ Rectangle {
                                     id: alertItem
                                     required property var modelData
                                     required property int index
-                                    visible: alertItem.index < 3
-                                    Layout.fillWidth: visible
+                                    Layout.fillWidth: true
                                     Layout.fillHeight: true
                                     color: alertItem.index % 2 ? "#1d1011" : "#150b0c"
                                     border.color: "#5b2529"

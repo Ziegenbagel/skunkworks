@@ -12,35 +12,29 @@ Item {
     signal mindSnapshotReassignRequested()
     signal alertDeleteRequested(string alertId, string domain)
 
-    ScrollView {
-        id: safetyPageScroll
+    ListView {
+        id: safetyAlertList
         anchors.fill: parent
         clip: true
-        contentWidth: availableWidth
-        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-
-        ColumnLayout {
-            width: Math.max(1, safetyPageScroll.availableWidth - 12)
-            spacing: 14
-
-            GroupBox {
-                visible: Boolean(root.recovery.available)
-                title: "CRITICAL · TERMINAL PROBE RECOVERY"; Layout.fillWidth: true
-                ColumnLayout {
-                    anchors.fill: parent; spacing: 10
-                    Label { Layout.fillWidth: true; text: String(root.recovery.probeName || "Default probe").toUpperCase() + " · " + String(root.recovery.status || "terminal").split("_").join(" ").toUpperCase(); color: Constants.criticalColor; font.bold: true; font.pixelSize: 19; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
-                    Label { Layout.fillWidth: true; text: "The game permits reassignment of the last stable mind snapshot to a fresh probe chassis. This deletes the terminal probe state and resets the local coordinate reference frame so the new origin becomes FCC 0 / 0 / 0."; color: Constants.warningColor; font.pixelSize: 16; lineHeight: 1.25; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
-                    Button { text: "REVIEW MIND-SNAPSHOT REASSIGNMENT"; onClicked: recoveryConfirmation.open() }
-                }
+        spacing: 14
+        model: root.alerts
+        cacheBuffer: 240
+        headerPositioning: ListView.InlineHeader
+        header: GroupBox {
+            width: safetyAlertList.width
+            visible: Boolean(root.recovery.available)
+            height: visible ? implicitHeight : 0
+            title: "CRITICAL · TERMINAL PROBE RECOVERY"
+            ColumnLayout { anchors.fill: parent; spacing: 10
+                Label { Layout.fillWidth: true; text: String(root.recovery.probeName || "Default probe").toUpperCase() + " · " + String(root.recovery.status || "terminal").split("_").join(" ").toUpperCase(); color: Constants.criticalColor; font.bold: true; font.pixelSize: 19; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+                Label { Layout.fillWidth: true; text: "The game permits reassignment of the last stable mind snapshot to a fresh probe chassis. This deletes the terminal probe state and resets the local coordinate reference frame so the new origin becomes FCC 0 / 0 / 0."; color: Constants.warningColor; font.pixelSize: 16; lineHeight: 1.25; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+                Button { text: "REVIEW MIND-SNAPSHOT REASSIGNMENT"; onClicked: recoveryConfirmation.open() }
             }
-
-            Repeater {
-                model: root.alerts
-                delegate: Rectangle {
+        }
+        delegate: Rectangle {
                     id: alertCard; required property var modelData
-                    Layout.fillWidth: true
-                    Layout.minimumHeight: 86
-                    Layout.preferredHeight: alertDetails.implicitHeight + 36
+                    width: safetyAlertList.width
+                    height: Math.max(86, alertDetails.implicitHeight + 36)
                     color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
                     ColumnLayout {
                         id: alertDetails
@@ -84,9 +78,14 @@ Item {
                             }
                         }
                     }
-                }
-            }
-            Label { visible: root.alerts.length === 0 && !root.recovery.available; Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: "No active safety findings."; color: Constants.nominalColor; font.pixelSize: 16 }
+        }
+        footer: Label {
+            width: safetyAlertList.width
+            height: visible ? implicitHeight + 20 : 0
+            visible: root.alerts.length === 0 && !root.recovery.available
+            horizontalAlignment: Text.AlignHCenter
+            text: "No active safety findings."
+            color: Constants.nominalColor; font.pixelSize: 16
         }
     }
 

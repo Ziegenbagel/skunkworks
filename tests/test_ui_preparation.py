@@ -81,6 +81,30 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(len(view["navigation"]["neighbors"]), 12)
             self.assertEqual(view["connectionLabel"], "CONNECTED")
 
+    def test_safety_view_exposes_every_persisted_alert_in_game_order(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            engine.record_records("alerts", [
+                {
+                    "id": index,
+                    "message": f"Alert {index}",
+                    "createdAt": f"2026-08-{index:02d}T12:00:00+00:00",
+                }
+                for index in range(1, 6)
+            ], probe_id=1, observed_at="2026-08-20T12:00:00+00:00")
+            base = build_operations()
+            operations = Operations(
+                base.world, base.manufacturing.recipes, data_engine=engine,
+            )
+
+            alerts = MissionControlViewModelBuilder(
+                operations, engine,
+            ).build()["alerts"]
+
+            self.assertEqual(len(alerts), 5)
+            self.assertEqual(alerts[0]["summary"], "Alert 5")
+            self.assertEqual(alerts[-1]["summary"], "Alert 1")
+
     def test_archive_is_separate_from_game_logbook(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")
