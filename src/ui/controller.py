@@ -389,12 +389,7 @@ class MissionControlDataService:
             "automationPlanning",
             lambda: self.automation_view(operations, selected["id"]),
         )
-        timings["total"] = round(time.monotonic() - load_started, 3)
-        dashboard["refreshDiagnostics"] = {
-            "elapsedSeconds": timings["total"],
-            "stages": timings,
-            "reusedFleetIndex": reused_fleet_index,
-        }
+        display_data_started = time.monotonic()
         # automation_view may advance or replace the durable travel goal while
         # reconciling an active transport phase. Build the itinerary from the
         # post-reconciliation state that will actually drive the next order.
@@ -497,6 +492,15 @@ class MissionControlDataService:
                 cached_logbook = (now, self.logbook_view(selected_id, (selected,)))
                 self._logbook_cache[selected_id] = cached_logbook
             dashboard["logbook"] = cached_logbook[1]
+        timings["displayData"] = round(
+            time.monotonic() - display_data_started, 3,
+        )
+        timings["total"] = round(time.monotonic() - load_started, 3)
+        dashboard["refreshDiagnostics"] = {
+            "elapsedSeconds": timings["total"],
+            "stages": timings,
+            "reusedFleetIndex": reused_fleet_index,
+        }
         report(100, "Mission control ready")
         return dashboard
 
@@ -2491,6 +2495,19 @@ class _RefreshWorker(QRunnable):
                 ):
                     raise
                 payload = self.service.load(self.probe_id)
+            conversion_started = time.monotonic()
+            payload = MissionControlController._qt_safe(payload)
+            conversion_elapsed = round(
+                time.monotonic() - conversion_started, 3,
+            )
+            diagnostics = payload.setdefault("refreshDiagnostics", {})
+            stages = diagnostics.setdefault("stages", {})
+            stages["uiPayloadConversion"] = conversion_elapsed
+            diagnostics["elapsedSeconds"] = round(
+                float(diagnostics.get("elapsedSeconds", 0) or 0)
+                + conversion_elapsed,
+                3,
+            )
         except Exception as error:  # UI boundary: preserve the process and report.
             traceback.print_exc()
             _safe_emit(self.signals.failed, str(error) or type(error).__name__)
@@ -4120,7 +4137,6 @@ class MissionControlController(QObject):
             "source": self.credentialSource,
             "message": self.credentialMessage,
         }
-        payload = self._qt_safe(payload)
         self._dashboard = payload
         if previous_last_result is not None:
             runtime = dict(self._dashboard.get("automationRuntime", {}))
