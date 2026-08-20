@@ -91,18 +91,6 @@ class DesiredStateTests(unittest.TestCase):
         travel = next(task for task in Planner(operations, state).tasks() if task.category == "travel")
         self.assertIn("repair_required_before_travel", travel.constraints)
 
-        acknowledged = DesiredState(
-            repair=RepairGoal(70, 95, 2),
-            travel=TravelGoal(
-                SectorCoordinates(1, 1, 0), risk_acknowledged=True,
-            ),
-        )
-        travel = next(
-            task for task in Planner(operations, acknowledged).tasks()
-            if task.category == "travel"
-        )
-        self.assertNotIn("repair_required_before_travel", travel.constraints)
-
         operations.world.probe["systems"]["integrityPercent"] = 80
         operations.world.mannies["mannies"][0]["currentTask"] = {"type": "repairing"}
         travel = next(task for task in Planner(operations, state).tasks() if task.category == "travel")

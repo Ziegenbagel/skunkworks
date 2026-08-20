@@ -42,7 +42,7 @@ def plan(operations, desired_state) -> list[Task]:
         or operations.mannies._task_type(manny) == "repair"
         for manny in mannies
     )
-    if repair.trigger_percent > 0 and not desired_state.travel.risk_acknowledged and (
+    if repair.trigger_percent > 0 and (
         integrity <= repair.trigger_percent or repair_active
     ) and integrity < repair.target_percent:
         blockers.append("repair_required_before_travel")
