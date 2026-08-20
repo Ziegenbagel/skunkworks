@@ -680,14 +680,15 @@ def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
     assert "FLEET LIST CACHE USED" in settings
 
 
-def test_unbounded_safety_and_planner_lists_use_viewport_rendering():
+def test_full_page_lists_avoid_nested_scroll_regions():
     safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
 
     assert "id: safetyAlertList" in safety
-    assert "id: proposedCommandList" in settings
-    assert "id: waitingPlanList" in settings
-    assert settings.count("cacheBuffer: 180") >= 2
+    assert "id: proposedCommandList" not in settings
+    assert "id: waitingPlanList" not in settings
+    assert "model: root.runtimeData.queue || []" in settings
+    assert "model: root.waitingPlans()" in settings
 
 
 def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():

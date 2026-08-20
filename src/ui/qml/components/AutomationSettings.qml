@@ -329,18 +329,13 @@ Item {
                         }
                     }
                     Label { text: "PROPOSED COMMAND QUEUE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    ListView {
-                        id: proposedCommandList
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: Math.min(440, contentHeight)
-                        Layout.minimumHeight: count > 0 ? Math.min(120, contentHeight) : 0
-                        clip: true; spacing: 8; cacheBuffer: 180
+                    Repeater {
                         model: root.runtimeData.queue || []
                         delegate: Rectangle {
                             id: commandRow
                             required property var modelData
-                            width: proposedCommandList.width
-                            height: commandDetails.implicitHeight + 20
+                            Layout.fillWidth: true
+                            implicitHeight: commandDetails.implicitHeight + 20
                             color: Constants.raisedColor; border.color: Constants.lineColor; radius: 2
                             RowLayout {
                                 id: commandDetails
@@ -377,17 +372,12 @@ Item {
                     }
                     Label { visible: !root.hasUnblockedCommand(); text: "NO UNBLOCKED COMMAND IS READY · REVIEW THE PLANNER STATUS BELOW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                     Label { visible: root.waitingPlans().length > 0; text: "COMPLETE PLANNER STATUS · ALL PRIORITIES AND WAITING GOALS"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
-                    ListView {
-                        id: waitingPlanList
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: Math.min(520, contentHeight)
-                        Layout.minimumHeight: count > 0 ? Math.min(120, contentHeight) : 0
-                        clip: true; spacing: 8; cacheBuffer: 180
+                    Repeater {
                         model: root.waitingPlans()
                         delegate: Rectangle {
                             id: waitingRow
                             required property var modelData
-                            width: waitingPlanList.width; height: waitingDetails.implicitHeight + 18
+                            Layout.fillWidth: true; implicitHeight: waitingDetails.implicitHeight + 18
                             color: Constants.raisedColor; border.color: Constants.lineColor; radius: 2
                             ColumnLayout {
                                 id: waitingDetails; anchors.fill: parent; anchors.margins: 9; spacing: 3
