@@ -10,6 +10,7 @@ from src.api.contract import (
     ApiRateLimitError,
     MAXIMUM_API_VERSION,
     MINIMUM_API_VERSION,
+    api_is_compatible,
 )
 
 
@@ -49,15 +50,11 @@ class GameClient:
         version = self.get_api_version()
         self.api_version = version
 
-        if not (
-            MINIMUM_API_VERSION
-            <= version
-            <= MAXIMUM_API_VERSION
-        ):
+        if not api_is_compatible(version):
             raise ApiCompatibilityError(
-                "Skunkworks supports Von Neumann Game API "
-                f"v{MINIMUM_API_VERSION} through "
-                f"v{MAXIMUM_API_VERSION}; server is v{version}."
+                "Skunkworks requires Von Neumann Game API "
+                f"v{MINIMUM_API_VERSION} or newer; server is v{version}. "
+                f"The newest reviewed contract is v{MAXIMUM_API_VERSION}."
             )
 
         return version
@@ -117,13 +114,13 @@ class GameClient:
         authenticated=True,
         **kwargs,
     ):
-        if authenticated and self.api_version is not None and not (
-            MINIMUM_API_VERSION <= self.api_version <= MAXIMUM_API_VERSION
+        if authenticated and self.api_version is not None and not api_is_compatible(
+            self.api_version
         ):
             raise ApiCompatibilityError(
                 "Live API commands are paused because Von Neumann Game API "
-                f"v{self.api_version} has not been reviewed. Skunkworks supports "
-                f"v{MINIMUM_API_VERSION} through v{MAXIMUM_API_VERSION}."
+                f"v{self.api_version} predates Skunkworks' required contract "
+                f"v{MINIMUM_API_VERSION}."
             )
         headers = {"Accept": "application/json"}
 

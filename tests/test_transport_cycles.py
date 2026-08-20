@@ -407,7 +407,7 @@ class TransportCycleTests(unittest.TestCase):
             def get_probe(self, probe_id):
                 return {"probe": {
                     "id": probe_id,
-                    "status": "idle",
+                    "status": "arrived",
                     "fuel": {"deuterium": 4, "maxDeuterium": 100},
                 }}
 

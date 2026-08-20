@@ -12,8 +12,13 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v113, verified
-against the live contract on 2026-08-19.
+Skunkworks supports deployed API v103 through upstream API v115, verified
+against the live contract on 2026-08-20.
+
+Newer API versions are accepted provisionally because the game contract is
+normally backward compatible. Skunkworks displays an unreviewed-version warning
+but continues reads, manual commands, and automation. Versions older than v103
+remain blocked because required endpoints may be absent.
 
 The application checks `/api/version` before loading operational state.
 Authenticated routes are rate limited to 60 requests per sliding 60-second
@@ -63,6 +68,15 @@ sharing a sector is insufficient. Skunkworks exposes this as a confirmed manual
 action and only offers known blueprints and non-owned recipient probes observed
 on the selected network. Repeating an already completed share is safe and does
 not create a duplicate persistent alert.
+
+API v114 adds nullable absolute HTTP(S) `illustrationImageUrl` fields to probe
+alerts. Safety cards preserve and display the image at its original aspect
+ratio when supplied.
+
+API v115 adds the player-level `anatiform_asteroid_sculpting` blueprint and the
+two-day `sculpt-duck-asteroid` Manny action. Completed targets expose
+`distinctiveFeature: Sculpted in the shape of a duck` while retaining ordinary
+asteroid mining, motorization, fuel, and trajectory behavior.
 
 Manual Control exposes asteroid operations without attempting to predict game
 outcomes. Local impacts require a separate irreversible/destructive

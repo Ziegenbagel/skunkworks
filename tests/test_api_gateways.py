@@ -108,6 +108,17 @@ class ApiGatewayTests(unittest.TestCase):
             "/api/probe/42/mannies/mny_1/mine",
         )
 
+    def test_v115_anatiform_asteroid_sculpt_uses_documented_route(self):
+        self.api.mannies.start_task(
+            42, "mny_duck", "sculpt-duck-asteroid", {"objectId": "rock-1"},
+        )
+
+        self.assertEqual(self.client.calls[-1], (
+            "POST",
+            "/api/probe/42/mannies/mny_duck/sculpt-duck-asteroid",
+            {"json": {"objectId": "rock-1"}},
+        ))
+
     def test_messaging_uses_target_probe(self):
         self.api.messaging.send(
             42,

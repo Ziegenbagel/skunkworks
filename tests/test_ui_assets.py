@@ -648,6 +648,17 @@ def test_manual_control_exposes_v113_scut_blueprint_sharing():
     assert "shareImprovementBlueprint" in app
 
 
+def test_api_v114_alert_images_and_v115_anatiform_sculpt_are_visible():
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
+    controller = Path("src/ui/controller.py").read_text()
+
+    assert "illustrationImageUrl" in safety
+    assert "SCULPT ANATIFORM ASTEROID · API v115" in manual
+    assert '"sculpt-duck-asteroid"' in manual
+    assert '"sculpt-duck-asteroid"' in controller
+
+
 def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
     manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()

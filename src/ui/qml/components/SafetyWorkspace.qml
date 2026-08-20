@@ -63,6 +63,15 @@ Item {
                             lineHeight: 1.3
                             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         }
+                        Image {
+                            visible: String(alertCard.modelData.illustrationImageUrl || "").length > 0
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: visible && implicitWidth > 0
+                                ? Math.min(420, width * implicitHeight / implicitWidth) : 0
+                            source: alertCard.modelData.illustrationImageUrl || ""
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                        }
                     }
                 }
             }

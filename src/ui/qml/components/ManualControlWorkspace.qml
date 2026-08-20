@@ -322,6 +322,21 @@ Item {
                         }
 
                         GroupBox {
+                            title: "SCULPT ANATIFORM ASTEROID · API v115"
+                            Layout.fillWidth: true
+                            ColumnLayout {
+                                anchors.fill: parent; spacing: 8
+                                RowLayout {
+                                    Layout.fillWidth: true; spacing: 12
+                                    ComboBox { id: sculptManny; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).idleMannies || [] }
+                                    ComboBox { id: sculptTarget; Layout.fillWidth: true; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).sculptableAsteroids || [] }
+                                    Button { text: "REVIEW TWO-DAY SCULPT"; enabled: Boolean((root.dashboardData.inventoryManagement || {}).anatiformSculptingAvailable) && sculptManny.count > 0 && sculptTarget.count > 0; onClicked: { root.pendingAsteroidAction = {"action":"sculpt-duck-asteroid", "mannyId":String(sculptManny.currentValue), "objectId":String(sculptTarget.currentValue)}; asteroidTaskConfirmation.open(); } }
+                                }
+                                Label { Layout.fillWidth: true; visible: !Boolean((root.dashboardData.inventoryManagement || {}).anatiformSculptingAvailable); text: "LOCKED · ANATIFORM ASTEROID SCULPTING BLUEPRINT IS NOT KNOWN."; color: Constants.warningColor; font.bold: true; wrapMode: Text.Wrap }
+                            }
+                        }
+
+                        GroupBox {
                             title: "DETECTED ACTIVE TRAJECTORIES"
                             Layout.fillWidth: true
                             ColumnLayout {
@@ -382,10 +397,10 @@ Item {
     }
     Dialog {
         id: asteroidTaskConfirmation; anchors.centerIn: parent; modal: true
-        title: root.pendingAsteroidAction.action === "motorize-asteroid" ? "CONFIRM ASTEROID MOTORIZATION" : "CONFIRM ASTEROID REFUEL"
+        title: root.pendingAsteroidAction.action === "motorize-asteroid" ? "CONFIRM ASTEROID MOTORIZATION" : root.pendingAsteroidAction.action === "sculpt-duck-asteroid" ? "CONFIRM TWO-DAY ANATIFORM SCULPT" : "CONFIRM ASTEROID REFUEL"
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.inventoryMannyActionRequested(String(root.pendingAsteroidAction.action), String(root.pendingAsteroidAction.mannyId), {"objectId":String(root.pendingAsteroidAction.objectId)})
-        Label { width: 620; text: root.pendingAsteroidAction.action === "motorize-asteroid" ? "This consumes the documented propulsion components and 0.2 ECE Deuterium, then sends the selected Manny outside the probe." : "This immediately consumes 0.2 ECE Deuterium and sends the selected Manny to refill the asteroid's binary motor tank."; color: Constants.warningColor; wrapMode: Text.Wrap }
+        Label { width: 620; text: root.pendingAsteroidAction.action === "motorize-asteroid" ? "This consumes the documented propulsion components and 0.2 ECE Deuterium, then sends the selected Manny outside the probe." : root.pendingAsteroidAction.action === "sculpt-duck-asteroid" ? "This assigns the selected onboard Manny for exactly two days. The asteroid changes only at completion; recalling the Manny early leaves it ordinary." : "This immediately consumes 0.2 ECE Deuterium and sends the selected Manny to refill the asteroid's binary motor tank."; color: Constants.warningColor; wrapMode: Text.Wrap }
     }
     Dialog {
         id: asteroidLaunchConfirmation; anchors.centerIn: parent; modal: true

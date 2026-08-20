@@ -8,6 +8,7 @@ class MannyGateway:
             "mine",
             "motorize-asteroid",
             "refuel-motorized-asteroid",
+            "sculpt-duck-asteroid",
             "craft",
             "salvage",
             "install-bookmark",

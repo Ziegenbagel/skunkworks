@@ -173,6 +173,7 @@ class MissionControlViewModelBuilder:
         motorization_targets = []
         refuel_asteroid_targets = []
         launchable_asteroids = []
+        sculptable_asteroids = []
         impact_targets = []
         asteroid_trajectories = []
         seen_targets = set()
@@ -202,7 +203,10 @@ class MissionControlViewModelBuilder:
                         "motorized": bool(value.get("motorized", False)),
                         "motorFuelStatus": value.get("motorFuelStatus"),
                         "trajectory": value.get("trajectory"),
+                        "distinctiveFeature": value.get("distinctiveFeature"),
                     }
+                    if not asteroid["distinctiveFeature"]:
+                        sculptable_asteroids.append(asteroid)
                     if not asteroid["motorized"]:
                         motorization_targets.append(asteroid)
                     elif asteroid["trajectory"]:
@@ -310,10 +314,18 @@ class MissionControlViewModelBuilder:
             "motorizationTargets": tuple({item["id"]: item for item in motorization_targets}.values()),
             "refuelAsteroidTargets": tuple({item["id"]: item for item in refuel_asteroid_targets}.values()),
             "launchableAsteroids": tuple({item["id"]: item for item in launchable_asteroids}.values()),
+            "sculptableAsteroids": tuple({item["id"]: item for item in sculptable_asteroids}.values()),
             "asteroidImpactTargets": tuple({item["id"]: item for item in impact_targets}.values()),
             "asteroidTrajectories": tuple({item.get("id"): item for item in asteroid_trajectories if item}.values()),
             "asteroidMotorizationAvailable": any(
                 improvement.get("id") == "distributed_thrust_anchoring"
+                and improvement.get("available", False)
+                for improvement in (
+                    ((getattr(world, "hazard_context", None) or {}).get("improvements") or {}).get("improvements", ())
+                )
+            ),
+            "anatiformSculptingAvailable": any(
+                improvement.get("id") == "anatiform_asteroid_sculpting"
                 and improvement.get("available", False)
                 for improvement in (
                     ((getattr(world, "hazard_context", None) or {}).get("improvements") or {}).get("improvements", ())
@@ -1071,6 +1083,7 @@ class MissionControlViewModelBuilder:
                 "code": str(event.get("id", "event")),
                 "severity": payload.get("severity", event.get("priority", "warning")),
                 "summary": payload.get("title") or payload.get("message") or payload.get("summary") or event["domain"].replace("_", " ").title(),
+                "illustrationImageUrl": payload.get("illustrationImageUrl"),
                 "entity_id": payload.get("probeId"),
                 "observedAt": event.get("observedAt", ""),
             })

@@ -17,7 +17,12 @@ from PySide6.QtGui import QDesktopServices
 
 from src.api.capabilities import GameCapabilities
 from src.api.client import GameClient
-from src.api.contract import MAXIMUM_API_VERSION, MINIMUM_API_VERSION
+from src.api.contract import (
+    MAXIMUM_API_VERSION,
+    MINIMUM_API_VERSION,
+    api_is_compatible,
+    api_is_reviewed,
+)
 from src.application.hazard_context import HazardContextLoader
 from src.application.history_sync import HistorySynchronizer
 from src.application.probe_selector import ProbeSelector
@@ -1119,7 +1124,10 @@ class MissionControlDataService:
                     float(target_fuel.get("maxDeuterium", 0) or 0)
                     - float(target_fuel.get("deuterium", 0) or 0),
                 )
-                if target is not None and target.get("status") != "idle":
+                if (
+                    target is not None
+                    and str(target.get("status", "")).lower() not in {"idle", "arrived"}
+                ):
                     blockers.append("destination_probe_unavailable")
                 if target is not None and target_free < 0.01:
                     # Remain docked and check again on the next transport tick.
@@ -1889,10 +1897,20 @@ class MissionControlDataService:
             "mine",
             "motorize-asteroid",
             "refuel-motorized-asteroid",
+            "sculpt-duck-asteroid",
             "recall",
         }
         if action not in allowed:
             raise ValueError(f"Unsupported manual inventory action: {action}")
+        payload = dict(payload or {})
+        if action in {"transfer-deuterium-to-probe", "transfer-to-probe"}:
+            try:
+                target_probe_id = int(payload.get("targetProbeId"))
+            except (TypeError, ValueError):
+                raise ValueError("Select a valid same-sector target probe.") from None
+            if target_probe_id <= 0:
+                raise ValueError("Select a valid same-sector target probe.")
+            payload["targetProbeId"] = target_probe_id
         return self.capabilities.mannies.start_task(
             self._selected_probe_id, manny_id, action, payload,
         )
@@ -2474,7 +2492,8 @@ class _CompatibilityWorker(QRunnable):
             return
         _safe_emit(self.signals.succeeded, {
             "version": version,
-            "compatible": MINIMUM_API_VERSION <= version <= MAXIMUM_API_VERSION,
+            "compatible": api_is_compatible(version),
+            "reviewed": api_is_reviewed(version),
         })
 
 
@@ -2628,6 +2647,7 @@ class MissionControlController(QObject):
         self._automation_timer.timeout.connect(self._automation_tick)
         self._automation_after_refresh = False
         self._automation_tick_pending = False
+        self._manual_automation_cycle_pending = False
         # Automatic mode should not sit visibly READY for a full timer interval
         # after application startup. Consume this once after the first
         # authoritative dashboard has loaded.
@@ -2897,6 +2917,9 @@ class MissionControlController(QObject):
 
     @Slot()
     def runAutomationCycle(self):
+        if self._refreshing or self._automation_cycle_worker is not None:
+            self._manual_automation_cycle_pending = True
+            return
         self._start_automation_cycle(None, False)
 
     @Slot(str, bool)
@@ -3107,29 +3130,37 @@ class MissionControlController(QObject):
         self._compatibility_worker = None
         version = int(result.get("version", -1))
         compatible = bool(result.get("compatible", False))
+        reviewed = bool(result.get("reviewed", api_is_reviewed(version)))
         self._api_compatible = compatible
         compatibility = {
             "checked": True,
             "compatible": compatible,
+            "reviewed": reviewed,
             "serverVersion": version,
             "supportedMinimum": MINIMUM_API_VERSION,
             "supportedMaximum": MAXIMUM_API_VERSION,
             "checkIntervalHours": 6,
         }
+        if compatible and not reviewed:
+            compatibility["warning"] = (
+                f"API v{version} is newer than reviewed v{MAXIMUM_API_VERSION}; "
+                "continuing under backward compatibility."
+            )
         if self._dashboard:
             self._dashboard["compatibility"] = compatibility
             if not compatible:
                 self._dashboard["connection"] = "stale"
                 self._dashboard["connectionLabel"] = "API REVIEW REQUIRED"
+            elif not reviewed:
+                self._dashboard["connectionLabel"] = "CONNECTED · API REVIEW PENDING"
             self.dashboardChanged.emit()
         if compatible:
             self._ensure_automation_heartbeat()
             return
         self._automation_timer.stop()
         self._set_error(
-            f"Von Neumann Game API v{version} is newer than the reviewed "
-            f"Skunkworks range v{MINIMUM_API_VERSION}–v{MAXIMUM_API_VERSION}. "
-            "Live commands and automation are paused pending compatibility review."
+            f"Von Neumann Game API v{version} predates Skunkworks' required "
+            f"contract v{MINIMUM_API_VERSION}. Live commands and automation are paused."
         )
 
     @Slot(str)
@@ -4020,14 +4051,23 @@ class MissionControlController(QObject):
             runtime["lastResult"] = previous_last_result
             self._dashboard["automationRuntime"] = runtime
         self._api_compatible = True
+        server_version = int(payload.get("apiVersion") or MAXIMUM_API_VERSION)
+        reviewed = api_is_reviewed(server_version)
         self._dashboard["compatibility"] = {
             "checked": True,
             "compatible": True,
-            "serverVersion": payload.get("apiVersion"),
+            "reviewed": reviewed,
+            "serverVersion": server_version,
             "supportedMinimum": MINIMUM_API_VERSION,
             "supportedMaximum": MAXIMUM_API_VERSION,
             "checkIntervalHours": 6,
         }
+        if not reviewed:
+            self._dashboard["compatibility"]["warning"] = (
+                f"API v{server_version} is newer than reviewed v{MAXIMUM_API_VERSION}; "
+                "continuing under backward compatibility."
+            )
+            self._dashboard["connectionLabel"] = "CONNECTED · API REVIEW PENDING"
         if not self._compatibility_timer.isActive():
             self._compatibility_timer.start()
         self._configure_automation_timer(payload.get("automationRuntime", {}))
@@ -4239,6 +4279,10 @@ class MissionControlController(QObject):
         self._pending_probe_id = None
         if pending is not None and pending != self._focused_probe_id:
             self._start_refresh(pending, prefer_cached_fleet=True)
+            return
+        if self._manual_automation_cycle_pending:
+            self._manual_automation_cycle_pending = False
+            QTimer.singleShot(0, self.runAutomationCycle)
             return
         if self._automation_after_refresh:
             self._automation_after_refresh = False

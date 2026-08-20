@@ -1,5 +1,17 @@
 # Operator Manual Revision History
 
+## API v114–v115 — 2026-08-20
+
+- Reviewed and enabled API v114 alert illustrations and API v115 Anatiform
+  Asteroid Sculpting under Manual Control → Asteroid Control.
+- Future backward-compatible API versions now produce a visible review warning
+  without disabling live commands or automation. Servers older than the minimum
+  required contract remain blocked.
+- Fixed same-sector transfer target IDs so QML integer values are preserved and
+  validated before reaching the game API.
+- Evaluate / Run Cycle requests made during a refresh are now queued instead of
+  silently discarded.
+
 ## API v113 — 2026-08-19
 
 - Reviewed and enabled API v113. Added Manual Control → SCUT Blueprint Sharing

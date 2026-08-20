@@ -34,9 +34,9 @@ Item {
     signal inventoryMannyActionRequested(string action, string mannyId, var payload)
 
     function selectedIntegerId(combo) {
-        if (!combo || combo.currentIndex < 0 || !combo.model || !combo.model[combo.currentIndex])
+        if (!combo || combo.currentIndex < 0)
             return -1;
-        const value = Number(combo.model[combo.currentIndex].id);
+        const value = Number(combo.currentValue);
         return Number.isInteger(value) && value > 0 ? value : -1;
     }
 

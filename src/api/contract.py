@@ -1,7 +1,17 @@
 """Compatibility boundary for the Von Neumann Game API."""
 
 MINIMUM_API_VERSION = 103
-MAXIMUM_API_VERSION = 113
+MAXIMUM_API_VERSION = 115
+
+
+def api_is_compatible(version):
+    """Forward-tolerate newer contracts; older ones may lack requirements."""
+
+    return int(version) >= MINIMUM_API_VERSION
+
+
+def api_is_reviewed(version):
+    return MINIMUM_API_VERSION <= int(version) <= MAXIMUM_API_VERSION
 
 
 class ApiCompatibilityError(RuntimeError):

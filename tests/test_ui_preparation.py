@@ -14,6 +14,7 @@ from src.presentation import MissionControlViewModelBuilder
 from src.ui.controller import (
     ManualCraftReservationConflict,
     MissionControlController,
+    MissionControlDataService,
     _FleetAutomationWorker,
 )
 from tests.test_planner_missions import build_operations
@@ -451,18 +452,87 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(started[0].probe_id, 7)
         self.assertIs(controller._automation_cycle_worker, started[0])
 
-    def test_periodic_check_pauses_automation_for_unreviewed_api(self):
+    def test_manual_automation_cycle_requested_during_refresh_is_retained(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        controller._refreshing = True
+
+        controller.runAutomationCycle()
+
+        self.assertTrue(controller._manual_automation_cycle_pending)
+
+    def test_same_sector_transfer_coerces_target_probe_id_to_integer(self):
+        class Client:
+            def __init__(self):
+                self.calls = []
+
+            def request(self, method, path, **kwargs):
+                self.calls.append((method, path, kwargs))
+                return {"accepted": True}
+
+        client = Client()
+        with tempfile.TemporaryDirectory() as temporary:
+            service = MissionControlDataService(
+                client=client,
+                data_engine=DataEngine(Path(temporary) / "transfer.sqlite3"),
+            )
+            service._selected_probe_id = 7
+
+            service.inventory_manny_action(
+                "transfer-deuterium-to-probe", "manny-a",
+                {"targetProbeId": "42", "amount": 1.25},
+            )
+
+        self.assertEqual(client.calls[-1][2]["json"]["targetProbeId"], 42)
+
+    def test_periodic_check_pauses_automation_for_too_old_api(self):
         controller = MissionControlController()
         controller._dashboard = {"connection": "connected"}
         controller._automation_timer.start()
 
-        controller._accept_compatibility({"version": 107, "compatible": False})
+        controller._accept_compatibility({"version": 102, "compatible": False})
 
         self.assertFalse(controller._api_compatible)
         self.assertFalse(controller._automation_timer.isActive())
         self.assertEqual(controller.dashboard["connectionLabel"], "API REVIEW REQUIRED")
-        self.assertEqual(controller.dashboard["compatibility"]["serverVersion"], 107)
+        self.assertEqual(controller.dashboard["compatibility"]["serverVersion"], 102)
         self.assertIn("paused", controller.error)
+
+    def test_periodic_check_warns_but_continues_for_newer_api(self):
+        class Timer:
+            stopped = False
+            active = True
+
+            def setInterval(self, _milliseconds):
+                pass
+
+            def isActive(self):
+                return self.active
+
+            def start(self):
+                self.active = True
+
+            def stop(self):
+                self.stopped = True
+                self.active = False
+
+        controller = MissionControlController()
+        controller._dashboard = {"connection": "connected"}
+        timer = Timer()
+        controller._automation_timer = timer
+
+        controller._accept_compatibility({
+            "version": 116, "compatible": True, "reviewed": False,
+        })
+
+        self.assertTrue(controller._api_compatible)
+        self.assertFalse(timer.stopped)
+        self.assertFalse(controller.dashboard["compatibility"]["reviewed"])
+        self.assertIn("continuing", controller.dashboard["compatibility"]["warning"])
+        self.assertEqual(
+            controller.dashboard["connectionLabel"],
+            "CONNECTED · API REVIEW PENDING",
+        )
 
     def test_ready_automation_work_uses_fast_scheduler_cadence(self):
         controller = MissionControlController()
@@ -930,6 +1000,9 @@ class UiPreparationTests(unittest.TestCase):
 
     def test_inventory_management_exposes_v112_motorized_asteroid_controls(self):
         world = build_operations().world
+        world.hazard_context = {"improvements": {"improvements": [{
+            "id": "anatiform_asteroid_sculpting", "available": True,
+        }]}}
         trajectory = {
             "id": "atr_123", "asteroidId": "rock-moving",
             "mode": "sector_transfer", "status": "crossing_sector",
@@ -950,6 +1023,11 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in inventory["refuelAsteroidTargets"]], ["rock-empty"])
         self.assertEqual([item["id"] for item in inventory["launchableAsteroids"]], ["rock-full"])
         self.assertEqual(inventory["asteroidTrajectories"], (trajectory,))
+        self.assertTrue(inventory["anatiformSculptingAvailable"])
+        self.assertEqual(
+            [item["id"] for item in inventory["sculptableAsteroids"]],
+            ["rock-new", "rock-empty", "rock-full", "rock-moving"],
+        )
         self.assertEqual(
             {item["id"] for item in inventory["asteroidImpactTargets"]},
             {"star-1", "rock-new", "rock-empty", "rock-full", "rock-moving"},

@@ -73,7 +73,7 @@ GameClient does **not** save files or interpret data.
 
 ## API Contract Boundary
 
-Skunkworks supports deployed API v103 through reviewed upstream API v113. The
+Skunkworks supports deployed API v103 through reviewed upstream API v115. The
 boundary rejects older contracts and unreviewed newer contracts, preserves canonical public
 identifiers, and isolates HTTP concerns from application reasoning.
 
