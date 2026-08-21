@@ -107,6 +107,7 @@ class DesiredStateTests(unittest.TestCase):
         travel = next(task for task in Planner(operations, state).tasks() if task.category == "travel")
         self.assertEqual(travel.action, "Move Probe")
         self.assertEqual(travel.constraints, ())
+        self.assertTrue(travel.workflow_authorized)
 
     def test_auto_travel_waits_before_leaving_scut_coverage(self):
         destination = SectorCoordinates(2, 2, 0)

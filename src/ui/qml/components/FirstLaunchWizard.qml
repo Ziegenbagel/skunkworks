@@ -79,7 +79,7 @@ Rectangle {
                 Button { text: "BACK"; enabled: root.page > 0; onClicked: root.page-- }
                 Item { Layout.fillWidth: true }
                 Button { visible: root.page < 5; text: "NEXT"; enabled: root.page !== 1 || root.credentialConfigured; onClicked: root.page++ }
-                Button { visible: root.page === 5; text: "FINISH & CONNECT"; enabled: root.credentialConfigured; onClicked: root.finishRequested() }
+                Button { visible: root.page === 5; text: "FINISH AND CONNECT"; enabled: root.credentialConfigured; onClicked: root.finishRequested() }
             }
         }
     }

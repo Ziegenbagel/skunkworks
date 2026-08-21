@@ -312,7 +312,7 @@ def test_dependency_mining_idle_grace_survives_new_service_workers():
     MissionControlDataService._shared_dependency_mining_idle_since.clear()
 
 
-def test_waiting_fabrication_suppresses_background_mining_until_idle_grace():
+def test_unavailable_fabrication_does_not_hide_immediate_background_mining():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7
     service.data_engine = SimpleNamespace(emergency_stop_active=lambda: False)
@@ -345,7 +345,8 @@ def test_waiting_fabrication_suppresses_background_mining_until_idle_grace():
         )
         view = service.automation_view(operations, 7)
 
-    assert view["queue"] == []
+    assert len(view["queue"]) == 1
+    assert view["queue"][0]["metadata"]["backgroundWork"] is True
 
 
 def test_authoritative_queue_enables_dependency_lookahead_after_idle_grace():

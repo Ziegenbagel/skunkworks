@@ -442,7 +442,7 @@ Item {
         modal: true
         width: Math.min(root.width - 80, 900)
         height: Math.min(root.height - 80, 650)
-        title: "SECTOR & PLANET DETAILS"
+        title: "SECTOR AND PLANET DETAILS"
         ColumnLayout {
             anchors.fill: parent; spacing: 12
             Label { Layout.fillWidth: true; text: String(root.selectedSectorDetails.label || "SECTOR"); color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 18; font.bold: true }
@@ -481,7 +481,7 @@ Item {
                 Item { Layout.fillWidth: true }
                 Button { text: "CLOSE"; onClicked: transportReview.close() }
                 Button { visible: String(root.selectedTransportCycle.state || "planned") === "active"; text: "PAUSE ACTIVE ROUTE"; onClicked: { root.transportCyclePauseRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
-                Button { visible: String(root.selectedTransportCycle.state || "planned") !== "active"; text: "CONFIRM & START"; onClicked: { root.transportCycleStartRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
+                Button { visible: String(root.selectedTransportCycle.state || "planned") !== "active"; text: "CONFIRM AND START"; onClicked: { root.transportCycleStartRequested(String(root.selectedTransportCycle.id)); transportReview.close(); } }
             }
         }
     }

@@ -212,14 +212,14 @@ def test_automation_queue_names_the_actual_output_for_each_craft():
 def test_inventory_workspace_exposes_complete_manual_game_controls():
     workspace = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
     for control in (
-        "MANUAL JETTISON & ITEM HANDOFF",
-        "CONTAINER DEPLOYMENT, RECOVERY & PROBE HANDOFF",
+        "MANUAL JETTISON AND ITEM HANDOFF",
+        "CONTAINER DEPLOYMENT, RECOVERY AND PROBE HANDOFF",
         "detach-storage-container",
         "drop-storage-container",
         "recover-storage-container",
         '"salvage"',
         '"attach_to_probe"',
-        "SCUT RELAY DEPLOYMENT & SECTOR OPERATIONS",
+        "SCUT RELAY DEPLOYMENT AND SECTOR OPERATIONS",
         '"turn-on-relay"',
         '"install-scut-transit-beacon"',
         '"inspect-sector-object"',
@@ -528,12 +528,12 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "PREFERRED CONTENTS" in inventory
     assert "ANY CONTENTS" in inventory
     assert "MOVE STOCK BETWEEN CONTAINERS" in inventory
-    assert "STORED ITEMS & EQUIPMENT" in inventory
+    assert "STORED ITEMS AND EQUIPMENT" in inventory
     assert "CONFIRM STORAGE TRANSFER" in inventory
     assert "InventoryWorkspace" not in resources
     assert "TabBar" not in resources
     assert "inventoryData" not in resources
-    assert "CARGO & TRANSFERS" in manual
+    assert "CARGO AND TRANSFERS" in manual
     assert "InventoryWorkspace" in manual
     assert "onStorageRulesSaveRequested" in navigation
     assert "onCraftingReservationsReassignRequested" in navigation
@@ -575,6 +575,9 @@ def test_production_workspace_offers_name_task_and_remaining_time_sorting():
     assert '"text": "REMAINING TIME", "value": "remaining"' in navigation
     assert "function productionTaskLabel(taskType)" in navigation
     assert "function productionCompletionKey(row)" in navigation
+    assert "function refreshRenderedRows()" in navigation
+    assert "const previousY = preservePosition ? sectionGrid.contentY : 0" in navigation
+    assert "model: root.renderedRows" in navigation
     assert "Number.MAX_SAFE_INTEGER" in navigation
 
 
@@ -607,7 +610,7 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert "SAME-SECTOR PROBE TRANSFERS" in fleet
     assert '"transfer-deuterium-to-probe"' in fleet
     assert '"transfer-to-probe"' in fleet
-    assert "CARGO & TRANSFERS" in manual
+    assert "CARGO AND TRANSFERS" in manual
     assert "MANNY FIELD OPERATIONS" in manual
     assert "MINING_MAINTENANCE" not in manual
     assert "TRANSFERS_CONTAINERS" not in manual
@@ -622,7 +625,7 @@ def test_manual_control_exposes_v112_motorized_asteroid_workflows():
     app = Path("src/ui/qml/App.qml").read_text()
     controller = Path("src/ui/controller.py").read_text()
 
-    assert 'TabButton { text: "INFRASTRUCTURE & NETWORKS" }' in manual
+    assert 'TabButton { text: "INFRASTRUCTURE AND NETWORKS" }' in manual
     assert "INSTALL ASTEROID PROPULSION" in manual
     assert "REFUEL MOTORIZED ASTEROID" in manual
     assert "LAUNCH MOTORIZED ASTEROID" in manual
@@ -642,7 +645,7 @@ def test_manual_control_exposes_v113_scut_blueprint_sharing():
     navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()
 
-    assert "INFRASTRUCTURE & NETWORKS" in manual
+    assert "INFRASTRUCTURE AND NETWORKS" in manual
     assert "SHARE IMPROVEMENT BLUEPRINT · API v113" in manual
     assert "improvementBlueprintShareRequested" in manual
     assert "root.blueprintSharing.networks" in manual
@@ -674,7 +677,7 @@ def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
     assert "deleteAlert(alertId, domain)" in app
     assert "def deleteAlert" in controller
     assert "operationNotice" in app
-    assert "AUTOMATION & TANKER CHECKS" in settings
+    assert "AUTOMATION AND TANKER CHECKS" in settings
     assert "FOCUSED PROBE DETAILS" in settings
     assert "MANNY TASK DETAILS" in settings
     assert "FLEET LIST CACHE USED" in settings
@@ -697,9 +700,9 @@ def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets
 
     assert 'TabButton { text: "GENERAL AUTOMATION" }' in settings
     assert 'TabButton { text: "MANNY FIELD OPERATIONS" }' in manual
-    assert 'TabButton { text: "CARGO & TRANSFERS" }' in manual
+    assert 'TabButton { text: "CARGO AND TRANSFERS" }' in manual
     assert 'TabButton { text: "GENERAL & AUTOMATION" }' not in settings
-    floors = settings.index('title: "RESOURCE & SAFETY FLOORS"')
+    floors = settings.index('title: "RESOURCE AND SAFETY FLOORS"')
     save = settings.index('text: "SAVE AUTOMATION TARGETS"')
     live = settings.index('title: "LIVE TARGET STATUS"')
     assert floors < save < live
@@ -723,7 +726,7 @@ def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     assert "+ NEW PAGE" in logbook
     assert "SAVE CHANGES" in logbook
     assert "DELETE LOGBOOK PAGE?" in logbook
-    assert "AUTO-LOG DAILY ROLE REPORTS & MAJOR DISCOVERIES" in logbook
+    assert "AUTO-LOG DAILY ROLE REPORTS AND MAJOR DISCOVERIES" in logbook
     assert "id: contentScroller" in logbook
     assert "ScrollBar.vertical.policy: ScrollBar.AsNeeded" in logbook
     assert "newDailyReportCount" in Path("src/ui/qml/components/CommunicationsWorkspace.qml").read_text()
@@ -739,7 +742,7 @@ def test_settings_exposes_operator_manual_and_change_log_links():
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
     app = Path("src/ui/qml/App.qml").read_text()
     controller = Path("src/ui/controller.py").read_text()
-    assert "HELP & DOCUMENTATION" in settings
+    assert "HELP AND DOCUMENTATION" in settings
     assert "OPEN OPERATOR MANUAL" in settings
     assert "OPEN CHANGE LOG" in settings
     assert "operatorManualRequested" in workspace

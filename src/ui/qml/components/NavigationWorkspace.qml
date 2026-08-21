@@ -17,6 +17,7 @@ PanelFrame {
     // card scrolling or content-driven layout calculations.
     readonly property int standardProductionCardHeight: 500
     property string productionSort: "name"
+    property var renderedRows: []
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)
@@ -177,6 +178,25 @@ PanelFrame {
         return String(row.taskType || "idle").toLowerCase() === "idle"
             ? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER - 1;
     }
+
+    function refreshRenderedRows() {
+        const preservePosition = root.section === "PRODUCTION";
+        const previousY = preservePosition ? sectionGrid.contentY : 0;
+        root.renderedRows = root.sectionRows();
+        if (preservePosition) {
+            Qt.callLater(function() {
+                const maximumY = Math.max(0, sectionGrid.contentHeight - sectionGrid.height);
+                sectionGrid.contentY = Math.max(0, Math.min(previousY, maximumY));
+            });
+        }
+    }
+
+    onDashboardDataChanged: refreshRenderedRows()
+    onAvailableProbesChanged: refreshRenderedRows()
+    onFocusedProbeIdChanged: refreshRenderedRows()
+    onSectionChanged: refreshRenderedRows()
+    onProductionSortChanged: refreshRenderedRows()
+    Component.onCompleted: refreshRenderedRows()
 
     contentItem: Item {
         anchors.fill: parent
@@ -356,7 +376,7 @@ PanelFrame {
                 height: parent.height - 42
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                model: root.sectionRows()
+                model: root.renderedRows
                 readonly property int columnCount: width >= 1050 ? 2 : 1
                 readonly property int cardSpacing: 18
                 cellWidth: width / columnCount

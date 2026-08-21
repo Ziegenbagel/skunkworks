@@ -108,7 +108,7 @@ Rectangle {
                             }
                             Label {
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                text: "AUTONOMOUS EXPLORATION & FLEET OPERATIONS"
+                                text: "AUTONOMOUS EXPLORATION AND FLEET OPERATIONS"
                                 color: Constants.cyanColor
                                 font.family: Constants.technicalFont
                                 font.pixelSize: 8

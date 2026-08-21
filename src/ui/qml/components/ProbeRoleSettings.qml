@@ -124,7 +124,7 @@ Item {
                     Label { Layout.fillWidth: true; text: "This tanker checks only the selected probe. Multiple reserve tankers can be chained by selecting the next tanker or final consumer for each link."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                     GridLayout {
                         columns: 2; columnSpacing: 18; rowSpacing: 12
-                        Label { text: "MONITOR & REFILL PROBE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                        Label { text: "MONITOR AND REFILL PROBE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                         ComboBox { id: reserveTarget; Layout.preferredWidth: 420; textRole: "name"; valueRole: "id"; model: root.availableProbes; currentIndex: root.targetIndex() }
                         Label { text: "PROTECTED SOURCE RESERVE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                         RowLayout { SpinBox { id: protectedReserve; from: 0; to: 800; editable: true; value: Number(root.focusedSettings.protectedDeuterium || root.focusedSettings.reserve || 0) } Label { text: "ECE" } }

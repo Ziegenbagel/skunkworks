@@ -161,7 +161,7 @@ Rectangle {
                             Item { Layout.fillWidth: true }
                             Label {
                                 Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                                text: "AUTONOMOUS EXPLORATION & FLEET OPERATIONS"
+                                text: "AUTONOMOUS EXPLORATION AND FLEET OPERATIONS"
                                 color: Constants.cyanColor
                                 font.family: Constants.technicalFont
                                 font.pixelSize: Math.round(11 * root.uiScale)
@@ -525,7 +525,7 @@ Rectangle {
                             Layout.minimumWidth: 0
                             Layout.fillHeight: true
                             title: "Production Queue"
-                            detailTitle: "Production & Active Work · Full Details"
+                            detailTitle: "Production and Active Work · Full Details"
                             emptyText: "No active crafting, mining, or production work"
                             previewFontSize: 13
                             summaryFontSize: 11

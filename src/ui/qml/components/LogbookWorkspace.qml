@@ -62,7 +62,7 @@ Item {
                 Layout.fillWidth: true
                 Label { text: root.selectedPageId >= 0 ? "EDIT LOGBOOK PAGE" : "NEW LOGBOOK PAGE"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
                 Item { Layout.fillWidth: true }
-                CheckBox { text: "AUTO-LOG DAILY ROLE REPORTS & MAJOR DISCOVERIES"; checked: Boolean(root.logbookData.autoLoggingEnabled); onToggled: root.autoLoggingChanged(checked) }
+                CheckBox { text: "AUTO-LOG DAILY ROLE REPORTS AND MAJOR DISCOVERIES"; checked: Boolean(root.logbookData.autoLoggingEnabled); onToggled: root.autoLoggingChanged(checked) }
             }
             Label { Layout.fillWidth: true; text: "Auto-logging is opt-in. At the first refresh after 17:00 local time, Skunkworks creates one role-specific daily game-logbook report per probe, plus pages for major discoveries."; color: Constants.mutedTextColor; font.pixelSize: 13; wrapMode: Text.Wrap }
             TextField { id: titleEditor; Layout.fillWidth: true; placeholderText: "Page title"; maximumLength: 120; font.pixelSize: 16 }

@@ -268,6 +268,7 @@ class TaskCommandTranslator:
             "remainingHops": len(route),
             "requireScutCoverage": task.require_scut_coverage,
             "routeRiskAcknowledged": task.risk_acknowledged,
+            "workflowAuthorized": bool(task.workflow_authorized),
             "hazards": [
                 {
                     "code": hazard.code,

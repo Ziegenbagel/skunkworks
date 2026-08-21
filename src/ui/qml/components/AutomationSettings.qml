@@ -73,7 +73,7 @@ Item {
         const diagnostics = refreshDiagnostics || {};
         const stages = diagnostics.stages || {};
         const labels = {
-            "initialize": "API & RECIPE CHECKS",
+            "initialize": "API AND RECIPE CHECKS",
             "player": "ACCOUNT DETAILS",
             "fleet": "FLEET LIST DOWNLOAD",
             "focusedProbe": "FOCUSED PROBE DETAILS",
@@ -81,9 +81,9 @@ Item {
             "historySync": "HISTORY SYNCHRONIZATION",
             "recordWorld": "LOCAL SNAPSHOT STORAGE",
             "galaxyMap": "GALAXY MAP CACHE",
-            "hazards": "SAFETY & SCUT DATA",
+            "hazards": "SAFETY AND SCUT DATA",
             "dashboard": "BUILDING SCREEN DATA",
-            "automationPlanning": "AUTOMATION & TANKER CHECKS"
+            "automationPlanning": "AUTOMATION AND TANKER CHECKS"
         };
         const rows = [];
         for (const name in stages) {
@@ -236,7 +236,7 @@ Item {
         ColumnLayout {
             width: generalAutomationScroll.availableWidth; spacing: 14
             GroupBox {
-                title: "ACCOUNT & API CREDENTIAL"; Layout.fillWidth: true
+                title: "ACCOUNT AND API CREDENTIAL"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 8
                     Label { Layout.fillWidth: true; text: "The key is stored in the operating-system credential vault and is never written into Skunkworks settings or logs."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
@@ -306,7 +306,7 @@ Item {
                             SpinBox { id: commandsPerCycle; from: 1; to: 10; editable: true; value: Number(root.runtimeData.maxCommandsPerCycle || 1); ToolTip.visible: hovered; ToolTip.text: "Safety and rate limit: the most separate Manny, crafting, or travel orders Skunkworks may send in one automatic cycle." }
                         }
                         Label { text: "COMMAND ALLOWLIST"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                        CheckBox { id: craftCommands; text: "CRAFTING & PROBE ASSEMBLY"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") || root.commandAllowed("manny_assemble_probe") }
+                        CheckBox { id: craftCommands; text: "CRAFTING AND PROBE ASSEMBLY"; checked: root.commandAllowed("manny_craft") || root.commandAllowed("atomic_printer_craft") || root.commandAllowed("manny_assemble_probe") }
                         CheckBox { id: miningCommands; text: "MINING"; checked: root.commandAllowed("manny_mine") }
                         CheckBox { id: transferCommands; text: "DEUTERIUM TRANSFERS"; checked: root.commandAllowed("manny_transfer_deuterium"); ToolTip.visible: hovered; ToolTip.text: "Allows direct transfer orders. Configured reserve-tanker and transport workflows are authorized by their saved role settings." }
                         CheckBox { id: travelCommands; text: "TRAVEL"; checked: root.commandAllowed("move_probe") }
@@ -448,7 +448,7 @@ Item {
             }
 
             GroupBox {
-                title: "RESOURCE & SAFETY FLOORS"; Layout.fillWidth: true
+                title: "RESOURCE AND SAFETY FLOORS"; Layout.fillWidth: true
                 GridLayout {
                     anchors.fill: parent; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
                     Label { text: "AUTOMATION FLOOR"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
@@ -574,7 +574,7 @@ Item {
             }
 
             GroupBox {
-                title: "HELP & DOCUMENTATION"; Layout.fillWidth: true
+                title: "HELP AND DOCUMENTATION"; Layout.fillWidth: true
                 RowLayout {
                     anchors.fill: parent; spacing: 12
                     Label {

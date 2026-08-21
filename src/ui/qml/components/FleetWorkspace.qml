@@ -155,7 +155,7 @@ Item {
         ColumnLayout {
         width: Math.max(1, fleetPageScroll.availableWidth)
         spacing: 14
-        Label { visible: !root.manualOnly; text: "FLEET & PROBE IDENTITY"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+        Label { visible: !root.manualOnly; text: "FLEET AND PROBE IDENTITY"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
         RowLayout {
             visible: !root.manualOnly
             Layout.fillWidth: true

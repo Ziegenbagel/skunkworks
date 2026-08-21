@@ -66,10 +66,10 @@ Item {
         TabBar {
             id: tabs
             Layout.fillWidth: true
-            TabButton { text: "PRODUCTION & ASSEMBLY" }
+            TabButton { text: "PRODUCTION AND ASSEMBLY" }
             TabButton { text: "MANNY FIELD OPERATIONS" }
-            TabButton { text: "CARGO & TRANSFERS" }
-            TabButton { text: "INFRASTRUCTURE & NETWORKS" }
+            TabButton { text: "CARGO AND TRANSFERS" }
+            TabButton { text: "INFRASTRUCTURE AND NETWORKS" }
         }
         StackLayout {
             enabled: root.manualCommandsEnabled

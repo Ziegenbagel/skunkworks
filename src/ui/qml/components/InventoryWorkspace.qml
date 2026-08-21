@@ -61,7 +61,7 @@ Item {
         anchors.fill: parent; clip: true
         ColumnLayout {
             width: root.width - 20; spacing: 18
-            Label { text: "INVENTORY & CONTAINER CONTROL"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+            Label { text: "INVENTORY AND CONTAINER CONTROL"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
             Label { Layout.fillWidth: true; text: "Manage the focused probe and its attached storage. Every transfer is performed by an available onboard Manny and requires confirmation."; color: Constants.mutedTextColor; font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap }
 
             GroupBox {
@@ -89,7 +89,7 @@ Item {
             }
 
             GroupBox {
-                title: "MANUAL JETTISON & ITEM HANDOFF"; Layout.fillWidth: true
+                title: "MANUAL JETTISON AND ITEM HANDOFF"; Layout.fillWidth: true
                 GridLayout {
                     anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
                     Label { text: "CONTENT TYPE"; color: Constants.cyanColor; font.bold: true }
@@ -112,7 +112,7 @@ Item {
             }
 
             GroupBox {
-                title: "SCUT RELAY DEPLOYMENT & SECTOR OPERATIONS"; Layout.fillWidth: true
+                title: "SCUT RELAY DEPLOYMENT AND SECTOR OPERATIONS"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 12
                     Label {
@@ -168,7 +168,7 @@ Item {
             }
 
             GroupBox {
-                title: "CONTAINER DEPLOYMENT, RECOVERY & PROBE HANDOFF"; Layout.fillWidth: true
+                title: "CONTAINER DEPLOYMENT, RECOVERY AND PROBE HANDOFF"; Layout.fillWidth: true
                 GridLayout {
                     anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
                     Label { text: "AVAILABLE MANNY"; color: Constants.cyanColor; font.bold: true }
@@ -191,7 +191,7 @@ Item {
                 }
             }
 
-            Label { text: "CONTAINERS & ROUTING RULES"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
+            Label { text: "CONTAINERS AND ROUTING RULES"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
             GridLayout {
                 id: containerGrid; Layout.fillWidth: true; columns: root.width >= 1200 ? 2 : 1; columnSpacing: 18; rowSpacing: 18
                 Repeater {
@@ -221,7 +221,7 @@ Item {
                 }
             }
 
-            Label { text: "STORED ITEMS & EQUIPMENT · " + (root.inventoryData.items || []).length; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
+            Label { text: "STORED ITEMS AND EQUIPMENT · " + (root.inventoryData.items || []).length; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
             GridLayout {
                 id: itemGrid; Layout.fillWidth: true; columns: root.width >= 1400 ? 3 : root.width >= 850 ? 2 : 1; columnSpacing: 12; rowSpacing: 12
                 Repeater {

@@ -116,6 +116,11 @@ def plan(operations, desired_state) -> list[Task]:
                 not desired_state.travel.scut_exit_acknowledged
             ),
             risk_acknowledged=desired_state.travel.risk_acknowledged,
+            # Saving an automatic destination or transport cycle is the
+            # operator's authorization for its ordinary travel legs. Keep
+            # hazard acknowledgement separate so genuinely risky routes still
+            # pause for explicit consent.
+            workflow_authorized=True,
             priority=NORMAL,
         )
     ]
