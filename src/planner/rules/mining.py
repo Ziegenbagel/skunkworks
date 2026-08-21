@@ -61,6 +61,11 @@ def plan(operations, desired_state, *, dependency_lookahead=False) -> list[Task]
         for resource_type, amount in production[
             "missing_resources"
         ].items():
+            # Deuterium mining is planned in tank units because the
+            # translator converts those units back to the API's normalized
+            # targetAmount. Manufacturing shortages are recipe ECE.
+            if resource_type == "deuterium":
+                amount = float(amount) * 100.0
             fabrication_dependencies[resource_type].append(
                 (goal.priority, float(amount),
                  (

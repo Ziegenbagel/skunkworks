@@ -486,10 +486,13 @@ class ManufacturingService:
             stock["type"]: stock["amount"]
             for stock in inventory.get("resourceStocks", [])
         }
-        resources["deuterium"] = probe["fuel"].get(
-            "deuterium",
-            0,
-        )
+        # The probe API reports tank deuterium in hundredths of an ECE
+        # (20 / 100 means 0.20 ECE). Recipe ingredients are expressed in
+        # ECE, so manufacturing must normalize the tank value before
+        # deciding whether a craft is funded.
+        resources["deuterium"] = float(
+            probe["fuel"].get("deuterium", 0) or 0
+        ) / 100.0
         item_pool = {}
 
         for item in inventory.get("items", []):

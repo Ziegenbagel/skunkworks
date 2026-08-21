@@ -337,6 +337,25 @@ class PlannerMissionTests(unittest.TestCase):
             operations.mining.active_commitments()["deuterium"], 22,
         )
 
+    def test_manufacturing_deuterium_shortage_uses_tank_units_for_mining(self):
+        operations = build_operations()
+        operations.world.probe["fuel"].update({
+            "deuterium": 20, "maxDeuterium": 100,
+        })
+        tasks = Planner(
+            operations,
+            DesiredState(production=(ProductionGoal("manny", 2),)),
+        ).tasks()
+        craft = next(task for task in tasks if task.category == "manufacturing")
+        task = next(task for task in tasks
+                    if task.category == "mining" and task.resource_type == "deuterium")
+
+        self.assertIn("2.0000 ECE required, 0.2000 onboard", craft.reason)
+        self.assertIn("1.8000 still uncovered", craft.reason)
+        self.assertIn("Need 180.000 additional deuterium", task.reason)
+        self.assertGreater(task.quantity, 0)
+        self.assertIn("next production unit: manny", task.reason)
+
     def test_mining_order_uses_probe_specific_maximum(self):
         operations = build_operations(metals=0)
         tasks = Planner(

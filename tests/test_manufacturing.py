@@ -68,7 +68,7 @@ class ManufacturingServiceTests(unittest.TestCase):
                 "status": "idle",
                 "telemetry_available": True,
                 "fuel": {
-                    "deuterium": 1.0,
+                    "deuterium": 100,
                     "maxDeuterium": 100,
                 },
                 "inventory": {
@@ -180,6 +180,15 @@ class ManufacturingServiceTests(unittest.TestCase):
             "deuterium",
             plan["missing_resources"],
         )
+
+    def test_probe_fuel_is_converted_from_tank_units_to_recipe_ece(self):
+        self.world.probe["fuel"]["deuterium"] = 20
+
+        plan = self.service.production_plan("electric_motor")
+
+        self.assertEqual(plan["required_resources"]["deuterium"], 0.5)
+        self.assertEqual(plan["missing_resources"]["deuterium"], 0.3)
+        self.assertFalse(plan["achievable"])
 
     def test_becomes_achievable_when_resources_exist(self):
         self.world.probe["inventory"][

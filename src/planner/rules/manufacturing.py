@@ -52,6 +52,11 @@ def plan(operations, desired_state) -> list[Task]:
                 production["missing_resources"].get(resource, 0) or 0
             )
             committed = float(active_commitments.get(resource, 0) or 0)
+            # Mining commitments use the probe tank's hundredths-of-an-ECE
+            # convention, while recipe requirements and this explanation use
+            # ECE.
+            if resource == "deuterium":
+                committed /= 100.0
             inbound = min(missing, committed)
             uncovered = max(0.0, float(missing) - committed)
             resource_parts.append(
