@@ -3123,15 +3123,23 @@ class MissionControlController(QObject):
         self._ensure_automation_heartbeat()
         if self._emergency_stop or not self._api_compatible:
             return
-        if (
-            self._refreshing
-            or self._fleet_automation_worker is not None
-            or self._automation_cycle_worker is not None
-        ):
+        if self._refreshing or self._automation_cycle_worker is not None:
             # Never discard a one-minute tick merely because a slow refresh or
             # the preceding cycle overlaps it. Coalesce overlaps into one
             # immediate follow-up cycle when the controller becomes idle.
             self._automation_tick_pending = True
+            return
+        if self._fleet_automation_worker is not None:
+            # Fleet planning uses its own service instance and can take several
+            # minutes when many probes are eligible.  Do not let that hide
+            # focused telemetry: returning Mannys need to reconcile promptly
+            # even while the account-wide planner is still working.  Retain
+            # the pending marker so completion can account for this heartbeat.
+            self._automation_tick_pending = True
+            self._start_refresh(
+                self._focused_probe_id if self._focused_probe_id >= 0 else None,
+                prefer_cached_fleet=True,
+            )
             return
         self._automation_tick_pending = False
         # Make the one-minute boundary visible and give the planner a fresh
@@ -3180,6 +3188,11 @@ class MissionControlController(QObject):
     @Slot(object)
     def _accept_fleet_automation(self, results):
         self._fleet_automation_worker = None
+        # A fleet cycle that spans a heartbeat has already performed the work
+        # represented by that tick.  Its final focused refresh below supplies
+        # the authoritative UI snapshot, so do not immediately launch a
+        # duplicate cycle.
+        self._automation_tick_pending = False
         runtime = dict(self._dashboard.get("automationRuntime", {}))
         runtime["fleetResults"] = self._qt_safe(results)
         runtime["lastFleetCycleProbeCount"] = len(results)
@@ -3206,6 +3219,7 @@ class MissionControlController(QObject):
     @Slot(str)
     def _reject_fleet_automation(self, message):
         self._fleet_automation_worker = None
+        self._automation_tick_pending = False
         self._set_error("Fleet automation cycle failed: " + message)
         self._start_refresh(
             self._focused_probe_id if self._focused_probe_id >= 0 else None,
@@ -4412,6 +4426,12 @@ class MissionControlController(QObject):
             )
             return
         if self._automation_tick_pending:
+            if self._fleet_automation_worker is not None:
+                # The heartbeat has already refreshed focused telemetry while
+                # the isolated fleet worker continues.  Its completion will
+                # clear the pending marker and refresh once more.
+                self._ensure_automation_heartbeat()
+                return
             QTimer.singleShot(0, self._automation_tick)
             return
         # The repeating heartbeat owns its deadline. Finishing an unrelated

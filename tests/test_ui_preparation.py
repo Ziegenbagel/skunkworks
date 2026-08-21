@@ -369,6 +369,44 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertTrue(controller._automation_tick_pending)
 
+    def test_fleet_cycle_does_not_block_focused_telemetry_heartbeat(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        controller._fleet_automation_worker = object()
+        refreshes = []
+        controller._start_refresh = lambda probe_id, **kwargs: refreshes.append(
+            (probe_id, kwargs)
+        )
+
+        controller._automation_tick()
+
+        self.assertEqual(refreshes, [(7, {"prefer_cached_fleet": True})])
+        self.assertTrue(controller._automation_tick_pending)
+
+    def test_focused_refresh_during_fleet_cycle_does_not_spin(self):
+        class Credentials:
+            @staticmethod
+            def get():
+                return "configured"
+
+            @staticmethod
+            def source():
+                return "test"
+
+        controller = MissionControlController(credential_store=Credentials())
+        controller._fleet_automation_worker = object()
+        controller._automation_tick_pending = True
+        callbacks = []
+
+        with patch(
+            "src.ui.controller.QTimer.singleShot",
+            side_effect=lambda _delay, callback: callbacks.append(callback),
+        ):
+            controller._finish_refresh()
+
+        self.assertEqual(callbacks, [])
+        self.assertTrue(controller._automation_tick_pending)
+
     def test_periodic_deadline_refreshes_before_dispatching_cycle(self):
         controller = MissionControlController()
         controller._focused_probe_id = 7
