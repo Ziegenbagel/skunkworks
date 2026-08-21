@@ -21,6 +21,52 @@ from tests.test_planner_missions import build_operations
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_refresh_reconciles_sector_before_fetching_authoritative_manny_state(self):
+        events = []
+
+        class StopAfterMannies(Exception):
+            pass
+
+        class Client:
+            @staticmethod
+            def get_player():
+                return {"player": {"id": 1}}
+
+            @staticmethod
+            def get_probes():
+                return {"probes": [{"id": 7, "name": "Probe 7"}]}
+
+            @staticmethod
+            def get_probe(_probe_id):
+                return {"probe": {"id": 7, "status": "idle"}}
+
+            @staticmethod
+            def get_mannies(_probe_id):
+                events.append("mannies")
+                raise StopAfterMannies
+
+        with tempfile.TemporaryDirectory() as temporary:
+            service = MissionControlDataService(
+                client=Client(),
+                data_engine=DataEngine(Path(temporary) / "refresh-order.sqlite3"),
+            )
+            selected = {
+                "id": 7,
+                "name": "Probe 7",
+                "isReachable": True,
+                "isDefault": True,
+            }
+            service.probe_selector.select = lambda *_args, **_kwargs: selected
+            service._initialize = lambda: None
+            service._build_world = lambda *_args: (
+                events.append("sector") or build_operations().world
+            )
+
+            with self.assertRaises(StopAfterMannies):
+                service.load(7, include_archival=False)
+
+        self.assertEqual(events, ["sector", "mannies"])
+
     def test_slow_startup_releases_splash_without_cancelling_refresh(self):
         controller = MissionControlController()
         controller._refreshing = True

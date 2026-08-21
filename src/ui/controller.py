@@ -152,13 +152,19 @@ class MissionControlDataService:
         # telemetry fields.
         probe["id"] = selected["id"]
         probe["name"] = selected.get("name") or probe.get("name") or f"Probe {selected['id']}"
-        mannies = None
+        # Refresh the sector before fetching Mannys. The game reconciles some
+        # completed returns while producing current sector/inventory state; a
+        # Manny list fetched first can therefore retain an overdue task until
+        # the following refresh even though the Manny is already home. Fetching
+        # task state second lets this same snapshot expose the newly-idle Manny
+        # to automation immediately.
+        report(42, "Loading sector and inventory")
+        world = self._build_world(player, probe_data, probe, selected, None)
         if selected.get("isReachable", True):
-            report(42, "Loading Manny tasks")
-            mannies = timed("mannies", lambda: self.client.get_mannies(selected["id"]))
-
-        report(52, "Loading sector and inventory")
-        world = self._build_world(player, probe_data, probe, selected, mannies)
+            report(52, "Loading Manny tasks")
+            world.mannies = timed(
+                "mannies", lambda: self.client.get_mannies(selected["id"]),
+            )
         selected_id = int(selected["id"])
         now = time.monotonic()
         # Secondary-probe interaction and fleet automation need current probe
