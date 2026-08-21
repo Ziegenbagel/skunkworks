@@ -352,7 +352,8 @@ class PlannerMissionTests(unittest.TestCase):
 
         self.assertIn("2.0000 ECE required, 0.2000 onboard", craft.reason)
         self.assertIn("1.8000 still uncovered", craft.reason)
-        self.assertIn("Need 180.000 additional deuterium", task.reason)
+        self.assertIn("Need 1.800 ECE additional deuterium", task.reason)
+        self.assertIn("0.000 ECE is already committed", task.reason)
         self.assertGreater(task.quantity, 0)
         self.assertIn("next production unit: manny", task.reason)
 

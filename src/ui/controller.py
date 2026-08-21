@@ -1312,10 +1312,16 @@ class MissionControlDataService:
         failed_attempts = set()
         failed_fabrication = set()
         mining_allocations = {}
+        claimed_manny_ids = set()
         results = []
         for _ in range(policy.max_commands_per_cycle):
             # The previous execution's preflight already refreshed the world.
             # Rebuild the queue from that authoritative post-order state.
+            # The game can acknowledge an order before its next snapshot marks
+            # that Manny busy. Retain successful dispatches locally for the
+            # duration of this cycle so a stale snapshot cannot repeatedly
+            # select the same first idle Manny and strand the rest.
+            self._apply_cycle_manny_claims(claimed_manny_ids)
             self.automation_view(
                 probe_id=self._selected_probe_id,
                 excluded_fabrication=failed_fabrication,
@@ -1370,6 +1376,18 @@ class MissionControlDataService:
                 # acquisition; dependency mining remains available only after
                 # no currently craftable order is left.
                 continue
+            if (
+                prepared.command.target_id
+                and prepared.command.type in {
+                    CommandType.MANNY_CRAFT,
+                    CommandType.MANNY_MINE,
+                    CommandType.MANNY_TRANSFER_DEUTERIUM,
+                    CommandType.MANNY_REFILL_DEUTERIUM_TANK,
+                    CommandType.MANNY_ASSEMBLE_PROBE,
+                    CommandType.MANNY_REPAIR,
+                }
+            ):
+                claimed_manny_ids.add(str(prepared.command.target_id))
             if prepared.command.type == CommandType.MANNY_MINE:
                 resource = tuple(prepared.command.payload.get("resources") or ("resource",))[0]
                 mining_allocations[resource]["committed"] += float(
@@ -1398,6 +1416,22 @@ class MissionControlDataService:
                 for prepared, result in results
             ],
         }
+
+    def _apply_cycle_manny_claims(self, manny_ids):
+        """Overlay accepted orders that may not yet appear in live telemetry."""
+        operations = getattr(self, "_operations", None)
+        if not manny_ids or operations is None:
+            return
+        world = getattr(operations, "world", None)
+        payload = getattr(world, "mannies", None) or {}
+        mannies = payload.get("mannies", ()) if isinstance(payload, dict) else ()
+        claimed = {str(manny_id) for manny_id in manny_ids}
+        for manny in mannies:
+            if str(manny.get("id")) not in claimed:
+                continue
+            if not manny.get("currentTask"):
+                manny["currentTask"] = "skunkworks_cycle_dispatch_pending"
+            manny["canReceiveOrders"] = False
 
     @staticmethod
     def _bound_cycle_mining_allocation(prepared, allocations):

@@ -204,6 +204,62 @@ def test_successful_recipe_can_use_second_idle_manny_in_same_cycle():
     assert executed == ["manny-a", "manny-b"]
 
 
+def test_successful_orders_claim_mannies_while_live_snapshot_lags():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+
+    def stale_operations():
+        return SimpleNamespace(world=SimpleNamespace(mannies={"mannies": [
+            {"id": "manny-a", "currentTask": None, "canReceiveOrders": True},
+            {"id": "manny-b", "currentTask": None, "canReceiveOrders": True},
+        ]}))
+
+    service._operations = stale_operations()
+
+    def automation_view(probe_id=None, **kwargs):
+        idle = next((
+            manny for manny in service._operations.world.mannies["mannies"]
+            if manny.get("canReceiveOrders") and not manny.get("currentTask")
+        ), None)
+        service._prepared_commands = (() if idle is None else (PreparedCommand(Command(
+            CommandType.MANNY_CRAFT, 7,
+            {"recipe": "steel_plate"},
+            "craft steel plate", 1, target_id=idle["id"],
+        ), "ready"),))
+        return {}
+
+    service.automation_view = automation_view
+    service._prepare_next_cycle_mining = lambda policy, failed: None
+    service._refresh_operations = lambda probe_id: setattr(
+        service, "_operations", stale_operations()
+    )
+    executed = []
+
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, prepared, **kwargs):
+            executed.append(prepared.command.target_id)
+            return ExecutionResult(
+                "succeeded", prepared.command, response={"accepted": True}
+            )
+
+    policy = ExecutionPolicy(
+        mode=ExecutionMode.AUTOMATIC,
+        live_execution_enabled=True,
+        allowed_command_types=frozenset({CommandType.MANNY_CRAFT}),
+        max_commands_per_cycle=10,
+    )
+    with patch("src.ui.controller.AutomationRuntime", Runtime):
+        result = service._run_replanning_automatic_cycle(policy)
+
+    assert result["status"] == "succeeded"
+    assert executed == ["manny-a", "manny-b"]
+
+
 def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7

@@ -167,6 +167,8 @@ def plan(operations, desired_state, *, dependency_lookahead=False) -> list[Task]
             else "the highest-priority unmet goal"
         )
         background_work = resource_type not in manufacturing_resources
+        display_scale = 100.0 if resource_type == "deuterium" else 1.0
+        display_unit = " ECE" if resource_type == "deuterium" else ""
         tasks.append(
             Task(
                 action=(
@@ -175,9 +177,11 @@ def plan(operations, desired_state, *, dependency_lookahead=False) -> list[Task]
                     else "Locate Mining Opportunity"
                 ),
                 reason=(
-                    f"Need {amount:.3f} additional {resource_type.replace('_', ' ')}; "
-                    f"{committed:.3f} is already committed to active mining and "
-                    f"{uncovered_amount:.3f} remains uncovered. "
+                    f"Need {amount / display_scale:.3f}{display_unit} additional "
+                    f"{resource_type.replace('_', ' ')}; "
+                    f"{committed / display_scale:.3f}{display_unit} is already "
+                    "committed to active mining and "
+                    f"{uncovered_amount / display_scale:.3f}{display_unit} remains uncovered. "
                     f"This mining order unlocks {purpose}."
                     + (
                         " Reserve-floor mining runs as background work so "
