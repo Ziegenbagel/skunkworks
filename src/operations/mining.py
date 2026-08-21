@@ -20,13 +20,25 @@ class MiningService:
             if amount <= 0:
                 continue
 
+            # Mining endpoints express deuterium asteroid contents in the
+            # same fractional units used by mining-order payloads (4.42 means
+            # 442 tank ECE). Planner shortages, probe fuel, and active mining
+            # commitments use tank ECE, so normalize availability before it
+            # is used to cap a planned order. Keep the world snapshot itself
+            # untouched so API-facing displays can retain the reported value.
+            available_amount = (
+                float(amount) * 100.0
+                if resource_type == "deuterium"
+                else float(amount)
+            )
+
             candidate = dict(target)
             candidate["resource_type"] = resource_type
-            candidate["available_amount"] = amount
+            candidate["available_amount"] = available_amount
             candidate["score"] = self._score(
                 target,
                 resource_type,
-                amount,
+                available_amount,
             )
             candidates.append(candidate)
 

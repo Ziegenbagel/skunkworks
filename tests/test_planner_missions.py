@@ -381,7 +381,7 @@ class PlannerMissionTests(unittest.TestCase):
         operations.world.probe["fuel"].update({
             "deuterium": 20, "maxDeuterium": 100,
         })
-        operations.world.sector["resources"][0]["resources"]["deuterium"] = 100
+        operations.world.sector["resources"][0]["resources"]["deuterium"] = 4.42
         task = next(task for task in Planner(
             operations,
             DesiredState(
@@ -396,6 +396,10 @@ class PlannerMissionTests(unittest.TestCase):
 
         self.assertEqual(command.payload["targetAmount"], 0.25)
         self.assertEqual(command.metadata["orderAmount"], 25.0)
+        self.assertEqual(
+            operations.mining.best_target("deuterium")["available_amount"],
+            442.0,
+        )
 
     def test_mining_deficit_uses_full_per_order_cap_before_final_remainder(self):
         operations = build_operations(metals=0)
