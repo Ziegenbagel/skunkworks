@@ -117,6 +117,7 @@ ApplicationWindow {
         id: manualCraftOverrideDialog
         z: 880
         anchors.centerIn: parent
+        width: Math.min(window.width - 80, 680)
         modal: true
         closePolicy: Popup.NoAutoClose
         visible: window.backend !== null
@@ -124,7 +125,7 @@ ApplicationWindow {
         title: "AUTOMATION RESERVATION CONFLICT"
 
         contentItem: ColumnLayout {
-            width: 620
+            implicitWidth: 620
             spacing: 14
             Label {
                 Layout.fillWidth: true
