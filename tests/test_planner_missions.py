@@ -376,7 +376,28 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertEqual(command.payload["targetAmount"], 0.25)
         self.assertEqual(command.metadata["remainingAmount"], 3.75)
 
-    def test_mining_deficit_is_evenly_split_across_only_needed_mannies(self):
+    def test_deuterium_order_converts_probe_maximum_to_25_ece_cap(self):
+        operations = build_operations()
+        operations.world.probe["fuel"].update({
+            "deuterium": 20, "maxDeuterium": 100,
+        })
+        operations.world.sector["resources"][0]["resources"]["deuterium"] = 100
+        task = next(task for task in Planner(
+            operations,
+            DesiredState(
+                production=(ProductionGoal("manny", 100),),
+                maximum_mining_order_amount=0.25,
+            ),
+            dependency_mining_lookahead=True,
+        ).tasks() if task.category == "mining" and task.resource_type == "deuterium")
+
+        from src.execution.translator import TaskCommandTranslator
+        command = TaskCommandTranslator(operations, 1).translate(task)
+
+        self.assertEqual(command.payload["targetAmount"], 0.25)
+        self.assertEqual(command.metadata["orderAmount"], 25.0)
+
+    def test_mining_deficit_uses_full_per_order_cap_before_final_remainder(self):
         operations = build_operations(metals=0)
         operations.world.mannies["mannies"].extend([
             {
@@ -396,7 +417,7 @@ class PlannerMissionTests(unittest.TestCase):
         from src.execution.translator import TaskCommandTranslator
         command = TaskCommandTranslator(operations, 1).translate(task)
 
-        self.assertEqual(command.payload["targetAmount"], 0.22)
+        self.assertEqual(command.payload["targetAmount"], 0.25)
         self.assertEqual(command.metadata["plannedMiningWorkers"], 4)
 
     def test_small_mining_deficit_uses_one_manny(self):

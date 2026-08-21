@@ -428,7 +428,7 @@ def test_authoritative_queue_enables_dependency_lookahead_after_idle_grace():
     assert planner.call_args.kwargs["dependency_mining_lookahead"] is True
 
 
-def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():
+def test_cycle_mining_allocation_uses_full_orders_then_caps_final_remainder():
     allocations = {}
 
     def proposal(amount):
@@ -443,13 +443,13 @@ def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():
         ), "ready")
 
     first = MissionControlDataService._bound_cycle_mining_allocation(
-        proposal(0.1), allocations,
+        proposal(0.25), allocations,
     )
     allocations["deuterium"]["committed"] += first.command.payload["targetAmount"]
     accepted = [first.command.payload["targetAmount"]]
-    # Simulate stale replans that divide the unchanged 0.4 deficit among fewer
-    # idle Mannys and therefore propose progressively larger individual jobs.
-    for amount in (0.133, 0.2, 0.4, 0.4):
+    # Stale replans continue proposing the configured per-order maximum. The
+    # cycle ledger trims only the final order to the actual remaining need.
+    for amount in (0.25, 0.25):
         bounded = MissionControlDataService._bound_cycle_mining_allocation(
             proposal(amount), allocations,
         )
@@ -459,7 +459,7 @@ def test_cycle_mining_allocation_freezes_fair_share_and_caps_total_need():
         accepted.append(delivered)
         allocations["deuterium"]["committed"] += delivered
 
-    assert accepted == [0.1, 0.1, 0.1, 0.1]
+    assert accepted == [0.25, 0.15]
     assert sum(accepted) == 0.4
 
 

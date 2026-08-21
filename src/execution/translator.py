@@ -157,15 +157,15 @@ class TaskCommandTranslator:
             55.0 if resource_type == "deuterium" else 0.55,
         )
         # Use only as many Mannys as the deficit requires at the configured
-        # per-order maximum, then divide the work evenly among them. This
-        # avoids several long, identical trips whose combined deliveries
-        # exceed the actual reserve or fuel shortfall.
+        # per-order maximum. The setting is a cap for each submitted order,
+        # not a total to divide evenly between workers: full-size orders are
+        # emitted first and only the final remainder may be smaller.
         planned_workers = max(1, min(
             idle_count,
             math.ceil(uncovered / per_order_maximum),
         ))
         target_amount = round(min(
-            uncovered / planned_workers,
+            uncovered,
             per_order_maximum,
         ), 3)
         api_target_amount = round(target_amount / unit_scale, 4)
