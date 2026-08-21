@@ -30,7 +30,7 @@ class PreflightValidator:
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
             CommandType.MOVE_PROBE,
-        } and probe["status"] != "idle":
+        } and probe["status"] not in {"idle", "arrived"}:
             blockers.append("probe_unavailable")
 
         if command.type == CommandType.MOVE_PROBE:

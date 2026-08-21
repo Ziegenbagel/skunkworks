@@ -36,7 +36,10 @@ class ProbeService:
         Return True if the current probe is idle.
         """
 
-        return self.status() == "idle"
+        # The game reports a stationary probe as either ``idle`` or
+        # ``arrived`` depending on which endpoint produced the snapshot.
+        # Both states can safely accept onboard Manny and movement orders.
+        return self.status() in {"idle", "arrived"}
 
     def status(self):
         """

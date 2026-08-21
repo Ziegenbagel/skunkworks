@@ -108,6 +108,17 @@ class AutomationRuntimeTests(unittest.TestCase):
         self.assertIn("probe_unavailable", result.blockers)
         self.assertEqual(self.mannies.calls, [])
 
+    def test_arrived_probe_is_stationary_and_can_dispatch_onboard_work(self):
+        self.runtime.refresh = lambda probe_id: build_operations(status="arrived")
+
+        result = self.runtime.execute(self.prepared, approved=True)
+
+        self.assertEqual(result.status, "succeeded")
+        self.assertEqual(
+            self.mannies.calls,
+            [(1, 101, "craft", {"recipe": "storage_container"})],
+        )
+
     def test_cancelled_result_message_explains_fresh_preflight_blocker(self):
         from src.ui.controller import MissionControlDataService
 

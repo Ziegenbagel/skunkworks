@@ -416,7 +416,11 @@ class TransportCycleTests(unittest.TestCase):
             service = MissionControlDataService(client=Client(), data_engine=engine)
             service._selected_probe_id = 7
             service._operations = build_operations(fuel=100)
-            service._operations.world.probe.update({"id": 7, "model": "deuterium_tanker"})
+            service._operations.world.probe.update({
+                "id": 7,
+                "model": "deuterium_tanker",
+                "status": "arrived",
+            })
             operation = service.save_transport_cycle({
                 "probeId": 7,
                 "resourceType": "deuterium",
@@ -440,6 +444,7 @@ class TransportCycleTests(unittest.TestCase):
             # 74 ECE, less than the target's 96 ECE free capacity.
             self.assertEqual(transfer["payload"]["amount"], 74)
             self.assertEqual(transfer["payload"]["targetProbeId"], 9)
+            self.assertEqual(transfer["disposition"], "ready")
 
     def test_unloading_waits_while_one_transfer_is_already_active(self):
         from src.data import DataEngine
