@@ -2728,6 +2728,7 @@ class MissionControlController(QObject):
         self._compatibility_timer.timeout.connect(self._start_compatibility_check)
         self._compatibility_worker = None
         self._api_compatible = True
+        self._last_notified_api_version = None
         self._retry_timer = QTimer(self)
         self._retry_timer.setSingleShot(True)
         self._retry_timer.timeout.connect(self._retry_rate_limited_refresh)
@@ -3256,6 +3257,7 @@ class MissionControlController(QObject):
                 f"API v{version} is newer than reviewed v{MAXIMUM_API_VERSION}; "
                 "continuing under backward compatibility."
             )
+            self._notify_unreviewed_api_version(version)
         if self._dashboard:
             self._dashboard["compatibility"] = compatibility
             if not compatible:
@@ -3291,6 +3293,17 @@ class MissionControlController(QObject):
         # the application heartbeat. `_automation_tick` reads authoritative
         # per-probe policies and simply returns when none are eligible.
         self._ensure_automation_heartbeat()
+
+    def _notify_unreviewed_api_version(self, version):
+        """Surface forward-compatible API changes once per application run."""
+
+        version = int(version)
+        if version <= MAXIMUM_API_VERSION or version == self._last_notified_api_version:
+            return
+        self._last_notified_api_version = version
+        self._set_operation_notice(
+            f"NEW GAME API v{version} DETECTED · CONTINUING IN COMPATIBILITY MODE"
+        )
 
     def _set_credential_message(self, message):
         if message == self._credential_message:
@@ -4202,6 +4215,7 @@ class MissionControlController(QObject):
                 "continuing under backward compatibility."
             )
             self._dashboard["connectionLabel"] = "CONNECTED · API REVIEW PENDING"
+            self._notify_unreviewed_api_version(server_version)
         if not self._compatibility_timer.isActive():
             self._compatibility_timer.start()
         self._configure_automation_timer(payload.get("automationRuntime", {}))

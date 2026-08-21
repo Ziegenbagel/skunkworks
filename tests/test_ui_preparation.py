@@ -715,6 +715,18 @@ class UiPreparationTests(unittest.TestCase):
 
         start.assert_called_once_with()
 
+    def test_unreviewed_api_transition_shows_one_prominent_notice(self):
+        controller = MissionControlController()
+        notices = []
+        controller._set_operation_notice = notices.append
+
+        controller._notify_unreviewed_api_version(117)
+        controller._notify_unreviewed_api_version(117)
+
+        self.assertEqual(notices, [
+            "NEW GAME API v117 DETECTED · CONTINUING IN COMPATIBILITY MODE",
+        ])
+
     def test_production_includes_active_manny_crafting_and_mining(self):
         probe = {
             "inventory": {

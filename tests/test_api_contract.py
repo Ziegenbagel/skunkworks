@@ -53,12 +53,12 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_accepts_current_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 115})]
+            [FakeResponse({"apiVersion": 116})]
         )
 
         self.assertEqual(
             client.ensure_compatible_api(),
-            115,
+            116,
         )
 
     def test_rejects_older_api(self):
@@ -71,10 +71,10 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_forward_tolerates_unreviewed_newer_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 116}), FakeResponse({"id": 7})]
+            [FakeResponse({"apiVersion": 117}), FakeResponse({"id": 7})]
         )
 
-        self.assertEqual(client.ensure_compatible_api(), 116)
+        self.assertEqual(client.ensure_compatible_api(), 117)
         self.assertEqual(client.get_player(), {"id": 7})
         self.assertEqual(len(client.session.calls), 2)
 
