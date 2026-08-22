@@ -7,6 +7,74 @@ from src.planner.task import Task
 from src.ui.controller import MissionControlDataService
 
 
+def test_preflight_refresh_uses_focused_live_state_without_full_ui_reload():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service._preflight_operations_probe_id = None
+    service._preflight_operations_cached_at = 0.0
+    service.recipes = object()
+    service.data_engine = object()
+    service.capabilities = object()
+    old_world = SimpleNamespace(
+        player={"id": 1},
+        fleet={
+            "default_probe": 7,
+            "probes": [{
+                "id": 7, "name": "Hub", "status": "idle",
+                "isReachable": True,
+            }],
+        },
+        galaxy={"sectors": []},
+        hazard_context={"known": True},
+    )
+    service._operations = SimpleNamespace(world=old_world)
+    calls = []
+
+    class Client:
+        @staticmethod
+        def get_probe(probe_id):
+            calls.append(("probe", probe_id))
+            return {"probe": {"id": probe_id, "name": "stale", "status": "idle"}}
+
+        @staticmethod
+        def get_mannies(probe_id):
+            calls.append(("mannies", probe_id))
+            return {"mannies": [{"id": "manny-a", "canReceiveOrders": True}]}
+
+    service.client = Client()
+    live_world = SimpleNamespace(
+        player=None, fleet=None, probe={"id": 7}, sector={}, mannies=None,
+        galaxy=None, hazard_context=None,
+    )
+    service._build_world = lambda *args: calls.append(("sector", args[3]["id"])) or live_world
+    service._observe_dependency_mining_idle = lambda *args: None
+    service.load = lambda *args, **kwargs: (_ for _ in ()).throw(
+        AssertionError("preflight must not perform a complete UI load")
+    )
+    refreshed = SimpleNamespace(world=live_world)
+
+    with patch("src.ui.controller.Operations", return_value=refreshed):
+        result = service._refresh_operations(7)
+
+    assert result is refreshed
+    assert calls == [("probe", 7), ("sector", 7), ("mannies", 7)]
+    assert live_world.mannies["mannies"][0]["id"] == "manny-a"
+    assert live_world.galaxy == old_world.galaxy
+    assert live_world.hazard_context == old_world.hazard_context
+
+
+def test_preflight_refresh_reuses_immediate_dispatch_burst_snapshot():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    cached = object()
+    service._operations = cached
+    service._selected_probe_id = 7
+    service._preflight_operations_probe_id = 7
+
+    with patch("src.ui.controller.time.monotonic", return_value=20.0):
+        service._preflight_operations_cached_at = 18.0
+        assert service._refresh_operations(7) is cached
+
+
 def test_automatic_cycle_replans_after_each_successful_order():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7

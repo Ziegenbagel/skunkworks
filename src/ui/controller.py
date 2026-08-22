@@ -96,6 +96,8 @@ class MissionControlDataService:
         self._logbook_cache = {}
         self._fleet_snapshot_cache = None
         self._fleet_snapshot_cached_at = 0.0
+        self._preflight_operations_cached_at = 0.0
+        self._preflight_operations_probe_id = None
         self._dependency_mining_idle_since = (
             self._shared_dependency_mining_idle_since
         )
@@ -1670,7 +1672,77 @@ class MissionControlDataService:
         return str(result.response.get("error") or "Automation command failed")
 
     def _refresh_operations(self, probe_id):
-        self.load(probe_id)
+        """Refresh only the authoritative state needed by command preflight.
+
+        A complete UI load also reads the player/fleet index, galaxy history,
+        hazards, dashboard models, and planner displays.  Doing all of that
+        before *every* order made an otherwise parallel Manny dispatch cycle
+        take several minutes.  Commands in one immediate dispatch burst share
+        a very short-lived live snapshot; the replanner still claims a
+        different Manny after every accepted order.
+        """
+
+        probe_id = int(probe_id)
+        now = time.monotonic()
+        if (
+            self._operations is not None
+            and self._preflight_operations_probe_id == probe_id
+            and now - self._preflight_operations_cached_at < 3.0
+        ):
+            return self._operations
+
+        if self._operations is None or int(self._selected_probe_id) != probe_id:
+            # This is an exceptional path (for example a direct runtime call
+            # before the probe has been selected).  Establishing the complete
+            # context is safer than attempting to manufacture fleet identity.
+            self.load(probe_id, include_archival=False, prefer_cached_fleet=True)
+            self._preflight_operations_probe_id = probe_id
+            self._preflight_operations_cached_at = time.monotonic()
+            return self._operations
+
+        previous_world = self._operations.world
+        fleet = previous_world.fleet or {}
+        probe_rows = list(fleet.get("probes") or ())
+        selected = next(
+            (row for row in probe_rows if int(row.get("id", -1)) == probe_id),
+            None,
+        )
+        if selected is None:
+            self.load(probe_id, include_archival=False, prefer_cached_fleet=True)
+            self._preflight_operations_probe_id = probe_id
+            self._preflight_operations_cached_at = time.monotonic()
+            return self._operations
+
+        details = self.client.get_probe(probe_id)
+        probe = dict(details.get("probe", details))
+        probe["id"] = probe_id
+        probe["name"] = selected.get("name") or probe.get("name") or f"Probe {probe_id}"
+        probe_data = {
+            "probes": probe_rows,
+            "defaultProbeId": fleet.get("default_probe"),
+        }
+
+        # Sector refresh can reconcile completed Manny returns in the game, so
+        # preserve the same sector-then-Manny ordering as a full UI refresh.
+        world = self._build_world(
+            previous_world.player or {}, probe_data, probe, selected, None,
+        )
+        if selected.get("isReachable", True):
+            world.mannies = self.client.get_mannies(probe_id)
+        world.galaxy = previous_world.galaxy
+        world.hazard_context = previous_world.hazard_context
+
+        self._operations = Operations(
+            world,
+            self.recipes,
+            TravelSafetyPolicyStore().load(),
+            self.data_engine,
+            ResourceSafetyPolicyStore().load(),
+            self.capabilities,
+        )
+        self._observe_dependency_mining_idle(probe_id, self._operations)
+        self._preflight_operations_probe_id = probe_id
+        self._preflight_operations_cached_at = time.monotonic()
         return self._operations
 
     def preview_travel(self, probe_id, target, route_mode="segmented"):
