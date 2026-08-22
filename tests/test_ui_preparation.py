@@ -477,6 +477,43 @@ class UiPreparationTests(unittest.TestCase):
         ])
         self.assertEqual([item["probeId"] for item in completed], [7, 9, 11])
 
+    def test_large_fleet_cycles_are_bounded_and_rotate_background_probes(self):
+        started = []
+
+        class Pool:
+            @staticmethod
+            def start(worker):
+                started.append(worker)
+
+        class SignalStub:
+            def connect(self, _callback):
+                pass
+
+        class Worker:
+            def __init__(self, probe_ids):
+                self.probe_ids = tuple(probe_ids)
+                self.signals = type("Signals", (), {
+                    "succeeded": SignalStub(), "failed": SignalStub(),
+                    "probe_completed": SignalStub(),
+                })()
+
+        automatic = type(
+            "Policy", (), {"mode": "automatic", "live_execution_enabled": True},
+        )()
+        controller = MissionControlController(None, Pool())
+        controller._focused_probe_id = 1
+        controller._available_probes = [{"id": value} for value in range(1, 9)]
+
+        with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=automatic), patch(
+            "src.ui.controller._FleetAutomationWorker", Worker,
+        ):
+            controller._dispatch_fleet_automation()
+            controller._fleet_automation_worker = None
+            controller._dispatch_fleet_automation()
+
+        assert started[0].probe_ids == (1, 2, 3, 4)
+        assert started[1].probe_ids == (1, 5, 6, 7)
+
     def test_focused_fleet_result_marks_accepted_manny_as_syncing(self):
         controller = MissionControlController()
         controller._focused_probe_id = 7

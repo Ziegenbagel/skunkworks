@@ -2882,6 +2882,8 @@ class MissionControlController(QObject):
         # authoritative dashboard has loaded.
         self._initial_automation_cycle_pending = True
         self._fleet_automation_worker = None
+        self._fleet_automation_cursor = 0
+        self._maximum_probes_per_fleet_cycle = 4
         self._automation_cycle_worker = None
         self._compatibility_timer = QTimer(self)
         self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
@@ -3335,6 +3337,18 @@ class MissionControlController(QObject):
             # Mannys do not wait behind several unrelated probe plans.
             eligible.remove(self._focused_probe_id)
             eligible.insert(0, self._focused_probe_id)
+        # Keep one account cycle bounded as fleets grow. The focused probe is
+        # always first; background probes rotate fairly through the remaining
+        # slots instead of making every one-minute cycle grow without limit.
+        limit = max(1, int(self._maximum_probes_per_fleet_cycle))
+        if len(eligible) > limit:
+            focused = eligible[:1]
+            background = eligible[1:]
+            slots = max(0, limit - len(focused))
+            start = self._fleet_automation_cursor % len(background)
+            rotated = background[start:] + background[:start]
+            eligible = focused + rotated[:slots]
+            self._fleet_automation_cursor = (start + slots) % len(background)
         worker = _FleetAutomationWorker(eligible)
         worker.signals.succeeded.connect(self._accept_fleet_automation)
         worker.signals.failed.connect(self._reject_fleet_automation)

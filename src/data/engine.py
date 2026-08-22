@@ -31,6 +31,7 @@ class DataEngine:
         with sqlite3.connect(self.path) as connection:
             connection.execute("PRAGMA journal_mode = WAL")
         self._migrate()
+        self.run_due_maintenance()
 
     def set_preference(self, key, value):
         with self._connect() as connection:
@@ -84,11 +85,17 @@ class DataEngine:
         snapshot = world.sector.get("snapshot")
         history_signature = self._world_history_signature(snapshot, world.sector)
         history_key = (str(self.path.resolve()), int(probe["id"]), coordinates)
+        signature_preference = "world_history_signature:{}:{}:{}:{}".format(
+            probe["id"], *coordinates,
+        )
+        persisted_signature = self.get_preference(signature_preference)
         persist_sector_history = (
             history_signature is not None
             and self._shared_world_history_signatures.get(history_key)
             != history_signature
+            and persisted_signature != history_signature
         )
+        probe_payload = self._json(self._probe_history_payload(probe))
 
         with self._connect() as connection:
             previous = connection.execute(
@@ -108,25 +115,30 @@ class DataEngine:
                     or tuple(previous) != coordinates
                 )
             )
-            connection.execute(
+            previous_payload = connection.execute(
                 """
-                INSERT INTO probe_state_history (
-                    probe_id, observed_at, name, model, status,
-                    sector_x, sector_y, sector_z, payload_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                SELECT payload_json FROM probe_state_history
+                WHERE probe_id = ?
+                ORDER BY observed_at DESC, id DESC
+                LIMIT 1
                 """,
-                (
-                    probe["id"],
-                    observed_at,
-                    probe["name"],
-                    probe.get("model", "generic"),
-                    probe["status"],
-                    relative.get("x"),
-                    relative.get("y"),
-                    relative.get("z"),
-                    self._json(probe),
-                ),
-            )
+                (probe["id"],),
+            ).fetchone()
+            if previous_payload is None or previous_payload["payload_json"] != probe_payload:
+                connection.execute(
+                    """
+                    INSERT INTO probe_state_history (
+                        probe_id, observed_at, name, model, status,
+                        sector_x, sector_y, sector_z, payload_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        probe["id"], observed_at, probe["name"],
+                        probe.get("model", "generic"), probe["status"],
+                        relative.get("x"), relative.get("y"),
+                        relative.get("z"), probe_payload,
+                    ),
+                )
 
             if snapshot is not None and persist_sector_history:
                 self._record_sector(
@@ -169,6 +181,17 @@ class DataEngine:
                             ).get(resource_type),
                         ),
                     )
+            if persist_sector_history:
+                connection.execute(
+                    """
+                    INSERT INTO preferences (key, value, updated_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(key) DO UPDATE SET
+                        value = excluded.value,
+                        updated_at = excluded.updated_at
+                    """,
+                    (signature_preference, history_signature, observed_at),
+                )
 
         if sector_changed:
             self._invalidate_galaxy_cache()
@@ -201,6 +224,24 @@ class DataEngine:
             "objects": objects,
             "resources": resources,
         })
+
+    @staticmethod
+    def _probe_history_payload(probe):
+        """Keep route/status history without copying live inventory payloads."""
+
+        sector = probe.get("sector") or {}
+        relative = sector.get("relative") or sector.get("relativeCoordinates") or {}
+        return {
+            "id": probe.get("id"),
+            "name": probe.get("name"),
+            "model": probe.get("model", "generic"),
+            "status": probe.get("status"),
+            "sector": {"relative": {
+                "x": relative.get("x"),
+                "y": relative.get("y"),
+                "z": relative.get("z"),
+            }},
+        }
 
     def record_sector_observation(self, probe_id, observation, observed_at=None):
         """Persist one explicit galaxy-map scan for later cartography."""
@@ -582,6 +623,26 @@ class DataEngine:
                 (cutoff, cutoff),
             )
             probe_rows = connection.execute("SELECT changes()").fetchone()[0]
+            # Historical consumers use the indexed identity/status/coordinate
+            # columns. Older builds copied the entire live probe payload here,
+            # including large inventory structures, once per refresh.
+            connection.execute(
+                """
+                UPDATE probe_state_history
+                SET payload_json = json_object(
+                    'id', probe_id,
+                    'name', name,
+                    'model', model,
+                    'status', status,
+                    'sector', json_object(
+                        'relative', json_object(
+                            'x', sector_x, 'y', sector_y, 'z', sector_z
+                        )
+                    )
+                )
+                WHERE length(payload_json) > 1024
+                """
+            )
             connection.execute(
                 """
                 DELETE FROM resource_history
@@ -595,15 +656,18 @@ class DataEngine:
                 (cutoff, cutoff),
             )
             resource_rows = connection.execute("SELECT changes()").fetchone()[0]
+            # Sector payloads are complete observations, often hundreds of
+            # kilobytes each. Cartography needs the latest payload for each
+            # probe/coordinate pair, not one duplicate payload per refresh.
+            # Resource history remains separately downsampled above.
             connection.execute(
                 """
                 DELETE FROM sector_observations
-                WHERE observed_at < ? AND id NOT IN (
+                WHERE id NOT IN (
                     SELECT MAX(id) FROM sector_observations
                     GROUP BY probe_id, sector_x, sector_y, sector_z
                 )
-                """,
-                (cutoff,),
+                """
             )
             sector_rows = connection.execute("SELECT changes()").fetchone()[0]
         if vacuum:
@@ -622,6 +686,40 @@ class DataEngine:
             "databaseBytesAfter": int(after),
             "vacuumed": bool(vacuum),
         }
+
+    def run_due_maintenance(self, interval_days=7):
+        """Downsample history at most weekly without an exclusive vacuum.
+
+        DataEngine instances are short lived and may be created by multiple
+        workers. Claim the maintenance window in preferences before doing the
+        work so only the first instance pays the bounded startup cost.
+        """
+
+        key = "last_history_compaction_at"
+        now = datetime.now(UTC)
+        interval = timedelta(days=max(1, int(interval_days)))
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT value FROM preferences WHERE key = ?", (key,),
+            ).fetchone()
+            if row:
+                try:
+                    if now - datetime.fromisoformat(row["value"]) < interval:
+                        return None
+                except ValueError:
+                    pass
+            connection.execute(
+                """
+                INSERT INTO preferences (key, value, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = excluded.updated_at
+                """,
+                (key, now.isoformat(), now.isoformat()),
+            )
+        return self.compact_history()
 
     def action_was_successful(self, fingerprint):
         with self._connect() as connection:

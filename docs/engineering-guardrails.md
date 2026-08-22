@@ -224,6 +224,10 @@ Deduplicate material world-history signatures across service instances. The
 database previously reached 5.6 GB with about 62,000 sector observations and one
 million resource rows for a modest fleet.
 
+Runtime JSON snapshots are diagnostic artifacts, not permanent history. Keep
+compact latest snapshots plus no more than one timestamped archive per probe per
+hour, bounded to seven days and 168 archives per probe.
+
 ### Local reads must stay bounded
 
 - Configure persistent SQLite WAL mode once per DataEngine, not on every short-
@@ -236,8 +240,9 @@ million resource rows for a modest fleet.
 ### Compaction preserves operational truth
 
 `DataEngine.compact_history()` retains recent high-resolution telemetry, daily
-older probe/resource samples, and the latest observation for every probe-sector
-pair. It never removes preferences, operations, roles, visits, archive reports,
+older probe/resource samples, and only the latest complete sector payload for
+every probe-sector pair. It runs automatically at most weekly without vacuuming.
+It never removes preferences, operations, roles, visits, archive reports,
 event state, execution leases, or action history. Physical `VACUUM` requires an
 exclusive maintenance boundary and must not run underneath a live application.
 
@@ -278,4 +283,3 @@ As of 2026-08-22, the offline suite has one unrelated stale source assertion for
 the removed heading `WHY HIGHER-PRIORITY ORDERS ARE WAITING`. Do not misattribute
 that failure to automation, persistence, or refresh changes; either restore the
 intended UI guidance or update the obsolete assertion in a dedicated change.
-

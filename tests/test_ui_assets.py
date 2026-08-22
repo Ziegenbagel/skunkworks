@@ -437,7 +437,8 @@ def test_settings_exposes_policy_gated_automation_queue_and_approval():
     assert "COMMAND ALLOWLIST" in settings
     assert "PROPOSED COMMAND QUEUE" in settings
     assert "function hasUnblockedCommand()" in settings
-    assert "WHY HIGHER-PRIORITY ORDERS ARE WAITING" in settings
+    assert "COMPLETE PLANNER STATUS · ALL PRIORITIES AND WAITING GOALS" in settings
+    assert "WAITING FOR · " in settings
     assert "automationApprovalRequested" in settings
     assert "saveExecutionPolicy" in app
     assert "runAutomationCycle" in app

@@ -105,6 +105,24 @@ class DataEngineTests(unittest.TestCase):
         self.assertEqual(sectors, 1)
         self.assertEqual(len(self.engine.resource_history("metals", 762)), 1)
 
+    def test_identical_probe_state_is_not_recorded_once_per_refresh(self):
+        world = SimpleNamespace(
+            probe={
+                "id": 762, "name": "Beta", "model": "generic", "status": "idle",
+                "sector": {"relative": {"x": 2, "y": 0, "z": 0}},
+            },
+            sector={"snapshot": None, "resources": []},
+        )
+
+        self.engine.record_world(world, observed_at="2026-07-30T00:00:00+00:00")
+        DataEngine(self.engine.path).record_world(
+            world, observed_at="2026-07-30T00:01:00+00:00",
+        )
+
+        self.assertEqual(len(self.engine.probe_history(762)), 1)
+        payload = json.loads(self.engine.probe_history(762)[0]["payload_json"])
+        self.assertEqual(payload["sector"]["relative"]["x"], 2)
+
     def test_visit_sync_is_idempotent(self):
         payload = {
             "visitedSectors": [
@@ -305,6 +323,39 @@ class DataEngineTests(unittest.TestCase):
         self.assertEqual(result["probeRowsRemoved"], 2)
         self.assertEqual(len(self.engine.probe_history(762)), 1)
         self.assertEqual(len(self.engine.action_history(762)), 1)
+
+    def test_compaction_keeps_only_latest_complete_sector_payload_per_location(self):
+        coordinates = {"x": 2, "y": 0, "z": 0}
+        for observed_at, confidence in (
+            ("2026-08-20T00:00:00+00:00", 0.2),
+            ("2026-08-21T00:00:00+00:00", 0.9),
+        ):
+            self.engine.record_sector_observation(762, {
+                "sector": {
+                    "relativeCoordinates": coordinates,
+                    "knowledgeLevel": "detailed",
+                    "confidence": confidence,
+                    "objects": [],
+                },
+            }, observed_at=observed_at)
+
+        result = self.engine.compact_history(30)
+
+        self.assertEqual(result["sectorRowsRemoved"], 1)
+        sectors = self.engine.galaxy_map(max_age_seconds=0).sectors()
+        self.assertEqual(len(sectors), 1)
+        self.assertEqual(sectors[0].observed["sector"]["confidence"], 0.9)
+
+    def test_automatic_maintenance_runs_at_most_once_per_week(self):
+        self.engine.set_preference(
+            "last_history_compaction_at", "2020-01-01T00:00:00+00:00",
+        )
+
+        result = self.engine.run_due_maintenance()
+        second = self.engine.run_due_maintenance()
+
+        self.assertIsInstance(result, dict)
+        self.assertIsNone(second)
 
     def test_probe_route_retains_ordered_revisits(self):
         def world(x, observed_at):
