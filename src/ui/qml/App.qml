@@ -339,6 +339,8 @@ ApplicationWindow {
         function onClicked() {
             AudioManager.play("navigate");
             missionControl.currentNavigation = "SAFETY";
+            if (window.backend)
+                window.backend.setActiveSection("SAFETY");
         }
     }
 
@@ -348,6 +350,8 @@ ApplicationWindow {
         function onSectionSelected(section) {
             AudioManager.play("navigate");
             missionControl.currentNavigation = section;
+            if (window.backend)
+                window.backend.setActiveSection(section);
         }
     }
 

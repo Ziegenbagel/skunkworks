@@ -102,7 +102,8 @@ class MissionControlDataService:
 
     def load(
         self, probe_id=None, include_archival=True, progress=None,
-        prefer_cached_fleet=False,
+        prefer_cached_fleet=False, priority_section=None,
+        priority_progress=None,
     ):
         report = progress or (lambda percent, label: None)
         load_started = time.monotonic()
@@ -264,6 +265,26 @@ class MissionControlDataService:
         if self._last_scan_result is not None:
             dashboard.setdefault("navigation", {})["scanResult"] = self._last_scan_result
         desired_state = DesiredStateStore(self.data_engine).load(selected["id"])
+        # Deliver the selected screen's authoritative live telemetry before
+        # the comparatively expensive planner and archival display models are
+        # assembled. The complete dashboard still follows normally.
+        section = str(priority_section or "").upper()
+        if priority_progress is not None and section in {"PRODUCTION", "NAVIGATION"}:
+            if section == "NAVIGATION":
+                dashboard["focus"]["transportJourney"] = self._transport_journey_view(
+                    operations, selected["id"], desired_state,
+                )
+            priority_keys = (
+                ("focus", "probe", "inventoryManagement")
+                if section == "PRODUCTION"
+                else ("focus", "probe", "navigation")
+            )
+            priority_progress({
+                "prioritySection": section,
+                "apiVersion": self.api_version,
+                "appVersion": dashboard.get("appVersion"),
+                **{key: dashboard[key] for key in priority_keys if key in dashboard},
+            })
         automation = desired_state.to_dict()
         probes = world.fleet.get("probes", ()) if getattr(world, "fleet", None) else (probe,)
         model_counts = {}
@@ -2486,6 +2507,7 @@ class _WorkerSignals(QObject):
     succeeded = Signal(object)
     failed = Signal(str)
     progress = Signal(int, str)
+    priority = Signal(object)
 
 
 def _safe_emit(signal, *args):
@@ -2501,13 +2523,14 @@ def _safe_emit(signal, *args):
 class _RefreshWorker(QRunnable):
     def __init__(
         self, service, probe_id, prefer_cached_fleet=False,
-        include_archival=True,
+        include_archival=True, priority_section=None,
     ):
         super().__init__()
         self.service = service
         self.probe_id = probe_id
         self.prefer_cached_fleet = prefer_cached_fleet
         self.include_archival = include_archival
+        self.priority_section = priority_section
         self.signals = _WorkerSignals()
 
     def run(self):
@@ -2520,6 +2543,12 @@ class _RefreshWorker(QRunnable):
             }
             if not self.include_archival:
                 load_options["include_archival"] = False
+            if self.priority_section:
+                load_options["priority_section"] = self.priority_section
+                load_options["priority_progress"] = lambda payload: _safe_emit(
+                    self.signals.priority,
+                    MissionControlController._qt_safe(payload),
+                )
             while True:
                 try:
                     payload = self.service.load(self.probe_id, **load_options)
@@ -2713,6 +2742,7 @@ class MissionControlController(QObject):
         self._worker = None
         self._pending_probe_id = None
         self._refresh_target_id = None
+        self._active_section = "MISSION CONTROL"
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
@@ -3354,6 +3384,11 @@ class MissionControlController(QObject):
     def refresh(self):
         self._start_refresh(self._focused_probe_id if self._focused_probe_id >= 0 else None)
 
+    @Slot(str)
+    def setActiveSection(self, section):
+        """Tell refresh workers which visible screen should become live first."""
+        self._active_section = str(section or "MISSION CONTROL").upper()
+
     @Slot(int)
     def selectProbe(self, probe_id):
         if self._refreshing:
@@ -3374,6 +3409,9 @@ class MissionControlController(QObject):
             self._dashboard = dict(cached_dashboard)
             self._available_probes = [dict(item) for item in cached_probes]
             self._focused_probe_id = int(probe_id)
+            self._dashboard["connectionLabel"] = (
+                f"CACHED · REFRESHING {self._active_section}"
+            )
             self.availableProbesChanged.emit()
             self.focusedProbeIdChanged.emit()
             self.dashboardChanged.emit()
@@ -4215,12 +4253,43 @@ class MissionControlController(QObject):
             self.service, probe_id,
             prefer_cached_fleet=prefer_cached_fleet,
             include_archival=include_archival,
+            priority_section=self._active_section,
         )
         worker.signals.succeeded.connect(self._accept_dashboard)
         worker.signals.failed.connect(self._reject_dashboard)
         worker.signals.progress.connect(self._set_loading_progress)
+        worker.signals.priority.connect(self._accept_priority_dashboard)
         self._worker = worker
         self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_priority_dashboard(self, payload):
+        """Expose selected-tab telemetry while the complete refresh continues."""
+        focus = dict(payload.get("focus", {}))
+        probe_id = int(focus.get("probeId", -1))
+        requested = self._refresh_target_id
+        if requested is not None and probe_id != int(requested):
+            return
+        section = str(payload.get("prioritySection", "")).upper()
+        if section != self._active_section:
+            return
+        current_focus = int(self._dashboard.get("focus", {}).get("probeId", -1))
+        if current_focus != probe_id:
+            preserved = {
+                key: self._dashboard[key]
+                for key in ("probeOptions", "credentials", "compatibility")
+                if key in self._dashboard
+            }
+            self._dashboard = preserved
+        for key, value in payload.items():
+            if key != "prioritySection":
+                self._dashboard[key] = value
+        self._dashboard["connection"] = "refreshing"
+        self._dashboard["connectionLabel"] = f"LIVE {section} · FINISHING REFRESH"
+        if probe_id >= 0 and probe_id != self._focused_probe_id:
+            self._focused_probe_id = probe_id
+            self.focusedProbeIdChanged.emit()
+        self.dashboardChanged.emit()
 
     @Slot(object)
     def _accept_dashboard(self, payload):

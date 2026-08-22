@@ -224,6 +224,43 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(service.requests, [(7, False), (9, True)])
 
+    def test_selected_tab_priority_payload_is_shown_before_full_refresh(self):
+        controller = MissionControlController()
+        controller._refresh_target_id = 9
+        controller.setActiveSection("PRODUCTION")
+
+        controller._accept_priority_dashboard({
+            "prioritySection": "PRODUCTION",
+            "focus": {"probeId": 9, "name": "Factory"},
+            "probe": {"fuelPercent": 44},
+            "inventoryManagement": {
+                "mannies": [{"id": "m-1", "status": "idle"}],
+            },
+        })
+
+        self.assertEqual(controller.focusedProbeId, 9)
+        self.assertEqual(
+            controller.dashboard["inventoryManagement"]["mannies"][0]["id"],
+            "m-1",
+        )
+        self.assertEqual(
+            controller.dashboard["connectionLabel"],
+            "LIVE PRODUCTION · FINISHING REFRESH",
+        )
+
+    def test_priority_payload_for_tab_left_during_refresh_is_ignored(self):
+        controller = MissionControlController()
+        controller._refresh_target_id = 9
+        controller.setActiveSection("NAVIGATION")
+
+        controller._accept_priority_dashboard({
+            "prioritySection": "PRODUCTION",
+            "focus": {"probeId": 9},
+            "inventoryManagement": {"mannies": [{"id": "stale"}]},
+        })
+
+        self.assertEqual(controller.dashboard, {})
+
     def test_probe_switch_restarts_automation_heartbeat(self):
         controller = MissionControlController()
         controller._focused_probe_id = 7
