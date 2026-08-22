@@ -323,13 +323,18 @@ class UiPreparationTests(unittest.TestCase):
         )()
         controller = MissionControlController(None, DeferredPool())
         controller._focused_probe_id = 7
+        controller._available_probes = [
+            {"id": 9, "name": "Explorer"},
+            {"id": 7, "name": "Hub"},
+            {"id": 11, "name": "Tanker"},
+        ]
         with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=automatic_policy), patch(
             "src.ui.controller._FleetAutomationWorker", Worker
         ):
             controller._dispatch_fleet_automation()
 
         self.assertEqual(len(started), 1)
-        self.assertEqual(started[0].probe_ids, (7,))
+        self.assertEqual(started[0].probe_ids, (7, 9, 11))
         self.assertIs(controller._fleet_automation_worker, started[0])
 
     def test_fleet_worker_reuses_one_service_and_recent_fleet_index(self):

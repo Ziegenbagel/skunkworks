@@ -547,7 +547,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(consumer.disposition, "blocked")
         self.assertIn("item_reserved_by_assembly_goal", consumer.blockers)
 
-    def test_numeric_p1_recipe_can_borrow_inventory_from_numeric_p3_fleet_goal(self):
+    def test_numeric_p1_recipe_cannot_consume_numeric_p3_fleet_kit(self):
         from src.planner.task import Task
 
         self.operations.world.probe["inventory"].setdefault("items", []).append(
@@ -576,8 +576,8 @@ class ExecutionBoundaryTests(unittest.TestCase):
             item for item in prepared
             if item.command.reason == "Ordinary numeric P1 recipe"
         )
-        self.assertEqual(consumer.disposition, "dry_run")
-        self.assertNotIn("item_reserved_by_assembly_goal", consumer.blockers)
+        self.assertEqual(consumer.disposition, "blocked")
+        self.assertIn("item_reserved_by_assembly_goal", consumer.blockers)
 
     def test_equal_priority_direct_recipe_synthesizes_instead_of_consuming_tanker_component(self):
         from src.planner.task import Task
@@ -661,7 +661,7 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertNotIn("item_reserved_by_higher_priority_goal", manny.blockers)
         self.assertNotIn("resource_reserved_by_higher_priority_goal", manny.blockers)
 
-    def test_priority_two_manny_craft_outranks_priority_three_tanker_kit(self):
+    def test_priority_two_manny_craft_preserves_priority_three_tanker_kit(self):
         from src.planner.task import Task
 
         inventory = self.operations.world.probe["inventory"]
@@ -703,8 +703,8 @@ class ExecutionBoundaryTests(unittest.TestCase):
             item for item in prepared
             if item.command.reason == "Priority two Manny production"
         )
-        self.assertEqual(manny.disposition, "dry_run")
-        self.assertNotIn("item_reserved_by_assembly_goal", manny.blockers)
+        self.assertEqual(manny.disposition, "blocked")
+        self.assertIn("item_reserved_by_assembly_goal", manny.blockers)
 
     def test_tanker_component_cannot_consume_completed_kit_dependency(self):
         from src.planner.task import Task

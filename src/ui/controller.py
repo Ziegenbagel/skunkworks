@@ -1401,7 +1401,14 @@ class MissionControlDataService:
                         "orderAmount", prepared.command.payload.get("targetAmount", 0),
                     ) or 0
                 )
-            self._refresh_operations(self._selected_probe_id)
+            # AutomationRuntime performed the mandatory authoritative
+            # preflight refresh immediately before dispatch. Its snapshot is
+            # retained in ``self._operations`` and accepted Manny IDs are
+            # overlaid locally at the start of the next iteration. A second
+            # full refresh here doubled every order's latency without making
+            # the just-accepted task reliably visible (the game may still be
+            # publishing it), leaving otherwise-ready Mannys idle while a
+            # fleet cycle spent minutes on redundant network work.
         if not results:
             return {
                 "status": "idle",
@@ -3173,6 +3180,12 @@ class MissionControlController(QObject):
                 eligible.append(int(probe_id))
         if not eligible:
             return
+        if self._focused_probe_id in eligible:
+            # Fleet execution is serial to keep account-wide API usage
+            # bounded. Service the operator's focused probe first so its READY
+            # Mannys do not wait behind several unrelated probe plans.
+            eligible.remove(self._focused_probe_id)
+            eligible.insert(0, self._focused_probe_id)
         worker = _FleetAutomationWorker(eligible)
         worker.signals.succeeded.connect(self._accept_fleet_automation)
         worker.signals.failed.connect(self._reject_fleet_automation)

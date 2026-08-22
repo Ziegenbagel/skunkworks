@@ -46,7 +46,9 @@ def test_automatic_cycle_replans_after_each_successful_order():
 
     assert result["status"] == "succeeded"
     assert len(result["results"]) == 2
-    assert refreshes == [7, 7]
+    # Runtime owns the preflight refresh. The controller must not add a second
+    # full probe refresh after every accepted order.
+    assert refreshes == []
     assert "freshly replanned" in result["message"]
 
 
