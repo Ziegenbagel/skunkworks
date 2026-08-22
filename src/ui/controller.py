@@ -222,6 +222,12 @@ class MissionControlDataService:
         )
         self._operations = operations
         self._selected_probe_id = selected["id"]
+        # This load has just fetched the same focused probe, sector/inventory,
+        # and Manny state required by command preflight. Let an immediately
+        # following automatic cycle reuse it instead of issuing a duplicate
+        # authoritative refresh before its first order.
+        self._preflight_operations_probe_id = int(selected["id"])
+        self._preflight_operations_cached_at = time.monotonic()
         self._observe_dependency_mining_idle(selected["id"], operations)
         explorer_scan = self._auto_scan_explorer_arrival(selected["id"], operations)
         if explorer_scan is not None:
@@ -3257,16 +3263,12 @@ class MissionControlController(QObject):
             self._automation_tick_pending = True
             return
         if self._fleet_automation_worker is not None:
-            # Fleet planning uses its own service instance and can take several
-            # minutes when many probes are eligible.  Do not let that hide
-            # focused telemetry: returning Mannys need to reconcile promptly
-            # even while the account-wide planner is still working.  Retain
-            # the pending marker so completion can account for this heartbeat.
+            # Do not overlap a second full refresh with account-wide planning.
+            # Both paths read the same rate-limited game endpoints and local
+            # database; contention made the nominally responsive refresh take
+            # tens of seconds. Fleet completion always triggers one fresh,
+            # authoritative focused-probe refresh below.
             self._automation_tick_pending = True
-            self._start_refresh(
-                self._focused_probe_id if self._focused_probe_id >= 0 else None,
-                prefer_cached_fleet=True,
-            )
             return
         self._automation_tick_pending = False
         # Make the one-minute boundary visible and give the planner a fresh

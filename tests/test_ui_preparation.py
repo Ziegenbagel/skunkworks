@@ -483,7 +483,7 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertTrue(controller._automation_tick_pending)
 
-    def test_fleet_cycle_does_not_block_focused_telemetry_heartbeat(self):
+    def test_fleet_cycle_coalesces_focused_telemetry_heartbeat(self):
         controller = MissionControlController()
         controller._focused_probe_id = 7
         controller._fleet_automation_worker = object()
@@ -494,7 +494,7 @@ class UiPreparationTests(unittest.TestCase):
 
         controller._automation_tick()
 
-        self.assertEqual(refreshes, [(7, {"prefer_cached_fleet": True})])
+        self.assertEqual(refreshes, [])
         self.assertTrue(controller._automation_tick_pending)
 
     def test_focused_refresh_during_fleet_cycle_does_not_spin(self):

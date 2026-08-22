@@ -298,31 +298,22 @@ class CommandPreparer:
         # physical components already in inventory before synthesizing those
         # components from raw resources.  A raw-resource production plan alone
         # therefore cannot protect a completed probe-assembly kit.  Treat the
-        # stored items allocated to assembly work as a hard floor. Finished
-        # kit components are not fungible raw-material reservations: once a
-        # component has been built for a probe, an unrelated direct recipe
-        # must never be allowed to consume it merely because that recipe has a
-        # numerically higher priority. Priority still controls raw-resource
-        # funding and build order; it does not dismantle completed kits.
+        # stored items allocated to equal- or higher-priority assembly work as
+        # a hard floor. A numerically higher-priority craft is intentionally
+        # allowed to consume inventory claimed by a lower-priority goal: that
+        # is the operator's global priority ordering, and the lower-priority
+        # assembly goal will rebuild the consumed kit component later.
         if task.action == "Craft Item":
             recursive_items = self._recursive_item_requirements(task.target)
             for item_type, required in recursive_items.items():
                 claims = item_claims.get(item_type, ())
-                if task.category == "fleet_assembly":
-                    # A component recipe in the owning assembly chain may use
-                    # dependencies allocated to that same or higher-priority
-                    # chain. Lower-priority assembly claims remain protected.
-                    hard_floor = max((
-                        amount for rank, amount in claims
-                        if rank <= task_rank
-                    ), default=0)
-                else:
-                    # Ordinary production (including a direct Manny recipe)
-                    # cannot consume any completed assembly-kit component,
-                    # irrespective of the goals' relative priorities.
-                    hard_floor = max((
-                        amount for _rank, amount in claims
-                    ), default=0)
+                # Assembly-chain recipes and ordinary production use the same
+                # global priority rule. At an equal priority, fleet assembly's
+                # scheduling tier sorts first and therefore retains its kit.
+                hard_floor = max((
+                    amount for rank, amount in claims
+                    if rank <= task_rank
+                ), default=0)
                 if hard_floor <= 0:
                     continue
                 available = int(items.get(item_type, 0))
