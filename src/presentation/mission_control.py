@@ -1283,9 +1283,7 @@ class MissionControlViewModelBuilder:
         if not live:
             return {}
         reasons = {}
-        for row in reversed(self.data_engine.action_history(probe_id)):
-            if row["status"] != "succeeded":
-                continue
+        for row in self.data_engine.recent_successful_actions(probe_id):
             try:
                 command = json.loads(row["command_json"])
             except (TypeError, ValueError, json.JSONDecodeError):

@@ -721,24 +721,47 @@ class MissionControlDataService:
 
     @staticmethod
     def _dispatch_prepared_commands(prepared):
-        """Hide acquisition only when fabrication is genuinely executable."""
+        """Honor goal priority across fabrication and its dependency mining."""
 
         fabrication_types = {
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_ASSEMBLE_PROBE,
         }
-        actionable_fabrication = any(
-            item.command.type in fabrication_types
+        ready_fabrication = [
+            item for item in prepared
+            if item.command.type in fabrication_types
             and item.disposition == "ready"
-            for item in prepared
-        )
-        if not actionable_fabrication:
+        ]
+        if not ready_fabrication:
             return tuple(prepared)
-        return tuple(
+        best_fabrication_priority = min(
+            item.command.priority for item in ready_fabrication
+        )
+        visible = tuple(
             item for item in prepared
             if item.command.type != CommandType.MANNY_MINE
+            or (
+                not item.command.metadata.get("backgroundWork", False)
+                and item.command.priority < best_fabrication_priority
+            )
         )
+
+        # Dependency acquisition for a numerically higher-priority blocked
+        # goal must run before lower-priority crafting. At equal priority a
+        # ready craft still wins, avoiding needless mining when work can start.
+        def dispatch_key(item):
+            command = item.command
+            if (
+                command.type == CommandType.MANNY_MINE
+                and not command.metadata.get("backgroundWork", False)
+            ):
+                return (0, command.priority, 1)
+            if command.type in fabrication_types:
+                return (0, command.priority, 0)
+            return (1, command.priority, 0)
+
+        return tuple(sorted(visible, key=dispatch_key))
 
     def _reserve_tanker_delivery_tasks(self, operations, probe_id):
         """Let a same-sector reserve tanker top up its designated hub."""
@@ -1653,6 +1676,8 @@ class MissionControlDataService:
             "message": self._execution_message(result),
             "blockers": list(result.blockers),
             "fingerprint": prepared.command.fingerprint,
+            "commandType": prepared.command.type.value,
+            "targetId": prepared.command.target_id,
             "response": result.response,
         }
 
@@ -2586,6 +2611,7 @@ class _WorkerSignals(QObject):
     failed = Signal(str)
     progress = Signal(int, str)
     priority = Signal(object)
+    probe_completed = Signal(object)
 
 
 def _safe_emit(signal, *args):
@@ -2745,7 +2771,9 @@ class _FleetAutomationWorker(QRunnable):
                     # one-argument protocol.
                     service.load(probe_id)
                 result = service.run_automation_cycle(None, False)
-                results.append({"probeId": probe_id, "result": result})
+                probe_result = {"probeId": probe_id, "result": result}
+                results.append(probe_result)
+                _safe_emit(self.signals.probe_completed, probe_result)
         except Exception as error:
             traceback.print_exc()
             _safe_emit(self.signals.failed, str(error) or type(error).__name__)
@@ -3310,8 +3338,54 @@ class MissionControlController(QObject):
         worker = _FleetAutomationWorker(eligible)
         worker.signals.succeeded.connect(self._accept_fleet_automation)
         worker.signals.failed.connect(self._reject_fleet_automation)
+        probe_completed = getattr(worker.signals, "probe_completed", None)
+        if probe_completed is not None:
+            probe_completed.connect(self._accept_fleet_automation_probe)
         self._fleet_automation_worker = worker
         self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_fleet_automation_probe(self, item):
+        """Publish focused-probe assignments while the fleet cycle continues."""
+
+        if int(item.get("probeId", -1)) != int(self._focused_probe_id):
+            return
+        result = item.get("result") or {}
+        runtime = dict(self._dashboard.get("automationRuntime", {}))
+        runtime["lastResult"] = self._qt_safe(result)
+        self._dashboard["automationRuntime"] = runtime
+
+        command_results = result.get("results") or (result,)
+        claimed = {
+            str(row.get("targetId"))
+            for row in command_results
+            if row.get("status") == "succeeded"
+            and row.get("targetId") not in {None, ""}
+        }
+        if claimed:
+            production = []
+            for row in self._dashboard.get("production", ()):
+                updated = dict(row)
+                if str(row.get("id")) in claimed and row.get("taskType") == "idle":
+                    asset = row.get("asset", "Manny")
+                    updated.update({
+                        "taskType": "dispatch_pending",
+                        "name": "Order accepted · syncing",
+                        "displayText": f"{asset} · ORDER ACCEPTED · SYNCING",
+                        "detailText": (
+                            f"Asset: {asset}\nStatus: Automation order accepted\n"
+                            "Live game task details will appear after synchronization."
+                        ),
+                    })
+                production.append(updated)
+            self._dashboard["production"] = tuple(production)
+            inventory = dict(self._dashboard.get("inventoryManagement", {}))
+            inventory["idleMannies"] = tuple(
+                row for row in inventory.get("idleMannies", ())
+                if str(row.get("id")) not in claimed
+            )
+            self._dashboard["inventoryManagement"] = inventory
+        self.dashboardChanged.emit()
 
     def _ensure_automation_heartbeat(self):
         if self._shutting_down or not self.credentialConfigured:

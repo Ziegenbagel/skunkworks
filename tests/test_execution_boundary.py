@@ -89,6 +89,48 @@ class ExecutionBoundaryTests(unittest.TestCase):
             item.command.type == CommandType.MANNY_MINE for item in dispatch
         ))
 
+    def test_higher_priority_dependency_mining_precedes_lower_priority_craft(self):
+        from src.execution import PreparedCommand
+        from src.ui.controller import MissionControlDataService
+
+        dependency = PreparedCommand(Command(
+            CommandType.MANNY_MINE, 1,
+            {"objectId": "asteroid-1", "resources": ["metals"], "targetAmount": 0.25},
+            "Fund priority-two Manny production", 2,
+            target_id="manny-a", metadata={"backgroundWork": False},
+        ), "ready")
+        lower_craft = PreparedCommand(Command(
+            CommandType.MANNY_CRAFT, 1, {"recipe": "electric_motor"},
+            "Priority-three tanker component", 3, target_id="manny-b",
+        ), "ready")
+
+        dispatch = MissionControlDataService._dispatch_prepared_commands(
+            (lower_craft, dependency),
+        )
+
+        self.assertEqual(dispatch, (dependency, lower_craft))
+
+    def test_equal_priority_ready_craft_hides_dependency_mining(self):
+        from src.execution import PreparedCommand
+        from src.ui.controller import MissionControlDataService
+
+        dependency = PreparedCommand(Command(
+            CommandType.MANNY_MINE, 1,
+            {"objectId": "asteroid-1", "resources": ["metals"], "targetAmount": 0.25},
+            "Fund priority-two production", 2,
+            target_id="manny-a", metadata={"backgroundWork": False},
+        ), "ready")
+        craft = PreparedCommand(Command(
+            CommandType.MANNY_CRAFT, 1, {"recipe": "manny"},
+            "Craft priority-two Manny", 2, target_id="manny-b",
+        ), "ready")
+
+        dispatch = MissionControlDataService._dispatch_prepared_commands(
+            (dependency, craft),
+        )
+
+        self.assertEqual(dispatch, (craft,))
+
     def test_craft_task_becomes_typed_dry_run_command(self):
         prepared = self.prepare(
             DesiredState(

@@ -4,7 +4,7 @@ import json
 import sqlite3
 import time
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 
@@ -14,11 +14,22 @@ SCHEMA_VERSION = 4
 class DataEngine:
     """Persist application preferences and observable game history."""
 
+    # Refresh and automation workers create separate DataEngine instances in
+    # one process. Share the last persisted sector/resource signature so each
+    # worker does not append the same large snapshot again.
+    _shared_world_history_signatures = {}
+
     def __init__(self, path="data/skunkworks.sqlite3"):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._galaxy_cache = None
         self._galaxy_cache_built_at = 0.0
+        # WAL mode is persistent database state. Configuring it on every
+        # short-lived read connection takes a write lock and turns otherwise
+        # tiny preference/history lookups into multi-second stalls when the UI
+        # and automation workers are both active.
+        with sqlite3.connect(self.path) as connection:
+            connection.execute("PRAGMA journal_mode = WAL")
         self._migrate()
 
     def set_preference(self, key, value):
@@ -70,6 +81,14 @@ class DataEngine:
             relative.get("z"),
         )
         sector_changed = False
+        snapshot = world.sector.get("snapshot")
+        history_signature = self._world_history_signature(snapshot, world.sector)
+        history_key = (str(self.path.resolve()), int(probe["id"]), coordinates)
+        persist_sector_history = (
+            history_signature is not None
+            and self._shared_world_history_signatures.get(history_key)
+            != history_signature
+        )
 
         with self._connect() as connection:
             previous = connection.execute(
@@ -109,9 +128,7 @@ class DataEngine:
                 ),
             )
 
-            snapshot = world.sector.get("snapshot")
-
-            if snapshot is not None:
+            if snapshot is not None and persist_sector_history:
                 self._record_sector(
                     connection,
                     probe["id"],
@@ -119,9 +136,9 @@ class DataEngine:
                     observed_at,
                 )
 
-            for resource in world.sector.get(
-                "resources",
-                [],
+            for resource in (
+                world.sector.get("resources", [])
+                if persist_sector_history else ()
             ):
                 for resource_type, amount in resource.get(
                     "resources",
@@ -155,6 +172,35 @@ class DataEngine:
 
         if sector_changed:
             self._invalidate_galaxy_cache()
+        if persist_sector_history:
+            self._shared_world_history_signatures[history_key] = history_signature
+
+    def _world_history_signature(self, snapshot, sector):
+        """Return the material sector state, excluding refresh-only metadata."""
+
+        if snapshot is None:
+            return None
+        resources = tuple(sorted(
+            (
+                str(item.get("id")),
+                str(item.get("classification", "")),
+                self._json(item.get("resources", {})),
+                self._json(item.get("composition", {})),
+            )
+            for item in sector.get("resources", ())
+        ))
+        observed_sector = snapshot.get("sector", snapshot)
+        objects = tuple(sorted(
+            self._json(item)
+            for item in observed_sector.get("objects", ())
+        ))
+        return self._json({
+            "coordinates": observed_sector.get("relativeCoordinates", {}),
+            "knowledgeLevel": observed_sector.get("knowledgeLevel"),
+            "confidence": observed_sector.get("confidence"),
+            "objects": objects,
+            "resources": resources,
+        })
 
     def record_sector_observation(self, probe_id, observation, observed_at=None):
         """Persist one explicit galaxy-map scan for later cartography."""
@@ -494,6 +540,88 @@ class DataEngine:
             """,
             (probe_id,),
         )
+
+    def recent_successful_actions(self, probe_id, limit=500):
+        """Return only recent successful commands needed for live task labels."""
+
+        return self._rows(
+            """
+            SELECT * FROM action_journal
+            WHERE probe_id = ? AND status = 'succeeded'
+            ORDER BY observed_at DESC, id DESC
+            LIMIT ?
+            """,
+            (int(probe_id), max(1, int(limit))),
+        )
+
+    def compact_history(self, retain_high_resolution_days=30, *, vacuum=False):
+        """Downsample old telemetry while preserving every current state.
+
+        Recent telemetry remains untouched. Older probe and resource history
+        retains one sample per UTC day, while sector observations retain the
+        latest knowledge for every probe/coordinate pair. Operational records,
+        preferences, action history, reports, and visits are never removed.
+        """
+
+        cutoff = (datetime.now(UTC) - timedelta(
+            days=max(1, int(retain_high_resolution_days)),
+        )).isoformat()
+        with self._connect() as connection:
+            before = connection.execute(
+                "SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()"
+            ).fetchone()[0]
+            connection.execute(
+                """
+                DELETE FROM probe_state_history
+                WHERE observed_at < ? AND id NOT IN (
+                    SELECT MAX(id) FROM probe_state_history
+                    WHERE observed_at < ?
+                    GROUP BY probe_id, substr(observed_at, 1, 10)
+                )
+                """,
+                (cutoff, cutoff),
+            )
+            probe_rows = connection.execute("SELECT changes()").fetchone()[0]
+            connection.execute(
+                """
+                DELETE FROM resource_history
+                WHERE observed_at < ? AND id NOT IN (
+                    SELECT MAX(id) FROM resource_history
+                    WHERE observed_at < ?
+                    GROUP BY probe_id, sector_x, sector_y, sector_z,
+                             object_id, resource_type, substr(observed_at, 1, 10)
+                )
+                """,
+                (cutoff, cutoff),
+            )
+            resource_rows = connection.execute("SELECT changes()").fetchone()[0]
+            connection.execute(
+                """
+                DELETE FROM sector_observations
+                WHERE observed_at < ? AND id NOT IN (
+                    SELECT MAX(id) FROM sector_observations
+                    GROUP BY probe_id, sector_x, sector_y, sector_z
+                )
+                """,
+                (cutoff,),
+            )
+            sector_rows = connection.execute("SELECT changes()").fetchone()[0]
+        if vacuum:
+            with sqlite3.connect(self.path) as connection:
+                connection.execute("VACUUM")
+        with self._connect() as connection:
+            after = connection.execute(
+                "SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size()"
+            ).fetchone()[0]
+        self._invalidate_galaxy_cache()
+        return {
+            "probeRowsRemoved": int(probe_rows),
+            "resourceRowsRemoved": int(resource_rows),
+            "sectorRowsRemoved": int(sector_rows),
+            "databaseBytesBefore": int(before),
+            "databaseBytesAfter": int(after),
+            "vacuumed": bool(vacuum),
+        }
 
     def action_was_successful(self, fingerprint):
         with self._connect() as connection:
@@ -1025,7 +1153,6 @@ class DataEngine:
         connection = sqlite3.connect(self.path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
-        connection.execute("PRAGMA journal_mode = WAL")
 
         try:
             with connection:

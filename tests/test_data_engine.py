@@ -77,6 +77,34 @@ class DataEngineTests(unittest.TestCase):
         )
         self.assertEqual(resources[0]["amount"], 12.5)
 
+    def test_identical_worker_snapshots_do_not_duplicate_large_sector_history(self):
+        world = SimpleNamespace(
+            probe={
+                "id": 762, "name": "Beta", "model": "generic", "status": "idle",
+                "sector": {"relative": {"x": 2, "y": 0, "z": 0}},
+            },
+            sector={
+                "snapshot": {"sector": {
+                    "relativeCoordinates": {"x": 2, "y": 0, "z": 0},
+                    "knowledgeLevel": "detailed", "confidence": 1,
+                    "objects": [{"id": "asteroid-1", "type": "asteroid"}],
+                }},
+                "resources": [{
+                    "id": "asteroid-1", "classification": "persistent",
+                    "resources": {"metals": 12.5}, "composition": {"metals": 1},
+                }],
+            },
+        )
+        self.engine.record_world(world, observed_at="2026-07-30T00:00:00+00:00")
+        # A separate worker uses a separate DataEngine instance.
+        second = DataEngine(self.engine.path)
+        second.record_world(world, observed_at="2026-07-30T00:01:00+00:00")
+
+        with self.engine._connect() as connection:
+            sectors = connection.execute("SELECT COUNT(*) FROM sector_observations").fetchone()[0]
+        self.assertEqual(sectors, 1)
+        self.assertEqual(len(self.engine.resource_history("metals", 762)), 1)
+
     def test_visit_sync_is_idempotent(self):
         payload = {
             "visitedSectors": [
@@ -242,6 +270,41 @@ class DataEngineTests(unittest.TestCase):
             len(self.engine.action_history(762)),
             2,
         )
+
+    def test_recent_successful_actions_is_bounded_and_newest_first(self):
+        command = {
+            "type": "manny_craft", "probeId": 762,
+            "payload": {"recipe": "manny"},
+        }
+        self.engine.record_action("old", command, "succeeded", observed_at="2026-01-01")
+        self.engine.record_action("failed", command, "failed", observed_at="2026-01-02")
+        self.engine.record_action("new", command, "succeeded", observed_at="2026-01-03")
+
+        rows = self.engine.recent_successful_actions(762, limit=1)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["fingerprint"], "new")
+
+    def test_compaction_downsamples_old_telemetry_without_touching_actions(self):
+        command = {"type": "move_probe", "probeId": 762, "payload": {}}
+        self.engine.record_action("keep", command, "succeeded", observed_at="2020-01-01")
+        for minute in range(3):
+            world = SimpleNamespace(
+                probe={
+                    "id": 762, "name": "Beta", "model": "generic", "status": "idle",
+                    "sector": {"relative": {"x": minute, "y": 0, "z": 0}},
+                },
+                sector={"snapshot": None, "resources": []},
+            )
+            self.engine.record_world(
+                world, observed_at=f"2020-01-01T00:0{minute}:00+00:00",
+            )
+
+        result = self.engine.compact_history(30)
+
+        self.assertEqual(result["probeRowsRemoved"], 2)
+        self.assertEqual(len(self.engine.probe_history(762)), 1)
+        self.assertEqual(len(self.engine.action_history(762)), 1)
 
     def test_probe_route_retains_ordered_revisits(self):
         def world(x, observed_at):

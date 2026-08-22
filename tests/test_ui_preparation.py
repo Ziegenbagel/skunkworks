@@ -464,6 +464,8 @@ class UiPreparationTests(unittest.TestCase):
             "Policy", (), {"mode": "automatic", "live_execution_enabled": True},
         )()
         worker = _FleetAutomationWorker((7, 9, 11), service_factory=Service)
+        completed = []
+        worker.signals.probe_completed.connect(completed.append)
         with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=automatic_policy):
             worker.run()
 
@@ -473,6 +475,29 @@ class UiPreparationTests(unittest.TestCase):
             (9, {"include_archival": False, "prefer_cached_fleet": True}),
             (11, {"include_archival": False, "prefer_cached_fleet": True}),
         ])
+        self.assertEqual([item["probeId"] for item in completed], [7, 9, 11])
+
+    def test_focused_fleet_result_marks_accepted_manny_as_syncing(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        controller._dashboard = {
+            "production": ({
+                "id": "manny-a", "asset": "DemoHub - 003", "taskType": "idle",
+                "displayText": "DemoHub - 003 · IDLE · READY",
+            },),
+            "inventoryManagement": {"idleMannies": ({"id": "manny-a"},)},
+            "automationRuntime": {},
+        }
+
+        controller._accept_fleet_automation_probe({
+            "probeId": 7,
+            "result": {"status": "succeeded", "commandType": "manny_craft",
+                       "targetId": "manny-a"},
+        })
+
+        self.assertEqual(controller._dashboard["production"][0]["taskType"], "dispatch_pending")
+        self.assertIn("ORDER ACCEPTED", controller._dashboard["production"][0]["displayText"])
+        self.assertEqual(controller._dashboard["inventoryManagement"]["idleMannies"], ())
 
     def test_busy_periodic_tick_is_queued_instead_of_discarded(self):
         controller = MissionControlController()
