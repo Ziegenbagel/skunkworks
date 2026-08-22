@@ -261,6 +261,53 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(controller.dashboard, {})
 
+    def test_refresh_reconciliation_queues_cycle_for_newly_idle_manny(self):
+        controller = MissionControlController()
+        controller._refresh_previous_idle_manny_ids = {"already-idle"}
+        controller._initial_automation_cycle_pending = False
+        controller._refresh_target_id = 9
+        payload = {
+            "focus": {"probeId": 9},
+            "probeOptions": ({"id": 9, "name": "Factory"},),
+            "inventoryManagement": {
+                "idleMannies": (
+                    {"id": "already-idle"},
+                    {"id": "just-returned"},
+                ),
+            },
+            "automationRuntime": {
+                "mode": "automatic",
+                "liveExecutionEnabled": True,
+            },
+        }
+        controller._finish_refresh = lambda: None
+
+        controller._accept_dashboard(payload)
+
+        self.assertTrue(controller._automation_after_refresh)
+
+    def test_refresh_does_not_replan_for_manny_already_idle(self):
+        controller = MissionControlController()
+        controller._refresh_previous_idle_manny_ids = {"already-idle"}
+        controller._initial_automation_cycle_pending = False
+        controller._refresh_target_id = 9
+        payload = {
+            "focus": {"probeId": 9},
+            "probeOptions": ({"id": 9, "name": "Factory"},),
+            "inventoryManagement": {
+                "idleMannies": ({"id": "already-idle"},),
+            },
+            "automationRuntime": {
+                "mode": "automatic",
+                "liveExecutionEnabled": True,
+            },
+        }
+        controller._finish_refresh = lambda: None
+
+        controller._accept_dashboard(payload)
+
+        self.assertFalse(controller._automation_after_refresh)
+
     def test_probe_switch_restarts_automation_heartbeat(self):
         controller = MissionControlController()
         controller._focused_probe_id = 7

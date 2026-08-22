@@ -2743,6 +2743,7 @@ class MissionControlController(QObject):
         self._pending_probe_id = None
         self._refresh_target_id = None
         self._active_section = "MISSION CONTROL"
+        self._refresh_previous_idle_manny_ids = set()
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
@@ -4237,6 +4238,16 @@ class MissionControlController(QObject):
     ):
         if self._refreshing:
             return
+        # Preserve the pre-refresh actionable set before an early selected-tab
+        # payload replaces it. This lets the completed refresh distinguish a
+        # real task completion from a Manny that was already idle.
+        self._refresh_previous_idle_manny_ids = {
+            str(item.get("id"))
+            for item in self._dashboard.get("inventoryManagement", {}).get(
+                "idleMannies", (),
+            )
+            if item.get("id") is not None
+        }
         self._set_refreshing(True)
         self._set_error("")
         if self.service is None:
@@ -4340,6 +4351,26 @@ class MissionControlController(QObject):
             and focused_runtime.get("liveExecutionEnabled")
         ):
             self._initial_automation_cycle_pending = False
+            self._automation_after_refresh = True
+        current_idle_manny_ids = {
+            str(item.get("id"))
+            for item in payload.get("inventoryManagement", {}).get(
+                "idleMannies", (),
+            )
+            if item.get("id") is not None
+        }
+        newly_actionable_mannies = (
+            current_idle_manny_ids - self._refresh_previous_idle_manny_ids
+        )
+        if (
+            newly_actionable_mannies
+            and focused_runtime.get("mode") == ExecutionMode.AUTOMATIC.value
+            and focused_runtime.get("liveExecutionEnabled")
+        ):
+            # Sector refresh may be what causes the game to reconcile an
+            # overdue return to idle. Do not leave that newly-ready Manny
+            # waiting for the next one-minute heartbeat: run the same bounded,
+            # allowlisted and safety-reviewed fleet cycle immediately.
             self._automation_after_refresh = True
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
         accepted_focus = dict(payload.get("focus", {}))
