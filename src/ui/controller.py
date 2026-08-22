@@ -2499,30 +2499,45 @@ def _safe_emit(signal, *args):
 
 
 class _RefreshWorker(QRunnable):
-    def __init__(self, service, probe_id, prefer_cached_fleet=False):
+    def __init__(
+        self, service, probe_id, prefer_cached_fleet=False,
+        include_archival=True,
+    ):
         super().__init__()
         self.service = service
         self.probe_id = probe_id
         self.prefer_cached_fleet = prefer_cached_fleet
+        self.include_archival = include_archival
         self.signals = _WorkerSignals()
 
     def run(self):
         try:
-            try:
-                payload = self.service.load(
-                    self.probe_id,
-                    prefer_cached_fleet=self.prefer_cached_fleet,
-                    progress=lambda value, message: _safe_emit(
-                        self.signals.progress, value, message,
-                    ),
-                )
-            except TypeError as error:
-                if not any(
-                    name in str(error)
-                    for name in ("progress", "prefer_cached_fleet")
-                ):
-                    raise
-                payload = self.service.load(self.probe_id)
+            load_options = {
+                "prefer_cached_fleet": self.prefer_cached_fleet,
+                "progress": lambda value, message: _safe_emit(
+                    self.signals.progress, value, message,
+                ),
+            }
+            if not self.include_archival:
+                load_options["include_archival"] = False
+            while True:
+                try:
+                    payload = self.service.load(self.probe_id, **load_options)
+                    break
+                except TypeError as error:
+                    unsupported = next(
+                        (
+                            name for name in tuple(load_options)
+                            if name in str(error)
+                        ),
+                        None,
+                    )
+                    if unsupported is None:
+                        raise
+                    # Keep compatibility with lightweight injected services
+                    # used by extensions and tests while retaining every
+                    # supported fast-refresh option.
+                    load_options.pop(unsupported)
             conversion_started = time.monotonic()
             payload = MissionControlController._qt_safe(payload)
             conversion_elapsed = round(
@@ -2687,6 +2702,7 @@ class MissionControlController(QObject):
         self._dashboard = {}
         self._available_probes = []
         self._probe_snapshot_cache = {}
+        self._dashboard_cache = {}
         self._focused_probe_id = -1
         self._refreshing = False
         self._error = ""
@@ -3352,7 +3368,20 @@ class MissionControlController(QObject):
         # do not move this deadline, so automation cannot be starved.
         if self._automation_timer.isActive():
             self._automation_timer.start(60_000)
-        self._start_refresh(probe_id, prefer_cached_fleet=True)
+        cached = self._dashboard_cache.get(int(probe_id))
+        if cached is not None:
+            cached_dashboard, cached_probes = cached
+            self._dashboard = dict(cached_dashboard)
+            self._available_probes = [dict(item) for item in cached_probes]
+            self._focused_probe_id = int(probe_id)
+            self.availableProbesChanged.emit()
+            self.focusedProbeIdChanged.emit()
+            self.dashboardChanged.emit()
+        self._start_refresh(
+            probe_id,
+            prefer_cached_fleet=True,
+            include_archival=False,
+        )
 
     @Slot(bool)
     def setEmergencyStop(self, active):
@@ -4165,7 +4194,9 @@ class MissionControlController(QObject):
         self._dashboard["logbook"] = logbook
         self.dashboardChanged.emit()
 
-    def _start_refresh(self, probe_id, prefer_cached_fleet=False):
+    def _start_refresh(
+        self, probe_id, prefer_cached_fleet=False, include_archival=True,
+    ):
         if self._refreshing:
             return
         self._set_refreshing(True)
@@ -4183,6 +4214,7 @@ class MissionControlController(QObject):
         worker = _RefreshWorker(
             self.service, probe_id,
             prefer_cached_fleet=prefer_cached_fleet,
+            include_archival=include_archival,
         )
         worker.signals.succeeded.connect(self._accept_dashboard)
         worker.signals.failed.connect(self._reject_dashboard)
@@ -4351,6 +4383,22 @@ class MissionControlController(QObject):
         if probe_id != self._focused_probe_id:
             self._focused_probe_id = probe_id
             self.focusedProbeIdChanged.emit()
+        # Keep only authoritative, fully accepted snapshots. A revisit can
+        # show one immediately while a non-archival live refresh reconciles it
+        # in the background. Fleet sizes are intentionally bounded here so a
+        # long-running session cannot accumulate stale payloads indefinitely.
+        self._dashboard_cache[probe_id] = (
+            dict(self._dashboard),
+            [dict(item) for item in self._available_probes],
+        )
+        active_probe_ids = {
+            int(item.get("id", -1)) for item in self._available_probes
+        }
+        self._dashboard_cache = {
+            cached_id: cached_payload
+            for cached_id, cached_payload in self._dashboard_cache.items()
+            if cached_id in active_probe_ids
+        }
         self.dashboardChanged.emit()
         self._finish_refresh()
 
@@ -4439,7 +4487,11 @@ class MissionControlController(QObject):
         pending = self._pending_probe_id
         self._pending_probe_id = None
         if pending is not None and pending != self._focused_probe_id:
-            self._start_refresh(pending, prefer_cached_fleet=True)
+            self._start_refresh(
+                pending,
+                prefer_cached_fleet=True,
+                include_archival=False,
+            )
             return
         if self._manual_automation_cycle_pending:
             self._manual_automation_cycle_pending = False

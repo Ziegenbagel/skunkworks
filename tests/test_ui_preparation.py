@@ -238,7 +238,32 @@ class UiPreparationTests(unittest.TestCase):
             controller.selectProbe(9)
 
         start.assert_called_once_with(60_000)
-        refresh.assert_called_once_with(9, prefer_cached_fleet=True)
+        refresh.assert_called_once_with(
+            9,
+            prefer_cached_fleet=True,
+            include_archival=False,
+        )
+
+    def test_revisiting_probe_displays_cached_dashboard_before_live_refresh(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+        controller._dashboard = {"focus": {"probeId": 7, "name": "Explorer"}}
+        controller._available_probes = [{"id": 7}, {"id": 9}]
+        controller._dashboard_cache[9] = (
+            {"focus": {"probeId": 9, "name": "Tanker"}, "production": []},
+            [{"id": 7}, {"id": 9}],
+        )
+
+        with patch.object(controller, "_start_refresh") as refresh:
+            controller.selectProbe(9)
+
+        self.assertEqual(controller.focusedProbeId, 9)
+        self.assertEqual(controller.dashboard["focus"]["name"], "Tanker")
+        refresh.assert_called_once_with(
+            9,
+            prefer_cached_fleet=True,
+            include_archival=False,
+        )
 
     def test_failed_refresh_retains_snapshot_and_marks_it_stale(self):
         class Service:

@@ -201,134 +201,166 @@ PanelFrame {
     contentItem: Item {
         anchors.fill: parent
 
-        GalaxyMap3D {
+        Loader {
             anchors.fill: parent
-            visible: root.section === "GALAXY MAP"
-            galaxyData: root.dashboardData.galaxy || ({})
-            focusedProbeId: root.focusedProbeId
-            onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
+            active: root.section === "GALAXY MAP"
+            sourceComponent: Component {
+                GalaxyMap3D {
+                    galaxyData: root.dashboardData.galaxy || ({})
+                    focusedProbeId: root.focusedProbeId
+                    onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
+                }
+            }
         }
 
-        AutomationSettings {
+        Loader {
             anchors.fill: parent
-            visible: root.section === "SETTINGS"
-            settingsData: root.dashboardData.automation || ({})
-            runtimeData: root.dashboardData.automationRuntime || ({})
-            refreshDiagnostics: root.dashboardData.refreshDiagnostics || ({})
-            credentialData: root.dashboardData.credentials || ({})
-            availableProbes: root.availableProbes
-            focusedProbeId: root.focusedProbeId
-            focusedProbeData: root.dashboardData.focus || ({})
-            defaultProbeId: root.dashboardData.defaultProbeId === undefined ? -1 : Number(root.dashboardData.defaultProbeId)
-            onSaveRequested: settings => root.automationSettingsSaved(settings)
-            onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
-            onRoleSettingsSaveRequested: (probeId, settings) => root.probeRoleSettingsSaved(probeId, settings)
-            onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
-            onTransportCycleStartRequested: operationId => root.transportCycleStartRequested(operationId)
-            onTransportCyclePauseRequested: operationId => root.transportCyclePauseRequested(operationId)
-            onTransportCycleDeleteRequested: operationId => root.transportCycleDeleteRequested(operationId)
-            onApiKeySaveRequested: apiKey => root.apiKeySaveRequested(apiKey)
-            onApiKeyTestRequested: root.apiKeyTestRequested()
-            onApiKeyRemoveRequested: root.apiKeyRemoveRequested()
-            onOnboardingResetRequested: root.onboardingResetRequested()
-            onExecutionPolicySaveRequested: policy => root.executionPolicySaveRequested(policy)
-            onAutomationCycleRequested: root.automationCycleRequested()
-            onAutomationApprovalRequested: (fingerprint, riskAcknowledged) => root.automationApprovalRequested(fingerprint, riskAcknowledged)
-            onOperatorManualRequested: root.operatorManualRequested()
-            onChangeLogRequested: root.changeLogRequested()
-            onUpdateCheckRequested: root.updateCheckRequested()
-            onDiagnosticLogsRequested: root.diagnosticLogsRequested()
-            onFleetNamingRequested: (policy, applyExisting) => root.fleetNamingRequested(policy, applyExisting)
-            onShutdownRequested: root.shutdownRequested()
+            active: root.section === "SETTINGS"
+            sourceComponent: Component {
+                AutomationSettings {
+                    settingsData: root.dashboardData.automation || ({})
+                    runtimeData: root.dashboardData.automationRuntime || ({})
+                    refreshDiagnostics: root.dashboardData.refreshDiagnostics || ({})
+                    credentialData: root.dashboardData.credentials || ({})
+                    availableProbes: root.availableProbes
+                    focusedProbeId: root.focusedProbeId
+                    focusedProbeData: root.dashboardData.focus || ({})
+                    defaultProbeId: root.dashboardData.defaultProbeId === undefined ? -1 : Number(root.dashboardData.defaultProbeId)
+                    onSaveRequested: settings => root.automationSettingsSaved(settings)
+                    onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
+                    onRoleSettingsSaveRequested: (probeId, settings) => root.probeRoleSettingsSaved(probeId, settings)
+                    onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
+                    onTransportCycleStartRequested: operationId => root.transportCycleStartRequested(operationId)
+                    onTransportCyclePauseRequested: operationId => root.transportCyclePauseRequested(operationId)
+                    onTransportCycleDeleteRequested: operationId => root.transportCycleDeleteRequested(operationId)
+                    onApiKeySaveRequested: apiKey => root.apiKeySaveRequested(apiKey)
+                    onApiKeyTestRequested: root.apiKeyTestRequested()
+                    onApiKeyRemoveRequested: root.apiKeyRemoveRequested()
+                    onOnboardingResetRequested: root.onboardingResetRequested()
+                    onExecutionPolicySaveRequested: policy => root.executionPolicySaveRequested(policy)
+                    onAutomationCycleRequested: root.automationCycleRequested()
+                    onAutomationApprovalRequested: (fingerprint, riskAcknowledged) => root.automationApprovalRequested(fingerprint, riskAcknowledged)
+                    onOperatorManualRequested: root.operatorManualRequested()
+                    onChangeLogRequested: root.changeLogRequested()
+                    onUpdateCheckRequested: root.updateCheckRequested()
+                    onDiagnosticLogsRequested: root.diagnosticLogsRequested()
+                    onFleetNamingRequested: (policy, applyExisting) => root.fleetNamingRequested(policy, applyExisting)
+                    onShutdownRequested: root.shutdownRequested()
+                }
+            }
         }
 
-        NavigationControl {
+        Loader {
             anchors.fill: parent
-            visible: root.section === "NAVIGATION"
-            navigationData: root.dashboardData.navigation || ({})
-            travelPreview: root.dashboardData.travelPreview || ({})
-            automationData: root.dashboardData.automation || ({})
-            focusedProbe: root.dashboardData.focus || ({})
-            availableProbes: root.availableProbes
-            onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
-            onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
-            onCancelMovementRequested: root.travelCancelRequested()
-            onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
-            onNeighborScanRequested: root.neighboringSectorsScanRequested()
-            onAutonomousTargetRequested: (x, y, z, routeMode, riskAcknowledged) =>
-                root.autonomousTravelTargetRequested(x, y, z, routeMode, riskAcknowledged)
-            onAutonomousTargetCancelRequested: root.autonomousTravelTargetCancelRequested()
-            onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
-            onTransportCycleStartRequested: operationId => root.transportCycleStartRequested(operationId)
-            onTransportCyclePauseRequested: operationId => root.transportCyclePauseRequested(operationId)
-            onTransportCycleDeleteRequested: operationId => root.transportCycleDeleteRequested(operationId)
+            active: root.section === "NAVIGATION"
+            sourceComponent: Component {
+                NavigationControl {
+                    navigationData: root.dashboardData.navigation || ({})
+                    travelPreview: root.dashboardData.travelPreview || ({})
+                    automationData: root.dashboardData.automation || ({})
+                    focusedProbe: root.dashboardData.focus || ({})
+                    availableProbes: root.availableProbes
+                    onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
+                    onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
+                    onCancelMovementRequested: root.travelCancelRequested()
+                    onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
+                    onNeighborScanRequested: root.neighboringSectorsScanRequested()
+                    onAutonomousTargetRequested: (x, y, z, routeMode, riskAcknowledged) =>
+                        root.autonomousTravelTargetRequested(x, y, z, routeMode, riskAcknowledged)
+                    onAutonomousTargetCancelRequested: root.autonomousTravelTargetCancelRequested()
+                    onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)
+                    onTransportCycleStartRequested: operationId => root.transportCycleStartRequested(operationId)
+                    onTransportCyclePauseRequested: operationId => root.transportCyclePauseRequested(operationId)
+                    onTransportCycleDeleteRequested: operationId => root.transportCycleDeleteRequested(operationId)
+                }
+            }
         }
 
-        ResourceWorkspace {
+        Loader {
             anchors.fill: parent
-            visible: root.section === "RESOURCES"
-            ledgerData: root.dashboardData.resourceLedger || ({})
+            active: root.section === "RESOURCES"
+            sourceComponent: Component {
+                ResourceWorkspace {
+                    ledgerData: root.dashboardData.resourceLedger || ({})
+                }
+            }
         }
 
-        FleetWorkspace {
+        Loader {
             anchors.fill: parent
-            visible: root.section === "FLEET"
-            probes: root.availableProbes
-            focusedProbeId: root.focusedProbeId
-            probeData: root.dashboardData.probe || ({})
-            mannies: (root.dashboardData.inventoryManagement || {}).mannies || []
-            namingPolicy: (root.dashboardData.automation || {}).namingPolicy || ({})
-            onProbeSelected: probeId => root.probeSelected(probeId)
-            onProbeRenameRequested: name => root.probeRenameRequested(name)
-            onMannyRenameRequested: (mannyId, name) => root.mannyRenameRequested(mannyId, name)
-            onFleetNamingRequested: (policy, applyExisting) => root.fleetNamingRequested(policy, applyExisting)
-            onMakeDefaultRequested: root.makeDefaultProbeRequested()
+            active: root.section === "FLEET"
+            sourceComponent: Component {
+                FleetWorkspace {
+                    probes: root.availableProbes
+                    focusedProbeId: root.focusedProbeId
+                    probeData: root.dashboardData.probe || ({})
+                    mannies: (root.dashboardData.inventoryManagement || {}).mannies || []
+                    namingPolicy: (root.dashboardData.automation || {}).namingPolicy || ({})
+                    onProbeSelected: probeId => root.probeSelected(probeId)
+                    onProbeRenameRequested: name => root.probeRenameRequested(name)
+                    onMannyRenameRequested: (mannyId, name) => root.mannyRenameRequested(mannyId, name)
+                    onFleetNamingRequested: (policy, applyExisting) => root.fleetNamingRequested(policy, applyExisting)
+                    onMakeDefaultRequested: root.makeDefaultProbeRequested()
+                }
+            }
         }
 
-        ManualControlWorkspace {
+        Loader {
             anchors.fill: parent
-            visible: root.section === "MANUAL CONTROL"
-            dashboardData: root.dashboardData
-            probes: root.availableProbes
-            focusedProbeId: root.focusedProbeId
-            onCraftRequested: (recipeId, mannyId) => root.manualCraftRequested(recipeId, mannyId)
-            onRepairRequested: (mannyId, integrityPercent) => root.manualRepairRequested(mannyId, integrityPercent)
-            onUpgradeRequested: (mannyId, improvementId) => root.manualUpgradeRequested(mannyId, improvementId)
-            onMiningRequested: (mannyId, payload) => root.manualMiningRequested(mannyId, payload)
-            onProbeAssemblyRequested: (mannyId, model, containerIds) => root.manualProbeAssemblyRequested(mannyId, model, containerIds)
-            onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
-            onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
-            onCraftingReservationsReassignRequested: containerId => root.craftingReservationsReassignRequested(containerId)
-            onStorageMoveRequested: payload => root.storageMoveRequested(payload)
-            onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
-            onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
-            onAsteroidTrajectoryRequested: (asteroidId, payload) => root.asteroidTrajectoryRequested(asteroidId, payload)
-            onImprovementBlueprintShareRequested: (networkId, improvementId, recipientProbeId) => root.improvementBlueprintShareRequested(networkId, improvementId, recipientProbeId)
+            active: root.section === "MANUAL CONTROL"
+            sourceComponent: Component {
+                ManualControlWorkspace {
+                    dashboardData: root.dashboardData
+                    probes: root.availableProbes
+                    focusedProbeId: root.focusedProbeId
+                    onCraftRequested: (recipeId, mannyId) => root.manualCraftRequested(recipeId, mannyId)
+                    onRepairRequested: (mannyId, integrityPercent) => root.manualRepairRequested(mannyId, integrityPercent)
+                    onUpgradeRequested: (mannyId, improvementId) => root.manualUpgradeRequested(mannyId, improvementId)
+                    onMiningRequested: (mannyId, payload) => root.manualMiningRequested(mannyId, payload)
+                    onProbeAssemblyRequested: (mannyId, model, containerIds) => root.manualProbeAssemblyRequested(mannyId, model, containerIds)
+                    onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
+                    onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
+                    onCraftingReservationsReassignRequested: containerId => root.craftingReservationsReassignRequested(containerId)
+                    onStorageMoveRequested: payload => root.storageMoveRequested(payload)
+                    onJettisonRequested: (itemId, amount, containerId) => root.jettisonRequested(itemId, amount, containerId)
+                    onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
+                    onAsteroidTrajectoryRequested: (asteroidId, payload) => root.asteroidTrajectoryRequested(asteroidId, payload)
+                    onImprovementBlueprintShareRequested: (networkId, improvementId, recipientProbeId) => root.improvementBlueprintShareRequested(networkId, improvementId, recipientProbeId)
+                }
+            }
         }
 
-        SafetyWorkspace {
+        Loader {
             anchors.fill: parent
-            visible: root.section === "SAFETY"
-            alerts: root.dashboardData.alerts || []
-            recovery: root.dashboardData.terminalRecovery || ({})
-            onMindSnapshotReassignRequested: root.mindSnapshotReassignRequested()
-            onAlertDeleteRequested: (alertId, domain) => root.alertDeleteRequested(alertId, domain)
+            active: root.section === "SAFETY"
+            sourceComponent: Component {
+                SafetyWorkspace {
+                    alerts: root.dashboardData.alerts || []
+                    recovery: root.dashboardData.terminalRecovery || ({})
+                    onMindSnapshotReassignRequested: root.mindSnapshotReassignRequested()
+                    onAlertDeleteRequested: (alertId, domain) => root.alertDeleteRequested(alertId, domain)
+                }
+            }
         }
 
-        CommunicationsWorkspace {
+        Loader {
             anchors.fill: parent
-            visible: root.section === "COMMUNICATIONS"
-            communicationsData: root.dashboardData.communications || ({})
-            logbookData: root.dashboardData.logbook || ({})
-            probes: root.availableProbes
-            focusedProbeId: root.focusedProbeId
-            onMessageSendRequested: payload => root.messageSendRequested(payload)
-            onMessageReadRequested: messageId => root.messageReadRequested(messageId)
-            onLogbookCreateRequested: (title, content) => root.logbookCreateRequested(title, content)
-            onLogbookUpdateRequested: (pageId, title, content) => root.logbookUpdateRequested(pageId, title, content)
-            onLogbookDeleteRequested: pageId => root.logbookDeleteRequested(pageId)
-            onAutoLogbookChanged: enabled => root.autoLogbookChanged(enabled)
-            onLogbookPageOpenRequested: pageId => root.logbookPageOpenRequested(pageId)
+            active: root.section === "COMMUNICATIONS"
+            sourceComponent: Component {
+                CommunicationsWorkspace {
+                    communicationsData: root.dashboardData.communications || ({})
+                    logbookData: root.dashboardData.logbook || ({})
+                    probes: root.availableProbes
+                    focusedProbeId: root.focusedProbeId
+                    onMessageSendRequested: payload => root.messageSendRequested(payload)
+                    onMessageReadRequested: messageId => root.messageReadRequested(messageId)
+                    onLogbookCreateRequested: (title, content) => root.logbookCreateRequested(title, content)
+                    onLogbookUpdateRequested: (pageId, title, content) => root.logbookUpdateRequested(pageId, title, content)
+                    onLogbookDeleteRequested: pageId => root.logbookDeleteRequested(pageId)
+                    onAutoLogbookChanged: enabled => root.autoLogbookChanged(enabled)
+                    onLogbookPageOpenRequested: pageId => root.logbookPageOpenRequested(pageId)
+                }
+            }
         }
 
         Column {
