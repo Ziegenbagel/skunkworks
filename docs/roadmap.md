@@ -2,7 +2,7 @@
 
 ## Status
 
-This is the canonical Skunkworks roadmap as of 2026-08-08.
+This is the canonical Skunkworks roadmap as of 2026-08-21.
 
 Missions 1–23 are complete. Mission 24's application interface is implemented
 and undergoing acceptance testing; its cross-platform packaging gate remains
@@ -447,6 +447,22 @@ Skunkworks 1.0 must:
 - Desktop notification controls.
 - Saved workspace layouts.
 - Operation synchronization between trusted devices.
+
+### Version 1.3 — Localization and Accessibility
+
+- Introduce Qt translation catalogs with English as the canonical source
+  language and French as the first complete additional language.
+- Add an in-application language selector, reliable fallback for incomplete
+  translations, and language persistence across launches.
+- Translate navigation, controls, safety warnings, planner explanations,
+  reports, onboarding, and the user manual while keeping game-provided text
+  clearly distinguished from Skunkworks interface text.
+- Support translated plurals, dates, times, numbers, and measurement labels.
+- Audit every workspace for longer translated text, keyboard navigation,
+  readable scaling, and layout resilience before declaring a language
+  complete.
+- Document the contributor workflow for extracting, reviewing, updating, and
+  testing translation catalogs as the interface evolves.
 
 ### Version 1.x — Strategic Intelligence
 
