@@ -46,7 +46,8 @@ SCREENSHOTS = {
     "settings-status": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.14.28 PM.png"),
     "settings-roles": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.14.45 PM.png"),
     "settings-reserve": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.15.42 PM.png"),
-    "settings-transport": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.15.13 PM.png"),
+    "settings-tanker": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.15.13 PM.png"),
+    "settings-transport": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.20.14 PM.png"),
 }
 
 NAVY = RGBColor(5, 23, 34)
@@ -478,6 +479,24 @@ def add_warranty_redemption_form(doc):
     add_note(doc, "Actual terms", "Skunkworks is an independent community tool. The game server remains authoritative, and no joke on this page overrides safety warnings, the software license, or game rules.\nOperator signature: __________________________    Date / local orbit: __________________", "warning")
 
 
+def add_contents_page(doc, entries):
+    add_heading(doc, "Contents")
+    add_body(doc, "The manual follows the application from left to right. Page ranges include every subsection and screenshot belonging to that top-level tab.")
+    table = doc.add_table(rows=1, cols=3)
+    table.style = "Table Grid"
+    set_table_geometry(table, [1200, 6360, 1800])
+    for index, label in enumerate(("Section", "Application area", "Pages")):
+        shade(table.rows[0].cells[index], "061722")
+        font(table.rows[0].cells[index].paragraphs[0].add_run(label), bold=True, color=LIGHT)
+    for number, title, pages in entries:
+        cells = table.add_row().cells
+        font(cells[0].paragraphs[0].add_run(number), bold=True, color=BLUE)
+        font(cells[1].paragraphs[0].add_run(title), bold=True if number != "" else False)
+        cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        font(cells[2].paragraphs[0].add_run(pages), bold=True, color=CYAN)
+        set_table_geometry(table, [1200, 6360, 1800])
+
+
 def build():
     has_figure = make_dashboard_figure()
     has_settings_figure = make_settings_figure()
@@ -529,7 +548,25 @@ def build():
     add_note(doc, "Edition", "Version 0.3 is the illustrated living manual for the current development build. Screens and capabilities will be revised with the application.")
     doc.add_page_break()
 
-    add_heading(doc, "1. Read This First")
+    add_contents_page(doc, [
+        ("1", "Getting Started", "3"),
+        ("2", "Mission Control", "4–5"),
+        ("3", "Fleet", "6"),
+        ("4", "Galaxy Map", "7–8"),
+        ("5", "Navigation", "9–11"),
+        ("6", "Resources", "12–13"),
+        ("7", "Missions", "14"),
+        ("8", "Production", "15"),
+        ("9", "Safety", "16"),
+        ("10", "Communications", "17"),
+        ("11", "Manual Control", "18–22"),
+        ("12", "Settings", "23–28"),
+        ("13", "Troubleshooting and Glossary", "29"),
+        ("", "Manny Warranty Redemption Form", "30"),
+    ])
+    doc.add_page_break()
+
+    add_heading(doc, "1. Getting Started")
     add_body(doc, "Skunkworks is a command-and-awareness layer for Von Neumann Game. It combines live account data, locally retained discoveries, planning, safety review, and optional automation. The focused probe determines the operational context shown across most screens.")
     add_note(doc, "Command authority", "Observe Only never sends game orders. Approval requires confirmation. Automatic can send allowlisted orders when live execution is enabled. The emergency stop overrides every mode.", "warning")
     add_heading(doc, "First launch", 2)
@@ -768,5 +805,189 @@ def build():
     print(OUTPUT)
 
 
+def build_tabbed():
+    """Build the manual in the same hierarchy as the application's tabs."""
+    doc = Document()
+    section = doc.sections[0]
+    section.top_margin = section.bottom_margin = Inches(1.0)
+    section.left_margin = section.right_margin = Inches(1.0)
+    section.header_distance = section.footer_distance = Inches(0.492)
+    normal = doc.styles["Normal"]
+    normal.font.name = "Calibri"
+    normal.font.size = Pt(11)
+    normal.paragraph_format.space_after = Pt(6)
+    normal.paragraph_format.line_spacing = 1.25
+    for name, size, before, after, color in (
+        ("Heading 1", 16, 18, 10, CYAN), ("Heading 2", 13, 14, 7, BLUE), ("Heading 3", 12, 10, 5, NAVY),
+    ):
+        style = doc.styles[name]
+        style.font.name = "Calibri"
+        style.font.size = Pt(size)
+        style.font.bold = True
+        style.font.color.rgb = color
+        style.paragraph_format.space_before = Pt(before)
+        style.paragraph_format.space_after = Pt(after)
+    header = section.header.paragraphs[0]
+    header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    font(header.add_run("SKUNKWORKS  |  OPERATOR MANUAL  |  v0.4"), size=8, bold=True, color=MUTED)
+    footer = section.footer.paragraphs[0]
+    footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    font(footer.add_run("Autonomous Exploration & Fleet Operations  |  Updated 2026-08-22"), size=8, color=MUTED)
+
+    p = doc.add_paragraph()
+    p.paragraph_format.space_before = Pt(80)
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    font(p.add_run("S K U N K W O R K S"), size=28, bold=True, color=NAVY, name="Aptos Display")
+    p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    font(p.add_run("OPERATOR MANUAL"), size=18, bold=True, color=CYAN, name="Aptos Display")
+    p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER; p.paragraph_format.space_after = Pt(28)
+    font(p.add_run("Organized by application tab and workspace"), size=12, color=MUTED)
+    add_screen_figure(doc, "mission-control", "Mission Control: live fleet, sector, resources, safety, alerts, and production at a glance.")
+    add_note(doc, "Edition", "Version 0.4 follows the application's navigation hierarchy. Each top-level tab is one section; its sub-tabs and controls remain inside that section.")
+    doc.add_page_break()
+    add_contents_page(doc, [
+        ("1", "Getting Started", "3"), ("2", "Mission Control", "4"), ("3", "Fleet", "5"),
+        ("4", "Galaxy Map", "6"), ("5", "Navigation", "7–8"), ("6", "Resources", "9–10"),
+        ("7", "Missions", "11"), ("8", "Production", "12"), ("9", "Safety", "13"),
+        ("10", "Communications", "14"), ("11", "Manual Control", "15–19"),
+        ("12", "Settings", "20–26"), ("13", "Troubleshooting and Glossary", "27"),
+        ("", "Manny Warranty Redemption Form", "28"),
+    ])
+
+    doc.add_page_break(); add_heading(doc, "1. Getting Started")
+    add_body(doc, "Skunkworks is a command-and-awareness layer for Von Neumann Game. The focused probe supplies the operational context shown throughout the application.")
+    add_note(doc, "Command authority", "Observe Only never sends orders. Approval requires confirmation. Automatic can send allowlisted orders when live execution is enabled. Emergency Stop overrides every mode.", "warning")
+    add_heading(doc, "First launch", 2)
+    add_steps(doc, [
+        "Open Settings and securely save the game API key.", "Test the connection and confirm Connected appears in the header.",
+        "Select each probe and verify its name, role, sector, fuel, and inventory.",
+        "Keep automation in Observe Only until the proposed queue matches your intent.",
+    ])
+    add_heading(doc, "Reading the header", 2)
+    add_bullets(doc, ["System Status summarizes readiness.", "Focused Probe changes the context for every probe-specific tab.", "Refresh reloads live account data.", "Stop immediately prevents automated orders."])
+
+    doc.add_page_break(); add_heading(doc, "2. Mission Control")
+    add_body(doc, "Mission Control is the at-a-glance dashboard for the focused probe. It combines fleet posture, accessible resources, the current sector, alerts, hull integrity, safety, and active production without replacing the detailed tabs.")
+    add_screen_figure(doc, "mission-control", "Figure 2-1. Mission Control dashboard and primary navigation.", width=6.35)
+    add_dashboard_legend(doc)
+
+    doc.add_page_break(); add_heading(doc, "3. Fleet")
+    add_body(doc, "Fleet contains probe identity and fleet-wide selection. Rename probes, choose the default probe when reachable, configure Manny naming for the focused probe, and select a probe card to change context.")
+    add_heading(doc, "Probe and Manny naming", 2)
+    add_bullets(doc, ["The {probe} field inserts the focused probe name.", "The {number} field inserts the selected numeric or letter sequence.", "Apply to Existing Mannys performs an immediate bulk rename for the focused probe."])
+    add_screen_figure(doc, "fleet", "Figure 3-1. Probe identity, Manny auto-naming, direct Manny rename, and fleet cards.")
+
+    doc.add_page_break(); add_heading(doc, "4. Galaxy Map")
+    add_body(doc, "Galaxy Map presents the locally known FCC network. Drag to orbit or pan, use the wheel to zoom, and use the view buttons for precise orientation. Verified lines represent neighboring-sector relationships.")
+    add_heading(doc, "Filters and sector details", 2)
+    add_bullets(doc, ["Filter by discovery state, resource, hazard, dropped container, focused-probe trail, or SCUT coverage.", "Select a node to read its coordinates, observations, objects, confidence, and last visit.", "Scan/Refresh requests current knowledge when the selected sector is reachable by the API."])
+    add_note(doc, "Local knowledge", "Detailed history persists after scans, but Skunkworks never invents information the game API did not expose.")
+    add_screen_figure(doc, "galaxy", "Figure 4-1. Rotatable FCC galaxy view, sector inspector, filters, trail, and SCUT coverage.")
+
+    doc.add_page_break(); add_heading(doc, "5. Navigation")
+    add_heading(doc, "Manual Travel", 2)
+    add_steps(doc, ["Enter a destination FCC or choose a neighboring sector from Sector Scanning.", "Select a route strategy and preview the route.", "Review distance, deuterium, cargo, and refueling warnings.", "Confirm the one-time command or save the reviewed route as an automated destination."])
+    add_screen_figure(doc, "navigation-travel", "Figure 5-1. Manual Travel destination and route review.")
+    add_heading(doc, "Sector Scanning", 2)
+    add_body(doc, "Sector Scanning lists all twelve FCC neighbors, their current knowledge level, estimated contents, and SCUT network coverage. Scan one sector or all twelve, open Details, or copy a neighbor into Manual Travel.")
+    add_screen_figure(doc, "navigation-scan", "Figure 5-2. Neighbor scanning and travel shortcuts.")
+
+    doc.add_page_break(); add_heading(doc, "6. Resources")
+    add_body(doc, "Resources groups probe storage, containers, drifting objects, and the latest observed asteroid reserves. Quantities retain their source location so users can distinguish accessible cargo from remote or detached stock.")
+    add_heading(doc, "Containers and routing", 2)
+    add_bullets(doc, ["Rename storage containers to reflect their purpose.", "Set Preferred Contents to route newly received materials.", "Reassign Craft Reservations before moving a container whose capacity is reserved for active output.", "Unavailable detached-container detail remains labeled unknown."])
+    add_screen_figure(doc, "manual-container", "Figure 6-1. Container identity, content rules, and reservation reassignment.")
+    add_screen_figure(doc, "manual-cargo", "Figure 6-2. Resource movement and source/destination selection referenced by inventory operations.")
+
+    doc.add_page_break(); add_heading(doc, "7. Missions")
+    add_body(doc, "Missions lists live game objectives and progress. Select an entry for the description, exposed requirements, state, and timestamps supplied by the game. Refresh after completing mission work elsewhere.")
+    add_workspace_diagram(doc, "missions", "Missions workspace", [("Mission list", "Known objectives for the current account context."), ("Mission state", "Status and progress supplied by the game."), ("Detail panel", "Selected description and exposed requirements."), ("Refresh context", "Reload after external game actions.")])
+
+    doc.add_page_break(); add_heading(doc, "8. Production")
+    add_body(doc, "Production displays every Manny and printer, including idle workers. Active cards show the task, target, progress, local completion time, countdown, delivery behavior, and the reason automation dispatched the order.")
+    add_bullets(doc, ["Sort Mannys by name, status, or remaining time.", "Idle Ready means the Manny can receive a valid order.", "Recall cancels the current task subject to game rules.", "Mining cards show their target object, resource, amount, and delivery commitment."])
+    add_screen_figure(doc, "production", "Figure 8-1. Live Manny production, crafting, mining, countdowns, and recall controls.")
+
+    doc.add_page_break(); add_heading(doc, "9. Safety")
+    add_body(doc, "Safety centralizes operational findings. Readiness distinguishes advisory notices from warning and critical conditions; a busy fleet can remain healthy even when no Manny is currently available.")
+    add_bullets(doc, ["Travel risk considers distance, fuel, return options, and destination refueling.", "Cargo warnings identify detachment risk at five or more containers.", "Resource depletion warns before local mining sources are exhausted.", "Emergency Stop prevents automation until explicitly cleared."])
+    add_note(doc, "Evidence", "Some hazards are observed game behavior rather than formal API guarantees. The application identifies uncertainty and keeps configurable thresholds where appropriate.", "warning")
+
+    doc.add_page_break(); add_heading(doc, "10. Communications")
+    add_heading(doc, "Messaging", 2)
+    add_body(doc, "Messaging contains account communications and unread state exposed by the game API. Messages remain separate from operational alerts and safety findings.")
+    add_heading(doc, "Logbook", 2)
+    add_body(doc, "Logbook pages belong to the focused probe. Create and edit operator notes or enable one daily role report plus major-discovery reports. Routine refreshes are not logged as events.")
+    add_screen_figure(doc, "logbook", "Figure 10-1. Messaging/Logbook sub-tabs, page list, editor, and automatic daily reports.")
+
+    doc.add_page_break(); add_heading(doc, "11. Manual Control")
+    add_body(doc, "Manual Control contains one-time operator orders. Every command remains subject to live validation, confirmation, reservations, and Manny availability.")
+    add_heading(doc, "Production and Assembly", 2)
+    add_body(doc, "Queue one exposed recipe without creating a persistent target, or assemble a probe from two distinct empty containers, an assembly Manny, and the model's required crafted components. The recipe reference expands ordinary crafts into total raw inputs.")
+    add_screen_figure(doc, "manual-build", "Figure 11-1. Production and Assembly sub-tab.")
+    add_heading(doc, "Manny Field Operations", 2)
+    add_body(doc, "Repair or upgrade the focused probe, issue a mining order, transfer deuterium, or reassign a Manny to another same-sector probe. Transferring a busy Manny cancels its task.")
+    add_screen_figure(doc, "manual-field", "Figure 11-2. Manny Field Operations sub-tab.")
+    add_heading(doc, "Cargo and Transfers", 2)
+    add_body(doc, "Move stock between containers, jettison resources or items, deploy and recover containers, and manage same-sector handoffs. Confirm the exact Manny, source, destination, and amount before submission.")
+    add_screen_figure(doc, "manual-cargo", "Figure 11-3. Cargo and Transfers sub-tab.")
+    add_screen_figure(doc, "manual-container", "Figure 11-4. Container deployment, recovery, and routing controls.")
+    add_heading(doc, "Infrastructure and Networks", 2)
+    add_body(doc, "Activate SCUT relays, install transit beacons, inspect and bookmark objects, refuel at a visible station, recover waiting cargo, and share known blueprints across an active SCUT network.")
+    add_screen_figure(doc, "manual-network", "Figure 11-5. Infrastructure and Networks sub-tab.")
+    add_heading(doc, "Motorized Asteroid Operations", 2)
+    add_body(doc, "Propulsion installation, refueling, launch, and Anatiform sculpting are high-impact commands. Installation consumes listed components immediately, and launch cannot be cancelled through the current API.")
+    add_screen_figure(doc, "manual-asteroid", "Figure 11-6. Motorized asteroid operations and capability locks.")
+
+    doc.add_page_break(); add_heading(doc, "12. Settings")
+    add_heading(doc, "General Automation", 2)
+    add_heading(doc, "Account, Audio, and Execution Policy", 3)
+    add_body(doc, "Store or test the API credential, configure audio, select Observe Only, Approval, or Automatic, enable live orders, set the command allowlist, and limit orders per one-minute cycle.")
+    add_screen_figure(doc, "settings-policy", "Figure 12-1. General Automation: credentials, audio, execution policy, allowlist, and queue.")
+    add_heading(doc, "Targets and Priorities", 3)
+    add_body(doc, "Targets express desired quantities. Priority 1 is highest. Higher-priority goals claim available inventory first; equal-priority goals use stable target order and are reconsidered after each planning cycle.")
+    add_screen_figure(doc, "settings-targets", "Figure 12-2. Fleet assembly and production targets with independent priorities.")
+    add_heading(doc, "Resource and Safety Floors", 3)
+    add_body(doc, "Configure mining-order size, safe travel segment length, material reserves, fuel floor, minimum free capacity, and repair thresholds. These values belong to the focused probe.")
+    add_screen_figure(doc, "settings-floors", "Figure 12-3. Resource and safety floors.")
+    add_heading(doc, "Live Target Status and Planner", 3)
+    add_body(doc, "Live Target Status compares stored and active work with every configured goal. Complete Planner Status lists all goals and explains missing resources, unavailable fabricators, role requirements, fuel shortages, and idle-Manny shortages.")
+    add_screen_figure(doc, "settings-status", "Figure 12-4. Live Target Status and refresh diagnostics.")
+    add_screen_figure(doc, "settings-planner", "Figure 12-5. Planner requirements, allocations, uncovered resources, and blockers.")
+    add_heading(doc, "Probe Role Settings", 2)
+    add_body(doc, "Probe roles are configured together in this sub-tab. The default probe assigns fleet-wide roles; selecting a role-bearing probe then exposes that role's own controls.")
+    add_heading(doc, "Role Assignment", 3)
+    add_screen_figure(doc, "settings-roles", "Figure 12-6. Fleet-wide probe role assignment from the default probe.")
+    add_heading(doc, "Deuterium Reserve", 3)
+    add_body(doc, "A reserve tanker monitors one selected consumer or downstream tanker and retains the protected source reserve before forwarding deuterium.")
+    add_screen_figure(doc, "settings-reserve", "Figure 12-7. Deuterium Reserve role and refill-chain settings.")
+    add_heading(doc, "Transport and Deuterium Tanker", 3)
+    add_body(doc, "Both recurring logistics roles define loading, unloading, return, repetition, cargo thresholds, contingency reserve, and an optional verified refuel stop. Tanker mode uses an absolute ECE load target; general transport uses cargo percentages.")
+    add_screen_figure(doc, "settings-transport", "Figure 12-8. Transport role round-trip settings.")
+    add_screen_figure(doc, "settings-tanker", "Figure 12-9. Deuterium Tanker round-trip settings.")
+
+    doc.add_page_break(); add_heading(doc, "13. Troubleshooting and Glossary")
+    table = doc.add_table(rows=1, cols=3); table.style = "Table Grid"; set_table_geometry(table, [2200, 3100, 4060])
+    for i, label in enumerate(("Symptom", "Check", "Action")):
+        shade(table.rows[0].cells[i], "E8EEF5"); font(table.rows[0].cells[i].paragraphs[0].add_run(label), bold=True, color=BLUE)
+    for case in (
+        ("Wrong sector after probe selection", "Focused Probe and FCC after refresh", "Wait for the authoritative snapshot before acting."),
+        ("No automation command", "Planner blockers, inventory, allowlist, safety", "Read Complete Planner Status and resolve the named prerequisite."),
+        ("Idle Manny receives no work", "Queue, raw resources, fabricator, reservations", "Confirm a command is unblocked and the required worker type is available."),
+        ("Refresh is slow", "Refresh Diagnostics slowest stages", "Capture diagnostic logs; galaxy refreshes are expected to be the heaviest."),
+        ("Map lacks detail", "Knowledge level and last scan", "Scan the sector or its neighbors."),
+    ):
+        cells = table.add_row().cells
+        for cell, text in zip(cells, case): font(cell.paragraphs[0].add_run(text), size=9.2)
+        set_table_geometry(table, [2200, 3100, 4060])
+    add_heading(doc, "Glossary", 2)
+    for term, definition in (("ECE", "Resource and capacity quantity unit."), ("FCC", "Three-dimensional sector coordinates."), ("Manny", "Autonomous construction and mining unit."), ("SCUT relay", "Communication relay in a discovered network."), ("Desired state", "The quantities and priorities automation maintains."), ("Focused probe", "The probe supplying the current workspace context.")):
+        add_body(doc, f"{term}. {definition}", bold_lead=f"{term}. ")
+    add_warranty_redemption_form(doc)
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(OUTPUT)
+    print(OUTPUT)
+
+
 if __name__ == "__main__":
-    build()
+    build_tabbed()

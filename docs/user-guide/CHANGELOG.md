@@ -1,5 +1,15 @@
 # Operator Manual Revision History
 
+## 0.4 — 2026-08-22
+
+- Reorganized the manual to mirror the application's top-level tabs, with each
+  tab contained in one numbered section and its sub-tabs presented as nested
+  subsections.
+- Grouped role assignment, Deuterium Reserve, Transport, and Deuterium Tanker
+  guidance under Settings → Probe Role Settings.
+- Added a page-two contents table with verified page ranges for every major
+  application area and the Manny warranty insert.
+
 ## 0.3 — 2026-08-22
 
 - Rebuilt the manual around current screenshots of Mission Control, Fleet,
