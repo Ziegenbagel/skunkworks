@@ -6,7 +6,7 @@ from src.diagnostics import configure_diagnostics, diagnostic_log_directory, log
 
 def test_diagnostic_directory_is_user_scoped():
     assert diagnostic_log_directory().is_absolute()
-    assert "Skunkworks" in str(diagnostic_log_directory()) or "skunkworks" in str(diagnostic_log_directory())
+    assert diagnostic_log_directory().name in {"Skunkworks", "skunkworks", "state"}
 
 
 def test_diagnostic_log_rotates_and_redacts_credentials(tmp_path):

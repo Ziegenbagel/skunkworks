@@ -1,0 +1,62 @@
+name: Build unsigned release candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version label for candidate artifacts
+        required: true
+        default: 1.0.0-rc1
+
+permissions:
+  contents: read
+
+env:
+  SKUNKWORKS_HOME: ${{ runner.temp }}/skunkworks-release
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: macOS-arm64
+          - os: macos-13
+            platform: macOS-x86_64
+          - os: windows-latest
+            platform: Windows-x64
+          - os: ubuntu-22.04
+            platform: Linux-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Install project and deployment dependencies
+        run: python -m pip install -e . pytest pytest-qt pillow Nuitka==4.1.1 ordered-set zstandard
+      - name: Verify candidate source
+        run: python -m pytest -q tests
+      - name: Verify release contents
+        run: python -m tools.release_readiness
+      - name: Build standalone application
+        run: pyside6-deploy -c pysidedeploy.spec --force
+      - name: Audit unpacked candidate for private data
+        run: python -m tools.audit_release_tree build/deploy
+      - name: Add release documents
+        shell: bash
+        run: |
+          mkdir -p build/deploy/release-documents
+          cp LICENSE PRIVACY.md SECURITY.md SUPPORT.md THIRD_PARTY_NOTICES.md RELEASE_NOTES.md build/deploy/release-documents/
+      - name: Upload unsigned candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: Skunkworks-${{ inputs.version }}-${{ matrix.platform }}-unsigned
+          path: build/deploy
+          if-no-files-found: error
+
+# These artifacts are deliberately not attached to a public GitHub Release.
+# Platform signing, notarization, installer creation, checksums, and clean-machine
+# acceptance must succeed before a separate publication workflow is enabled.

@@ -3,13 +3,33 @@ name = "skunkworks"
 version = "0.7.0"
 description = "Policy-controlled mission control and fleet automation for the Von Neumann Game"
 readme = "README.md"
+authors = [{ name = "Christopher Ziegenhagel (Ziegenbagel)" }]
+license = "LicenseRef-Skunkworks-Source-Available-Personal-Use-1.0"
 requires-python = ">=3.14"
+keywords = ["desktop", "fleet-automation", "mission-control", "pyside6", "qt"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications :: Qt",
+    "License :: Other/Proprietary License",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.14",
+]
 dependencies = [
     "pyside6>=6.11.1",
     "python-dotenv>=1.2.2",
     "requests>=2.34.2",
     "keyring>=25.6.0",
 ]
+
+[project.scripts]
+skunkworks = "src.ui.app:run"
+
+[project.urls]
+Homepage = "https://github.com/Ziegenbagel/skunkworks"
+Releases = "https://github.com/Ziegenbagel/skunkworks/releases"
+Issues = "https://github.com/Ziegenbagel/skunkworks/issues"
 
 [dependency-groups]
 dev = [

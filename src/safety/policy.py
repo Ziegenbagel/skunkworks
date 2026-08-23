@@ -4,6 +4,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.application.paths import application_paths
+
 
 PRESETS = {
     "cautious": {
@@ -119,9 +121,11 @@ class TravelSafetyPolicy:
 class TravelSafetyPolicyStore:
     def __init__(
         self,
-        path="config/travel_safety.json",
+        path=None,
     ):
-        self.path = Path(path)
+        self.path = Path(path) if path is not None else application_paths().config_file(
+            "travel_safety.json"
+        )
 
     def load(self):
         if not self.path.exists():

@@ -11,6 +11,8 @@ import sys
 import threading
 from pathlib import Path
 
+from src.application.paths import application_paths
+
 
 LOGGER_NAME = "skunkworks"
 _configured_path: Path | None = None
@@ -19,13 +21,7 @@ _configured_path: Path | None = None
 def diagnostic_log_directory() -> Path:
     """Return the conventional per-user log directory for this platform."""
 
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Logs" / "Skunkworks"
-    if os.name == "nt":
-        root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
-        return root / "Skunkworks" / "Logs"
-    root = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
-    return root / "skunkworks" / "logs"
+    return application_paths().state
 
 
 class _CredentialRedactionFilter(logging.Filter):
@@ -116,4 +112,3 @@ def log_handled_error(message: str) -> None:
         message,
         exc_info=sys.exc_info()[0] is not None,
     )
-

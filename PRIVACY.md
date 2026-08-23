@@ -20,7 +20,8 @@ bundle before sharing it.
 Removing the API key from Settings deletes the vault credential. Uninstalling
 the application may not remove the local database, snapshots, backups, or logs;
 those are retained so an uninstall does not silently destroy operational
-history. The final platform packages must document their exact data locations.
+history. Exact platform locations are documented in
+`docs/installing-and-updating.md`.
 
 Backups are local files chosen by the operator. Skunkworks does not upload them.
 The game service's own privacy terms govern data processed by that service.

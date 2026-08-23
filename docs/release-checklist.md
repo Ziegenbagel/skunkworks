@@ -15,6 +15,10 @@ that requires signed platform packages or the live game service.
   documents exist.
 - [x] End-user package download, source installation, and manual update guidance exists.
 - [x] Raw databases and sector snapshots are excluded from the current release tree.
+- [x] Runtime data, configuration, cache, and logs use platform-correct per-user
+  locations with verified, non-overwriting legacy database migration.
+- [x] Cross-platform CI and unsigned release-candidate build scaffolding exists.
+- [ ] Replace every public manual screenshot with a synthetic demo capture.
 - [x] Source-available personal-use license selected by the owner and added at
   repository root; obtain legal review before public release.
 - [ ] Dependency and asset notices regenerated from the exact packaged artifacts.

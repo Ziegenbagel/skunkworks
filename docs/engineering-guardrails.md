@@ -259,9 +259,22 @@ result with `PRAGMA quick_check`, and write through a partial file before an
 atomic replace. Never overwrite the live database as a backup destination.
 Physical vacuuming remains an explicit offline maintenance action.
 
+### Packaged resources and user state never share a location
+
+The database, policy files, backups, runtime snapshots, and logs live in
+platform-correct per-user directories. A first launch may copy legacy state only
+through verified, non-overwriting migration; it never moves or deletes the
+source. `SKUNKWORKS_HOME` exists for isolated private development and tests.
+Repository `config/` files are non-live templates and must contain no probe IDs
+or enabled mutation policy.
+
 ## API and Safety Invariants
 
 - Explicit probe ID is required at every probe-scoped gateway.
+- A clean profile always starts in Observe Only with live execution disabled
+  and an empty allowlist. Repository configuration is a safe template, never a
+  developer's live policy. Tests requiring dispatch permission must configure
+  it explicitly rather than inherit workstation state.
 - Probe identity comes from the selected fleet row when compact telemetry is
   missing or stale.
 - Moving/unreachable probes receive a limited world model rather than silently

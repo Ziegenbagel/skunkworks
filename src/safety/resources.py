@@ -4,6 +4,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from src.application.paths import application_paths
+
 from src.models.galaxy import SectorCoordinates
 
 
@@ -419,9 +421,11 @@ class ResourceSustainabilityService:
 class ResourceSafetyPolicyStore:
     def __init__(
         self,
-        path="config/resource_safety.json",
+        path=None,
     ):
-        self.path = Path(path)
+        self.path = Path(path) if path is not None else application_paths().config_file(
+            "resource_safety.json"
+        )
 
     def load(self):
         if not self.path.exists():

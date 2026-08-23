@@ -2,6 +2,8 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from src.application.paths import application_paths
+
 from src import snapshot
 
 
@@ -24,7 +26,7 @@ class SnapshotManager:
         self.client = client
 
         self.snapshot_directory = Path(
-            snapshot_directory or "data/snapshots/runtime"
+            snapshot_directory or application_paths().snapshots
         )
         self.archive_interval = timedelta(
             minutes=max(1, int(archive_interval_minutes))

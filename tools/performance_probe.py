@@ -27,14 +27,14 @@ def timed(operation, repetitions):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--database", default="data/skunkworks.sqlite3")
+    parser.add_argument("--database")
     parser.add_argument("--repetitions", type=int, default=5)
     arguments = parser.parse_args(argv)
     repetitions = max(1, arguments.repetitions)
-    database = Path(arguments.database)
+    database = Path(arguments.database) if arguments.database else None
     engine = DataEngine(database)
     results = {
-        "database": str(database),
+        "database": str(engine.path),
         "databaseHealth": engine.database_report(),
         "integrity": timed(engine.integrity_report, repetitions),
         "databaseReport": timed(engine.database_report, repetitions),

@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
+from src.application.paths import application_paths
+
 from .commands import CommandType
 
 
@@ -62,9 +64,11 @@ class ExecutionPolicy:
 class ExecutionPolicyStore:
     def __init__(
         self,
-        path="config/execution_policy.json",
+        path=None,
     ):
-        self.path = Path(path)
+        self.path = Path(path) if path is not None else application_paths().config_file(
+            "execution_policy.json"
+        )
 
     def _read(self):
         if not self.path.exists():

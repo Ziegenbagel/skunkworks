@@ -8,6 +8,8 @@ from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from src.application.paths import application_paths
+
 
 SCHEMA_VERSION = 4
 
@@ -20,8 +22,8 @@ class DataEngine:
     # worker does not append the same large snapshot again.
     _shared_world_history_signatures = {}
 
-    def __init__(self, path="data/skunkworks.sqlite3"):
-        self.path = Path(path)
+    def __init__(self, path=None):
+        self.path = Path(path) if path is not None else application_paths().database
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._galaxy_cache = None
         self._galaxy_cache_built_at = 0.0

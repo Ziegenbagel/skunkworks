@@ -11,6 +11,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 from src.ui.controller import MissionControlController
 from src.diagnostics import configure_diagnostics, install_exception_hooks
+from src.application.paths import application_paths
 
 
 def configure_qt_plugin_paths():
@@ -41,6 +42,7 @@ def configure_qt_plugin_paths():
 
 
 def run(controller=None):
+    application_paths().migrate_legacy(Path(__file__).resolve().parents[2])
     configure_diagnostics()
     install_exception_hooks()
     configure_qt_plugin_paths()

@@ -11,11 +11,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
-    "README.md", "PRIVACY.md", "SECURITY.md", "SUPPORT.md",
+    "README.md", "PRIVACY.md", "SECURITY.md", "SUPPORT.md", "ASSET_MANIFEST.md",
     "THIRD_PARTY_NOTICES.md", "RELEASE_NOTES.md",
     "docs/release-checklist.md", "docs/capability-matrix.md",
     "docs/installing-and-updating.md", "docs/licensing-decision.md",
     "docs/private-test-data.md",
+    "docs/repository-publication.md",
+    "docs/user-guide/assets/PRIVACY_REVIEW.md",
     "docs/user-guide/Skunkworks_Operator_Manual.docx",
 )
 
@@ -70,12 +72,42 @@ def audit(root=ROOT):
         "Remove local credential/snapshot files from release staging: "
         + (", ".join(tracked_secrets) or "none found"),
     )
+    screenshot_review = root / "docs/user-guide/assets/PRIVACY_REVIEW.md"
+    screenshot_text = (
+        screenshot_review.read_text(encoding="utf-8")
+        if screenshot_review.is_file() else ""
+    )
+    record(
+        "privacy:manual-screenshots",
+        bool(re.search(
+            r"^Status:\s*APPROVED SYNTHETIC DATA\s*$",
+            screenshot_text,
+            re.MULTILINE,
+        )),
+        "Operator Manual screenshots must be recaptured with synthetic data.",
+    )
+
+    execution_policy = json.loads(
+        (root / "config/execution_policy.json").read_text(encoding="utf-8")
+    )
+    record(
+        "privacy:policy-template",
+        execution_policy.get("default", {}).get("mode") == "observe"
+        and not execution_policy.get("default", {}).get("liveExecutionEnabled")
+        and not execution_policy.get("probes"),
+        "Tracked execution policy must be Observe Only with no probe IDs.",
+    )
     return checks
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--allow-documentation-work-in-progress",
+        action="store_true",
+        help="Keep manual screenshot/output failures visible but non-blocking for development CI.",
+    )
     arguments = parser.parse_args(argv)
     checks = audit()
     if arguments.json:
@@ -83,7 +115,14 @@ def main(argv=None):
     else:
         for check in checks:
             print(f"{'PASS' if check['ok'] else 'FAIL'}  {check['name']}: {check['detail']}")
-    return 0 if all(check["ok"] for check in checks) else 1
+    blocking = checks
+    if arguments.allow_documentation_work_in_progress:
+        allowed = {
+            "file:docs/user-guide/Skunkworks_Operator_Manual.docx",
+            "privacy:manual-screenshots",
+        }
+        blocking = [check for check in checks if check["name"] not in allowed]
+    return 0 if all(check["ok"] for check in blocking) else 1
 
 
 if __name__ == "__main__":

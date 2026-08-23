@@ -1,0 +1,34 @@
+{
+  "sector": {
+    "relativeCoordinates": {"x": 1, "y": 0, "z": -1},
+    "knowledgeLevel": "detailed",
+    "confidence": 1.0,
+    "objects": [
+      {
+        "id": "synthetic-star-system",
+        "type": "solar_system",
+        "name": "Example System",
+        "estimated": false
+      },
+      {
+        "id": "synthetic-metals-asteroid",
+        "type": "asteroid",
+        "name": "Example Metals Deposit",
+        "resources": [{"type": "metals", "amount": 12.5}]
+      }
+    ]
+  },
+  "inventory": {
+    "resources": [
+      {"type": "deuterium", "amount": 1.0},
+      {"type": "metals", "amount": 2.0}
+    ],
+    "items": []
+  },
+  "probe": {
+    "id": 1001,
+    "name": "Example Hub",
+    "model": "generic",
+    "status": "idle"
+  }
+}

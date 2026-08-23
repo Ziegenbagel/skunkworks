@@ -1,0 +1,37 @@
+name: Repository checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  SKUNKWORKS_HOME: ${{ runner.temp }}/skunkworks-ci
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Install project and test dependencies
+        run: python -m pip install -e . pytest pytest-qt pillow
+      - name: Run tests
+        run: python -m pytest -q tests
+      - name: Run release privacy and metadata audit
+        run: python -m tools.release_readiness --allow-documentation-work-in-progress
+      - name: Test release-tree privacy audit
+        run: python -m pytest -q tests/test_release_tree_audit.py
+      - name: Lint QML
+        run: pyside6-qmllint -I src/ui/qml src/ui/qml/App.qml
+      - name: Compile Python sources
+        run: python -m compileall -q src tools

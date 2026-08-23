@@ -7,6 +7,8 @@ def test_release_readiness_has_expected_non_packaging_gates():
     assert checks["metadata:description"]["ok"]
     assert checks["metadata:version"]["ok"]
     assert checks["privacy:local-files"]["ok"]
+    assert checks["privacy:policy-template"]["ok"]
+    assert not checks["privacy:manual-screenshots"]["ok"]
     assert checks["legal:license"]["ok"]
     assert all(
         check["ok"] for name, check in checks.items()

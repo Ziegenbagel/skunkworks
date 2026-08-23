@@ -11,6 +11,22 @@ can be used for performance measurements, migration rehearsals, planner
 reproduction, and future release work. Removing a file from Git tracking does
 not require deleting the private working copy.
 
+For this development checkout, the preserved private runtime is rooted at the
+ignored `private/test-data/` directory. It retains the original execution policy
+and points to the existing live database without copying it. Launch explicitly
+against that private runtime with:
+
+```bash
+SKUNKWORKS_HOME="$PWD/private/test-data" python -m src.ui.app
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:SKUNKWORKS_HOME = "$PWD\private\test-data"
+python -m src.ui.app
+```
+
 Before high-risk migration or compaction work, make a verified backup outside
 the repository:
 

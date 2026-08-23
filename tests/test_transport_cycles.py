@@ -444,7 +444,10 @@ class TransportCycleTests(unittest.TestCase):
             # 74 ECE, less than the target's 96 ECE free capacity.
             self.assertEqual(transfer["payload"]["amount"], 74)
             self.assertEqual(transfer["payload"]["targetProbeId"], 9)
-            self.assertEqual(transfer["disposition"], "ready")
+            # A clean profile is Observe Only. This test exercises transport
+            # sizing, not permission escalation, so the proposal remains a
+            # correctly sized dry run until the operator enables execution.
+            self.assertEqual(transfer["disposition"], "dry_run")
 
     def test_unloading_waits_while_one_transfer_is_already_active(self):
         from src.data import DataEngine

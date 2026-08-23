@@ -25,6 +25,7 @@ followed by the documents below.
 - `installing-and-updating.md` — package downloads, source setup, and upgrades.
 - `licensing-decision.md` — owner choices for source, assets, and distribution.
 - `private-test-data.md` — retaining private fixtures without publishing them.
+- `repository-publication.md` — history cleanup and clean release staging.
 
 ## Archive
 

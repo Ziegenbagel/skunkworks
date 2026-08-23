@@ -1,61 +1,9 @@
 {
   "default": {
-    "mode": "automatic",
-    "liveExecutionEnabled": true,
-    "allowedCommandTypes": [
-      "atomic_printer_craft",
-      "manny_craft",
-      "manny_assemble_probe",
-      "manny_mine"
-    ],
-    "maxCommandsPerCycle": 10
+    "mode": "observe",
+    "liveExecutionEnabled": false,
+    "allowedCommandTypes": [],
+    "maxCommandsPerCycle": 1
   },
-  "probes": {
-    "644": {
-      "mode": "automatic",
-      "liveExecutionEnabled": true,
-      "allowedCommandTypes": [
-        "atomic_printer_craft",
-        "manny_assemble_probe",
-        "manny_craft",
-        "manny_mine",
-        "manny_repair"
-      ],
-      "maxCommandsPerCycle": 10
-    },
-    "762": {
-      "mode": "automatic",
-      "liveExecutionEnabled": true,
-      "allowedCommandTypes": [
-        "atomic_printer_craft",
-        "manny_assemble_probe",
-        "manny_craft",
-        "manny_mine",
-        "manny_repair",
-        "move_probe"
-      ],
-      "maxCommandsPerCycle": 10
-    },
-    "805": {
-      "mode": "automatic",
-      "liveExecutionEnabled": true,
-      "allowedCommandTypes": [
-        "manny_mine",
-        "manny_repair",
-        "manny_transfer_deuterium",
-        "move_probe"
-      ],
-      "maxCommandsPerCycle": 10
-    },
-    "836": {
-      "mode": "automatic",
-      "liveExecutionEnabled": true,
-      "allowedCommandTypes": [
-        "manny_mine",
-        "manny_repair",
-        "manny_transfer_deuterium"
-      ],
-      "maxCommandsPerCycle": 10
-    }
-  }
+  "probes": {}
 }

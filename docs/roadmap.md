@@ -368,6 +368,14 @@ release notes, third-party inventory, and a deterministic readiness audit. The
 owner license decision, live-service validation, soak testing, exact packaged
 dependency/asset notices, and platform distribution gates remain open.
 
+Additional release preparation completed the same day: platform-correct writable
+paths, verified legacy-data copying, an isolated private-test-data runtime,
+synthetic public fixture policy, safe Observe Only configuration templates,
+release-tree privacy scanning, source/publication instructions, asset inventory,
+Qt/Nuitka deployment configuration, and macOS/Windows/Linux CI candidate-build
+scaffolding. Live-account manual captures are retained locally but removed from
+the public tree pending synthetic recapture.
+
 - [ ] Run several days of crafting-automation soak testing with deliberately
   varied priority arrangements, including equal priorities, unavailable
   resources, deliveries that unblock a higher-priority goal, idle Mannys,

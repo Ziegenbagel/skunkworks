@@ -11,7 +11,7 @@ from src.data import DataEngine
 
 def build_parser():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--database", default="data/skunkworks.sqlite3")
+    parser.add_argument("--database")
     actions = parser.add_mutually_exclusive_group()
     actions.add_argument("--backup", metavar="PATH")
     actions.add_argument("--compact", action="store_true")
@@ -26,7 +26,7 @@ def build_parser():
 
 def main(argv=None):
     arguments = build_parser().parse_args(argv)
-    engine = DataEngine(Path(arguments.database))
+    engine = DataEngine(Path(arguments.database) if arguments.database else None)
     before = engine.database_report()
     result = None
     if arguments.backup:

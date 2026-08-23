@@ -87,3 +87,22 @@ python -m src.ui.app
 ```
 
 Never commit `.env`, databases, backups, runtime snapshots, or diagnostic logs.
+
+## User-data locations
+
+Skunkworks keeps mutable state outside the installed application:
+
+| Platform | Database/configuration | Cache/snapshots | Logs |
+|---|---|---|---|
+| macOS | `~/Library/Application Support/Skunkworks` | `~/Library/Caches/Skunkworks` | `~/Library/Logs/Skunkworks` |
+| Windows | `%LOCALAPPDATA%\Skunkworks\Data` and `Config` | `%LOCALAPPDATA%\Skunkworks\Cache` | `%LOCALAPPDATA%\Skunkworks\Logs` |
+| Linux | `$XDG_DATA_HOME/skunkworks` and `$XDG_CONFIG_HOME/skunkworks` | `$XDG_CACHE_HOME/skunkworks` | `$XDG_STATE_HOME/skunkworks` |
+
+When XDG variables are unset, Linux uses their conventional paths under
+`~/.local/share`, `~/.config`, `~/.cache`, and `~/.local/state`. Developers may
+set `SKUNKWORKS_HOME` to isolate all writable state under one private directory.
+
+On first launch after upgrading from a source-tree installation, Skunkworks
+copies the legacy SQLite database through SQLite's online backup API and verifies
+it before use. The original is preserved. Existing destination data is never
+overwritten automatically.

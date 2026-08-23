@@ -39,7 +39,7 @@ Skunkworks currently requires Python 3.14 and the dependencies declared in
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
-python -m src.ui.app
+skunkworks
 ```
 
 On Windows, activate with `.venv\Scripts\activate`. The first-launch wizard or
