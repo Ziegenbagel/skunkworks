@@ -1,5 +1,16 @@
 # Operator Manual Revision History
 
+## 0.5 — 2026-08-22
+
+- Expanded Navigation into separate Manual Travel, Automatic Travel, and Sector
+  Scanning pages with procedures, safety checks, and matching screenshots.
+- Expanded every Manual Control and Settings category with practical control
+  descriptions, prerequisites, confirmation behavior, and planner guidance.
+- Paired subsection guidance with its associated screenshot on the same page
+  wherever possible and removed Manual Control imagery from Resources.
+- Removed the synthetic Missions workspace diagram; the manual now uses only
+  supplied UI screenshots and explicitly avoids inventing missing UI imagery.
+
 ## 0.4 — 2026-08-22
 
 - Reorganized the manual to mirror the application's top-level tabs, with each
