@@ -1,5 +1,20 @@
 # Operator Manual Revision History
 
+## 0.3 — 2026-08-22
+
+- Rebuilt the manual around current screenshots of Mission Control, Fleet,
+  Galaxy Map, Navigation, Production, Communications, Manual Control, and
+  Settings, with focused crops for dense workspaces.
+- Added complete guidance for one-time production and assembly, Manny field
+  operations, cargo and container routing, SCUT infrastructure, motorized
+  asteroids, automation targets, planner blockers, fleet roles, and recurring
+  logistics.
+- Expanded explanations of raw-resource recipes, assembly components,
+  priority allocations, safety floors, live target status, and diagnostic
+  refresh information.
+- Reworked the comic Manny warranty insert as a printable service-job flyer and
+  redemption form with a labeled field-inspection diagram.
+
 ## API v114–v115 — 2026-08-20
 
 - Reviewed and enabled API v114 alert illustrations and API v115 Anatiform
