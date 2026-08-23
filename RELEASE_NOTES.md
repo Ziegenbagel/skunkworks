@@ -1,7 +1,10 @@
 # Skunkworks 1.0 Release Notes (Draft)
 
 Skunkworks 1.0 is the first public desktop release of policy-controlled mission
-control and fleet automation for the Von Neumann Game.
+control and fleet automation for the Von Neumann Game. Its source is published
+for inspection under the release's source-available terms; public availability
+must not be described as an OSI-approved open-source license unless those terms
+change.
 
 Highlights include multi-probe mission control, manual and automatic travel,
 galaxy mapping, production and assembly planning, Manny field operations,

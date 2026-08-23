@@ -102,8 +102,11 @@ scope.
 Skunkworks is an independent companion project for the open-source
 [Von Neumann Game](https://github.com/gnieark/Von-Neumann-Game).
 
-## License
+## Source and license
 
-A distribution license must be selected by the project owner before the public
-1.0 release. The automated readiness audit intentionally treats its absence as a
-release blocker.
+Skunkworks intends to publish source for inspection while reserving modification,
+derivative distribution, and original-asset reuse unless prior written approval
+is granted. Final source-available terms must be selected before the public 1.0
+release; until then, no permission is granted beyond applicable law and the
+GitHub Terms of Service. The readiness audit intentionally treats the missing
+final license as a release blocker.
