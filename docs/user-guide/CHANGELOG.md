@@ -1,5 +1,15 @@
 # Operator Manual Revision History
 
+## 0.7 — 2026-08-23
+
+- Explained that daily role and major-discovery logbook reports are disabled by
+  default and controlled by the account-wide opt-in checkbox in Logbook.
+- Documented the 17:00 local-time reporting cutoff, per-probe report behavior,
+  retained pages after opt-out, and the privacy implications of game-logbook
+  reports.
+- Verified that Settings → Open Operator Manual resolves to the generated manual
+  bundled at `docs/user-guide/Skunkworks_Operator_Manual.docx`.
+
 ## 0.6 — 2026-08-23
 
 - Replaced all operator-account screenshots with reproducible captures of the

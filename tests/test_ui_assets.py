@@ -750,6 +750,10 @@ def test_settings_exposes_operator_manual_and_change_log_links():
     assert "onOperatorManualRequested" in app
     assert "def openOperatorManual" in controller
     assert "def openChangeLog" in controller
+    assert 'Path("docs/user-guide/Skunkworks_Operator_Manual.docx")' in controller
+    assert Path("docs/user-guide/Skunkworks_Operator_Manual.docx").is_file()
+    deploy = Path("pysidedeploy.spec").read_text()
+    assert "--include-data-dir=docs/user-guide=docs/user-guide" in deploy
 
 
 def test_live_section_grid_virtualizes_large_manny_rosters():
