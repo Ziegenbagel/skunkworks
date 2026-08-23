@@ -13,6 +13,8 @@ that requires signed platform packages or the live game service.
 - [x] Product metadata has a real description and one synchronized version.
 - [x] Privacy, security, support, third-party notice, capability, and draft release
   documents exist.
+- [x] End-user package download, source installation, and manual update guidance exists.
+- [x] Raw databases and sector snapshots are excluded from the current release tree.
 - [ ] Distribution license selected by the owner and added at repository root.
 - [ ] Dependency and asset notices regenerated from the exact packaged artifacts.
 - [ ] No local `.env`, database, snapshot, log, backup, or developer cache is in

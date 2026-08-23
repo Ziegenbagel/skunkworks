@@ -14,6 +14,8 @@ REQUIRED_FILES = (
     "README.md", "PRIVACY.md", "SECURITY.md", "SUPPORT.md",
     "THIRD_PARTY_NOTICES.md", "RELEASE_NOTES.md",
     "docs/release-checklist.md", "docs/capability-matrix.md",
+    "docs/installing-and-updating.md", "docs/licensing-decision.md",
+    "docs/private-test-data.md",
     "docs/user-guide/Skunkworks_Operator_Manual.docx",
 )
 
@@ -52,13 +54,16 @@ def audit(root=ROOT):
         bool(license_files),
         "A distribution license must be selected before public release.",
     )
-    tracked_secrets = tuple(
-        relative for relative in (".env", "sector_snapshot.json")
-        if subprocess.run(
-            ["git", "ls-files", "--error-unmatch", relative],
-            cwd=root, capture_output=True, check=False,
-        ).returncode == 0
-    )
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True,
+    ).stdout.splitlines()
+    tracked_secrets = tuple(sorted(
+        relative for relative in tracked
+        if relative in {".env", "sector_snapshot.json"}
+        or relative.endswith((".sqlite", ".sqlite3", ".db", ".log"))
+        or relative.startswith("data/snapshots/")
+        or relative.startswith("data/backups/")
+    ))
     record(
         "privacy:local-files",
         not tracked_secrets,

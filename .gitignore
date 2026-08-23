@@ -16,6 +16,11 @@ data/snapshots/runtime/
 data/*.sqlite3
 data/*.sqlite3-shm
 data/*.sqlite3-wal
+data/*.db
+data/backups/
+data/snapshots/**/*.json
+sector_snapshot.json
+*.log
 
 # Virtual environments
 .venv

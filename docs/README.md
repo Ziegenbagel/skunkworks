@@ -22,6 +22,9 @@ followed by the documents below.
 - `roadmap.md` — remaining work to 1.0 and the post-1.0 backlog.
 - `release-checklist.md` — repository, data, live-service, and packaging gates.
 - `capability-matrix.md` — release-level map of observed, manual, and automated controls.
+- `installing-and-updating.md` — package downloads, source setup, and upgrades.
+- `licensing-decision.md` — owner choices for source, assets, and distribution.
+- `private-test-data.md` — retaining private fixtures without publishing them.
 
 ## Archive
 

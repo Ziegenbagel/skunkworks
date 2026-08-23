@@ -46,6 +46,9 @@ On Windows, activate with `.venv\Scripts\activate`. The first-launch wizard or
 Settings page stores the game API key in the operating-system credential vault;
 it is not written into project settings or logs.
 
+For release downloads, platform-specific installation, source archives, and
+upgrade instructions, see [Installing, Running, and Updating Skunkworks](docs/installing-and-updating.md).
+
 ## Safety model
 
 Skunkworks never treats a plan as permission. Every live command passes through
@@ -67,6 +70,9 @@ decisions.
 - [Engineering guide](docs/engineering-guide.md)
 - [Version 1.0 release checklist](docs/release-checklist.md)
 - [Capability matrix](docs/capability-matrix.md)
+- [Installing and updating](docs/installing-and-updating.md)
+- [Distribution license decision](docs/licensing-decision.md)
+- [Private test-data workflow](docs/private-test-data.md)
 - [Privacy](PRIVACY.md), [security](SECURITY.md), and [support](SUPPORT.md)
 
 Historical mission notes and superseded design packages are retained under
