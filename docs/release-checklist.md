@@ -15,7 +15,8 @@ that requires signed platform packages or the live game service.
   documents exist.
 - [x] End-user package download, source installation, and manual update guidance exists.
 - [x] Raw databases and sector snapshots are excluded from the current release tree.
-- [ ] Distribution license selected by the owner and added at repository root.
+- [x] Source-available personal-use license selected by the owner and added at
+  repository root; obtain legal review before public release.
 - [ ] Dependency and asset notices regenerated from the exact packaged artifacts.
 - [ ] No local `.env`, database, snapshot, log, backup, or developer cache is in
   the staged release payload.

@@ -17,3 +17,8 @@ texts shipped by each dependency. The packaging build must collect the exact
 notices and license files from the locked artifacts it distributes, including
 transitive dependencies and Qt components. Artwork and audio provenance must be
 checked separately against the asset manifest before release.
+
+The Skunkworks Source-Available Personal Use License applies only to rights held
+by the Skunkworks copyright holder. It does not replace or narrow any permission
+granted directly by the third-party licenses above or by the licenses recorded
+in `src/ui/assets/audio/AUDIO_LICENSES.md`.

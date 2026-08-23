@@ -20,15 +20,17 @@ Open-source licenses must permit modification and derived works. A custom
 Skunkworks Source-Available License should be reviewed by a qualified lawyer
 before public release.
 
-Three owner decisions are still required for the final text:
+The owner decisions recorded on 2026-08-23 are:
 
-1. Whether unmodified Skunkworks may be used for commercial purposes.
-2. Whether users may redistribute an untouched official installer/source archive,
-   or must always link recipients to the official GitHub release.
-3. The legal copyright-holder name and jurisdiction/contact for written approvals.
+1. Official, unmodified Skunkworks is for individual personal, non-commercial use.
+2. Users must link recipients to the official GitHub release instead of
+   redistributing an installer or source archive.
+3. The copyright holder is Christopher Ziegenhagel, also known as Ziegenbagel.
 
 Requiring downloads from the official GitHub Releases page is the cleanest way
 to protect provenance, preserve notices, and keep users on supported builds.
+These choices are implemented in the root `LICENSE` draft. A qualified lawyer
+should review the custom terms before the repository or packages become public.
 
 ## Standard alternatives considered
 

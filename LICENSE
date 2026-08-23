@@ -1,0 +1,100 @@
+Skunkworks Source-Available Personal Use License 1.0
+
+Copyright (c) 2026 Christopher Ziegenhagel, also known as Ziegenbagel.
+All rights reserved except as expressly granted below.
+
+This license applies to the Skunkworks application source code, compiled
+application, original documentation, and original application assets
+(collectively, "Skunkworks"). Third-party components and assets are governed by
+their respective licenses and are not relicensed by this document.
+
+1. Personal-use permission
+
+The copyright holder grants an individual a limited, revocable, non-exclusive,
+non-transferable license to download and use an official, unmodified Skunkworks
+release for that individual's personal, non-commercial use.
+
+Ordinary use includes entering credentials and preferences, assigning roles,
+creating local operational data, making backups, selecting application options,
+and using other configuration controls intentionally exposed by Skunkworks.
+Those activities do not constitute modification of Skunkworks.
+
+2. Source inspection
+
+Source code published by the copyright holder may be viewed and inspected for
+personal evaluation, security review, education, and preparation of issue
+reports. Availability of source code does not grant permission to modify,
+compile a modified version, create a derivative work, or distribute the source.
+
+Use of GitHub features such as viewing or forking is permitted only to the extent
+required by GitHub's Terms of Service and does not grant additional copyright
+permission under this license.
+
+3. Restrictions
+
+Unless the copyright holder gives prior written permission, you may not:
+
+a. modify, adapt, translate, or create derivative works from Skunkworks;
+b. compile, run, publish, or distribute a modified version of Skunkworks;
+c. copy, mirror, redistribute, sublicense, sell, rent, lease, monetize, or
+   commercially use Skunkworks or an official installer or source archive;
+d. extract, copy, republish, or reuse original Skunkworks artwork, icons, audio,
+   interface designs, documentation design, logo, name, or other original assets;
+e. remove or alter copyright, license, attribution, security, or provenance
+   notices; or
+f. represent a copy, fork, service, or derivative as official, approved, or
+   endorsed by the copyright holder or by the Von Neumann Game project.
+
+To share Skunkworks, provide a link to the official release channel instead of
+redistributing files:
+
+https://github.com/Ziegenbagel/skunkworks/releases/latest
+
+4. Contributions and written approval
+
+Permission to prepare or submit a modification must be obtained from the
+copyright holder in writing before work begins. An issue, pull request, message,
+or other unsolicited submission does not by itself grant permission or require
+acceptance. Approved contributions may require separate contribution terms
+before they are incorporated or distributed.
+
+5. Third-party rights and legal exceptions
+
+Nothing in this license restricts rights granted directly by a third-party
+license or rights that cannot lawfully be restricted. In particular, recipients
+retain all rights provided by licenses for Qt, PySide6, Python, and other bundled
+components, including any applicable rights to replace or relink a library or to
+reverse engineer for the purpose of debugging modifications to that library.
+
+Third-party media listed in the project's attribution and notice files remains
+available under the named third-party terms. The restrictions above apply only
+to material for which the Skunkworks copyright holder owns the relevant rights.
+
+6. Termination
+
+This license terminates automatically upon breach. After termination, all use
+of Skunkworks authorized only by this license must stop and all redistributed or
+modified copies, if any, must be removed. Sections intended by their nature to
+survive termination remain effective.
+
+7. Disclaimer of warranty
+
+SKUNKWORKS IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. USE OF AUTOMATION OR GAME
+COMMANDS IS AT THE USER'S OWN RISK.
+
+8. Limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER IS NOT LIABLE FOR
+ANY CLAIM, LOSS, DAMAGE, GAME-ACCOUNT CONSEQUENCE, DATA LOSS, LOST PROFITS, OR
+OTHER LIABILITY ARISING FROM OR RELATED TO SKUNKWORKS OR ITS USE.
+
+9. No endorsement
+
+Skunkworks is an independent companion project. This license does not grant any
+right in the names, marks, or assets of the Von Neumann Game or other third
+parties and does not imply their endorsement.
+
+For permissions beyond this license, contact the copyright holder through the
+official Skunkworks repository before modifying or redistributing the project.
