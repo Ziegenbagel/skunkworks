@@ -221,6 +221,7 @@ Item {
 
     TabBar {
         id: settingsTabs
+        objectName: "settingsTabs"
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         TabButton { text: "GENERAL AUTOMATION" }
         TabButton { text: "PROBE ROLE SETTINGS" }
@@ -228,6 +229,7 @@ Item {
 
     ScrollView {
         id: generalAutomationScroll
+        objectName: "generalAutomationScroll"
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: settingsTabs.bottom; anchors.bottom: parent.bottom
         visible: settingsTabs.currentIndex === 0; clip: true

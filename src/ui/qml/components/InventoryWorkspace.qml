@@ -58,6 +58,7 @@ Item {
     }
 
     ScrollView {
+        objectName: "inventoryWorkspaceScroll"
         anchors.fill: parent; clip: true
         ColumnLayout {
             width: root.width - 20; spacing: 18

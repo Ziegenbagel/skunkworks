@@ -1,22 +1,22 @@
 # Public Screenshot Privacy Review
 
-Status: PENDING SYNTHETIC RECAPTURE
+Status: APPROVED SYNTHETIC DATA
 
-The current manual screenshots were intentionally supplied during development,
-but several visibly contain live probe names, coordinates, resource quantities,
-object identifiers, and operational history. They must not be included in the
-public 1.0 manual or packages under the project's private-data policy.
+The public manual uses repository-owned captures of the real Skunkworks QML
+running against a fictional, offline documentation profile. The capture process
+does not connect to the game API, read the operator database, or access the
+operating-system credential vault.
 
-Required replacement workflow:
+Verification completed for the 1.0 preparation build:
 
-1. Launch Skunkworks against a synthetic demo service/profile.
-2. Use names such as Example Hub, Example Explorer, and Example Manny 001.
-3. Use synthetic object IDs, coordinates, messages, resource quantities, and
-   timestamps that do not correspond to the owner's account.
-4. Recapture every file under `assets/screenshots/` plus the numbered dashboard
-   and settings images derived from them.
-5. Rebuild the DOCX and PDF, visually inspect every rendered page, then change
-   this status to `Status: APPROVED SYNTHETIC DATA`.
+1. Captures use fictional probes such as Wayfarer Hub, Peregrine Explorer,
+   Lantern Fuel Tender, and Harbor Fuel Reserve.
+2. Manny names, object IDs, coordinates, messages, quantities, missions,
+   logbook entries, and timestamps are synthetic.
+3. Source captures live in `assets/synthetic-screenshots/` and are reproducible
+   with `tools/capture_synthetic_manual.py`.
+4. The DOCX and PDF are rebuilt from those assets and visually inspected after
+   any manual or screenshot change.
 
-Cropping the focused-probe header alone is insufficient because live values also
-appear inside production, logbook, galaxy, navigation, and settings panels.
+The original operator-supplied screenshots remain private development inputs and
+are not referenced by the public manual builder.

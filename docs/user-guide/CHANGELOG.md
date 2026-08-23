@@ -1,5 +1,17 @@
 # Operator Manual Revision History
 
+## 0.6 — 2026-08-23
+
+- Replaced all operator-account screenshots with reproducible captures of the
+  real Skunkworks QML populated only by fictional, offline documentation data.
+- Added deterministic tab and scroll targeting for dense Manual Control and
+  Settings screenshots, preventing sections from being paired with the wrong
+  sub-tab image.
+- Added real synthetic captures for Resources, Missions, and Safety instead of
+  invented UI imagery or unrelated screenshots.
+- Preserved the private test database and original testing environment; neither
+  is accessed by the public documentation capture process.
+
 ## 0.5 — 2026-08-22
 
 - Expanded Navigation into separate Manual Travel, Automatic Travel, and Sector

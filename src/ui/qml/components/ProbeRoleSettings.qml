@@ -47,6 +47,7 @@ Item {
         }
         ScrollView {
             id: roleScroll
+            objectName: "probeRoleSettingsScroll"
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
             contentWidth: availableWidth
             contentHeight: roleSettingsContent.implicitHeight

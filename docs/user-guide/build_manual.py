@@ -19,35 +19,25 @@ FIGURE = ROOT / "assets" / "mission-control-dashboard-numbered.png"
 SETTINGS_FIGURE = ROOT / "assets" / "settings-workspace-numbered.png"
 WORKSPACE_ASSETS = ROOT / "assets" / "workspace-diagrams"
 SCREEN_ASSETS = ROOT / "assets" / "screenshots"
+SYNTHETIC_SCREEN_ASSETS = ROOT / "assets" / "synthetic-screenshots"
 MANNY_DIAGRAM = ROOT / "assets" / "manny-warranty-diagram.png"
-DEFAULT_SCREENSHOT = Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-01 at 1.12.30 AM.png")
+DEFAULT_SCREENSHOT = SYNTHETIC_SCREEN_ASSETS / "mission-control.png"
 SCREENSHOT = Path(os.environ.get("SKUNKWORKS_GUIDE_SCREENSHOT", DEFAULT_SCREENSHOT))
-DEFAULT_SETTINGS_SCREENSHOT = Path("/Users/ziegenbagel/Documents/Screenshot 2026-07-31 at 11.18.11 PM.png")
+DEFAULT_SETTINGS_SCREENSHOT = SYNTHETIC_SCREEN_ASSETS / "settings-policy.png"
 SETTINGS_SCREENSHOT = Path(os.environ.get("SKUNKWORKS_GUIDE_SETTINGS_SCREENSHOT", DEFAULT_SETTINGS_SCREENSHOT))
 
 SCREENSHOTS = {
-    "mission-control": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.09.59 PM.png"),
-    "fleet": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.10.15 PM.png"),
-    "galaxy": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.10.34 PM.png"),
-    "navigation-travel": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.10.56 PM.png"),
-    "navigation-scan": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.11.03 PM.png"),
-    "production": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.12.02 PM.png"),
-    "logbook": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.12.31 PM.png"),
-    "manual-build": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.12.42 PM.png"),
-    "manual-field": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.12.47 PM.png"),
-    "manual-cargo": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.12.54 PM.png"),
-    "manual-network": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.13.02 PM.png"),
-    "manual-container": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.13.16 PM.png"),
-    "manual-asteroid": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.13.30 PM.png"),
-    "settings-policy": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.14.01 PM.png"),
-    "settings-planner": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.14.09 PM.png"),
-    "settings-targets": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.14.16 PM.png"),
-    "settings-floors": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.14.22 PM.png"),
-    "settings-status": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.14.28 PM.png"),
-    "settings-roles": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.14.45 PM.png"),
-    "settings-reserve": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.15.42 PM.png"),
-    "settings-tanker": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.15.13 PM.png"),
-    "settings-transport": Path("/Users/ziegenbagel/Documents/Screenshot 2026-08-22 at 9.20.14 PM.png"),
+    key: SYNTHETIC_SCREEN_ASSETS / f"{key}.png"
+    for key in (
+        "mission-control", "fleet", "galaxy", "navigation-travel",
+        "navigation-scan", "resources", "missions", "production", "safety",
+        "logbook", "manual-build",
+        "manual-field", "manual-cargo", "manual-network",
+        "manual-container", "manual-asteroid", "settings-policy",
+        "settings-planner", "settings-targets", "settings-floors",
+        "settings-status", "settings-roles", "settings-reserve",
+        "settings-tanker", "settings-transport",
+    )
 }
 
 NAVY = RGBColor(5, 23, 34)
@@ -906,10 +896,12 @@ def build_tabbed():
     add_heading(doc, "Reading inventory", 2)
     add_bullets(doc, ["Probe deuterium is displayed as a percentage of tank capacity.", "Bulk resources use ECE quantities and retain their containing probe or container.", "Asteroid quantities are the latest recorded scan, not a prediction of current stock.", "Unknown or unavailable container contents remain explicitly labeled."])
     add_note(doc, "Related controls", "Resource movement, jettison, container routing, deployment, and recovery are operator commands under Manual Control → Cargo and Transfers. They are documented there with their actual screenshots.")
+    add_screen_figure(doc, "resources", "Figure 6-1. Resource ledger groups probe storage, containers, detached cargo, and observed natural reserves.", width=6.2)
 
     doc.add_page_break(); add_heading(doc, "7. Missions")
     add_body(doc, "Missions lists objectives and progress exposed by the game. Select an entry to review its description, current state, progress, and any requirements supplied by the API. Refresh after completing mission work elsewhere so the displayed state is authoritative.")
-    add_bullets(doc, ["The mission list is account context, while probe-specific requirements still depend on the focused probe.", "Skunkworks does not infer hidden objectives or undisclosed completion conditions.", "No Mission-tab screenshot is included in this edition because no current screenshot of that tab was supplied."])
+    add_bullets(doc, ["The mission list is account context, while probe-specific requirements still depend on the focused probe.", "Skunkworks does not infer hidden objectives or undisclosed completion conditions."])
+    add_screen_figure(doc, "missions", "Figure 7-1. Missions lists objectives and progress exposed by the game API.", width=6.2)
 
     doc.add_page_break(); add_heading(doc, "8. Production")
     add_body(doc, "Production displays every Manny and printer, including idle workers. Active cards show the task, target, progress, local completion time, countdown, delivery behavior, and the reason automation dispatched the order.")
@@ -920,6 +912,7 @@ def build_tabbed():
     add_body(doc, "Safety centralizes operational findings. Readiness distinguishes advisory notices from warning and critical conditions; a busy fleet can remain healthy even when no Manny is currently available.")
     add_bullets(doc, ["Travel risk considers distance, fuel, return options, and destination refueling.", "Cargo warnings identify detachment risk at five or more containers.", "Resource depletion warns before local mining sources are exhausted.", "Emergency Stop prevents automation until explicitly cleared."])
     add_note(doc, "Evidence", "Some hazards are observed game behavior rather than formal API guarantees. The application identifies uncertainty and keeps configurable thresholds where appropriate.", "warning")
+    add_screen_figure(doc, "safety", "Figure 9-1. Safety groups current findings, severity, and available recovery actions.", width=6.2)
 
     doc.add_page_break(); add_heading(doc, "10. Communications")
     add_heading(doc, "Messaging", 2)

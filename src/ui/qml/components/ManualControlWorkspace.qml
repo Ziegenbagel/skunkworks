@@ -65,6 +65,7 @@ Item {
         }
         TabBar {
             id: tabs
+            objectName: "manualControlTabs"
             Layout.fillWidth: true
             TabButton { text: "PRODUCTION AND ASSEMBLY" }
             TabButton { text: "MANNY FIELD OPERATIONS" }
@@ -83,6 +84,7 @@ Item {
                     spacing: 14
                     ScrollView {
                         id: buildControls
+                        objectName: "manualBuildScroll"
                         Layout.fillHeight: true
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
@@ -263,6 +265,7 @@ Item {
             Item {
                 ScrollView {
                     id: asteroidControls
+                    objectName: "manualAsteroidScroll"
                     anchors.fill: parent
                     contentWidth: availableWidth
                     clip: true
