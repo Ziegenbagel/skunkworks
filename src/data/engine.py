@@ -1,6 +1,7 @@
 """Versioned SQLite persistence for operational and historical data."""
 
 import json
+import os
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -720,6 +721,99 @@ class DataEngine:
                 (key, now.isoformat(), now.isoformat()),
             )
         return self.compact_history()
+
+    def integrity_report(self):
+        """Return non-mutating SQLite integrity and foreign-key results."""
+
+        with self._connect() as connection:
+            quick_check = tuple(
+                row[0] for row in connection.execute("PRAGMA quick_check")
+            )
+            foreign_key_errors = tuple(
+                dict(row) for row in connection.execute("PRAGMA foreign_key_check")
+            )
+        return {
+            "ok": quick_check == ("ok",) and not foreign_key_errors,
+            "quickCheck": quick_check,
+            "foreignKeyErrors": foreign_key_errors,
+        }
+
+    def database_report(self):
+        """Describe database allocation, sidecar files, and retained rows."""
+
+        with self._connect() as connection:
+            page_size = int(connection.execute("PRAGMA page_size").fetchone()[0])
+            page_count = int(connection.execute("PRAGMA page_count").fetchone()[0])
+            free_pages = int(connection.execute("PRAGMA freelist_count").fetchone()[0])
+            tables = tuple(
+                row[0]
+                for row in connection.execute(
+                    """
+                    SELECT name FROM sqlite_schema
+                    WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+                    ORDER BY name
+                    """
+                )
+            )
+            row_counts = {
+                table: int(connection.execute(
+                    f'SELECT COUNT(*) FROM "{table}"'
+                ).fetchone()[0])
+                for table in tables
+            }
+
+        files = {}
+        for label, path in (
+            ("database", self.path),
+            ("wal", Path(f"{self.path}-wal")),
+            ("sharedMemory", Path(f"{self.path}-shm")),
+        ):
+            files[label] = path.stat().st_size if path.exists() else 0
+        return {
+            "schemaVersion": self.schema_version(),
+            "pageSize": page_size,
+            "pageCount": page_count,
+            "allocatedBytes": page_size * page_count,
+            "reclaimableBytes": page_size * free_pages,
+            "files": files,
+            "totalFileBytes": sum(files.values()),
+            "rowCounts": row_counts,
+        }
+
+    def backup(self, destination, *, overwrite=False):
+        """Create and verify a consistent online SQLite backup.
+
+        SQLite's backup API includes committed WAL content, so callers do not
+        need to stop refresh workers or copy sidecar files themselves.
+        """
+
+        destination = Path(destination)
+        if destination.resolve() == self.path.resolve():
+            raise ValueError("Backup destination must differ from the live database.")
+        if destination.exists() and not overwrite:
+            raise FileExistsError(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = destination.with_name(f".{destination.name}.partial")
+        if temporary.exists():
+            temporary.unlink()
+        try:
+            with self._connect() as source, sqlite3.connect(temporary) as target:
+                source.backup(target)
+                result = tuple(row[0] for row in target.execute("PRAGMA quick_check"))
+                if result != ("ok",):
+                    raise sqlite3.DatabaseError(
+                        f"Backup integrity check failed: {result!r}"
+                    )
+            os.replace(temporary, destination)
+        finally:
+            if temporary.exists():
+                temporary.unlink()
+        return {
+            "path": str(destination),
+            "bytes": destination.stat().st_size,
+            "schemaVersion": self.schema_version(),
+            "verified": True,
+        }
 
     def action_was_successful(self, fingerprint):
         with self._connect() as connection:

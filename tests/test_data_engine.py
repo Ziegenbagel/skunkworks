@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from src.data import DataEngine
+from src.data.engine import SCHEMA_VERSION
 
 
 class DataEngineTests(unittest.TestCase):
@@ -356,6 +357,40 @@ class DataEngineTests(unittest.TestCase):
 
         self.assertIsInstance(result, dict)
         self.assertIsNone(second)
+
+    def test_database_report_exposes_reclaimable_space_and_row_counts(self):
+        self.engine.set_preference("operator", "ready")
+
+        report = self.engine.database_report()
+
+        self.assertEqual(report["schemaVersion"], SCHEMA_VERSION)
+        self.assertGreater(report["allocatedBytes"], 0)
+        self.assertGreaterEqual(report["totalFileBytes"], report["files"]["database"])
+        self.assertEqual(report["rowCounts"]["preferences"], 2)
+        self.assertGreaterEqual(report["reclaimableBytes"], 0)
+
+    def test_integrity_report_checks_database_and_foreign_keys(self):
+        report = self.engine.integrity_report()
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["quickCheck"], ("ok",))
+        self.assertEqual(report["foreignKeyErrors"], ())
+
+    def test_online_backup_is_verified_and_preserves_committed_data(self):
+        self.engine.set_preference("operator", "ready")
+        backup_path = Path(self.temporary.name) / "backups" / "release.sqlite3"
+
+        result = self.engine.backup(backup_path)
+        restored = DataEngine(backup_path)
+
+        self.assertTrue(result["verified"])
+        self.assertGreater(result["bytes"], 0)
+        self.assertEqual(restored.get_preference("operator"), "ready")
+        self.assertTrue(restored.integrity_report()["ok"])
+        with self.assertRaises(FileExistsError):
+            self.engine.backup(backup_path)
+        with self.assertRaises(ValueError):
+            self.engine.backup(self.engine.path)
 
     def test_probe_route_retains_ordered_revisits(self):
         def world(x, observed_at):

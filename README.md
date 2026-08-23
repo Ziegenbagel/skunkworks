@@ -65,6 +65,9 @@ decisions.
 - [Logistics and safety](docs/logistics-and-safety.md)
 - [Roadmap](docs/roadmap.md)
 - [Engineering guide](docs/engineering-guide.md)
+- [Version 1.0 release checklist](docs/release-checklist.md)
+- [Capability matrix](docs/capability-matrix.md)
+- [Privacy](PRIVACY.md), [security](SECURITY.md), and [support](SUPPORT.md)
 
 Historical mission notes and superseded design packages are retained under
 `docs/archive/` but are not current product contracts.
@@ -95,4 +98,6 @@ Skunkworks is an independent companion project for the open-source
 
 ## License
 
-See the repository license file for distribution terms.
+A distribution license must be selected by the project owner before the public
+1.0 release. The automated readiness audit intentionally treats its absence as a
+release blocker.

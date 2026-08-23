@@ -251,6 +251,14 @@ Relevant code/tests:
 - `src/data/engine.py`
 - `tests/test_data_engine.py`
 
+### Backups must be consistent and verified
+
+Copying only the main SQLite file while WAL mode is active can omit committed
+transactions. Use `DataEngine.backup()` (SQLite's online backup API), verify the
+result with `PRAGMA quick_check`, and write through a partial file before an
+atomic replace. Never overwrite the live database as a backup destination.
+Physical vacuuming remains an explicit offline maintenance action.
+
 ## API and Safety Invariants
 
 - Explicit probe ID is required at every probe-scoped gateway.

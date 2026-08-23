@@ -361,6 +361,13 @@ Goal: make the release reproducible, supportable, and trustworthy.
 This is the short operational checklist for deciding when the 1.0 candidate is
 ready. The detailed Mission 24–26 requirements above remain authoritative.
 
+Repository preparation completed on 2026-08-23: verified SQLite online backup,
+integrity and allocation reporting, explicit compaction/vacuum tooling, a local
+performance probe, a capability matrix, privacy/security/support notices, draft
+release notes, third-party inventory, and a deterministic readiness audit. The
+owner license decision, live-service validation, soak testing, exact packaged
+dependency/asset notices, and platform distribution gates remain open.
+
 - [ ] Run several days of crafting-automation soak testing with deliberately
   varied priority arrangements, including equal priorities, unavailable
   resources, deliveries that unblock a higher-priority goal, idle Mannys,

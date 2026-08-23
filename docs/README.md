@@ -20,6 +20,8 @@ followed by the documents below.
   cycles, tanker rules, and operator risk policy.
 - `engineering-guide.md` — coding, testing, review, and documentation rules.
 - `roadmap.md` — remaining work to 1.0 and the post-1.0 backlog.
+- `release-checklist.md` — repository, data, live-service, and packaging gates.
+- `capability-matrix.md` — release-level map of observed, manual, and automated controls.
 
 ## Archive
 

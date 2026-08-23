@@ -1,7 +1,7 @@
 [project]
 name = "skunkworks"
 version = "0.7.0"
-description = "Add your description here"
+description = "Policy-controlled mission control and fleet automation for the Von Neumann Game"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
