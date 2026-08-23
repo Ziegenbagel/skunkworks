@@ -8,6 +8,8 @@ followed by the documents below.
 
 - `user-guide/Skunkworks_Operator_Manual.docx` — illustrated user manual.
 - `user-guide/CHANGELOG.md` — user-visible changes and manual revisions.
+- `discord-release-post.md` — copy-ready community release announcement,
+  first-launch checklist, and public support contacts.
 
 ## Product and engineering documentation
 

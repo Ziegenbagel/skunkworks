@@ -3,7 +3,7 @@ name = "skunkworks"
 version = "0.7.0"
 description = "Policy-controlled mission control and fleet automation for the Von Neumann Game"
 readme = "README.md"
-authors = [{ name = "Christopher Ziegenhagel (Ziegenbagel)" }]
+authors = [{ name = "Christopher Ziegenhagel (Ziegenbagel)", email = "ziegenbagel.gaming@gmail.com" }]
 license = "LicenseRef-Skunkworks-Source-Available-Personal-Use-1.0"
 requires-python = ">=3.14"
 keywords = ["desktop", "fleet-automation", "mission-control", "pyside6", "qt"]

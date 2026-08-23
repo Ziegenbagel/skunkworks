@@ -10,6 +10,8 @@ logs and snapshots before sharing them because they may contain game account
 names, messages, coordinates, and inventory.
 
 Feature requests and reproducible defects belong in the release repository's
-issue tracker. Security reports follow [SECURITY.md](SECURITY.md). The Von
+issue tracker. They may also be sent to **@Ziegenbagel** on the Von Neumann Game
+Discord or **ziegenbagel.gaming@gmail.com**. Security reports follow
+[SECURITY.md](SECURITY.md). The Von
 Neumann Game service and its API are maintained separately; server outages or
 account problems may need to be reported to that project.

@@ -8,8 +8,8 @@ production software.
 
 ## Reporting a vulnerability
 
-Report vulnerabilities privately to the project maintainer or through a private
-security-advisory channel for the release repository. Do not include an API key,
+Report vulnerabilities privately to **ziegenbagel.gaming@gmail.com** or through
+a private security-advisory channel for the release repository. Do not include an API key,
 raw credential vault export, or unreviewed diagnostic bundle in a public issue.
 Include the Skunkworks version, operating system, reproduction steps, expected
 result, and observed result.

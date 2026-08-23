@@ -74,6 +74,7 @@ decisions.
 - [Distribution license decision](docs/licensing-decision.md)
 - [Private test-data workflow](docs/private-test-data.md)
 - [Privacy](PRIVACY.md), [security](SECURITY.md), and [support](SUPPORT.md)
+- [Discord release-post template](docs/discord-release-post.md)
 
 Historical mission notes and superseded design packages are retained under
 `docs/archive/` but are not current product contracts.
