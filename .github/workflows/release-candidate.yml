@@ -11,9 +11,6 @@ on:
 permissions:
   contents: read
 
-env:
-  SKUNKWORKS_HOME: ${{ runner.temp }}/skunkworks-release
-
 jobs:
   build:
     strategy:
@@ -29,6 +26,8 @@ jobs:
           - os: ubuntu-22.04
             platform: Linux-x86_64
     runs-on: ${{ matrix.os }}
+    env:
+      SKUNKWORKS_HOME: ${{ runner.temp }}/skunkworks-release
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

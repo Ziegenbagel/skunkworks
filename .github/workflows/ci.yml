@@ -7,9 +7,6 @@ on:
 permissions:
   contents: read
 
-env:
-  SKUNKWORKS_HOME: ${{ runner.temp }}/skunkworks-ci
-
 jobs:
   test:
     strategy:
@@ -17,6 +14,8 @@ jobs:
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      SKUNKWORKS_HOME: ${{ runner.temp }}/skunkworks-ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
