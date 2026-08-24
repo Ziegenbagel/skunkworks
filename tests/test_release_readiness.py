@@ -19,6 +19,13 @@ def test_release_readiness_has_expected_non_packaging_gates():
     )
 
 
+def test_pep_639_license_expression_is_not_combined_with_legacy_classifier():
+    metadata = Path("pyproject.toml").read_text()
+
+    assert 'license = "GPL-3.0-only"' in metadata
+    assert '"License ::' not in metadata
+
+
 def test_release_candidate_build_excludes_private_and_development_directories():
     workflow = Path(".github/workflows/release-candidate.yml").read_text()
     assert "python -m tools.build_release_candidate --clean" in workflow
