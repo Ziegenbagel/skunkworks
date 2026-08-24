@@ -156,7 +156,17 @@ class ProbeSelector:
         if self.interactive is not None:
             return self.interactive
 
-        return sys.stdin.isatty()
+        # Windowed PyInstaller applications intentionally have no attached
+        # console, so Python exposes stdin as None. Probe selection is handled
+        # by the GUI in that environment; an implicit terminal prompt must not
+        # make the initial fleet refresh fail.
+        stream = getattr(sys, "stdin", None)
+        if stream is None:
+            return False
+        try:
+            return bool(stream.isatty())
+        except (AttributeError, OSError, ValueError):
+            return False
 
     def usage(self):
         return (

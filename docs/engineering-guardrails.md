@@ -217,6 +217,19 @@ Relevant code/tests:
 
 ## Release Packaging Invariants
 
+### Windowed packages do not have console streams
+
+GUI-only PyInstaller builds may expose `sys.stdin`, `sys.stdout`, or
+`sys.stderr` as `None`. Startup and live refresh paths must treat a missing or
+detached console as non-interactive and must never call terminal methods such as
+`isatty()` without checking the stream. Probe choice remains a GUI concern in a
+windowed package.
+
+Relevant code/tests:
+
+- `src/application/probe_selector.py`
+- `tests/test_probe_selector.py`
+
 ### Credential scanning must distinguish text from compiled binaries
 
 Release audits scan text-like configuration, source, markup, and documentation

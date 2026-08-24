@@ -5,7 +5,7 @@ channel.
 
 ---
 
-## SKUNKWORKS v1.0.0 — Mission Control for Von Neumann Game
+## SKUNKWORKS v1.0.1 — Mission Control for Von Neumann Game
 
 Skunkworks is a free, open-source fleet-management companion for macOS, Windows, and Linux.
 

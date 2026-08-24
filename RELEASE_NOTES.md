@@ -1,6 +1,17 @@
-# Skunkworks 1.0.0
+# Skunkworks 1.0.1
 
-Skunkworks 1.0 is the first public desktop release of policy-controlled mission
+Skunkworks 1.0.1 fixes first-launch fleet loading in unsigned windowed
+packages. PyInstaller GUI applications may not have an attached terminal;
+Skunkworks now treats a missing or detached standard-input stream as
+non-interactive and opens the remembered or default probe normally instead of
+reporting that live fleet data is unavailable.
+
+This patch contains no game-data, planner, automation-policy, or persistence
+changes. All 436 automated tests pass across the corrected source tree.
+
+## Skunkworks 1.0.0
+
+Skunkworks 1.0.0 is the first public desktop release of policy-controlled mission
 control and fleet automation for the Von Neumann Game. Skunkworks is released
 under the GNU General Public License, version 3. Recipients may modify and
 redistribute it under GPLv3's corresponding-source, notice, and modified-version

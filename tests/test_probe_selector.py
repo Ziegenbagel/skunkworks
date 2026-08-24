@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from src.application.probe_selector import (
     ProbeSelectionError,
@@ -32,6 +33,23 @@ class ProbeSelectorTests(unittest.TestCase):
         selected = ProbeSelector(
             interactive=False
         ).select(PROBE_DATA, [])
+
+        self.assertEqual(selected["id"], 1)
+
+    def test_windowed_package_without_stdin_uses_default(self):
+        with patch("src.application.probe_selector.sys.stdin", None):
+            selected = ProbeSelector().select(PROBE_DATA, [])
+
+        self.assertEqual(selected["id"], 1)
+
+    def test_unusable_stdin_uses_default(self):
+        class DetachedStream:
+            @staticmethod
+            def isatty():
+                raise ValueError("I/O operation on closed file")
+
+        with patch("src.application.probe_selector.sys.stdin", DetachedStream()):
+            selected = ProbeSelector().select(PROBE_DATA, [])
 
         self.assertEqual(selected["id"], 1)
 
