@@ -63,7 +63,7 @@ def test_fleet_prefix_inference_removes_default_role_and_ordinal():
         {"id": 1, "name": "Demo Skunkworks Hub", "isDefault": True},
     ]
 
-    assert MissionControlDataService._infer_fleet_prefix(probes) == "Ziegenbagel Skunkworks"
+    assert MissionControlDataService._infer_fleet_prefix(probes) == "Demo Skunkworks"
 
 
 def test_fleet_prefix_inference_preserves_meaningful_words():
