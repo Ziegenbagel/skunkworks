@@ -1,4 +1,4 @@
-# Skunkworks 1.0.0 Release Candidate 1
+# Skunkworks 1.0.0
 
 Skunkworks 1.0 is the first public desktop release of policy-controlled mission
 control and fleet automation for the Von Neumann Game. Skunkworks is released
@@ -19,8 +19,13 @@ world observations, compacts older telemetry, supports verified online backups,
 and exposes database integrity and size reports. Runtime snapshots and diagnostic
 logs are bounded.
 
-This release candidate is intended for community acceptance testing before the
-final 1.0.0 tag. Begin in Observe Only mode, verify the focused probe and policy,
-and review proposed commands before enabling automatic live orders. Installation,
-upgrade, rollback, support, and checksum instructions accompany each GitHub
-Release artifact.
+Begin in Observe Only mode, verify the focused probe and execution policy, and
+review proposed commands before enabling automatic live orders. Automatic daily
+Logbook reports remain opt-in through the Logbook checkbox.
+
+The first public packages are unsigned portable builds. Verify the published
+SHA-256 checksums before opening them. On macOS, move only `Skunkworks.app` to
+Applications. A temporary Keychain **Allow** choice is requested again on the
+next launch; **Always Allow** persistently authorizes access to the stored game
+API key. Installation, upgrade, rollback, and support instructions accompany
+the release.

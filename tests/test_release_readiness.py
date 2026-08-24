@@ -8,6 +8,7 @@ def test_release_readiness_has_expected_non_packaging_gates():
 
     assert checks["metadata:description"]["ok"]
     assert checks["metadata:version"]["ok"]
+    assert checks["metadata:lock-version"]["ok"]
     assert checks["privacy:local-files"]["ok"]
     assert checks["privacy:policy-template"]["ok"]
     assert checks["privacy:manual-screenshots"]["ok"]

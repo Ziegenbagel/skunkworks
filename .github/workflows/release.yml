@@ -1,0 +1,90 @@
+name: Publish Skunkworks release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: macOS-arm64
+          - os: macos-15-intel
+            platform: macOS-x86_64
+          - os: windows-latest
+            platform: Windows-x64
+          - os: ubuntu-22.04
+            platform: Linux-x86_64
+    runs-on: ${{ matrix.os }}
+    env:
+      SKUNKWORKS_HOME: ${{ github.workspace }}/.skunkworks-release
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - name: Install Linux Qt runtime libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes libegl1 libgl1 libxkbcommon-x11-0
+      - name: Install project and deployment dependencies
+        run: python -m pip install -e . pytest pytest-qt pillow pyinstaller==6.22.2 imageio==2.37.4
+      - name: Verify tagged source
+        run: python -m pytest -q tests
+      - name: Verify release contents
+        run: python -m tools.release_readiness
+      - name: Build standalone application
+        run: python -m tools.build_release_candidate --clean
+      - name: Add release documents and exact dependency notices
+        shell: bash
+        run: |
+          mkdir -p build/release-candidate/release-documents
+          cp LICENSE NOTICE PRIVACY.md SECURITY.md SUPPORT.md THIRD_PARTY_NOTICES.md RELEASE_NOTES.md docs/installing-and-updating.md build/release-candidate/release-documents/
+          python -m tools.collect_release_licenses build/release-candidate/release-documents
+      - name: Audit complete package for private data
+        run: python -m tools.audit_release_tree build/release-candidate
+      - name: Create portable archive
+        shell: bash
+        run: |
+          mkdir -p build/publish
+          python -c "import shutil; shutil.make_archive('build/publish/Skunkworks-${{ github.ref_name }}-${{ matrix.platform }}-unsigned', 'zip', 'build/release-candidate')"
+      - name: Upload platform package
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: build/publish/*.zip
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download platform packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+      - name: Add curated source archive and checksums
+        shell: bash
+        run: |
+          git archive --format=zip --output="release-assets/Skunkworks-${GITHUB_REF_NAME}-source.zip" HEAD
+          cd release-assets
+          sha256sum *.zip > SHA256SUMS.txt
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --title "Skunkworks ${GITHUB_REF_NAME}" \
+            --notes-file RELEASE_NOTES.md \
+            --verify-tag

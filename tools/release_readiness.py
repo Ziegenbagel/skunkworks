@@ -46,6 +46,21 @@ def audit(root=ROOT):
         and project_version.group(1) == app_version.group(1)
     )
     record("metadata:version", versions_match, "pyproject and UI versions must match")
+    lockfile = (root / "uv.lock").read_text(encoding="utf-8")
+    locked_project = re.search(
+        r'\[\[package\]\]\s+name = "skunkworks"\s+version = "([^"]+)"',
+        lockfile,
+        re.MULTILINE,
+    )
+    lock_matches = bool(
+        project_version and locked_project
+        and project_version.group(1) == locked_project.group(1)
+    )
+    record(
+        "metadata:lock-version",
+        lock_matches,
+        "uv.lock project version must match pyproject",
+    )
 
     license_files = tuple(
         name for name in ("LICENSE", "LICENSE.md", "LICENSE.txt")

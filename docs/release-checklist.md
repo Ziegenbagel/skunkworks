@@ -5,7 +5,7 @@ that requires signed platform packages or the live game service.
 
 ## Automated repository gate
 
-- [x] Unit and integration suite passes (425 tests in the current release pass).
+- [x] Unit and integration suite passes (431 tests in the current release pass).
 - [x] QML lint passes for the application root.
 - [x] SQLite history is deduplicated, bounded, and compactable.
 - [x] Database integrity, allocation reporting, and verified online backup exist.
