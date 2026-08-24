@@ -32,6 +32,7 @@ Item {
     signal automationApprovalRequested(string fingerprint, bool riskAcknowledged)
     signal operatorManualRequested()
     signal changeLogRequested()
+    signal licenseRequested()
     signal updateCheckRequested()
     signal diagnosticLogsRequested()
     signal fleetNamingRequested(var policy, bool applyExisting)
@@ -577,18 +578,23 @@ Item {
 
             GroupBox {
                 title: "HELP AND DOCUMENTATION"; Layout.fillWidth: true
-                RowLayout {
+                ColumnLayout {
                     anchors.fill: parent; spacing: 12
                     Label {
                         Layout.fillWidth: true
-                        text: "Open documentation or check the official release channel for a newer signed Skunkworks build."
+                        text: "Created by Christopher Ziegenhagel, aka Ziegenbagel, for the Von Neumann Game. Copyright © 2026 Christopher Ziegenhagel. Skunkworks is GPLv3 software provided without warranty; compliant copies and modified versions may be conveyed under GPLv3. Skunkworks is an independent community project."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
-                    Button { text: "OPEN OPERATOR MANUAL"; onClicked: root.operatorManualRequested() }
-                    Button { text: "OPEN CHANGE LOG"; onClicked: root.changeLogRequested() }
-                    Button { text: "OPEN DIAGNOSTIC LOGS"; onClicked: root.diagnosticLogsRequested() }
-                    Button { text: "CHECK FOR UPDATES"; onClicked: root.updateCheckRequested() }
-                    Button { text: "SHUTDOWN SKUNKWORKS"; onClicked: root.shutdownRequested() }
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 12
+                        Button { text: "OPEN OPERATOR MANUAL"; onClicked: root.operatorManualRequested() }
+                        Button { text: "VIEW GPLv3 LICENSE"; onClicked: root.licenseRequested() }
+                        Button { text: "OPEN CHANGE LOG"; onClicked: root.changeLogRequested() }
+                        Button { text: "OPEN DIAGNOSTIC LOGS"; onClicked: root.diagnosticLogsRequested() }
+                        Button { text: "CHECK FOR UPDATES"; onClicked: root.updateCheckRequested() }
+                        Item { Layout.fillWidth: true }
+                        Button { text: "SHUTDOWN SKUNKWORKS"; onClicked: root.shutdownRequested() }
+                    }
                 }
             }
         }

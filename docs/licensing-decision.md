@@ -3,34 +3,34 @@
 This document identifies the owner's remaining legal choices. It is practical
 release preparation, not legal advice.
 
-## Owner's intended model
+## Selected model
 
-The current owner intent is **publicly viewable source with restricted reuse**:
+On 2026-08-23, the owner selected the **GNU General Public License version 3
+only (GPL-3.0-only)** for Skunkworks.
 
-- users may obtain and run official, unmodified Skunkworks releases;
-- source may be inspected for trust, education, and issue reporting;
-- editing, modification, derivative works, and distributing modified versions
-  require prior written approval;
-- original Skunkworks artwork, interface assets, documentation design, name, and
-  logo may not be extracted or reused without prior written approval;
+- users may run, inspect, modify, and redistribute Skunkworks;
+- distributed modified versions must remain under GPLv3 and include the
+  corresponding source;
+- applicable copyright, attribution, license, and warranty notices must be
+  preserved;
+- modified versions must prominently state that they were changed and provide a
+  relevant date;
 - third-party components and media remain governed by their own licenses.
 
-This is a **source-available proprietary** model, not an open-source license.
-Open-source licenses must permit modification and derived works. A custom
-Skunkworks Source-Available License should be reviewed by a qualified lawyer
-before public release.
+This is an open-source, strong-copyleft model. GPLv3 permits modification and
+redistribution; it does not support an approval-before-modification restriction.
 
 The owner decisions recorded on 2026-08-23 are:
 
-1. Official, unmodified Skunkworks is for individual personal, non-commercial use.
-2. Users must link recipients to the official GitHub release instead of
-   redistributing an installer or source archive.
-3. The copyright holder is Christopher Ziegenhagel, also known as Ziegenbagel.
+1. The project is licensed under GPLv3 only.
+2. The copyright holder and original creator is Christopher Ziegenhagel, also
+   known as Ziegenbagel.
+3. The application will display creator, copyright, GPLv3, no-warranty, and
+   independent-project notices.
 
-Requiring downloads from the official GitHub Releases page is the cleanest way
-to protect provenance, preserve notices, and keep users on supported builds.
-These choices are implemented in the root `LICENSE` draft. A qualified lawyer
-should review the custom terms before the repository or packages become public.
+The official GitHub Releases page remains the recommended download source, but
+GPLv3 recipients may redistribute compliant copies. These choices are
+implemented in the root `LICENSE` and release documentation.
 
 ## Standard alternatives considered
 
@@ -44,10 +44,8 @@ modify, or redistribute it. Select one clear project license before 1.0:
 | GNU GPL v3 | Redistribution and modified distributed versions must remain under GPL with corresponding source | Some companies and proprietary integrations will avoid it |
 | Proprietary / all rights reserved | Users receive only the permissions written in a custom end-user license | Public collaboration and redistribution are restricted; custom drafting deserves legal review |
 
-These standard licenses do not implement the current approval-before-modification
-intent. GPL requires modification rights, while Apache and MIT additionally
-permit proprietary forks. They remain alternatives only if the owner later
-chooses a conventional open-source model.
+GPLv3 was selected because it requires distributed derivatives to preserve the
+same software freedoms and provide corresponding source.
 
 Avoid a custom "non-commercial" or "source available" license unless that is a
 deliberate business requirement; such terms are not standard open-source terms

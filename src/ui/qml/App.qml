@@ -651,6 +651,11 @@ ApplicationWindow {
             if (window.backend) window.backend.openChangeLog();
         }
 
+        function onLicenseRequested() {
+            AudioManager.play("navigate");
+            if (window.backend) window.backend.openLicense();
+        }
+
         function onUpdateCheckRequested() {
             AudioManager.play("navigate");
             if (window.backend) window.backend.checkForUpdates();

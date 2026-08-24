@@ -20,7 +20,7 @@ that requires signed platform packages or the live game service.
 - [x] Cross-platform CI and unsigned release-candidate build scaffolding exists.
 - [x] Every public manual screenshot uses a deterministic synthetic demo capture;
   the capture harness does not access credentials or private game data.
-- [x] Source-available personal-use license selected by the owner and added at
+- [x] GPLv3-only license selected by the owner and added at
   repository root; obtain legal review before public release.
 - [ ] Dependency and asset notices regenerated from the exact packaged artifacts.
 - [x] No local `.env`, database, snapshot, log, backup, or developer cache is in

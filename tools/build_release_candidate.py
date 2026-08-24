@@ -40,6 +40,8 @@ def command(output_directory: Path, build_directory: Path | None = None) -> list
         f"--add-data={ROOT / 'config'}{os.pathsep}config",
         f"--add-data={ROOT / 'docs/user-guide/Skunkworks_Operator_Manual.docx'}{os.pathsep}docs/user-guide",
         f"--add-data={ROOT / 'docs/user-guide/CHANGELOG.md'}{os.pathsep}docs/user-guide",
+        f"--add-data={ROOT / 'LICENSE'}{os.pathsep}.",
+        f"--add-data={ROOT / 'NOTICE'}{os.pathsep}.",
         str(ROOT / "skunkworks_app.py"),
     ]
 

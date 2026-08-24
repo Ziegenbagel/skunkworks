@@ -43,16 +43,17 @@ jobs:
         run: python -m tools.release_readiness
       - name: Build standalone application
         run: python -m tools.build_release_candidate --clean
-      - name: Audit unpacked candidate for private data
-        run: python -m tools.audit_release_tree build/release-candidate
       - name: Add release documents
         shell: bash
         run: |
           mkdir -p build/release-candidate/release-documents
-          cp LICENSE PRIVACY.md SECURITY.md SUPPORT.md THIRD_PARTY_NOTICES.md RELEASE_NOTES.md build/release-candidate/release-documents/
+          cp LICENSE NOTICE PRIVACY.md SECURITY.md SUPPORT.md THIRD_PARTY_NOTICES.md RELEASE_NOTES.md build/release-candidate/release-documents/
+          python -m tools.collect_release_licenses build/release-candidate/release-documents
       - name: Build curated source archive
         shell: bash
         run: git archive --format=zip --output=build/release-candidate/Skunkworks-${{ inputs.version }}-source.zip HEAD
+      - name: Audit complete candidate for private data
+        run: python -m tools.audit_release_tree build/release-candidate
       - name: Upload unsigned candidate
         uses: actions/upload-artifact@v4
         with:

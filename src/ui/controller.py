@@ -3106,6 +3106,10 @@ class MissionControlController(QObject):
         self._open_document(Path("docs/user-guide/CHANGELOG.md"))
 
     @Slot()
+    def openLicense(self):
+        self._open_document(Path("LICENSE"))
+
+    @Slot()
     def checkForUpdates(self):
         url = QUrl("https://github.com/Ziegenbagel/skunkworks/releases/latest")
         if not QDesktopServices.openUrl(url):

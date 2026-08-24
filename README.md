@@ -105,8 +105,12 @@ Skunkworks is an independent companion project for the open-source
 
 ## Source and license
 
-Skunkworks publishes source for inspection and licenses official, unmodified
-releases for individual personal, non-commercial use. Modification, derivative
-distribution, redistribution of release files, commercial use, and reuse of
-original application assets require prior written approval. Share the official
-GitHub Releases link rather than copying an installer. See [LICENSE](LICENSE).
+Skunkworks is free software released under the GNU General Public License,
+version 3. You may run, study, modify, and redistribute it under the terms in
+[LICENSE](LICENSE). Distributed modified versions must remain under GPLv3,
+provide corresponding source, preserve applicable legal notices and
+attributions, and prominently identify their changes.
+
+Created by **Christopher Ziegenhagel, aka Ziegenbagel**, for the
+**Von Neumann Game**. Skunkworks is an independent community companion project
+and is not an official Von Neumann Game release.

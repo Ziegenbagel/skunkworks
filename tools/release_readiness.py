@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_FILES = (
     "README.md", "PRIVACY.md", "SECURITY.md", "SUPPORT.md", "ASSET_MANIFEST.md",
-    "THIRD_PARTY_NOTICES.md", "RELEASE_NOTES.md",
+    "NOTICE", "THIRD_PARTY_NOTICES.md", "RELEASE_NOTES.md",
     "docs/release-checklist.md", "docs/capability-matrix.md",
     "docs/installing-and-updating.md", "docs/licensing-decision.md",
     "docs/private-test-data.md",
@@ -53,8 +53,10 @@ def audit(root=ROOT):
     )
     record(
         "legal:license",
-        bool(license_files),
-        "A distribution license must be selected before public release.",
+        bool(license_files)
+        and "GNU GENERAL PUBLIC LICENSE" in (root / license_files[0]).read_text(encoding="utf-8")
+        and "Version 3" in (root / license_files[0]).read_text(encoding="utf-8"),
+        "The official GNU GPL version 3 text must accompany the release.",
     )
     tracked = subprocess.run(
         ["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True,

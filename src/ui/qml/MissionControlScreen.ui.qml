@@ -553,8 +553,10 @@ Rectangle {
                 Layout.minimumHeight: Layout.preferredHeight
                 Layout.maximumHeight: Layout.preferredHeight
                 Label {
-                    text: "SKUNKWORKS MISSION CONTROL  ·  v"
+                    Layout.maximumWidth: Math.round(760 * root.uiScale)
+                    text: "SKUNKWORKS MISSION CONTROL  ·  CREATED BY CHRIS ZIEGENHAGEL AKA ZIEGENBAGEL FOR THE VON NEUMANN GAME  ·  v"
                           + (root.dashboardData.appVersion || "DEVELOPMENT")
+                    elide: Text.ElideRight
                     color: Constants.cyanColor
                     font.family: Constants.technicalFont
                     font.pixelSize: Math.round(12 * root.uiScale)
