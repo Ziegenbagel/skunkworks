@@ -1,6 +1,11 @@
 from pathlib import Path
+from importlib.metadata import PackageNotFoundError
+from unittest.mock import patch
 
 from PIL import Image
+
+from src.config import APP_VERSION
+from src.ui.controller import MissionControlDataService
 
 
 ICON_ROOT = Path("src/ui/assets/icons")
@@ -126,6 +131,17 @@ def test_application_uses_dedicated_skunkworks_icon():
     assert Path("src/ui/assets/icons/skunkworks-app.icns").is_file()
     assert "application.setWindowIcon" in app
     assert 'f"--icon={application_icon()}"' in builder
+
+
+def test_frozen_footer_version_falls_back_to_release_constant():
+    with (
+        patch(
+            "src.ui.controller.package_version",
+            side_effect=PackageNotFoundError,
+        ),
+        patch("src.ui.controller.Path.read_text", side_effect=OSError),
+    ):
+        assert MissionControlDataService._app_version() == APP_VERSION
 
 
 def test_top_navigation_is_interactive_and_has_connected_workspace():

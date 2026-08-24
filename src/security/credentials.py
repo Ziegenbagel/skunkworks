@@ -67,6 +67,12 @@ class CredentialStore:
             return value, source
 
     def _read_credential(self):
+        if platform.system() == "Darwin" and type(self) is CredentialStore:
+            stored = self._macos_get()
+            if stored:
+                return stored, "operating_system_vault"
+            environment = os.getenv(self.ENVIRONMENT_KEY)
+            return environment, "environment" if environment else "none"
         try:
             stored = self._keyring().get_password(self.SERVICE, self.ACCOUNT)
         except Exception:
@@ -93,21 +99,25 @@ class CredentialStore:
         value = str(api_key).strip()
         if not value:
             raise ValueError("API key cannot be empty.")
-        try:
-            self._keyring().set_password(self.SERVICE, self.ACCOUNT, value)
-        except Exception as error:
+        if platform.system() == "Darwin" and type(self) is CredentialStore:
             if not self._macos_save(value):
+                raise RuntimeError(
+                    "The operating-system credential vault is unavailable."
+                )
+        else:
+            try:
+                self._keyring().set_password(self.SERVICE, self.ACCOUNT, value)
+            except Exception as error:
                 raise RuntimeError(
                     "The operating-system credential vault is unavailable."
                 ) from error
         self._set_cached_credential(value, "operating_system_vault")
 
     def delete(self):
-        try:
-            keyring = self._keyring()
-            keyring.delete_password(self.SERVICE, self.ACCOUNT)
-        except Exception:
+        if platform.system() == "Darwin" and type(self) is CredentialStore:
             self._macos_delete()
+        else:
+            self._keyring().delete_password(self.SERVICE, self.ACCOUNT)
         environment = os.getenv(self.ENVIRONMENT_KEY)
         self._set_cached_credential(
             environment,

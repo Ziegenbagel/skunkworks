@@ -279,6 +279,8 @@ or enabled mutation policy.
 - Read the operating-system credential vault at most once per application
   process. UI property reevaluation and worker/service construction must reuse
   the in-memory credential; only an explicit save or removal updates the cache.
+  On macOS, use one native Keychain provider per operation; do not trigger a
+  second authorization request by falling through between providers.
 - A clean profile always starts in Observe Only with live execution disabled
   and an empty allowlist. Repository configuration is a safe template, never a
   developer's live policy. Tests requiring dispatch permission must configure

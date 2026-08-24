@@ -40,6 +40,7 @@ from src.planner.desired_state_store import DesiredStateStore
 from src.models.galaxy import SectorCoordinates
 from src.snapshot.manager import SnapshotManager
 from src.security import CredentialStore
+from src.config import APP_VERSION
 from src.planner.planner import Planner
 from src.planner.task import Task
 from src.planner.scheduling import task_order_key
@@ -550,7 +551,7 @@ class MissionControlDataService:
                 project = Path(__file__).resolve().parents[2] / "pyproject.toml"
                 return str(tomllib.loads(project.read_text())["project"]["version"])
             except (KeyError, OSError, TypeError, ValueError):
-                return "development"
+                return APP_VERSION
 
     def logbook_view(self, probe_id=None, probes=None):
         probe_id = probe_id or self._selected_probe_id

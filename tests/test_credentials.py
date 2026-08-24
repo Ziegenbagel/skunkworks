@@ -54,6 +54,21 @@ class CredentialTests(unittest.TestCase):
 
         self.assertEqual(store.backend.read_count, 1)
 
+    def test_macos_uses_one_native_vault_provider(self):
+        CredentialStore._process_cache_loaded = False
+        store = CredentialStore()
+        with (
+            patch("src.security.credentials.platform.system", return_value="Darwin"),
+            patch.object(store, "_macos_get", return_value="secret-api-key") as native,
+            patch.object(store, "_keyring") as keyring,
+        ):
+            self.assertEqual(store.get(), "secret-api-key")
+            self.assertEqual(store.source(), "operating_system_vault")
+
+        native.assert_called_once_with()
+        keyring.assert_not_called()
+        CredentialStore._process_cache_loaded = False
+
     def test_first_launch_requires_completion_and_credential(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "settings.sqlite3")
