@@ -259,6 +259,11 @@ result with `PRAGMA quick_check`, and write through a partial file before an
 atomic replace. Never overwrite the live database as a backup destination.
 Physical vacuuming remains an explicit offline maintenance action.
 
+Every SQLite connection must also be closed explicitly. A
+`sqlite3.Connection` context manager controls transactions but does not close
+the connection; relying on garbage collection leaves database and partial
+backup files locked on Windows and prevents atomic replacement or cleanup.
+
 ### Packaged resources and user state never share a location
 
 The database, policy files, backups, runtime snapshots, and logs live in

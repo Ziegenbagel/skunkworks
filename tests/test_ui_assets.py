@@ -60,7 +60,7 @@ def test_expansion_icons_are_square_transparent_production_pngs():
 
 
 def test_asset_catalog_covers_current_api_objects_and_tanker():
-    catalog = Path("src/ui/qml/AssetCatalog.qml").read_text()
+    catalog = Path("src/ui/qml/AssetCatalog.qml").read_text(encoding="utf-8")
     for object_type in (
         "star",
         "planet",
@@ -80,8 +80,8 @@ def test_asset_catalog_covers_current_api_objects_and_tanker():
 
 
 def test_dashboard_keeps_persistent_probe_selector_binding_seam():
-    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
-    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text()
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
+    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text(encoding="utf-8")
 
     assert "property alias probeSelectorControl" in screen
     assert "ProbeSelector" in screen
@@ -91,8 +91,8 @@ def test_dashboard_keeps_persistent_probe_selector_binding_seam():
 
 
 def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
-    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
-    panel = Path("src/ui/qml/components/SummaryListPanel.qml").read_text()
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
+    panel = Path("src/ui/qml/components/SummaryListPanel.qml").read_text(encoding="utf-8")
 
     assert screen.count("SummaryListPanel") == 1
     assert "Focused Probe Hull Integrity" in screen
@@ -104,7 +104,7 @@ def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
 
 
 def test_dashboard_branding_and_footer_use_readable_current_product_labels():
-    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
 
     assert "id: brandLine" in screen
     assert "Math.round(30 * root.uiScale)" in screen
@@ -116,8 +116,8 @@ def test_dashboard_branding_and_footer_use_readable_current_product_labels():
 
 
 def test_top_navigation_is_interactive_and_has_connected_workspace():
-    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
-    navigation = Path("src/ui/qml/components/TopNavigationBar.qml").read_text()
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/TopNavigationBar.qml").read_text(encoding="utf-8")
 
     assert "TopNavigationBar" in screen
     assert "NavigationWorkspace" in screen
@@ -128,11 +128,11 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
 
 
 def test_fleet_workspace_exposes_live_probe_upgrade_controls():
-    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
-    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
-    app = Path("src/ui/qml/App.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
 
     assert "MANUAL PROBE UPGRADE" in fleet
     assert "INSTALL UPGRADE" in fleet
@@ -144,9 +144,9 @@ def test_fleet_workspace_exposes_live_probe_upgrade_controls():
 
 
 def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
-    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
-    assembly = Path("src/planner/assembly.py").read_text()
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
+    assembly = Path("src/planner/assembly.py").read_text(encoding="utf-8")
     assert "CRAFTING REFERENCE · ALL AVAILABLE RECIPES" in manual
     assert "TOTAL RAW RESOURCES" in manual
     assert "rawIngredients" in manual
@@ -164,8 +164,8 @@ def test_manual_crafting_exposes_recipe_and_probe_assembly_references():
 
 
 def test_manual_crafting_reservation_conflict_offers_override_and_cancel():
-    app = Path("src/ui/qml/App.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
 
     assert 'title: "AUTOMATION RESERVATION CONFLICT"' in app
     assert 'text: "OVERRIDE"' in app
@@ -178,7 +178,7 @@ def test_manual_crafting_reservation_conflict_offers_override_and_cancel():
 
 
 def test_galaxy_map_operational_colors_override_trail_and_resources():
-    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
     hazard = galaxy.index('if (node.hasHazard) return "#ff4d5a";')
     current = galaxy.index('if (String(node.mapState || "unknown") === "current"')
     trail = galaxy.index("if (showRecentTrail && recentTrailNodes")
@@ -189,10 +189,10 @@ def test_galaxy_map_operational_colors_override_trail_and_resources():
 
 
 def test_remaining_v107_controls_are_exposed_in_their_safe_workspaces():
-    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
-    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
-    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
     assert "MAKE DEFAULT" in fleet
     assert "makeFocusedProbeDefault" in controller
     assert "TERMINAL PROBE RECOVERY" in safety
@@ -202,15 +202,15 @@ def test_remaining_v107_controls_are_exposed_in_their_safe_workspaces():
 
 
 def test_automation_queue_names_the_actual_output_for_each_craft():
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
 
     assert "outputLabel" in settings
     assert '"outputLabel"' in controller
 
 
 def test_inventory_workspace_exposes_complete_manual_game_controls():
-    workspace = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
+    workspace = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text(encoding="utf-8")
     for control in (
         "MANUAL JETTISON AND ITEM HANDOFF",
         "CONTAINER DEPLOYMENT, RECOVERY AND PROBE HANDOFF",
@@ -234,15 +234,15 @@ def test_inventory_workspace_exposes_complete_manual_game_controls():
 
 
 def test_settings_exposes_official_update_channel():
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
     assert "CHECK FOR UPDATES" in settings
     assert "updateCheckRequested" in settings
     assert "https://github.com/Ziegenbagel/skunkworks/releases/latest" in controller
 
 
 def test_settings_numeric_targets_accept_keyboard_entry():
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
     for control_id in (
         "genericTarget", "tankerTarget", "mannyTarget", "containerTarget",
         "relayTarget", "beaconTarget", "deuteriumReserve", "metalsReserve",
@@ -254,9 +254,9 @@ def test_settings_numeric_targets_accept_keyboard_entry():
 
 
 def test_settings_exposes_privacy_safe_diagnostic_logs():
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
-    diagnostics = Path("src/diagnostics.py").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
+    diagnostics = Path("src/diagnostics.py").read_text(encoding="utf-8")
     assert "OPEN DIAGNOSTIC LOGS" in settings
     assert "openDiagnosticLogs" in controller
     assert "RotatingFileHandler" in diagnostics
@@ -264,9 +264,9 @@ def test_settings_exposes_privacy_safe_diagnostic_logs():
 
 
 def test_dashboard_density_controls_scale_summaries_and_bound_sector_labels():
-    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
-    telemetry = Path("src/ui/qml/components/TelemetryBar.qml").read_text()
-    sector = Path("src/ui/qml/components/SectorView.qml").read_text()
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
+    telemetry = Path("src/ui/qml/components/TelemetryBar.qml").read_text(encoding="utf-8")
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
     assert "font.pixelSize: 34" in screen
     assert "height: 14" in telemetry
     assert "maximumFreeObjects: 8" in sector
@@ -275,8 +275,8 @@ def test_dashboard_density_controls_scale_summaries_and_bound_sector_labels():
 
 
 def test_hull_panel_uses_release_thresholds_without_duplicate_reading():
-    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
-    telemetry = Path("src/ui/qml/components/TelemetryBar.qml").read_text()
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
+    telemetry = Path("src/ui/qml/components/TelemetryBar.qml").read_text(encoding="utf-8")
     assert "focusedHullPercent <= 10" in screen
     assert "focusedHullPercent <= 25" in screen
     assert "showReading: false" in screen
@@ -284,8 +284,8 @@ def test_hull_panel_uses_release_thresholds_without_duplicate_reading():
 
 
 def test_galaxy_map_uses_rotatable_three_dimensional_scene():
-    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text()
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
 
     assert "GalaxyMap3D" in workspace
     assert "focusedProbeId: root.focusedProbeId" in workspace
@@ -335,24 +335,24 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
 
 
 def test_probe_selector_display_is_keyed_to_authoritative_focus_id():
-    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text()
+    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text(encoding="utf-8")
 
     assert "readonly property var selectedProbe: probeForId(currentProbeId)" in selector
     assert "text: root.selectedProbe ? String(root.selectedProbe.name" in selector
 
 
 def test_transit_panel_labels_failed_refresh_data_as_last_known():
-    sector = Path("src/ui/qml/components/SectorView.qml").read_text()
-    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
 
     assert "LAST KNOWN TRAVEL TELEMETRY" in sector
     assert 'connectionState: String(root.dashboardData.connection' in screen
-    assert "SCUT TRANSIT BEACONS" in Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    assert "SCUT TRANSIT BEACONS" in Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 
 
 def test_navigation_exposes_all_neighbor_scan_and_explorer_arrival_automation():
-    navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
     assert "SCAN ALL 12 NEIGHBORING SECTORS" in navigation
     assert "neighborScanRequested" in navigation
     assert "scanNeighboringSectors" in controller
@@ -362,7 +362,7 @@ def test_navigation_exposes_all_neighbor_scan_and_explorer_arrival_automation():
 
 
 def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
-    sector = Path("src/ui/qml/components/SectorView.qml").read_text()
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
     assert 'String(item.type).toLowerCase() === "planet"' in sector
     assert "ONE ORBIT PER PLANET" in sector
     assert "width: 80; height: 80" in sector
@@ -382,8 +382,8 @@ def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
 
 
 def test_app_uses_a_dedicated_live_data_loading_screen():
-    app = Path("src/ui/qml/App.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
     assert "startupOverlay" in app
     assert "LOADING LIVE FLEET DATA" in app
     assert "window.backend.startupLoading" in app
@@ -393,8 +393,8 @@ def test_app_uses_a_dedicated_live_data_loading_screen():
 
 
 def test_live_failures_never_substitute_concept_dashboard_data():
-    app = Path("src/ui/qml/App.qml").read_text()
-    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
     assert "LIVE FLEET DATA UNAVAILABLE" in app
     assert "SHOWING LAST SUCCESSFUL SNAPSHOT" in app
     assert "availableProbes: window.backend ? window.backend.availableProbes : previewProbes" in app
@@ -402,15 +402,15 @@ def test_live_failures_never_substitute_concept_dashboard_data():
 
 
 def test_probe_selector_waits_for_backend_confirmation():
-    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text()
+    selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text(encoding="utf-8")
     assert "Number(currentValue)" in selector
     assert "root.probeSelected(requestedProbeId)" in selector
     assert "currentIndex = root.indexForProbe(root.currentProbeId)" in selector
 
 
 def test_audio_manager_bundles_selected_v1_assets_and_controls():
-    audio = Path("src/ui/qml/components/AudioManager.qml").read_text()
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    audio = Path("src/ui/qml/components/AudioManager.qml").read_text(encoding="utf-8")
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
     assert Path("src/ui/assets/audio/music/space-ambient-cinematic-music.mp3").stat().st_size > 1_000_000
     assert Path("src/ui/assets/audio/sfx/button/soft-ui-button-click.ogg").is_file()
     assert Path("src/ui/assets/audio/sfx/chimey/Chime_Confirm.mp3").is_file()
@@ -428,8 +428,8 @@ def test_audio_manager_bundles_selected_v1_assets_and_controls():
 
 
 def test_settings_exposes_policy_gated_automation_queue_and_approval():
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
-    app = Path("src/ui/qml/App.qml").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
 
     assert "AUTOMATION EXECUTION" in settings
     assert "ALLOW SKUNKWORKS TO SEND GAME ORDERS" in settings
@@ -445,8 +445,8 @@ def test_settings_exposes_policy_gated_automation_queue_and_approval():
 
 
 def test_resource_workspace_groups_locations_and_uses_responsive_cards():
-    workspace = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text()
-    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    workspace = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
 
     for heading in (
         "PROBE STORAGE", "DRIFTING CONTAINERS", "PLACED CONTAINERS",
@@ -459,8 +459,8 @@ def test_resource_workspace_groups_locations_and_uses_responsive_cards():
 
 
 def test_navigation_moves_transport_workflow_to_probe_role_settings():
-    navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text()
-    role_settings = Path("src/ui/qml/components/ProbeRoleSettings.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text(encoding="utf-8")
+    role_settings = Path("src/ui/qml/components/ProbeRoleSettings.qml").read_text(encoding="utf-8")
 
     assert 'TabButton { text: "MANUAL TRAVEL" }' in navigation
     assert 'root.roleSettingsOnly ? 1' in navigation
@@ -499,8 +499,8 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
 
 
 def test_transit_panels_render_full_auto_travel_itinerary():
-    sector = Path("src/ui/qml/components/SectorView.qml").read_text()
-    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
 
     assert 'journeyLabel || "AUTO-TRAVEL"' in sector
     assert "itineraryLabel" in sector
@@ -508,8 +508,8 @@ def test_transit_panels_render_full_auto_travel_itinerary():
 
 
 def test_settings_exposes_safe_application_shutdown():
-    app = Path("src/ui/qml/App.qml").read_text()
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 
     assert "SHUTDOWN SKUNKWORKS" in settings
     assert "backend.shutdown()" in app
@@ -518,11 +518,11 @@ def test_settings_exposes_safe_application_shutdown():
 
 
 def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
-    inventory = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text()
-    resources = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text()
-    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
-    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
+    inventory = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text(encoding="utf-8")
+    resources = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text(encoding="utf-8")
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
 
     assert "RENAME FOCUSED PROBE" in fleet
     assert "RENAME" in inventory
@@ -544,8 +544,8 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
 
 
 def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
-    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 
     assert "RENAME MANNY" in fleet
     assert "MANNY AUTO-NAMING · FOCUSED PROBE" in fleet
@@ -568,7 +568,7 @@ def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
 
 
 def test_production_workspace_offers_name_task_and_remaining_time_sorting():
-    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
 
     assert 'property string productionSort: "name"' in navigation
     assert '"text": "NAME", "value": "name"' in navigation
@@ -583,7 +583,7 @@ def test_production_workspace_offers_name_task_and_remaining_time_sorting():
 
 
 def test_safety_workspace_virtualizes_and_wraps_large_alerts():
-    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text(encoding="utf-8")
 
     assert "id: safetyAlertList" in safety
     assert "anchors.fill: parent" in safety
@@ -597,10 +597,10 @@ def test_safety_workspace_virtualizes_and_wraps_large_alerts():
 
 
 def test_fleet_workspace_exposes_quick_manual_mining_orders():
-    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text()
-    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
-    app = Path("src/ui/qml/App.qml").read_text()
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
 
     assert "MANUAL MINING ORDER" in fleet
     assert "REVIEW MINING ORDER" in fleet
@@ -621,10 +621,10 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
 
 
 def test_manual_control_exposes_v112_motorized_asteroid_workflows():
-    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
-    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    app = Path("src/ui/qml/App.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
 
     assert 'TabButton { text: "INFRASTRUCTURE AND NETWORKS" }' in manual
     assert "INSTALL ASTEROID PROPULSION" in manual
@@ -642,9 +642,9 @@ def test_manual_control_exposes_v112_motorized_asteroid_workflows():
 
 
 def test_manual_control_exposes_v113_scut_blueprint_sharing():
-    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
-    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    app = Path("src/ui/qml/App.qml").read_text()
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
 
     assert "INFRASTRUCTURE AND NETWORKS" in manual
     assert "SHARE IMPROVEMENT BLUEPRINT · API v113" in manual
@@ -655,9 +655,9 @@ def test_manual_control_exposes_v113_scut_blueprint_sharing():
 
 
 def test_api_v114_alert_images_and_v115_anatiform_sculpt_are_visible():
-    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
-    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text(encoding="utf-8")
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
 
     assert "illustrationImageUrl" in safety
     assert "SCULPT ANATIFORM ASTEROID · API v115" in manual
@@ -666,11 +666,11 @@ def test_api_v114_alert_images_and_v115_anatiform_sculpt_are_visible():
 
 
 def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
-    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
-    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
-    app = Path("src/ui/qml/App.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
 
     assert "DELETE ALERT" in safety
     assert "alertDeleteRequested" in safety
@@ -685,8 +685,8 @@ def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
 
 
 def test_full_page_lists_avoid_nested_scroll_regions():
-    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text()
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text(encoding="utf-8")
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 
     assert "id: safetyAlertList" in safety
     assert "id: proposedCommandList" not in settings
@@ -696,8 +696,8 @@ def test_full_page_lists_avoid_nested_scroll_regions():
 
 
 def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
-    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
 
     assert 'TabButton { text: "GENERAL AUTOMATION" }' in settings
     assert 'TabButton { text: "MANNY FIELD OPERATIONS" }' in manual
@@ -712,7 +712,7 @@ def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets
 
 
 def test_automation_target_panels_share_quantity_and_priority_columns():
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 
     assert settings.count("columns: 3; uniformCellWidths: true") == 2
     assert "targetNameColumnWidth" not in settings
@@ -720,8 +720,8 @@ def test_automation_target_panels_share_quantity_and_priority_columns():
 
 
 def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
-    logbook = Path("src/ui/qml/components/LogbookWorkspace.qml").read_text()
-    app = Path("src/ui/qml/App.qml").read_text()
+    logbook = Path("src/ui/qml/components/LogbookWorkspace.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
 
     assert "FOCUSED PROBE LOGBOOK" in logbook
     assert "+ NEW PAGE" in logbook
@@ -730,19 +730,19 @@ def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     assert "AUTO-LOG DAILY ROLE REPORTS AND MAJOR DISCOVERIES" in logbook
     assert "id: contentScroller" in logbook
     assert "ScrollBar.vertical.policy: ScrollBar.AsNeeded" in logbook
-    assert "newDailyReportCount" in Path("src/ui/qml/components/CommunicationsWorkspace.qml").read_text()
-    assert "newDailyReportCount" in Path("src/ui/qml/components/TopNavigationBar.qml").read_text()
+    assert "newDailyReportCount" in Path("src/ui/qml/components/CommunicationsWorkspace.qml").read_text(encoding="utf-8")
+    assert "newDailyReportCount" in Path("src/ui/qml/components/TopNavigationBar.qml").read_text(encoding="utf-8")
     assert "loadLogbookPage" in app
-    controller = Path("src/ui/controller.py").read_text()
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
     mutation = controller.split("def _logbook_mutation", 1)[1].split("@Slot(bool)", 1)[0]
     assert "_start_refresh" not in mutation
 
 
 def test_settings_exposes_operator_manual_and_change_log_links():
-    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text()
-    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
-    app = Path("src/ui/qml/App.qml").read_text()
-    controller = Path("src/ui/controller.py").read_text()
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
     assert "HELP AND DOCUMENTATION" in settings
     assert "OPEN OPERATOR MANUAL" in settings
     assert "OPEN CHANGE LOG" in settings
@@ -752,14 +752,14 @@ def test_settings_exposes_operator_manual_and_change_log_links():
     assert "def openChangeLog" in controller
     assert 'Path("docs/user-guide/Skunkworks_Operator_Manual.docx")' in controller
     assert Path("docs/user-guide/Skunkworks_Operator_Manual.docx").is_file()
-    builder = Path("tools/build_release_candidate.py").read_text()
+    builder = Path("tools/build_release_candidate.py").read_text(encoding="utf-8")
     assert "Skunkworks_Operator_Manual.docx" in builder
     assert "docs/user-guide/CHANGELOG.md" in builder
 
 
 def test_live_section_grid_virtualizes_large_manny_rosters():
     """Long production lists must create only viewport-adjacent task cards."""
-    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text()
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
 
     assert "GridView {\n                id: sectionGrid" in workspace
     assert "cacheBuffer: cellHeight" in workspace
@@ -768,7 +768,7 @@ def test_live_section_grid_virtualizes_large_manny_rosters():
 
 
 def test_resource_ledger_avoids_content_dependent_quick_layouts():
-    workspace = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text()
+    workspace = Path("src/ui/qml/components/ResourceWorkspace.qml").read_text(encoding="utf-8")
 
     assert "width: resourceScroll.availableWidth" in workspace
     assert "GridLayout {\n                        id: resourceGrid" not in workspace

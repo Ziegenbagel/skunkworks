@@ -20,6 +20,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "requests>=2.34.2",
     "keyring>=25.6.0",
+    "tzdata>=2025.2",
 ]
 
 [project.scripts]

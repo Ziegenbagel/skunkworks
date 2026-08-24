@@ -6,6 +6,7 @@ import os
 import shutil
 import sqlite3
 import sys
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,7 +36,7 @@ class ApplicationPaths:
                 home / "Library" / "Caches" / "Skunkworks",
                 home / "Library" / "Logs" / "Skunkworks",
             )
-        if os.name == "nt" or platform.startswith("win"):
+        if platform.startswith("win"):
             local = Path(environment.get(
                 "LOCALAPPDATA", home / "AppData" / "Local",
             )) / "Skunkworks"
@@ -78,12 +79,16 @@ class ApplicationPaths:
             if partial.exists():
                 partial.unlink()
             try:
-                with sqlite3.connect(legacy_database) as source, sqlite3.connect(partial) as target:
-                    source.backup(target)
-                    if target.execute("PRAGMA quick_check").fetchone()[0] != "ok":
-                        raise sqlite3.DatabaseError(
-                            "Legacy database backup failed verification."
-                        )
+                with (
+                    closing(sqlite3.connect(legacy_database)) as source,
+                    closing(sqlite3.connect(partial)) as target,
+                ):
+                    with source, target:
+                        source.backup(target)
+                        if target.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                            raise sqlite3.DatabaseError(
+                                "Legacy database backup failed verification."
+                            )
                 os.replace(partial, self.database)
             finally:
                 if partial.exists():

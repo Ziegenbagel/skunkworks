@@ -4,7 +4,7 @@ import json
 import os
 import sqlite3
 import time
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -31,7 +31,10 @@ class DataEngine:
         # short-lived read connection takes a write lock and turns otherwise
         # tiny preference/history lookups into multi-second stalls when the UI
         # and automation workers are both active.
-        with sqlite3.connect(self.path) as connection:
+        # sqlite3.Connection's context manager commits or rolls back but does
+        # not close the handle. Windows will not replace or delete a database
+        # while that handle remains open, so lifecycle ownership is explicit.
+        with closing(sqlite3.connect(self.path)) as connection:
             connection.execute("PRAGMA journal_mode = WAL")
         self._migrate()
         self.run_due_maintenance()
@@ -799,13 +802,19 @@ class DataEngine:
         if temporary.exists():
             temporary.unlink()
         try:
-            with self._connect() as source, sqlite3.connect(temporary) as target:
-                source.backup(target)
-                result = tuple(row[0] for row in target.execute("PRAGMA quick_check"))
-                if result != ("ok",):
-                    raise sqlite3.DatabaseError(
-                        f"Backup integrity check failed: {result!r}"
+            with (
+                self._connect() as source,
+                closing(sqlite3.connect(temporary)) as target,
+            ):
+                with target:
+                    source.backup(target)
+                    result = tuple(
+                        row[0] for row in target.execute("PRAGMA quick_check")
                     )
+                    if result != ("ok",):
+                        raise sqlite3.DatabaseError(
+                            f"Backup integrity check failed: {result!r}"
+                        )
             os.replace(temporary, destination)
         finally:
             if temporary.exists():
