@@ -25,7 +25,6 @@ private/
 
 # Private manual references containing live account data. Public replacements
 # must be recaptured from a synthetic profile before tracking them again.
-docs/user-guide/Skunkworks_Operator_Manual.docx
 output/pdf/Skunkworks_Operator_Manual.pdf
 docs/user-guide/assets/screenshots/
 docs/user-guide/assets/mission-control-dashboard-numbered.png

@@ -51,7 +51,7 @@ class TransportCycleTests(unittest.TestCase):
             desired = DesiredState(
                 travel=TravelGoal(SectorCoordinates(3, 3, 0), "segmented"),
             )
-            service = MissionControlDataService(data_engine=engine)
+            service = MissionControlDataService(client=object(), data_engine=engine)
 
             journey = service._transport_journey_view(operations, 7, desired)
 
@@ -79,7 +79,7 @@ class TransportCycleTests(unittest.TestCase):
                 "arrivalSector": {"relative": {"x": 1, "y": 1, "z": 0}},
                 "remainingSeconds": 60,
             }
-            service = MissionControlDataService(data_engine=engine)
+            service = MissionControlDataService(client=object(), data_engine=engine)
 
             journey = service._transport_journey_view(
                 operations, 7, DesiredState.empty(),
@@ -110,6 +110,7 @@ class TransportCycleTests(unittest.TestCase):
                 ],
             }}]}
             service = MissionControlDataService(
+                client=object(),
                 data_engine=DataEngine(Path(temporary) / "journey.sqlite3"),
             )
 
@@ -139,6 +140,7 @@ class TransportCycleTests(unittest.TestCase):
                 travel=TravelGoal(SectorCoordinates(1, 1, 0), "segmented"),
             )
             service = MissionControlDataService(
+                client=object(),
                 data_engine=DataEngine(Path(temporary) / "journey.sqlite3"),
             )
 
