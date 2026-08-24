@@ -13,7 +13,10 @@ FORBIDDEN_SUFFIXES = (
 FORBIDDEN_NAMES = {".env", "sector_snapshot.json"}
 SECRET_PATTERNS = (
     re.compile(rb"(?i)authorization\s*[:=]\s*bearer\s+[a-z0-9._~+/=-]{12,}"),
-    re.compile(rb"(?i)(?:api[-_ ]?key|token|secret)\s*[:=]\s*[a-z0-9._~+/=-]{12,}"),
+    re.compile(
+        rb"(?i)(?:api[-_ ]?key|token|secret)\s*[:=]\s*"
+        rb"(?:['\"][a-z0-9._~+/=-]{12,}['\"]|[a-z0-9_~+/=-]*[0-9~+/=-][a-z0-9._~+/=-]{11,})"
+    ),
 )
 
 
