@@ -6,6 +6,9 @@ processed locally from a flat magenta chroma background into transparent PNGs.
 
 ## Deliverables
 
+- The application identity mark: a white Copperplate Bold `S` on black,
+  exported as a 1024px PNG, a multi-resolution Windows ICO, and a macOS ICNS.
+  It is generated deterministically by `tools/generate_app_icon.py`.
 - Fourteen 512×512 map/entity icons: probe, hub, Manny, SCUT relay, habitable
   world, wandering asteroid, resource asteroid, black hole, quest,
   civilization, anomaly, deuterium station, storage container, and mining site.

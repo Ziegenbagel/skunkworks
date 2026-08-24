@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QLibraryInfo, QTimer, QUrl, qVersion
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
@@ -43,6 +43,11 @@ def configure_qt_plugin_paths():
     return platform_root
 
 
+def application_icon_path():
+    root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    return root / "src" / "ui" / "assets" / "icons" / "skunkworks-app.png"
+
+
 def run(controller=None):
     application_paths().migrate_legacy(Path(__file__).resolve().parents[2])
     configure_diagnostics()
@@ -52,6 +57,7 @@ def run(controller=None):
     application = QGuiApplication(sys.argv)
     application.setApplicationName("Skunkworks")
     application.setOrganizationName("Skunkworks")
+    application.setWindowIcon(QIcon(str(application_icon_path())))
 
     engine = QQmlApplicationEngine()
     qml_root = Path(__file__).parent / "qml"

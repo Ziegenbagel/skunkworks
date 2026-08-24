@@ -21,6 +21,11 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "build" / "release-candidate"
 
 
+def application_icon():
+    suffix = ".icns" if sys.platform == "darwin" else ".ico" if os.name == "nt" else ".png"
+    return ROOT / "src" / "ui" / "assets" / "icons" / f"skunkworks-app{suffix}"
+
+
 def command(output_directory: Path, build_directory: Path | None = None) -> list[str]:
     build_directory = build_directory or output_directory.parent / ".release-build"
     return [
@@ -31,6 +36,7 @@ def command(output_directory: Path, build_directory: Path | None = None) -> list
         "--clean",
         "--windowed",
         "--name=Skunkworks",
+        f"--icon={application_icon()}",
         f"--distpath={output_directory}",
         f"--workpath={build_directory / 'work'}",
         f"--specpath={build_directory / 'spec'}",

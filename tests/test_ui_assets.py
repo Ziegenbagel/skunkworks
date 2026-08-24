@@ -117,6 +117,17 @@ def test_dashboard_branding_and_footer_use_readable_current_product_labels():
     assert 'font.pixelSize: Math.round(12 * root.uiScale)' in screen
 
 
+def test_application_uses_dedicated_skunkworks_icon():
+    app = Path("src/ui/app.py").read_text(encoding="utf-8")
+    builder = Path("tools/build_release_candidate.py").read_text(encoding="utf-8")
+
+    assert Path("src/ui/assets/icons/skunkworks-app.png").is_file()
+    assert Path("src/ui/assets/icons/skunkworks-app.ico").is_file()
+    assert Path("src/ui/assets/icons/skunkworks-app.icns").is_file()
+    assert "application.setWindowIcon" in app
+    assert 'f"--icon={application_icon()}"' in builder
+
+
 def test_top_navigation_is_interactive_and_has_connected_workspace():
     screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
     navigation = Path("src/ui/qml/components/TopNavigationBar.qml").read_text(encoding="utf-8")

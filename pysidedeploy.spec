@@ -16,7 +16,7 @@ exec_directory = build/deploy
 project_file =
 
 # application icon
-icon = src/ui/assets/icons/hub.png
+icon = src/ui/assets/icons/skunkworks-app.png
 
 [python]
 
