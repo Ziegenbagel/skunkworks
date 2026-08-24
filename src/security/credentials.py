@@ -3,12 +3,25 @@
 import os
 import platform
 import subprocess
+import threading
 
 
 class CredentialStore:
     SERVICE = "Skunkworks Mission Control"
     ACCOUNT = "von-neumann-api-key"
     ENVIRONMENT_KEY = "VON_NEUMANN_API_KEY"
+    _process_cache_lock = threading.Lock()
+    _process_cache_loaded = False
+    _process_cache_value = None
+    _process_cache_source = "none"
+
+    def __init__(self):
+        # Test doubles and specialized stores keep an instance-local cache;
+        # ordinary application stores share one read for the process so every
+        # service worker does not reopen the operating-system vault.
+        self._cache_loaded = False
+        self._cache_value = None
+        self._cache_source = "none"
 
     @staticmethod
     def _keyring():
@@ -21,20 +34,60 @@ class CredentialStore:
         return keyring
 
     def get(self):
+        value, _source = self._cached_credential()
+        return value
+
+    def source(self):
+        _value, source = self._cached_credential()
+        return source
+
+    def _cached_credential(self):
+        owner = CredentialStore if type(self) is CredentialStore else self
+        lock = (
+            CredentialStore._process_cache_lock
+            if owner is CredentialStore
+            else threading.Lock()
+        )
+        loaded_name = (
+            "_process_cache_loaded" if owner is CredentialStore else "_cache_loaded"
+        )
+        value_name = (
+            "_process_cache_value" if owner is CredentialStore else "_cache_value"
+        )
+        source_name = (
+            "_process_cache_source" if owner is CredentialStore else "_cache_source"
+        )
+        with lock:
+            if getattr(owner, loaded_name, False):
+                return getattr(owner, value_name), getattr(owner, source_name)
+            value, source = self._read_credential()
+            setattr(owner, loaded_name, True)
+            setattr(owner, value_name, value)
+            setattr(owner, source_name, source)
+            return value, source
+
+    def _read_credential(self):
         try:
             stored = self._keyring().get_password(self.SERVICE, self.ACCOUNT)
         except Exception:
             stored = self._macos_get()
-        return stored or os.getenv(self.ENVIRONMENT_KEY)
+        if stored:
+            return stored, "operating_system_vault"
+        environment = os.getenv(self.ENVIRONMENT_KEY)
+        return environment, "environment" if environment else "none"
 
-    def source(self):
-        try:
-            if self._keyring().get_password(self.SERVICE, self.ACCOUNT):
-                return "operating_system_vault"
-        except Exception:
-            if self._macos_get():
-                return "operating_system_vault"
-        return "environment" if os.getenv(self.ENVIRONMENT_KEY) else "none"
+    def _set_cached_credential(self, value, source):
+        owner = CredentialStore if type(self) is CredentialStore else self
+        prefix = "_process_cache_" if owner is CredentialStore else "_cache_"
+        lock = (
+            CredentialStore._process_cache_lock
+            if owner is CredentialStore
+            else threading.Lock()
+        )
+        with lock:
+            setattr(owner, prefix + "loaded", True)
+            setattr(owner, prefix + "value", value)
+            setattr(owner, prefix + "source", source)
 
     def save(self, api_key):
         value = str(api_key).strip()
@@ -47,6 +100,7 @@ class CredentialStore:
                 raise RuntimeError(
                     "The operating-system credential vault is unavailable."
                 ) from error
+        self._set_cached_credential(value, "operating_system_vault")
 
     def delete(self):
         try:
@@ -54,6 +108,11 @@ class CredentialStore:
             keyring.delete_password(self.SERVICE, self.ACCOUNT)
         except Exception:
             self._macos_delete()
+        environment = os.getenv(self.ENVIRONMENT_KEY)
+        self._set_cached_credential(
+            environment,
+            "environment" if environment else "none",
+        )
 
     def _macos_get(self):
         if platform.system() != "Darwin":

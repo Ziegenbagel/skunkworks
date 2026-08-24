@@ -12,8 +12,10 @@ from src.ui.controller import MissionControlController
 class MemoryKeyring:
     def __init__(self):
         self.value = None
+        self.read_count = 0
 
     def get_password(self, service, account):
+        self.read_count += 1
         return self.value
 
     def set_password(self, service, account, value):
@@ -25,6 +27,7 @@ class MemoryKeyring:
 
 class MemoryCredentialStore(CredentialStore):
     def __init__(self):
+        super().__init__()
         self.backend = MemoryKeyring()
 
     def _keyring(self):
@@ -40,6 +43,16 @@ class CredentialTests(unittest.TestCase):
             self.assertEqual(store.source(), "operating_system_vault")
             store.delete()
             self.assertIsNone(store.get())
+
+    def test_repeated_status_queries_read_the_vault_only_once(self):
+        store = MemoryCredentialStore()
+        store.backend.value = "secret-api-key"
+
+        self.assertEqual(store.get(), "secret-api-key")
+        self.assertTrue(store.get())
+        self.assertEqual(store.source(), "operating_system_vault")
+
+        self.assertEqual(store.backend.read_count, 1)
 
     def test_first_launch_requires_completion_and_credential(self):
         with tempfile.TemporaryDirectory() as temporary:

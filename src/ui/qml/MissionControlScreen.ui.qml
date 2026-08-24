@@ -553,7 +553,8 @@ Rectangle {
                 Layout.minimumHeight: Layout.preferredHeight
                 Layout.maximumHeight: Layout.preferredHeight
                 Label {
-                    Layout.maximumWidth: Math.round(760 * root.uiScale)
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     text: "SKUNKWORKS MISSION CONTROL  ·  CREATED BY CHRIS ZIEGENHAGEL AKA ZIEGENBAGEL FOR THE VON NEUMANN GAME  ·  v"
                           + (root.dashboardData.appVersion || "DEVELOPMENT")
                     elide: Text.ElideRight
@@ -562,9 +563,6 @@ Rectangle {
                     font.pixelSize: Math.round(12 * root.uiScale)
                     font.bold: true
                     font.letterSpacing: 1.6
-                }
-                Item {
-                    Layout.fillWidth: true
                 }
                 Label {
                     text: "AUTONOMOUS FLEET OPERATIONS  ·  "

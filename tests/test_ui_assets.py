@@ -110,6 +110,8 @@ def test_dashboard_branding_and_footer_use_readable_current_product_labels():
     assert "Math.round(30 * root.uiScale)" in screen
     assert "SKUNKWORKS UI CONCEPT" not in screen
     assert "SKUNKWORKS MISSION CONTROL" in screen
+    assert "Layout.fillWidth: true\n                    Layout.minimumWidth: 0" in screen
+    assert "Layout.maximumWidth: Math.round(760 * root.uiScale)" not in screen
     assert "GAME API v" in screen
     assert "GAME API VERSION PENDING" in screen
     assert 'font.pixelSize: Math.round(12 * root.uiScale)' in screen
