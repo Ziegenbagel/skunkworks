@@ -84,6 +84,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release delete "${GITHUB_REF_NAME}" --yes
+          fi
           gh release create "${GITHUB_REF_NAME}" release-assets/* \
             --title "Skunkworks ${GITHUB_REF_NAME}" \
             --notes-file RELEASE_NOTES.md \
