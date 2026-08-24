@@ -11,6 +11,11 @@ FORBIDDEN_SUFFIXES = (
     ".db", ".sqlite", ".sqlite3", ".sqlite3-shm", ".sqlite3-wal", ".log",
 )
 FORBIDDEN_NAMES = {".env", "sector_snapshot.json"}
+TEXT_SUFFIXES = {
+    "", ".bat", ".cfg", ".conf", ".css", ".csv", ".html", ".ini",
+    ".js", ".json", ".md", ".ps1", ".py", ".qml", ".rst", ".sh",
+    ".toml", ".txt", ".xml", ".yaml", ".yml",
+}
 SECRET_PATTERNS = (
     re.compile(rb"(?i)authorization\s*[:=]\s*bearer\s+[a-z0-9._~+/=-]{12,}"),
     re.compile(
@@ -40,7 +45,12 @@ def findings(root):
         is_distribution_metadata = any(
             part.endswith(".dist-info") for part in relative.parts
         )
-        if not is_distribution_metadata and path.stat().st_size <= 2 * 1024 * 1024:
+        is_text_candidate = path.suffix.lower() in TEXT_SUFFIXES
+        if (
+            not is_distribution_metadata
+            and is_text_candidate
+            and path.stat().st_size <= 2 * 1024 * 1024
+        ):
             content = path.read_bytes()
             if any(pattern.search(content) for pattern in SECRET_PATTERNS):
                 problems.append(f"credential-like content: {relative}")

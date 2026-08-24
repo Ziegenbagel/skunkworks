@@ -215,6 +215,22 @@ Relevant code/tests:
 - `tests/test_ui_preparation.py`
 - `tests/test_ui_assets.py`
 
+## Release Packaging Invariants
+
+### Credential scanning must distinguish text from compiled binaries
+
+Release audits scan text-like configuration, source, markup, and documentation
+for credential literals. Compiled libraries and executables must not be decoded
+as text because coincidental byte sequences produce false secret findings and
+block otherwise valid platform packages. Runtime/private filenames remain
+forbidden regardless of file type.
+
+Relevant code/tests:
+
+- `tools/audit_release_tree.py`
+- `tests/test_audit_release_tree.py`
+- `tests/test_release_tree_audit.py`
+
 ## Persistence Invariants
 
 ### History must not grow once per refresh without a material change

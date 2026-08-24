@@ -13,7 +13,9 @@ def test_release_tree_audit_rejects_runtime_and_secret_material(tmp_path):
 
 def test_release_tree_audit_accepts_normal_release_files(tmp_path):
     (tmp_path / "README.md").write_text("Skunkworks release")
-    (tmp_path / "app.bin").write_bytes(b"compiled application")
+    (tmp_path / "app.bin").write_bytes(
+        b"compiled application api_key='incidental-binary-123456'"
+    )
 
     assert findings(tmp_path) == []
 
