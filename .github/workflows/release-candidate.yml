@@ -36,25 +36,28 @@ jobs:
           python-version: "3.14"
           cache: pip
       - name: Install project and deployment dependencies
-        run: python -m pip install -e . pytest pytest-qt pillow Nuitka==4.1.1 ordered-set zstandard
+        run: python -m pip install -e . pytest pytest-qt pillow pyinstaller==6.22.2 imageio==2.37.4
       - name: Verify candidate source
         run: python -m pytest -q tests
       - name: Verify release contents
         run: python -m tools.release_readiness
       - name: Build standalone application
-        run: pyside6-deploy -c pysidedeploy.spec --force
+        run: python -m tools.build_release_candidate --clean
       - name: Audit unpacked candidate for private data
-        run: python -m tools.audit_release_tree build/deploy
+        run: python -m tools.audit_release_tree build/release-candidate
       - name: Add release documents
         shell: bash
         run: |
-          mkdir -p build/deploy/release-documents
-          cp LICENSE PRIVACY.md SECURITY.md SUPPORT.md THIRD_PARTY_NOTICES.md RELEASE_NOTES.md build/deploy/release-documents/
+          mkdir -p build/release-candidate/release-documents
+          cp LICENSE PRIVACY.md SECURITY.md SUPPORT.md THIRD_PARTY_NOTICES.md RELEASE_NOTES.md build/release-candidate/release-documents/
+      - name: Build curated source archive
+        shell: bash
+        run: git archive --format=zip --output=build/release-candidate/Skunkworks-${{ inputs.version }}-source.zip HEAD
       - name: Upload unsigned candidate
         uses: actions/upload-artifact@v4
         with:
           name: Skunkworks-${{ inputs.version }}-${{ matrix.platform }}-unsigned
-          path: build/deploy
+          path: build/release-candidate
           if-no-files-found: error
 
 # These artifacts are deliberately not attached to a public GitHub Release.

@@ -5,7 +5,7 @@
 | Original application icons | `src/ui/assets/icons/` | Generated specifically for Skunkworks; provenance recorded in the directory README | Covered by the Skunkworks license; retain provenance |
 | Background music | `src/ui/assets/audio/music/` | Pixabay Content License; creator and source recorded | Include audio credits and verify current source record |
 | Interface sounds | `src/ui/assets/audio/sfx/` | CC0 sources; creators and sources recorded | Include audio credits |
-| Operator Manual screenshots | `docs/user-guide/assets/screenshots/` | Owner-supplied live UI captures | Replace with synthetic captures before public release |
+| Operator Manual screenshots | `docs/user-guide/assets/synthetic-screenshots/` | Deterministic captures of the real QML using fictional offline data | Approved for public release; regenerate with the offline capture harness when UI changes |
 | Manny warranty diagram | `docs/user-guide/assets/manny-warranty-diagram.png` | Original manual artwork | Covered by the Skunkworks license |
 | Qt/PySide runtime assets | Packaged dependencies | Qt and component-specific licenses | Collect exact notices from each built artifact |
 

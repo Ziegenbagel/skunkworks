@@ -35,3 +35,12 @@ python -m tools.audit_release_tree .
 Run the tree audit again against every unpacked candidate artifact before
 signing. The build workflow must use an allowlist and must never package ignored
 files merely because they exist on a developer machine.
+## Public source archives
+
+Release source ZIPs are generated with `git archive` and the repository's
+`.gitattributes` export rules. They omit CI configuration, tests, historical
+design archives, live diagnostic utilities, and documentation-generation
+machinery while retaining the application source, safe configuration templates,
+license, support documents, and end-user maintenance commands. Export-ignored
+files remain visible to collaborators in the full development repository; use a
+separate public repository if they must also be hidden from the GitHub browser.

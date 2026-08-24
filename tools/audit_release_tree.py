@@ -22,7 +22,10 @@ def findings(root):
     problems = []
     for path in sorted(root.rglob("*")):
         if path.is_symlink():
-            problems.append(f"symbolic link: {path.relative_to(root)}")
+            try:
+                path.resolve(strict=True).relative_to(root.resolve())
+            except (FileNotFoundError, ValueError):
+                problems.append(f"external or broken symbolic link: {path.relative_to(root)}")
             continue
         if not path.is_file():
             continue
@@ -31,7 +34,10 @@ def findings(root):
         if lowered in FORBIDDEN_NAMES or lowered.endswith(FORBIDDEN_SUFFIXES):
             problems.append(f"private/runtime filename: {relative}")
             continue
-        if path.stat().st_size <= 2 * 1024 * 1024:
+        is_distribution_metadata = any(
+            part.endswith(".dist-info") for part in relative.parts
+        )
+        if not is_distribution_metadata and path.stat().st_size <= 2 * 1024 * 1024:
             content = path.read_bytes()
             if any(pattern.search(content) for pattern in SECRET_PATTERNS):
                 problems.append(f"credential-like content: {relative}")

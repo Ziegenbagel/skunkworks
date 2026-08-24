@@ -1,98 +1,96 @@
 [app]
 
-# Title of your application
+# title of your application
 title = Skunkworks
 
-# Project root directory. Default: The parent directory of input_file
+# project root directory. default = The parent directory of input_file
 project_dir = .
 
-# Source file entry point path. Default: main.py
+# source file entry point path. default = main.py
 input_file = skunkworks_app.py
 
-# Directory where the executable output is generated
+# directory where the executable output is generated
 exec_directory = build/deploy
 
-# Path to the project file relative to project_dir
+# path to the project file relative to project_dir
 project_file =
 
-# Application icon
+# application icon
 icon = src/ui/assets/icons/hub.png
 
 [python]
 
-# Python path
+# python path
 python_path =
 
-# Python packages to install
-packages = Nuitka==4.1.1
+# python packages to install
+packages = Nuitka==4.1.3,imageio==2.37.4
 
-# Buildozer: for deploying Android application
+# buildozer = for deploying Android application
 android_packages = buildozer==1.5.0,cython==0.29.33
 
 [qt]
 
-# Paths to required QML files. Comma separated
-# Normally all the QML files required by the project are added automatically
-# Design Studio projects include the QML files using Qt resources
+# paths to required qml files. comma separated
+# normally all the qml files required by the project are added automatically
+# design studio projects include the qml files using qt resources
 qml_files = src/ui/qml/App.qml
 
-# Excluded qml plugin binaries
+# excluded qml plugin binaries
 excluded_qml_plugins =
 
-# Qt modules used. Comma separated
+# qt modules used. comma separated
 modules = Core,Gui,Qml,Quick,QuickControls2,Multimedia
 
-# Qt plugins used by the application. Only relevant for desktop deployment
-# For Qt plugins used in Android application see [android][plugins]
+# qt plugins used by the application. only relevant for desktop deployment
+# for qt plugins used in android application see [android][plugins]
 plugins =
 
 [android]
 
-# Path to PySide wheel
+# path to pyside wheel
 wheel_pyside =
 
-# Path to Shiboken wheel
+# path to shiboken wheel
 wheel_shiboken =
 
-# Plugins to be copied to libs folder of the packaged application. Comma separated
+# plugins to be copied to libs folder of the packaged application. comma separated
 plugins =
 
 [nuitka]
 
-# Usage description for permissions requested by the app as found in the Info.plist file
-# of the app bundle. Comma separated
-# eg: NSCameraUsageDescription:CameraAccess
+# usage description for permissions requested by the app as found in the info.plist file
+# of the app bundle. comma separated
+# eg = extra_args = --show-modules --follow-stdlib
 macos.permissions =
 
-# Mode of using Nuitka. Accepts standalone or onefile. Default: onefile
+# mode of using nuitka. accepts standalone or onefile. default = onefile
 mode = standalone
 
-# Specify any extra nuitka arguments
-# eg: extra_args = --show-modules --follow-stdlib
-extra_args = --quiet --noinclude-qt-translations --include-data-dir=docs/user-guide=docs/user-guide --include-data-dir=src/ui/assets=src/ui/assets
+# specify any extra nuitka arguments
+extra_args = --quiet --noinclude-qt-translations --include-data-file=docs/user-guide/Skunkworks_Operator_Manual.docx=docs/user-guide/Skunkworks_Operator_Manual.docx --include-data-file=docs/user-guide/CHANGELOG.md=docs/user-guide/CHANGELOG.md --include-data-dir=src/ui/assets=src/ui/assets
 
 [buildozer]
 
-# Build mode
-# Possible values: [release, debug]
-# Release creates a .aab, while debug creates a .apk
+# build mode
+# possible values = ["aarch64", "armv7a", "i686", "x86_64"]
+# release creates a .aab, while debug creates a .apk
 mode = debug
 
-# Path to PySide6 and shiboken6 recipe dir
+# path to pyside6 and shiboken6 recipe dir
 recipe_dir =
 
-# Path to extra Qt Android .jar files to be loaded by the application
+# path to extra qt android .jar files to be loaded by the application
 jars_dir =
 
-# If empty, uses default NDK path downloaded by buildozer
+# if empty, uses default ndk path downloaded by buildozer
 ndk_path =
 
-# If empty, uses default SDK path downloaded by buildozer
+# if empty, uses default sdk path downloaded by buildozer
 sdk_path =
 
-# Other libraries to be loaded at app startup. Comma separated.
+# other libraries to be loaded at app startup. comma separated.
 local_libs =
 
-# Architecture of deployed platform
-# Possible values: ["aarch64", "armv7a", "i686", "x86_64"]
+# architecture of deployed platform
 arch =

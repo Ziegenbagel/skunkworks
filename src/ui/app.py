@@ -23,9 +23,11 @@ def configure_qt_plugin_paths():
     installed_qt_root = (
         Path.home() / "Qt" / qVersion() / "macos" / "plugins"
     )
+    frozen = bool(getattr(sys, "frozen", False))
     plugin_root = (
         installed_qt_root
-        if sys.platform == "darwin"
+        if not frozen
+        and sys.platform == "darwin"
         and (installed_qt_root / "platforms" / "libqcocoa.dylib").is_file()
         else bundled_plugin_root
     )

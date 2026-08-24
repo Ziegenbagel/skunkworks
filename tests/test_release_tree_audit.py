@@ -16,3 +16,18 @@ def test_release_tree_audit_accepts_normal_release_files(tmp_path):
     (tmp_path / "app.bin").write_bytes(b"compiled application")
 
     assert findings(tmp_path) == []
+
+
+def test_release_tree_audit_allows_internal_links_and_distribution_metadata(tmp_path):
+    package = tmp_path / "package"
+    package.mkdir()
+    target = package / "library.dylib"
+    target.write_bytes(b"runtime")
+    (package / "library-link.dylib").symlink_to(target.name)
+    metadata = package / "keyring-1.0.dist-info"
+    metadata.mkdir()
+    (metadata / "entry_points.txt").write_text(
+        "secret-tool = keyring.backend:main"
+    )
+
+    assert findings(tmp_path) == []

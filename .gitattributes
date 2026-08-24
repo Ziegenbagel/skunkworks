@@ -1,0 +1,18 @@
+# Keep GitHub/release source archives focused on files needed to run, inspect,
+# and maintain the application. These files remain in the development repository.
+/.github export-ignore
+/AGENTS.md export-ignore
+/tests export-ignore
+/docs/archive export-ignore
+/docs/user-guide/build_manual.py export-ignore
+/docs/user-guide/assets export-ignore
+/tools/api export-ignore
+/tools/experiments export-ignore
+/tools/json export-ignore
+/tools/knowledge export-ignore
+/tools/operations export-ignore
+/tools/ui export-ignore
+/tools/capture_synthetic_manual.py export-ignore
+/tools/test_api.py export-ignore
+/tools/build_release_candidate.py export-ignore
+/pysidedeploy.spec export-ignore

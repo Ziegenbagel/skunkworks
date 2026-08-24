@@ -5,7 +5,7 @@ that requires signed platform packages or the live game service.
 
 ## Automated repository gate
 
-- [x] Unit and integration suite passes (410 tests before this release pass).
+- [x] Unit and integration suite passes (425 tests in the current release pass).
 - [x] QML lint passes for the application root.
 - [x] SQLite history is deduplicated, bounded, and compactable.
 - [x] Database integrity, allocation reporting, and verified online backup exist.
@@ -18,11 +18,12 @@ that requires signed platform packages or the live game service.
 - [x] Runtime data, configuration, cache, and logs use platform-correct per-user
   locations with verified, non-overwriting legacy database migration.
 - [x] Cross-platform CI and unsigned release-candidate build scaffolding exists.
-- [ ] Replace every public manual screenshot with a synthetic demo capture.
+- [x] Every public manual screenshot uses a deterministic synthetic demo capture;
+  the capture harness does not access credentials or private game data.
 - [x] Source-available personal-use license selected by the owner and added at
   repository root; obtain legal review before public release.
 - [ ] Dependency and asset notices regenerated from the exact packaged artifacts.
-- [ ] No local `.env`, database, snapshot, log, backup, or developer cache is in
+- [x] No local `.env`, database, snapshot, log, backup, or developer cache is in
   the staged release payload.
 
 Run:
