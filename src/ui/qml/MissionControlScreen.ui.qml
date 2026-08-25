@@ -394,6 +394,7 @@ Rectangle {
                         color: "#150b0c"
                         border.color: Constants.criticalColor
                         radius: 3
+                        clip: true
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: 14
@@ -421,6 +422,7 @@ Rectangle {
                                     color: alertItem.index % 2 ? "#1d1011" : "#150b0c"
                                     border.color: "#5b2529"
                                     border.width: 1
+                                    clip: true
                                     Column {
                                         anchors.fill: parent; anchors.margins: 9; spacing: 3
                                         Label {
@@ -435,6 +437,8 @@ Rectangle {
                                             text: alertItem.modelData.summary || "Unknown condition"
                                             color: alertItem.modelData.severity === "critical" ? Constants.criticalColor : alertItem.modelData.severity === "nominal" ? Constants.nominalColor : Constants.warningColor
                                             elide: Text.ElideRight
+                                            maximumLineCount: 1
+                                            height: implicitHeight
                                             font.bold: true
                                         }
                                     }

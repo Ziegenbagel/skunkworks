@@ -217,6 +217,20 @@ Relevant code/tests:
 
 ## Release Packaging Invariants
 
+### Installed launchers must import without the source checkout
+
+The console entry point must work from an activated environment without relying
+on the repository root being present in `PYTHONPATH`. Packaging metadata must
+explicitly include the `src` application package and its QML and asset data.
+Test the installed `skunkworks` command from outside the checkout.
+
+### Upgrades preserve the existing user-data root
+
+Application files and mutable user data are separate. Upgrade instructions must
+tell users to back up the database, replace only the application, retain the
+platform user-data directory, and keep the same `SKUNKWORKS_HOME` when one was
+explicitly configured. A changed or deleted data root appears as a fresh install.
+
 ### Windowed packages do not have console streams
 
 GUI-only PyInstaller builds may expose `sys.stdin`, `sys.stdout`, or

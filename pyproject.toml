@@ -1,6 +1,6 @@
 [project]
 name = "skunkworks"
-version = "1.0.1"
+version = "1.0.2"
 description = "Policy-controlled mission control and fleet automation for the Von Neumann Game"
 readme = "README.md"
 authors = [{ name = "Christopher Ziegenhagel (Ziegenbagel)", email = "ziegenbagel.gaming@gmail.com" }]
@@ -25,6 +25,17 @@ dependencies = [
 
 [project.scripts]
 skunkworks = "src.ui.app:run"
+
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src", "src.*"]
+
+[tool.setuptools.package-data]
+"src.ui" = ["qml/**/*", "assets/**/*"]
 
 [project.urls]
 Homepage = "https://github.com/Ziegenbagel/skunkworks"

@@ -323,6 +323,10 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "probeIds.indexOf(focusedProbeId)" not in galaxy
     assert "CENTER PROBE" in galaxy
     assert "function panBy(" in galaxy
+    assert "mapDirectionToScene" in galaxy
+    assert "renderedEdges" in galaxy
+    assert "cameraMoving || distantOverview ? [] : visibleEdges" in galaxy
+    assert "id: cameraSettle" in galaxy
     assert "RIGHT/MIDDLE DRAG · PAN" in galaxy
     assert "import QtQuick3D" in galaxy
     assert "View3D" in galaxy
@@ -623,6 +627,15 @@ def test_safety_workspace_virtualizes_and_wraps_large_alerts():
     assert "Text.WrapAtWordBoundaryOrAnywhere" in safety
     assert "font.pixelSize: 17" in safety
     assert "font.pixelSize: 16" in safety
+
+
+def test_dashboard_alert_previews_are_bounded_to_the_panel():
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
+
+    alert_panel = screen[screen.index('color: "#150b0c"'):screen.index('id: alertsButton')]
+    assert "clip: true" in alert_panel
+    assert "maximumLineCount: 1" in alert_panel
+    assert "elide: Text.ElideRight" in alert_panel
 
 
 def test_fleet_workspace_exposes_quick_manual_mining_orders():

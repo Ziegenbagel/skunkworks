@@ -1,4 +1,24 @@
-# Skunkworks 1.0.1
+# Skunkworks 1.0.2
+
+Skunkworks 1.0.2 improves galaxy-map responsiveness as explored space grows.
+During camera motion and distant overview, the map temporarily suppresses its
+large link mesh and uses lower-cost sector markers; full detail returns shortly
+after the view settles. Pan buttons now move relative to the camera's current
+right and up directions instead of fixed world axes.
+
+Mission Control alert previews are clipped and shortened inside their dashboard
+cards. The complete alert text remains available in Safety.
+
+Linux and other source installations now explicitly package the `src` modules,
+QML, and assets, so the installed `skunkworks` launcher works outside the source
+checkout without setting `PYTHONPATH`.
+
+The installation guide and operator manual now contain a prominent safe-update
+procedure. Application packages remain separate from accumulated user data;
+operators should back up the database, replace only the application, and retain
+the same platform data directory and `SKUNKWORKS_HOME` setting.
+
+## Skunkworks 1.0.1
 
 Skunkworks 1.0.1 fixes first-launch fleet loading in unsigned windowed
 packages. PyInstaller GUI applications may not have an attached terminal;

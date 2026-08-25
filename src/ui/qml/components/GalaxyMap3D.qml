@@ -41,6 +41,7 @@ Item {
     property bool showScutCoverage: false
     property bool showAxisLabels: true
     property bool filtersExpanded: true
+    property bool cameraMoving: false
     property bool showDeuterium: false
     property bool showMetals: false
     property bool showIce: false
@@ -56,6 +57,12 @@ Item {
         for (let i = 0; i < visibleNodes.length; ++i) visible[visibleNodes[i].id] = true;
         return (galaxyData.edges || []).filter(function(edge) { return visible[edge.from] && visible[edge.to]; });
     }
+    // Neighbor links dominate scene cost as explored space grows. Suspend them
+    // while the camera moves, then restore the exact scene after a debounce.
+    // At distant zoom, dots retain topology without thousands of overlapping
+    // link models.
+    readonly property bool distantOverview: camera.z > 1500
+    readonly property var renderedEdges: cameraMoving || distantOverview ? [] : visibleEdges
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
 
@@ -164,11 +171,17 @@ Item {
     }
     function panBy(horizontal, vertical) {
         const step = Math.max(30, camera.z * 0.08);
+        const right = cameraOrigin.mapDirectionToScene(Qt.vector3d(1, 0, 0));
+        const up = cameraOrigin.mapDirectionToScene(Qt.vector3d(0, 1, 0));
         cameraOrigin.position = Qt.vector3d(
-            cameraOrigin.position.x + horizontal * step,
-            cameraOrigin.position.y + vertical * step,
-            cameraOrigin.position.z
+            cameraOrigin.position.x + (right.x * horizontal + up.x * vertical) * step,
+            cameraOrigin.position.y + (right.y * horizontal + up.y * vertical) * step,
+            cameraOrigin.position.z + (right.z * horizontal + up.z * vertical) * step
         );
+    }
+    function cameraChanged() {
+        cameraMoving = true;
+        cameraSettle.restart();
     }
     function colorFor(node) {
         // Operational state must remain legible regardless of resource and
@@ -236,7 +249,7 @@ Item {
         }
 
         Repeater3D {
-            model: root.visibleEdges
+            model: root.renderedEdges
             delegate: Model {
                 id: linkModel
                 required property var modelData
@@ -284,7 +297,10 @@ Item {
                 id: sectorModel
                 required property var modelData
                 objectName: String(modelData.id)
-                source: "#Sphere"
+                source: (!root.cameraMoving && !root.distantOverview)
+                        || modelData.isFocused
+                        || (root.selectedNode && String(root.selectedNode.id) === String(modelData.id))
+                    ? "#Sphere" : "#Cube"
                 pickable: true
                 position: root.positionFor(modelData)
                 scale: modelData.isFocused ? Qt.vector3d(0.34, 0.34, 0.34) : Qt.vector3d(0.24, 0.24, 0.24)
@@ -324,6 +340,22 @@ Item {
         anchors.fill: parent
         origin: cameraOrigin; camera: camera; panEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+    }
+
+    Timer {
+        id: cameraSettle
+        interval: 140
+        repeat: false
+        onTriggered: root.cameraMoving = false
+    }
+    Connections {
+        target: cameraOrigin
+        function onPositionChanged() { root.cameraChanged(); }
+        function onEulerRotationChanged() { root.cameraChanged(); }
+    }
+    Connections {
+        target: camera
+        function onZChanged() { root.cameraChanged(); }
     }
 
     // Project the FCC origin and positive axis markers over the 3D scene so

@@ -1,5 +1,15 @@
 # Operator Manual Revision History
 
+## 0.8 — 2026-08-24
+
+- Added a prominent Settings update procedure explaining how to back up and
+  retain the database, settings, discovered sectors, roles, routes, and reports
+  when replacing the application.
+- Corrected the Settings page flow so its introduction, upgrade warning,
+  execution-policy explanation, and associated screenshot remain together.
+- Updated source-install guidance to use the installed `skunkworks` launcher;
+  the package now explicitly includes its `src` modules, QML, and assets.
+
 ## 0.7 — 2026-08-23
 
 - Explained that daily role and major-discovery logbook reports are disabled by

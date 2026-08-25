@@ -22,6 +22,26 @@ manual in 1.0: download the newer package, stop Skunkworks, back up the
 database, and install the new version. Skunkworks must not silently replace its
 own executable.
 
+## Safe update procedure — keep your accumulated data
+
+Updating the application is not a fresh installation. Skunkworks stores its
+database, settings, discovered-sector details, roles, routes, and reports in the
+platform user-data folders listed below, separately from the application.
+
+1. Stop Skunkworks completely.
+2. Use **Settings → Back Up Database** and keep the verified backup outside the
+   application or extracted download folder.
+3. Download the newer package for the same operating system and processor.
+4. Replace only the old application bundle/directory with the new one. **Do not
+   delete the Skunkworks user-data folder and do not set a new
+   `SKUNKWORKS_HOME`.**
+5. Start the new version. Existing settings and history should appear
+   automatically; confirm them before enabling Automatic mode.
+
+Deleting an old application package does not delete user data. Choosing a new
+user-data location, deleting the folders below, or using an isolated test
+`SKUNKWORKS_HOME` makes Skunkworks appear to be a fresh installation.
+
 ### macOS
 
 Download and extract the ZIP matching the Mac processor. Move only
@@ -55,7 +75,7 @@ python3.14 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
-python -m src.ui.app
+skunkworks
 ```
 
 On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`. Users who
@@ -81,9 +101,9 @@ Stop Skunkworks, create a verified database backup, then update to a named tag:
 ```bash
 python -m tools.database_maintenance --backup /safe/path/skunkworks.sqlite3
 git fetch --tags
-git checkout v1.0.1
+git checkout v1.0.2
 python -m pip install -e .
-python -m src.ui.app
+skunkworks
 ```
 
 Never commit `.env`, databases, backups, runtime snapshots, or diagnostic logs.

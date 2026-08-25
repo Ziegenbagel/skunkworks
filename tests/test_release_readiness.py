@@ -1,4 +1,5 @@
 from pathlib import Path
+import tomllib
 
 from tools.release_readiness import audit
 
@@ -25,6 +26,27 @@ def test_pep_639_license_expression_is_not_combined_with_legacy_classifier():
 
     assert 'license = "GPL-3.0-only"' in metadata
     assert '"License ::' not in metadata
+
+
+def test_source_distribution_explicitly_packages_launcher_and_ui_assets():
+    metadata = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+    assert metadata["project"]["scripts"]["skunkworks"] == "src.ui.app:run"
+    assert metadata["build-system"]["build-backend"] == "setuptools.build_meta"
+    assert metadata["tool"]["setuptools"]["packages"]["find"]["include"] == [
+        "src", "src.*",
+    ]
+    assert metadata["tool"]["setuptools"]["package-data"]["src.ui"] == [
+        "qml/**/*", "assets/**/*",
+    ]
+
+
+def test_upgrade_guide_preserves_accumulated_user_data():
+    guide = Path("docs/installing-and-updating.md").read_text(encoding="utf-8")
+
+    assert "Safe update procedure — keep your accumulated data" in guide
+    assert "delete the Skunkworks user-data folder" in guide
+    assert "do not set a new" in guide and "`SKUNKWORKS_HOME`" in guide
 
 
 def test_release_candidate_build_excludes_private_and_development_directories():
