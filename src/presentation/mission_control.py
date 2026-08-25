@@ -3,6 +3,7 @@
 from dataclasses import asdict
 from datetime import datetime
 import json
+import re
 from src.models.galaxy import SectorCoordinates
 
 
@@ -183,7 +184,9 @@ class MissionControlViewModelBuilder:
         snapshot = (world.sector.get("snapshot") or {}).get("sector", {})
         def collect_targets(values, *, bookmark_candidates=False):
             for value in values or ():
-                target_type = str(value.get("type", "")).lower()
+                target_type = re.sub(
+                    r"([a-z0-9])([A-Z])", r"\1_\2", str(value.get("type", ""))
+                ).strip().lower().replace("-", "_").replace(" ", "_")
                 target_kind = "planet" if "planet" in target_type else "asteroid" if "asteroid" in target_type else ""
                 target_id = str(value.get("id", ""))
                 if target_id and target_type in {"star", "planet", "asteroid", "probe"}:

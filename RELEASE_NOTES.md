@@ -1,4 +1,21 @@
-# Skunkworks 1.0.3
+# Skunkworks 1.0.4
+
+Skunkworks 1.0.4 restores sector-object inspection as an explicit Manny Field
+Operations control and recognizes equivalent hyphenated, spaced, camel-case,
+and snake-case object types. This also prevents live dormant constructs and
+SCUT relays from disappearing from Manual Control because of an API spelling
+variant. Empty SCUT steps now explain which visible relay prerequisite is
+missing.
+
+Focused secondary probes now receive a lightweight alert and damage-warning
+sync independently of the slower default-probe archival import. Newly observed
+alerts pulse the Safety tab in red until Safety is viewed.
+
+An Unauthorized/401 response on first launch is now identified as an API-key
+problem and offers direct API-key re-entry while preserving all local history
+and settings.
+
+## Skunkworks 1.0.3
 
 Skunkworks 1.0.3 restores verified neighbor connection lines at every settled
 Galaxy Map zoom distance. The interaction optimization still suspends those

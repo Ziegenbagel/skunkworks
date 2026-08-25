@@ -204,18 +204,27 @@ ApplicationWindow {
             }
             Label {
                 Layout.alignment: Qt.AlignHCenter
-                text: "The game service may be temporarily unavailable. Existing local history and settings have not been erased."
+                text: window.backend && window.backend.errorContext === "authentication"
+                    ? "The saved API key was rejected. Re-enter the current game API key. Existing local history and settings have not been erased."
+                    : "The game service may be temporarily unavailable. Existing local history and settings have not been erased."
                 color: Constants.warningColor
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
                 Layout.maximumWidth: 680
             }
-            Button {
+            RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                text: window.backend && window.backend.refreshing ? "RETRYING LIVE CONNECTION…" : "RETRY LIVE CONNECTION"
-                enabled: window.backend && !window.backend.refreshing
-                onClicked: window.backend.refresh()
+                Button {
+                    visible: window.backend && window.backend.errorContext === "authentication"
+                    text: "RE-ENTER API KEY"
+                    onClicked: window.backend.resetOnboarding()
+                }
+                Button {
+                    text: window.backend && window.backend.refreshing ? "RETRYING LIVE CONNECTION…" : "RETRY LIVE CONNECTION"
+                    enabled: window.backend && !window.backend.refreshing
+                    onClicked: window.backend.refresh()
+                }
             }
         }
     }

@@ -10,6 +10,7 @@ RowLayout {
     property var sections: ["MISSION CONTROL", "FLEET", "GALAXY MAP", "NAVIGATION", "RESOURCES", "MISSIONS", "PRODUCTION", "SAFETY", "COMMUNICATIONS", "MANUAL CONTROL", "SETTINGS"]
     property string currentSection: "MISSION CONTROL"
     property int newDailyReportCount: 0
+    property int unviewedAlertCount: 0
     signal sectionSelected(string section)
 
     spacing: 3
@@ -24,18 +25,34 @@ RowLayout {
             color: navigationItem.modelData === root.currentSection ? Constants.selectedColor : navigationMouse.containsMouse ? Constants.raisedColor : "transparent"
             border.color: navigationItem.modelData === root.currentSection
                           || (navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0)
-                          ? Constants.cyanColor : "transparent"
-            border.width: navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0 ? 2 : 1
+                          ? Constants.cyanColor
+                          : navigationItem.modelData === "SAFETY" && root.unviewedAlertCount > 0
+                            ? Constants.criticalColor : "transparent"
+            border.width: (navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0)
+                          || (navigationItem.modelData === "SAFETY" && root.unviewedAlertCount > 0) ? 2 : 1
+
+            SequentialAnimation on opacity {
+                running: navigationItem.modelData === "SAFETY"
+                         && root.unviewedAlertCount > 0
+                         && root.currentSection !== "SAFETY"
+                loops: Animation.Infinite
+                NumberAnimation { to: 0.48; duration: 650; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1.0; duration: 650; easing.type: Easing.InOutSine }
+            }
 
             Label {
                 anchors.centerIn: parent
                 width: parent.width - 4
                 text: navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0
                       ? navigationItem.modelData + " · " + root.newDailyReportCount
-                      : navigationItem.modelData
+                      : navigationItem.modelData === "SAFETY" && root.unviewedAlertCount > 0
+                        ? navigationItem.modelData + " · " + root.unviewedAlertCount
+                        : navigationItem.modelData
                 color: navigationItem.modelData === root.currentSection
                        || (navigationItem.modelData === "COMMUNICATIONS" && root.newDailyReportCount > 0)
-                       ? Constants.cyanColor : Constants.mutedTextColor
+                       ? Constants.cyanColor
+                       : navigationItem.modelData === "SAFETY" && root.unviewedAlertCount > 0
+                         ? Constants.criticalColor : Constants.mutedTextColor
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
                 font.family: Constants.technicalFont

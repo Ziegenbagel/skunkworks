@@ -156,6 +156,37 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
     assert "Math.min(18, Math.max(13, root.width / 125))" in navigation
 
 
+def test_safety_navigation_pulses_for_unviewed_alerts():
+    navigation = Path("src/ui/qml/components/TopNavigationBar.qml").read_text(encoding="utf-8")
+    screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
+
+    assert "unviewedAlertCount" in navigation
+    assert "SequentialAnimation on opacity" in navigation
+    assert 'navigationItem.modelData === "SAFETY"' in navigation
+    assert "viewedAlertKeys" in screen
+    assert "updateUnviewedAlerts" in screen
+
+
+def test_manual_field_operations_expose_sector_object_inspection():
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+
+    assert 'title: "SECTOR OBJECT INSPECTION"' in fleet
+    assert '"inspect-sector-object"' in fleet
+    assert "inspectableObjects:" in manual
+
+
+def test_authentication_failure_offers_api_key_reentry():
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
+
+    assert 'errorContext === "authentication"' in app
+    assert 'text: "RE-ENTER API KEY"' in app
+    assert "window.backend.resetOnboarding()" in app
+    reject_dashboard = controller[controller.index("def _reject_dashboard"):controller.index("def _retry_rate_limited_refresh")]
+    assert 'context="authentication"' in reject_dashboard
+
+
 def test_fleet_workspace_exposes_live_probe_upgrade_controls():
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
     workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
@@ -249,10 +280,9 @@ def test_inventory_workspace_exposes_complete_manual_game_controls():
         '"salvage"',
         '"attach_to_probe"',
         "SCUT RELAY DEPLOYMENT AND SECTOR OPERATIONS",
-        '"turn-on-relay"',
-        '"install-scut-transit-beacon"',
-        '"inspect-sector-object"',
-        '"install-bookmark"',
+            '"turn-on-relay"',
+            '"install-scut-transit-beacon"',
+            '"install-bookmark"',
         '"refill-deuterium-tank"',
         '"drop-manny-cargo"',
     ):

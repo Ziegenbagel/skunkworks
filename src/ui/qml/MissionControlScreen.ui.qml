@@ -74,6 +74,8 @@ Rectangle {
     property var availableProbes: previewProbes
     property int focusedProbeId: availableProbes.length ? availableProbes[0].id : -1
     property string currentNavigation: "MISSION CONTROL"
+    property var viewedAlertKeys: ({})
+    property int unviewedAlertCount: 0
     property alias probeSelectorControl: probeSelector
     property alias navigationBarControl: navigationBar
     property alias navigationWorkspaceControl: navigationWorkspace
@@ -87,6 +89,31 @@ Rectangle {
     implicitWidth: Constants.width
     implicitHeight: Constants.height
     color: Constants.voidColor
+
+    function alertKey(alert) {
+        return String(alert.domain || "alert") + ":" + String(alert.id || alert.eventId || alert.timestamp || alert.summary || "unknown");
+    }
+
+    function updateUnviewedAlerts() {
+        const alerts = root.dashboardData.alerts || [];
+        if (root.currentNavigation === "SAFETY") {
+            const viewed = Object.assign({}, root.viewedAlertKeys);
+            for (let index = 0; index < alerts.length; index++)
+                viewed[root.alertKey(alerts[index])] = true;
+            root.viewedAlertKeys = viewed;
+            root.unviewedAlertCount = 0;
+            return;
+        }
+        let count = 0;
+        for (let index = 0; index < alerts.length; index++) {
+            if (!root.viewedAlertKeys[root.alertKey(alerts[index])])
+                count++;
+        }
+        root.unviewedAlertCount = count;
+    }
+
+    onDashboardDataChanged: updateUnviewedAlerts()
+    onCurrentNavigationChanged: updateUnviewedAlerts()
 
     Item {
         id: designCanvas
@@ -227,6 +254,7 @@ Rectangle {
                         Layout.rightMargin: Math.round(14 * root.uiScale)
                         currentSection: root.currentNavigation
                         newDailyReportCount: Number((root.dashboardData.logbook || {}).newDailyReportCount || 0)
+                        unviewedAlertCount: root.unviewedAlertCount
                     }
                 }
             }

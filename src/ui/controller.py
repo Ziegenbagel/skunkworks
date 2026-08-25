@@ -92,6 +92,7 @@ class MissionControlDataService:
         self._prepared_commands = ()
         self._logbook_page_probes = {}
         self._history_sync_at = {}
+        self._safety_sync_at = {}
         self._hazard_cache = {}
         self._reserve_target_cache = {}
         self._logbook_cache = {}
@@ -194,9 +195,23 @@ class MissionControlDataService:
                 ),
             )
             self._history_sync_at[selected_id] = now
+            self._safety_sync_at[selected_id] = now
         else:
             timed("recordWorld", lambda: self.data_engine.record_world(world))
             sync_failures = {}
+            if (
+                selected.get("isReachable", True)
+                and now - self._safety_sync_at.get(selected_id, 0) >= 60
+            ):
+                safety_failures = timed(
+                    "safetySync",
+                    lambda: HistorySynchronizer(
+                        self.data_engine,
+                        self.capabilities,
+                    ).sync_safety(selected_id),
+                )
+                sync_failures.update(safety_failures)
+                self._safety_sync_at[selected_id] = now
         world.galaxy = timed("galaxyMap", self.data_engine.galaxy_map)
         report(76, "Evaluating hazards and automation")
         cached_hazards = self._hazard_cache.get(selected_id)
@@ -4727,7 +4742,10 @@ class MissionControlController(QObject):
             self._retry_probe_id = retry_probe_id
             self._retry_timer.start(int(delay_seconds * 1000) + 250)
             message += f" Automatic retry scheduled in {delay_seconds:g} seconds."
-        self._set_error(message)
+        authentication_error = bool(
+            re.search(r"\b401\b|unauthori[sz]ed|invalid api key", message, re.IGNORECASE)
+        )
+        self._set_error(message, context="authentication" if authentication_error else "")
         # A failed refresh must never replace live account data with UI concept
         # values. Keep the last authoritative snapshot, mark it stale, and let
         # QML explain that it is retained data rather than current telemetry.

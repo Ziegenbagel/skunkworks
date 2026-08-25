@@ -51,24 +51,7 @@ class HistorySynchronizer:
                 "pages",
                 probe_id,
             )
-            self._record_response(
-                failures,
-                "alerts",
-                lambda: self.capabilities.probes.alerts(
-                    probe_id
-                ),
-                "alerts",
-                probe_id,
-            )
-            self._record_response(
-                failures,
-                "damage_warnings",
-                lambda: self.capabilities.probes.damage_warnings(
-                    probe_id
-                ),
-                "warnings",
-                probe_id,
-            )
+            failures.update(self.sync_safety(probe_id))
 
         self._record_response(
             failures,
@@ -87,6 +70,26 @@ class HistorySynchronizer:
         )
         return failures
 
+    def sync_safety(self, probe_id):
+        """Synchronize probe-scoped alerts without the archival fleet import."""
+
+        failures = {}
+        self._record_response(
+            failures,
+            "alerts",
+            lambda: self.capabilities.probes.alerts(probe_id),
+            ("alerts", "items"),
+            probe_id,
+        )
+        self._record_response(
+            failures,
+            "damage_warnings",
+            lambda: self.capabilities.probes.damage_warnings(probe_id),
+            ("warnings", "damageWarnings", "items"),
+            probe_id,
+        )
+        return failures
+
     def _record_response(
         self,
         failures,
@@ -97,11 +100,15 @@ class HistorySynchronizer:
     ):
         def action():
             response = load()
-            self.engine.record_records(
-                domain,
-                response.get(collection_key, []),
-                probe_id=probe_id,
-            )
+            if isinstance(response, list):
+                records = response
+            else:
+                keys = collection_key if isinstance(collection_key, tuple) else (collection_key,)
+                records = next(
+                    (response.get(key) for key in keys if response.get(key) is not None),
+                    [],
+                )
+            self.engine.record_records(domain, records, probe_id=probe_id)
 
         self._attempt(failures, domain, action)
 

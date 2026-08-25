@@ -173,6 +173,25 @@ Relevant code/tests:
 
 ## Refresh and UI Responsiveness Invariants
 
+### Focused-probe safety telemetry is not default-probe archival history
+
+Alerts and damage warnings belong to the focused reachable probe. Synchronize
+them on a bounded lightweight cadence even when the slower default-probe
+archival import is skipped, so explorer and other secondary-probe discoveries
+reach Safety without restoring a heavy refresh path.
+
+### Sector controls accept equivalent API type spellings
+
+Before classifying inspectable objects, SCUT relays, and refuel stations,
+normalize snake case, hyphenated, spaced, and camel-case object types. A
+presentation spelling difference must not silently empty a live command form.
+
+### Unauthorized first load offers credential recovery
+
+A `401`/Unauthorized first-load response is an authentication recovery state,
+not a generic service outage. Offer API-key re-entry while preserving local
+history and settings.
+
 ### Visible telemetry is not the full dashboard
 
 Probe selection and active-tab telemetry must not wait for galaxy reconstruction,

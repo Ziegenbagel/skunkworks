@@ -241,6 +241,7 @@ Item {
                 idleMannies: (root.dashboardData.inventoryManagement || {}).idleMannies || []
                 improvements: root.dashboardData.probeImprovements || []
                 miningTargets: (root.dashboardData.inventoryManagement || {}).miningTargets || []
+                inspectableObjects: (root.dashboardData.inventoryManagement || {}).inspectableObjects || []
                 detachedContainers: (root.dashboardData.inventoryManagement || {}).detachedContainers || []
                 sameSectorProbes: (root.dashboardData.inventoryManagement || {}).sameSectorProbes || []
                 allMannies: (root.dashboardData.inventoryManagement || {}).mannies || []

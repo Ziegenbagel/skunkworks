@@ -145,11 +145,6 @@ Item {
                         Label { Layout.fillWidth: true; text: activeRelay.count ? "Installs and consumes one stocked SCUT Transit Beacon on this relay." : "No active relay without a transit beacon is visible in the current sector."; color: activeRelay.count ? Constants.mutedTextColor : Constants.warningColor; wrapMode: Text.Wrap }
                         Button { text: "REVIEW BEACON INSTALL"; enabled: sectorManny.count > 0 && root.selectedIntegerId(activeRelay) > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"install-scut-transit-beacon", "mannyId":String(sectorManny.currentValue), "payload":{"relayId":root.selectedIntegerId(activeRelay)}}; operationConfirmation.open(); } }
 
-                        Label { text: "INSPECT OBJECT"; color: Constants.cyanColor; font.bold: true }
-                        ComboBox { id: inspectObject; textRole: "name"; valueRole: "id"; model: root.inventoryData.inspectableObjects || []; Layout.fillWidth: true }
-                        Label { Layout.fillWidth: true; text: "Inspects asteroids, detached containers, or dormant constructs without starting a mining order."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
-                        Button { text: "REVIEW INSPECTION"; enabled: sectorManny.count > 0 && inspectObject.count > 0; onClicked: { root.pendingOperation = {"kind":"manny", "action":"inspect-sector-object", "mannyId":String(sectorManny.currentValue), "payload":{"objectId":String(inspectObject.currentValue)}}; operationConfirmation.open(); } }
-
                         Label { text: "BOOKMARK TARGET"; color: Constants.cyanColor; font.bold: true }
                         ComboBox { id: bookmarkTarget; textRole: "name"; valueRole: "id"; model: root.inventoryData.bookmarkTargets || []; Layout.fillWidth: true }
                         TextField { id: bookmarkName; Layout.fillWidth: true; placeholderText: "Bookmark name (required)"; maximumLength: 80 }

@@ -12,6 +12,7 @@ Item {
     property var idleMannies: []
     property var improvements: []
     property var miningTargets: []
+    property var inspectableObjects: []
     property var detachedContainers: []
     property var sameSectorProbes: []
     property var allMannies: []
@@ -22,6 +23,7 @@ Item {
     property var namingPolicy: ({})
     property var pendingMiningOrder: ({})
     property var pendingTransferOrder: ({})
+    property var pendingInspectionOrder: ({})
     property double currentEpochMs: Date.now()
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
@@ -339,6 +341,36 @@ Item {
         }
         GroupBox {
             visible: root.manualOnly
+            title: "SECTOR OBJECT INSPECTION"; Layout.fillWidth: true
+            GridLayout {
+                anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
+                Label { text: "MANNY"; color: Constants.cyanColor; font.bold: true }
+                ComboBox { id: inspectionManny; textRole: "name"; valueRole: "id"; model: root.idleMannies; Layout.fillWidth: true }
+                Label { text: "SECTOR OBJECT"; color: Constants.cyanColor; font.bold: true }
+                ComboBox { id: inspectionObject; textRole: "name"; valueRole: "id"; model: root.inspectableObjects; Layout.fillWidth: true }
+                Label {
+                    Layout.columnSpan: 3; Layout.fillWidth: true
+                    text: inspectionObject.count
+                        ? "Sends the selected idle Manny to inspect an asteroid, detached container, or dormant construct without beginning a mining order."
+                        : "No inspectable asteroid, detached container, or dormant construct is visible in the current detailed sector scan."
+                    color: inspectionObject.count ? Constants.mutedTextColor : Constants.warningColor
+                    wrapMode: Text.Wrap
+                }
+                Button {
+                    text: "REVIEW INSPECTION"
+                    enabled: inspectionManny.count > 0 && inspectionObject.count > 0
+                    onClicked: {
+                        root.pendingInspectionOrder = {
+                            "mannyId": String(inspectionManny.currentValue),
+                            "payload": {"objectId": String(inspectionObject.currentValue)}
+                        };
+                        inspectionConfirmation.open();
+                    }
+                }
+            }
+        }
+        GroupBox {
+            visible: root.manualOnly
             title: "SAME-SECTOR PROBE TRANSFERS"; Layout.fillWidth: true
             GridLayout {
                 anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
@@ -425,6 +457,21 @@ Item {
         Label {
             width: 560
             text: "This sends a live same-sector transfer order. Verify the focused probe, target probe, Manny, and fuel amount before continuing. Transferring a busy Manny cancels its current task."
+            color: Constants.textColor; font.pixelSize: 15; wrapMode: Text.Wrap
+        }
+    }
+
+    Dialog {
+        id: inspectionConfirmation; anchors.centerIn: parent; modal: true
+        title: "CONFIRM SECTOR OBJECT INSPECTION"; standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.inventoryMannyActionRequested(
+            "inspect-sector-object",
+            String(root.pendingInspectionOrder.mannyId),
+            root.pendingInspectionOrder.payload || ({})
+        )
+        Label {
+            width: 560
+            text: "This sends a live inspection order to the selected idle Manny. Confirm the focused probe and sector object before continuing."
             color: Constants.textColor; font.pixelSize: 15; wrapMode: Text.Wrap
         }
     }

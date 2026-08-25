@@ -1294,9 +1294,9 @@ class UiPreparationTests(unittest.TestCase):
                 {"id": "star-1", "type": "star", "name": "Primary"},
                 {"id": "asteroid-1", "type": "asteroid", "name": "Iron Rock"},
             ]},
-            {"id": "construct-1", "type": "dormant_construct", "name": "Dormant Frame"},
-            {"id": "41", "type": "scut_relay", "name": "Relay 41", "status": "off"},
-            {"id": "42", "type": "scut_relay", "name": "Relay 42", "status": "on", "isTransitBeacon": False},
+            {"id": "construct-1", "type": "dormant-construct", "name": "Dormant Frame"},
+            {"id": "41", "type": "scutRelay", "name": "Relay 41", "status": "off"},
+            {"id": "42", "type": "SCUT Relay", "name": "Relay 42", "status": "on", "isTransitBeacon": False},
             {"id": "43", "type": "scut_relay", "name": "Relay 43", "status": "on", "isTransitBeacon": True},
             {"id": "station-1", "type": "deuterium_refuel_station", "name": "Fuel Station"},
         ]}}
