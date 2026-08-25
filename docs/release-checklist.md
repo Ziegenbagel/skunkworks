@@ -67,6 +67,9 @@ space for SQLite to rebuild the file.
 
 ## Platform packaging gate
 
+- [ ] Classify the change before packaging: a current-release patch must update
+  version/release notes and push its release tag; future-release work stays
+  untagged until explicitly promoted.
 - [ ] Build macOS, Windows, and Linux packages from a clean tagged checkout.
 - [ ] Store mutable data in platform user-data locations, never package resources.
 - [ ] Bundle exact runtime licenses and notices.
@@ -75,3 +78,7 @@ space for SQLite to rebuild the file.
 - [ ] Verify credential vault, display scaling, audio, manual links, backup, and
   diagnostics on every supported platform.
 - [ ] Tag the approved commit and attach final release notes and artifacts.
+
+After the tag triggers packaging, routine run monitoring belongs to the release
+operator. Investigate Actions only when requested or when the operator reports a
+failure.

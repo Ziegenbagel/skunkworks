@@ -217,6 +217,18 @@ Relevant code/tests:
 
 ## Release Packaging Invariants
 
+### Release patches finish by staging new packages
+
+When work is explicitly a patch for the currently published release, completion
+includes updating version metadata and release notes, committing the approved
+tree, creating and pushing the matching release tag, and thereby triggering the
+package publication workflow. Do not stop after pushing an untagged patch commit.
+
+Work explicitly designated for a future release remains untagged and must not
+trigger package publication until the operator promotes it to release work.
+Package-build monitoring is operator-owned after the workflow is triggered;
+inspect or monitor a run only when the operator asks or reports a failure.
+
 ### Installed launchers must import without the source checkout
 
 The console entry point must work from an activated environment without relying
