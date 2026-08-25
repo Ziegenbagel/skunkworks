@@ -325,8 +325,12 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "function panBy(" in galaxy
     assert "mapDirectionToScene" in galaxy
     assert "renderedEdges" in galaxy
-    assert "cameraMoving || distantOverview ? [] : visibleEdges" in galaxy
+    assert "cameraMoving ? [] : visibleEdges" in galaxy
+    assert "cameraMoving || distantOverview ? [] : visibleEdges" not in galaxy
     assert "id: cameraSettle" in galaxy
+    assert "function fitVisibleMap()" in galaxy
+    assert 'text: "FIT MAP"' in galaxy
+    assert "automaticClipping: true" in galaxy
     assert "RIGHT/MIDDLE DRAG · PAN" in galaxy
     assert "import QtQuick3D" in galaxy
     assert "View3D" in galaxy

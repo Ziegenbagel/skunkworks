@@ -1,5 +1,12 @@
 # Operator Manual Revision History
 
+## 0.9 — 2026-08-24
+
+- Documented the Galaxy Map **Fit Map** control for framing every sector
+  admitted by the current filters.
+- Clarified that verified neighbor connections return after camera motion and
+  remain visible at overview distances.
+
 ## 0.8 — 2026-08-24
 
 - Added a prominent Settings update procedure explaining how to back up and

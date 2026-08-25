@@ -215,6 +215,21 @@ Relevant code/tests:
 - `tests/test_ui_preparation.py`
 - `tests/test_ui_assets.py`
 
+### Galaxy-map interaction LOD preserves settled operational context
+
+The rotatable map may simplify sector geometry and suspend expensive neighbor
+links while the camera is actively moving. Once the camera settles, verified
+neighbor connections, SCUT coverage, recent trails, resource state, and other
+enabled overlays must return at every zoom distance. Overview rendering must
+keep enabled overlays legible, and operators must be able to fit all currently
+visible sectors into one view without changing map filters. A focused probe in
+transit may legitimately have no current SCUT coverage overlay.
+
+Relevant code/tests:
+
+- `src/ui/qml/components/GalaxyMap3D.qml`
+- `tests/test_ui_assets.py`
+
 ## Release Packaging Invariants
 
 ### Release patches finish by staging new packages

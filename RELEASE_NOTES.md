@@ -1,4 +1,15 @@
-# Skunkworks 1.0.2
+# Skunkworks 1.0.3
+
+Skunkworks 1.0.3 restores verified neighbor connection lines at every settled
+Galaxy Map zoom distance. The interaction optimization still suspends those
+expensive links while the camera is actively moving, then restores them after
+the view settles.
+
+A new **Fit Map** control centers and zooms the camera to contain all sectors
+currently admitted by the map filters. Automatic camera clipping keeps large
+discovered areas visible at the resulting overview distance.
+
+## Skunkworks 1.0.2
 
 Skunkworks 1.0.2 improves galaxy-map responsiveness as explored space grows.
 During camera motion and distant overview, the map temporarily suppresses its

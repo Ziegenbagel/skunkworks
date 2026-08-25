@@ -58,11 +58,10 @@ Item {
         return (galaxyData.edges || []).filter(function(edge) { return visible[edge.from] && visible[edge.to]; });
     }
     // Neighbor links dominate scene cost as explored space grows. Suspend them
-    // while the camera moves, then restore the exact scene after a debounce.
-    // At distant zoom, dots retain topology without thousands of overlapping
-    // link models.
+    // only while the camera moves, then restore the complete topology after a
+    // debounce. Distance must not permanently remove operational overlays.
     readonly property bool distantOverview: camera.z > 1500
-    readonly property var renderedEdges: cameraMoving || distantOverview ? [] : visibleEdges
+    readonly property var renderedEdges: cameraMoving ? [] : visibleEdges
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
 
@@ -168,6 +167,31 @@ Item {
     function setView(rotation) {
         cameraOrigin.eulerRotation = rotation;
         camera.z = 950;
+    }
+    function fitVisibleMap() {
+        const points = visibleNodes.length > 0 ? visibleNodes : nodes;
+        if (points.length === 0) return;
+        let minX = Number(points[0].x), maxX = minX;
+        let minY = Number(points[0].y), maxY = minY;
+        let minZ = Number(points[0].z), maxZ = minZ;
+        for (let i = 1; i < points.length; ++i) {
+            minX = Math.min(minX, Number(points[i].x)); maxX = Math.max(maxX, Number(points[i].x));
+            minY = Math.min(minY, Number(points[i].y)); maxY = Math.max(maxY, Number(points[i].y));
+            minZ = Math.min(minZ, Number(points[i].z)); maxZ = Math.max(maxZ, Number(points[i].z));
+        }
+        const center = Qt.vector3d((minX + maxX) * spacing3D / 2,
+                                   (minY + maxY) * spacing3D / 2,
+                                   (minZ + maxZ) * spacing3D / 2);
+        const dx = (maxX - minX) * spacing3D / 2;
+        const dy = (maxY - minY) * spacing3D / 2;
+        const dz = (maxZ - minZ) * spacing3D / 2;
+        const radius = Math.max(1, Math.sqrt(dx * dx + dy * dy + dz * dz));
+        const verticalHalfAngle = camera.fieldOfView * Math.PI / 360;
+        const aspect = Math.max(0.2, galaxyView.width / Math.max(1, galaxyView.height));
+        const horizontalHalfAngle = Math.atan(Math.tan(verticalHalfAngle) * aspect);
+        const fitHalfAngle = Math.min(verticalHalfAngle, horizontalHalfAngle);
+        cameraOrigin.position = center;
+        camera.z = Math.max(950, radius / Math.sin(fitHalfAngle) * 1.18);
     }
     function panBy(horizontal, vertical) {
         const step = Math.max(30, camera.z * 0.08);
@@ -339,6 +363,7 @@ Item {
     OrbitCameraController {
         anchors.fill: parent
         origin: cameraOrigin; camera: camera; panEnabled: true
+        automaticClipping: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     }
 
@@ -562,6 +587,7 @@ Item {
         Row {
             spacing: 6
             Button { text: "CENTER PROBE"; onClicked: root.resetCamera() }
+            Button { text: "FIT MAP"; onClicked: root.fitVisibleMap() }
             Button { text: "TOP X/Z"; onClicked: root.setView(Qt.vector3d(-90, 0, 0)) }
             Button { text: "FRONT X/Y"; onClicked: root.setView(Qt.vector3d(0, 0, 0)) }
             Button { text: "SIDE Z/Y"; onClicked: root.setView(Qt.vector3d(0, 90, 0)) }

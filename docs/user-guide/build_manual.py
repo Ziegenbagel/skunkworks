@@ -869,7 +869,7 @@ def build_tabbed():
     add_screen_figure(doc, "fleet", "Figure 3-1. Probe identity, Manny auto-naming, direct Manny rename, and fleet cards.")
 
     doc.add_page_break(); add_heading(doc, "4. Galaxy Map")
-    add_body(doc, "Galaxy Map presents the locally known FCC network. Drag to orbit or pan, use the wheel to zoom, and use the view buttons for precise orientation. Verified lines represent neighboring-sector relationships.")
+    add_body(doc, "Galaxy Map presents the locally known FCC network. Drag to orbit or pan, use the wheel to zoom, and use the view buttons for precise orientation. Fit Map centers and zooms the camera to contain every sector admitted by the current filters. Verified neighboring-sector lines may disappear during camera motion for responsiveness, then return after the view settles at every zoom distance.")
     add_heading(doc, "Filters and sector details", 2)
     add_bullets(doc, ["Filter by discovery state, resource, hazard, dropped container, focused-probe trail, or SCUT coverage.", "Select a node to read its coordinates, observations, objects, confidence, and last visit.", "Scan/Refresh requests current knowledge when the selected sector is reachable by the API."])
     add_note(doc, "Local knowledge", "Detailed history persists after scans, but Skunkworks never invents information the game API did not expose.")

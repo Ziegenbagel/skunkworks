@@ -101,7 +101,7 @@ Stop Skunkworks, create a verified database backup, then update to a named tag:
 ```bash
 python -m tools.database_maintenance --backup /safe/path/skunkworks.sqlite3
 git fetch --tags
-git checkout v1.0.2
+git checkout v1.0.3
 python -m pip install -e .
 skunkworks
 ```
