@@ -133,6 +133,17 @@ def test_application_uses_dedicated_skunkworks_icon():
     assert 'f"--icon={application_icon()}"' in builder
 
 
+def test_operating_profile_controls_follow_audio_and_precede_automation():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+
+    audio = settings.index('title: "AUDIO"')
+    profile = settings.index('title: "OPERATING PROFILE AND LOCAL NOTIFICATIONS"')
+    automation = settings.index('title: "AUTOMATION EXECUTION"')
+    assert audio < profile < automation
+    assert 'model: ["NORMAL", "LOW USAGE"]' in settings
+    assert 'text: "SAVE PROFILE"' in settings
+
+
 def test_frozen_footer_version_falls_back_to_release_constant():
     with (
         patch(

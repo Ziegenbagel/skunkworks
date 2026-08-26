@@ -290,6 +290,63 @@ Item {
             }
 
             GroupBox {
+                title: "OPERATING PROFILE AND LOCAL NOTIFICATIONS"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label { text: "OPERATING PROFILE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        ComboBox {
+                            id: operatingProfileControl
+                            model: ["NORMAL", "LOW USAGE"]
+                            Layout.preferredWidth: 220
+                        }
+                        Button {
+                            text: "SAVE PROFILE"
+                            onClicked: root.operatingProfileSaveRequested(operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal")
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: operatingProfileControl.currentIndex === 1
+                              ? "LOW USAGE · SAFETY, STOP, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL WORK, BACKGROUND PROBES, AND MAP DETAIL ARE REDUCED."
+                              : "NORMAL · BALANCED BACKGROUND RECONCILIATION AND FULL SETTLED MAP DETAIL."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        CheckBox { id: notificationEnabled; text: "ENABLE DESKTOP NOTIFICATIONS (APP MUST BE RUNNING)" }
+                        CheckBox { id: notifyCritical; text: "SAFETY"; checked: (root.notificationPolicy.categories || []).indexOf("critical") >= 0 }
+                        CheckBox { id: notifyDiscoveries; text: "DISCOVERIES"; checked: (root.notificationPolicy.categories || []).indexOf("discoveries") >= 0 }
+                        CheckBox { id: notifyApprovals; text: "APPROVALS"; checked: (root.notificationPolicy.categories || []).indexOf("approvals") >= 0 }
+                        CheckBox { id: notifyOperations; text: "OPERATIONS"; checked: (root.notificationPolicy.categories || []).indexOf("operations") >= 0 }
+                        CheckBox { id: notifyFailures; text: "FAILURES"; checked: (root.notificationPolicy.categories || []).indexOf("failures") >= 0 }
+                        ComboBox { id: notificationSeverity; model: ["INFO+", "WARNING+", "CRITICAL ONLY"]; Layout.preferredWidth: 170 }
+                        Button {
+                            text: "SAVE NOTIFICATIONS"
+                            onClicked: {
+                                const categories = [];
+                                if (notifyCritical.checked) categories.push("critical");
+                                if (notifyDiscoveries.checked) categories.push("discoveries");
+                                if (notifyApprovals.checked) categories.push("approvals");
+                                if (notifyOperations.checked) categories.push("operations");
+                                if (notifyFailures.checked) categories.push("failures");
+                                const severity = notificationSeverity.currentIndex === 2 ? "critical"
+                                               : notificationSeverity.currentIndex === 0 ? "info" : "warning";
+                                root.notificationPolicySaveRequested({"enabled": notificationEnabled.checked, "categories": categories, "minimumSeverity": severity});
+                            }
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "NOTIFICATIONS ARE DEDUPLICATED ACROSS REFRESHES AND RESTARTS. DELIVERY DOES NOT MARK AN ALERT VIEWED OR PROVE A COMMAND SUCCEEDED."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                }
+            }
+
+            GroupBox {
                 title: "AUTOMATION EXECUTION"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 10
@@ -552,63 +609,6 @@ Item {
                         visible: !(root.settingsData.liveTargetStatus || []).length
                         text: "SAVE AUTOMATION TARGETS, THEN REFRESH TO CALCULATE LIVE STATUS"
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont
-                    }
-                }
-            }
-
-            GroupBox {
-                title: "PERFORMANCE AND LOCAL NOTIFICATIONS"; Layout.fillWidth: true
-                ColumnLayout {
-                    anchors.fill: parent; spacing: 8
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Label { text: "OPERATING PROFILE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                        ComboBox {
-                            id: operatingProfileControl
-                            model: ["NORMAL", "LOW USAGE"]
-                            Layout.preferredWidth: 220
-                        }
-                        Button {
-                            text: "SAVE PROFILE"
-                            onClicked: root.operatingProfileSaveRequested(operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal")
-                        }
-                        Item { Layout.fillWidth: true }
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: operatingProfileControl.currentIndex === 1
-                              ? "LOW USAGE · SAFETY, STOP, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL WORK, BACKGROUND PROBES, AND MAP DETAIL ARE REDUCED."
-                              : "NORMAL · BALANCED BACKGROUND RECONCILIATION AND FULL SETTLED MAP DETAIL."
-                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
-                    }
-                    RowLayout {
-                        Layout.fillWidth: true
-                        CheckBox { id: notificationEnabled; text: "ENABLE DESKTOP NOTIFICATIONS (APP MUST BE RUNNING)" }
-                        CheckBox { id: notifyCritical; text: "SAFETY"; checked: (root.notificationPolicy.categories || []).indexOf("critical") >= 0 }
-                        CheckBox { id: notifyDiscoveries; text: "DISCOVERIES"; checked: (root.notificationPolicy.categories || []).indexOf("discoveries") >= 0 }
-                        CheckBox { id: notifyApprovals; text: "APPROVALS"; checked: (root.notificationPolicy.categories || []).indexOf("approvals") >= 0 }
-                        CheckBox { id: notifyOperations; text: "OPERATIONS"; checked: (root.notificationPolicy.categories || []).indexOf("operations") >= 0 }
-                        CheckBox { id: notifyFailures; text: "FAILURES"; checked: (root.notificationPolicy.categories || []).indexOf("failures") >= 0 }
-                        ComboBox { id: notificationSeverity; model: ["INFO+", "WARNING+", "CRITICAL ONLY"]; Layout.preferredWidth: 170 }
-                        Button {
-                            text: "SAVE NOTIFICATIONS"
-                            onClicked: {
-                                const categories = [];
-                                if (notifyCritical.checked) categories.push("critical");
-                                if (notifyDiscoveries.checked) categories.push("discoveries");
-                                if (notifyApprovals.checked) categories.push("approvals");
-                                if (notifyOperations.checked) categories.push("operations");
-                                if (notifyFailures.checked) categories.push("failures");
-                                const severity = notificationSeverity.currentIndex === 2 ? "critical"
-                                               : notificationSeverity.currentIndex === 0 ? "info" : "warning";
-                                root.notificationPolicySaveRequested({"enabled": notificationEnabled.checked, "categories": categories, "minimumSeverity": severity});
-                            }
-                        }
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: "NOTIFICATIONS ARE DEDUPLICATED ACROSS REFRESHES AND RESTARTS. DELIVERY DOES NOT MARK AN ALERT VIEWED OR PROVE A COMMAND SUCCEEDED."
-                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                 }
             }
