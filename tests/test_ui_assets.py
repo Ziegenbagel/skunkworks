@@ -142,6 +142,11 @@ def test_operating_profile_controls_follow_audio_and_precede_automation():
     assert audio < profile < automation
     assert 'model: ["NORMAL", "LOW USAGE"]' in settings
     assert 'text: "SAVE PROFILE"' in settings
+    assert '"ACTIVE MODE · "' in settings
+    assert '"SELECTION NOT ACTIVE UNTIL SAVED"' in settings
+    assert '"OVERNIGHT CHECK · AUTOMATION STILL EVALUATES ABOUT ONCE PER MINUTE' in settings
+    assert 'model: ["ALL EVENTS (INFO+)", "WARNINGS AND CRITICAL", "CRITICAL ONLY"]' in settings
+    assert 'text: "SUCCESSFUL OPERATIONS"' in settings
 
 
 def test_frozen_footer_version_falls_back_to_release_constant():

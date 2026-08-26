@@ -17,6 +17,9 @@ Item {
     property int desiredStateProbeId: -2
     property var operatingProfile: ({"name": "normal"})
     property var notificationPolicy: ({"enabled": false, "categories": [], "minimumSeverity": "warning"})
+    readonly property string activeOperatingProfileName: String(operatingProfile.name || "normal")
+    readonly property bool operatingProfileSelectionDirty: operatingProfileControl.currentIndex >= 0
+                                                           && (operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal") !== activeOperatingProfileName
     readonly property bool canManageProbeRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
     signal saveRequested(var settings)
     signal roleAssignmentRequested(int probeId, string role)
@@ -292,10 +295,21 @@ Item {
             GroupBox {
                 title: "OPERATING PROFILE AND LOCAL NOTIFICATIONS"; Layout.fillWidth: true
                 ColumnLayout {
-                    anchors.fill: parent; spacing: 8
+                    anchors.fill: parent; spacing: 10
                     RowLayout {
                         Layout.fillWidth: true
-                        Label { text: "OPERATING PROFILE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        Rectangle {
+                            Layout.preferredWidth: 245
+                            Layout.preferredHeight: 36
+                            color: root.activeOperatingProfileName === "low_usage" ? Constants.warningColor : Constants.nominalColor
+                            radius: 2
+                            Label {
+                                anchors.centerIn: parent
+                                text: "ACTIVE MODE · " + (root.activeOperatingProfileName === "low_usage" ? "LOW USAGE" : "NORMAL")
+                                color: "#07131b"; font.family: Constants.technicalFont; font.bold: true
+                            }
+                        }
+                        Label { text: "SELECT MODE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                         ComboBox {
                             id: operatingProfileControl
                             model: ["NORMAL", "LOW USAGE"]
@@ -303,26 +317,49 @@ Item {
                         }
                         Button {
                             text: "SAVE PROFILE"
+                            enabled: root.operatingProfileSelectionDirty
                             onClicked: root.operatingProfileSaveRequested(operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal")
+                        }
+                        Label {
+                            visible: root.operatingProfileSelectionDirty
+                            text: "SELECTION NOT ACTIVE UNTIL SAVED"
+                            color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true
                         }
                         Item { Layout.fillWidth: true }
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: operatingProfileControl.currentIndex === 1
-                              ? "LOW USAGE · SAFETY, STOP, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL WORK, BACKGROUND PROBES, AND MAP DETAIL ARE REDUCED."
-                              : "NORMAL · BALANCED BACKGROUND RECONCILIATION AND FULL SETTLED MAP DETAIL."
+                        text: root.activeOperatingProfileName === "low_usage"
+                              ? "ACTIVE LOW USAGE BEHAVIOR · SAFETY, STOP, FOCUSED TELEMETRY, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL SYNCHRONIZATION CHANGES FROM 5 TO 15 MINUTES, BACKGROUND FLEET CHECKS ARE HALVED, AND DISTANT MAP DETAIL IS REDUCED."
+                              : "ACTIVE NORMAL BEHAVIOR · BACKGROUND FLEET CHECKS USE THE NORMAL BREADTH, ARCHIVAL SYNCHRONIZATION MAY RUN EVERY 5 MINUTES, AND THE SETTLED GALAXY MAP USES FULL DETAIL."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.activeOperatingProfileName === "low_usage"
+                        text: "OVERNIGHT CHECK · AUTOMATION STILL EVALUATES ABOUT ONCE PER MINUTE; NEW SAFETY ALERTS AND ACTIVE-OPERATION CHANGES STILL APPEAR PROMPTLY; REFRESH DIAGNOSTICS SHOULD OFTEN REPORT ARCHIVAL HISTORY DEFERRED; THE GALAXY MAP SHOULD REMAIN USABLE WITH LOWER DISTANT DETAIL; AND CPU/ENERGY USE SHOULD BE LOWER THAN A COMPARABLE NORMAL-MODE RUN."
+                        color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Constants.lineColor }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "DESKTOP NOTIFICATIONS · CHECKING A CATEGORY MAKES THAT KIND OF NEW EVENT ELIGIBLE. THE SEVERITY FILTER IS THEN APPLIED. UNCHECKED CATEGORIES NEVER CREATE A DESKTOP POP-UP."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        CheckBox { id: notificationEnabled; text: "ENABLE DESKTOP NOTIFICATIONS (APP MUST BE RUNNING)" }
-                        CheckBox { id: notifyCritical; text: "SAFETY"; checked: (root.notificationPolicy.categories || []).indexOf("critical") >= 0 }
-                        CheckBox { id: notifyDiscoveries; text: "DISCOVERIES"; checked: (root.notificationPolicy.categories || []).indexOf("discoveries") >= 0 }
-                        CheckBox { id: notifyApprovals; text: "APPROVALS"; checked: (root.notificationPolicy.categories || []).indexOf("approvals") >= 0 }
-                        CheckBox { id: notifyOperations; text: "OPERATIONS"; checked: (root.notificationPolicy.categories || []).indexOf("operations") >= 0 }
-                        CheckBox { id: notifyFailures; text: "FAILURES"; checked: (root.notificationPolicy.categories || []).indexOf("failures") >= 0 }
-                        ComboBox { id: notificationSeverity; model: ["INFO+", "WARNING+", "CRITICAL ONLY"]; Layout.preferredWidth: 170 }
+                        CheckBox {
+                            id: notificationEnabled
+                            text: "ENABLE DESKTOP NOTIFICATIONS"
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Master switch. Pop-ups are delivered only while Skunkworks is running."
+                        }
+                        Label { text: "MINIMUM SEVERITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        ComboBox {
+                            id: notificationSeverity
+                            model: ["ALL EVENTS (INFO+)", "WARNINGS AND CRITICAL", "CRITICAL ONLY"]
+                            Layout.preferredWidth: 235
+                        }
                         Button {
                             text: "SAVE NOTIFICATIONS"
                             onClicked: {
@@ -337,6 +374,29 @@ Item {
                                 root.notificationPolicySaveRequested({"enabled": notificationEnabled.checked, "categories": categories, "minimumSeverity": severity});
                             }
                         }
+                        Item { Layout.fillWidth: true }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: notificationSeverity.currentIndex === 0
+                              ? "ALL EVENTS · INCLUDES ROUTINE SUCCESSFUL OPERATIONS, WARNINGS, APPROVAL REQUESTS, AND CRITICAL EVENTS."
+                              : notificationSeverity.currentIndex === 2
+                              ? "CRITICAL ONLY · ONLY EVENTS CLASSIFIED AS CRITICAL, SUCH AS SERIOUS SAFETY ERRORS OR FAILED OPERATIONS."
+                              : "WARNINGS AND CRITICAL · EXCLUDES ROUTINE SUCCESSFUL-OPERATION MESSAGES BUT INCLUDES WARNING-LEVEL ALERTS, APPROVAL REQUESTS, AND CRITICAL FAILURES."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    GridLayout {
+                        Layout.fillWidth: true; columns: 2; columnSpacing: 18; rowSpacing: 4
+                        CheckBox { id: notifyCritical; text: "SAFETY ALERTS"; checked: (root.notificationPolicy.categories || []).indexOf("critical") >= 0 }
+                        Label { Layout.fillWidth: true; text: "New game safety alerts that are not classified as discoveries or failures."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        CheckBox { id: notifyDiscoveries; text: "DISCOVERIES"; checked: (root.notificationPolicy.categories || []).indexOf("discoveries") >= 0 }
+                        Label { Layout.fillWidth: true; text: "Discovery alerts, including dormant constructs and blueprint discoveries."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        CheckBox { id: notifyApprovals; text: "APPROVAL REQUESTS"; checked: (root.notificationPolicy.categories || []).indexOf("approvals") >= 0 }
+                        Label { Layout.fillWidth: true; text: "Automation commands waiting for operator approval."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        CheckBox { id: notifyOperations; text: "SUCCESSFUL OPERATIONS"; checked: (root.notificationPolicy.categories || []).indexOf("operations") >= 0 }
+                        Label { Layout.fillWidth: true; text: "Successful automation results. These are informational and require All Events (Info+)."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        CheckBox { id: notifyFailures; text: "FAILURES"; checked: (root.notificationPolicy.categories || []).indexOf("failures") >= 0 }
+                        Label { Layout.fillWidth: true; text: "Failed commands, failed automation results, and alerts identified as failures."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                     }
                     Label {
                         Layout.fillWidth: true
