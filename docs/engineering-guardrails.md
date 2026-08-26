@@ -262,6 +262,25 @@ Relevant code/tests:
 - `src/application/operating_profile.py`
 - `tests/test_operating_profile.py`
 
+### Auto operating profile is idle-driven and wakes immediately
+
+Auto is a persisted operator choice, while Normal or Low Power is the visible
+effective profile. Auto may enter Low Power only after the configured interval
+without keyboard, mouse, click, touch, or wheel input. The first such operator input
+must restore Normal behavior immediately. Changing the effective profile must
+not restart or lengthen the one-minute automation heartbeat, trigger a second
+full refresh, or alter Stop, focused safety, and active-operation semantics.
+The configured and effective profile names must both be exposed to the UI so
+the operator can distinguish `AUTO → NORMAL` from `AUTO → LOW POWER`.
+
+Relevant code/tests:
+
+- `src/application/operating_profile.py`
+- `src/ui/controller.py`
+- `src/ui/qml/components/AutomationSettings.qml`
+- `tests/test_operating_profile.py`
+- `tests/test_ui_assets.py`
+
 ### Desktop notifications are advisory and restart-safe
 
 Desktop notifications are opt-in. Refreshes and restarts must not replay the

@@ -75,7 +75,7 @@ PanelFrame {
     signal mannyCancelRequested(string mannyId)
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
-    signal operatingProfileSaveRequested(string name)
+    signal operatingProfileSaveRequested(string name, int idleMinutes)
     signal notificationPolicySaveRequested(var policy)
 
     function countdown(epochMs) {
@@ -99,7 +99,7 @@ PanelFrame {
     }
 
     Timer {
-        interval: String(root.operatingProfile.name || "normal") === "low_usage" ? 5000 : 1000
+        interval: Number(root.operatingProfile.cosmetic_tick_ms || 1000)
         running: root.visible && root.section === "PRODUCTION"
         repeat: true
         triggeredOnStart: true
@@ -234,7 +234,7 @@ PanelFrame {
                     defaultProbeId: root.dashboardData.defaultProbeId === undefined ? -1 : Number(root.dashboardData.defaultProbeId)
                     operatingProfile: root.operatingProfile
                     notificationPolicy: root.notificationPolicy
-                    onOperatingProfileSaveRequested: name => root.operatingProfileSaveRequested(name)
+                    onOperatingProfileSaveRequested: (name, idleMinutes) => root.operatingProfileSaveRequested(name, idleMinutes)
                     onNotificationPolicySaveRequested: policy => root.notificationPolicySaveRequested(policy)
                     onSaveRequested: settings => root.automationSettingsSaved(settings)
                     onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)

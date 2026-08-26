@@ -381,10 +381,10 @@ ApplicationWindow {
                 window.backend.saveAutomationSettings(settings);
         }
 
-        function onOperatingProfileSaveRequested(name) {
+        function onOperatingProfileSaveRequested(name, idleMinutes) {
             AudioManager.play("save");
             if (window.backend)
-                window.backend.saveOperatingProfile(name);
+                window.backend.saveOperatingProfile(name, idleMinutes);
         }
 
         function onNotificationPolicySaveRequested(policy) {

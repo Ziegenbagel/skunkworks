@@ -12,7 +12,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 import requests
-from PySide6.QtCore import QCoreApplication, QObject, Property, QRunnable, QThreadPool, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Property, QRunnable, QThreadPool, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
 from src.api.capabilities import GameCapabilities
@@ -52,7 +52,14 @@ from src.execution import (
 from src.execution.policy import ExecutionPolicyStore
 from src.diagnostics import diagnostic_log_directory, log_handled_error
 from src.reporting import DailyProbeReportService
-from src.application.operating_profile import load_operating_profile, save_operating_profile
+from src.application.operating_profile import (
+    PROFILES,
+    load_operating_profile,
+    load_operating_profile_idle_minutes,
+    resolve_effective_operating_profile,
+    save_operating_profile,
+    save_operating_profile_idle_minutes,
+)
 from src.application.notifications import NotificationCoordinator, load_policy, save_policy
 
 
@@ -2880,7 +2887,16 @@ class MissionControlController(QObject):
         self._active_section = "MISSION CONTROL"
         self._refresh_previous_idle_manny_ids = set()
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
-        self._operating_profile = load_operating_profile(self.settings_engine)
+        self._selected_operating_profile = load_operating_profile(self.settings_engine)
+        self._operating_profile_idle_minutes = load_operating_profile_idle_minutes(
+            self.settings_engine
+        )
+        self._last_operator_activity = time.monotonic()
+        self._operating_profile = (
+            PROFILES["normal"]
+            if self._selected_operating_profile.name == "auto"
+            else self._selected_operating_profile
+        )
         self._notification_policy = load_policy(self.settings_engine)
         self._notification_coordinator = NotificationCoordinator(self.settings_engine)
         self._notifications_primed = False
@@ -2907,6 +2923,13 @@ class MissionControlController(QObject):
         self._automation_timer.setSingleShot(False)
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
+        self._auto_profile_timer = QTimer(self)
+        self._auto_profile_timer.setInterval(5_000)
+        self._auto_profile_timer.timeout.connect(self._evaluate_auto_operating_profile)
+        self._auto_profile_timer.start()
+        application = QCoreApplication.instance()
+        if application is not None:
+            application.installEventFilter(self)
         self._automation_after_refresh = False
         self._automation_tick_pending = False
         self._manual_automation_cycle_pending = False
@@ -2954,6 +2977,10 @@ class MissionControlController(QObject):
         self._shutting_down = True
         self.shuttingDownChanged.emit()
         self._automation_timer.stop()
+        self._auto_profile_timer.stop()
+        application = QCoreApplication.instance()
+        if application is not None:
+            application.removeEventFilter(self)
         self._compatibility_timer.stop()
         self._retry_timer.stop()
         self._startup_watchdog.stop()
@@ -3028,19 +3055,87 @@ class MissionControlController(QObject):
 
     @Property("QVariantMap", notify=operatingProfileChanged)
     def operatingProfile(self):
-        return self._operating_profile.payload()
+        return self._operating_profile_payload()
 
     @Property("QVariantMap", notify=notificationPolicyChanged)
     def notificationPolicy(self):
         return dict(self._notification_policy)
 
-    @Slot(str)
-    def saveOperatingProfile(self, name):
-        self._operating_profile = save_operating_profile(self.settings_engine, name)
-        self._maximum_probes_per_fleet_cycle = self._operating_profile.background_probes_per_cycle
-        self.operatingProfileChanged.emit()
+    @Slot(str, int)
+    def saveOperatingProfile(self, name, idle_minutes=10):
+        self._selected_operating_profile = save_operating_profile(
+            self.settings_engine, name
+        )
+        self._operating_profile_idle_minutes = save_operating_profile_idle_minutes(
+            self.settings_engine, idle_minutes
+        )
+        self._last_operator_activity = time.monotonic()
+        effective = (
+            PROFILES["normal"]
+            if self._selected_operating_profile.name == "auto"
+            else self._selected_operating_profile
+        )
+        effective_changed = self._set_effective_operating_profile(effective)
+        if not effective_changed:
+            self.operatingProfileChanged.emit()
+            self._apply_local_policy_to_dashboard()
         self._set_operation_notice("OPERATING PROFILE SAVED")
+
+    def _operating_profile_payload(self):
+        payload = self._operating_profile.payload()
+        payload["name"] = self._selected_operating_profile.name
+        payload["effective_name"] = self._operating_profile.name
+        payload["idle_minutes"] = self._operating_profile_idle_minutes
+        payload["cosmetic_tick_ms"] = (
+            10_000 if self._operating_profile.name == "low_usage" else 1_000
+        )
+        return payload
+
+    def _set_effective_operating_profile(self, profile):
+        if profile == self._operating_profile:
+            return False
+        self._operating_profile = profile
+        self._maximum_probes_per_fleet_cycle = profile.background_probes_per_cycle
+        self.operatingProfileChanged.emit()
         self._apply_local_policy_to_dashboard()
+        return True
+
+    def _evaluate_auto_operating_profile(self):
+        if self._selected_operating_profile.name != "auto":
+            return
+        idle_seconds = max(0.0, time.monotonic() - self._last_operator_activity)
+        target = resolve_effective_operating_profile(
+            self._selected_operating_profile,
+            idle_seconds,
+            self._operating_profile_idle_minutes,
+        )
+        if self._set_effective_operating_profile(target):
+            self._set_operation_notice(
+                "AUTO PROFILE · LOW POWER"
+                if target.name == "low_usage"
+                else "AUTO PROFILE · NORMAL"
+            )
+
+    def _record_operator_activity(self):
+        self._last_operator_activity = time.monotonic()
+        if (
+            self._selected_operating_profile.name == "auto"
+            and self._operating_profile.name == "low_usage"
+        ):
+            self._set_effective_operating_profile(PROFILES["normal"])
+            self._set_operation_notice("AUTO PROFILE · NORMAL")
+
+    def eventFilter(self, watched, event):
+        if event.type() in {
+            QEvent.Type.KeyPress,
+            QEvent.Type.MouseButtonPress,
+            QEvent.Type.MouseButtonDblClick,
+            QEvent.Type.MouseMove,
+            QEvent.Type.Wheel,
+            QEvent.Type.TouchBegin,
+        }:
+            self._record_operator_activity()
+        return super().eventFilter(watched, event)
 
     @Slot("QVariantMap")
     def saveNotificationPolicy(self, policy):
@@ -3052,7 +3147,7 @@ class MissionControlController(QObject):
     def _apply_local_policy_to_dashboard(self):
         if not self._dashboard:
             return
-        self._dashboard["operatingProfile"] = self._operating_profile.payload()
+        self._dashboard["operatingProfile"] = self._operating_profile_payload()
         self._dashboard["notificationPolicy"] = dict(self._notification_policy)
         self.dashboardChanged.emit()
 
@@ -4548,7 +4643,7 @@ class MissionControlController(QObject):
             "message": self.credentialMessage,
         }
         self._dashboard = payload
-        self._dashboard["operatingProfile"] = self._operating_profile.payload()
+        self._dashboard["operatingProfile"] = self._operating_profile_payload()
         self._dashboard["notificationPolicy"] = dict(self._notification_policy)
         if previous_last_result is not None:
             runtime = dict(self._dashboard.get("automationRuntime", {}))

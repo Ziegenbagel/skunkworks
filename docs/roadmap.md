@@ -521,6 +521,14 @@ countdowns, view-relative map controls, interaction LOD, overlay restoration,
 and fit-all-visible behavior remain the Phase 2 foundation. Phases 4–6 remain
 unstarted until this slice is accepted.
 
+Low Power follow-up (2026-08-26): the profile now uses a 30-minute archival
+cadence and 10-second cosmetic countdown updates while retaining the one-minute
+automation heartbeat and immediate safety/active-operation behavior. An Auto
+profile keeps Normal active while the operator is interacting, enters Low Power
+after a configurable 1–120 minute idle interval, and returns to Normal on the
+first keyboard, mouse, click, touch, or wheel event. The UI always reports both
+the selected Auto policy and its current effective mode.
+
 #### Phase 4 — Away Summaries and Archive Search
 
 Suggested branch: `codex/away-summaries`.

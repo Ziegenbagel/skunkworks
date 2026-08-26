@@ -142,7 +142,7 @@ Item {
     Component.onCompleted: root.syncNamingControls()
 
     Timer {
-        interval: String(root.operatingProfile.name || "normal") === "low_usage" ? 5000 : 1000
+        interval: Number(root.operatingProfile.cosmetic_tick_ms || 1000)
         running: root.visible
         repeat: true
         triggeredOnStart: true

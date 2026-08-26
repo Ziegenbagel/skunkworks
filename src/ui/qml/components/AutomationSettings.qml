@@ -18,8 +18,13 @@ Item {
     property var operatingProfile: ({"name": "normal"})
     property var notificationPolicy: ({"enabled": false, "categories": [], "minimumSeverity": "warning"})
     readonly property string activeOperatingProfileName: String(operatingProfile.name || "normal")
+    readonly property string effectiveOperatingProfileName: String(operatingProfile.effective_name || activeOperatingProfileName)
+    readonly property int savedOperatingProfileIdleMinutes: Number(operatingProfile.idle_minutes || 10)
+    readonly property string selectedOperatingProfileName: operatingProfileControl.currentIndex === 2 ? "auto"
+                                                           : operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal"
     readonly property bool operatingProfileSelectionDirty: operatingProfileControl.currentIndex >= 0
-                                                           && (operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal") !== activeOperatingProfileName
+                                                           && (selectedOperatingProfileName !== activeOperatingProfileName
+                                                               || autoIdleMinutes.value !== savedOperatingProfileIdleMinutes)
     readonly property bool canManageProbeRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
     signal saveRequested(var settings)
     signal roleAssignmentRequested(int probeId, string role)
@@ -42,7 +47,7 @@ Item {
     signal diagnosticLogsRequested()
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
-    signal operatingProfileSaveRequested(string name)
+    signal operatingProfileSaveRequested(string name, int idleMinutes)
     signal notificationPolicySaveRequested(var policy)
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
@@ -189,7 +194,9 @@ Item {
     Component.onCompleted: {
         syncExecutionControls();
         syncDesiredStateControls();
-        operatingProfileControl.currentIndex = String(operatingProfile.name || "normal") === "low_usage" ? 1 : 0;
+        operatingProfileControl.currentIndex = String(operatingProfile.name || "normal") === "auto" ? 2
+                                             : String(operatingProfile.name || "normal") === "low_usage" ? 1 : 0;
+        autoIdleMinutes.value = Number(operatingProfile.idle_minutes || 10);
         notificationEnabled.checked = Boolean(notificationPolicy.enabled);
         notificationSeverity.currentIndex = String(notificationPolicy.minimumSeverity || "warning") === "critical" ? 2
                                           : String(notificationPolicy.minimumSeverity || "warning") === "info" ? 0 : 1;
@@ -301,24 +308,40 @@ Item {
                         Rectangle {
                             Layout.preferredWidth: 245
                             Layout.preferredHeight: 36
-                            color: root.activeOperatingProfileName === "low_usage" ? Constants.warningColor : Constants.nominalColor
+                            color: root.effectiveOperatingProfileName === "low_usage" ? Constants.warningColor : Constants.nominalColor
                             radius: 2
                             Label {
                                 anchors.centerIn: parent
-                                text: "ACTIVE MODE · " + (root.activeOperatingProfileName === "low_usage" ? "LOW POWER" : "NORMAL")
+                                text: "ACTIVE MODE · "
+                                      + (root.activeOperatingProfileName === "auto" ? "AUTO → " : "")
+                                      + (root.effectiveOperatingProfileName === "low_usage" ? "LOW POWER" : "NORMAL")
                                 color: "#07131b"; font.family: Constants.technicalFont; font.bold: true
                             }
                         }
                         Label { text: "SELECT MODE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                         ComboBox {
                             id: operatingProfileControl
-                            model: ["NORMAL", "LOW POWER"]
+                            model: ["NORMAL", "LOW POWER", "AUTO"]
                             Layout.preferredWidth: 220
+                        }
+                        Label {
+                            text: "AUTO AFTER"
+                            visible: operatingProfileControl.currentIndex === 2
+                            color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true
+                        }
+                        SpinBox {
+                            id: autoIdleMinutes
+                            visible: operatingProfileControl.currentIndex === 2
+                            from: 1; to: 120; value: 10
+                            editable: true
+                            Layout.preferredWidth: 110
+                            textFromValue: function(value) { return value + " MIN" }
+                            valueFromText: function(text) { return Math.max(1, Math.min(120, parseInt(text) || 10)) }
                         }
                         Button {
                             text: "SAVE PROFILE"
                             enabled: root.operatingProfileSelectionDirty
-                            onClicked: root.operatingProfileSaveRequested(operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal")
+                            onClicked: root.operatingProfileSaveRequested(root.selectedOperatingProfileName, autoIdleMinutes.value)
                         }
                         Label {
                             visible: root.operatingProfileSelectionDirty
@@ -329,16 +352,23 @@ Item {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: root.activeOperatingProfileName === "low_usage"
-                              ? "ACTIVE LOW POWER BEHAVIOR · SAFETY, STOP, FOCUSED TELEMETRY, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL SYNCHRONIZATION CHANGES FROM 5 TO 15 MINUTES, BACKGROUND FLEET CHECKS DROP FROM FOUR PROBES TO ONE PER CYCLE, AND DISTANT MAP DETAIL IS REDUCED."
+                        text: root.effectiveOperatingProfileName === "low_usage"
+                              ? "ACTIVE LOW POWER BEHAVIOR · SAFETY, STOP, FOCUSED TELEMETRY, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL SYNCHRONIZATION CHANGES FROM 5 TO 30 MINUTES, BACKGROUND FLEET CHECKS DROP FROM FOUR PROBES TO ONE PER CYCLE, DISTANT MAP DETAIL IS REDUCED, AND COSMETIC COUNTDOWNS UPDATE EVERY 10 SECONDS."
                               : "ACTIVE NORMAL BEHAVIOR · BACKGROUND FLEET CHECKS USE THE NORMAL BREADTH, ARCHIVAL SYNCHRONIZATION MAY RUN EVERY 5 MINUTES, AND THE SETTLED GALAXY MAP USES FULL DETAIL."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     Label {
                         Layout.fillWidth: true
-                        visible: root.activeOperatingProfileName === "low_usage"
+                        visible: root.effectiveOperatingProfileName === "low_usage"
                         text: "OVERNIGHT CHECK · AUTOMATION STILL EVALUATES ABOUT ONCE PER MINUTE; NEW SAFETY ALERTS AND ACTIVE-OPERATION CHANGES STILL APPEAR PROMPTLY; REFRESH DIAGNOSTICS SHOULD OFTEN REPORT ARCHIVAL HISTORY DEFERRED; THE GALAXY MAP SHOULD REMAIN USABLE WITH LOWER DISTANT DETAIL; AND CPU/ENERGY USE SHOULD BE LOWER THAN A COMPARABLE NORMAL-MODE RUN."
                         color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.activeOperatingProfileName === "auto"
+                        text: "AUTO MODE · OPERATOR KEYBOARD, CLICK, TOUCH, OR WHEEL INPUT RETURNS THE APP TO NORMAL IMMEDIATELY. AFTER "
+                              + root.savedOperatingProfileIdleMinutes + " MINUTES WITHOUT INPUT, BACKGROUND BEHAVIOR CHANGES TO LOW POWER."
+                        color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
                     }
                     Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Constants.lineColor }
                     Label {
