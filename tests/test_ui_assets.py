@@ -140,7 +140,8 @@ def test_operating_profile_controls_follow_audio_and_precede_automation():
     profile = settings.index('title: "OPERATING PROFILE AND LOCAL NOTIFICATIONS"')
     automation = settings.index('title: "AUTOMATION EXECUTION"')
     assert audio < profile < automation
-    assert 'model: ["NORMAL", "LOW USAGE"]' in settings
+    assert 'model: ["NORMAL", "LOW POWER"]' in settings
+    assert '"ACTIVE MODE · " + (root.activeOperatingProfileName === "low_usage" ? "LOW POWER" : "NORMAL")' in settings
     assert 'text: "SAVE PROFILE"' in settings
     assert '"ACTIVE MODE · "' in settings
     assert '"SELECTION NOT ACTIVE UNTIL SAVED"' in settings

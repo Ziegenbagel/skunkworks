@@ -463,14 +463,14 @@ the `codex/<feature-name>` convention, and return to `develop` only after their
 focused regression tests pass. No 1.1 development commit receives a public
 `v*` tag until the integrated release candidate is promoted to `main`.
 
-#### Phase 1 — Baselines and Low Usage Mode
+#### Phase 1 — Baselines and Low Power Mode
 
 Suggested branch: `codex/low-usage-mode`.
 
 - Record repeatable startup, ordinary refresh, focused-probe switch, database,
   memory, and galaxy-map frame-time baselines with small and large synthetic
   fleets.
-- Add Normal and Low Usage operating profiles with clearly explained polling
+- Add Normal and Low Power operating profiles with clearly explained polling
   and rendering tradeoffs.
 - Preserve immediate capacity for emergency stop, accepted-command
   reconciliation, active-operation telemetry, safety alerts, and the focused
@@ -478,7 +478,7 @@ Suggested branch: `codex/low-usage-mode`.
 - Show when information is intentionally cached, deferred, or syncing.
 - Protect deferred work from starvation and avoid synchronized request bursts.
 
-Acceptance: Low Usage Mode measurably reduces background requests and CPU/GPU
+Acceptance: Low Power Mode measurably reduces background requests and CPU/GPU
 work while command safety, active operations, and visible state remain current.
 
 #### Phase 2 — Background and Galaxy Rendering
@@ -513,7 +513,7 @@ do not expose credentials or private message content unexpectedly.
 
 Testing slice status (2026-08-25): phases 1–3 are implemented together on
 `codex/1-1-efficient-background-ops` for private testing before integration
-into `develop`. The slice adds Normal/Low Usage controls, profile-governed
+into `develop`. The slice adds Normal/Low Power controls, profile-governed
 archival cadence and background fleet breadth, settled-map detail selection,
 explicit deferred-history diagnostics, and opt-in restart-deduplicated desktop
 notifications. The existing lazy heavy-tab loaders, local production

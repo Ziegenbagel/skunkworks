@@ -305,14 +305,14 @@ Item {
                             radius: 2
                             Label {
                                 anchors.centerIn: parent
-                                text: "ACTIVE MODE · " + (root.activeOperatingProfileName === "low_usage" ? "LOW USAGE" : "NORMAL")
+                                text: "ACTIVE MODE · " + (root.activeOperatingProfileName === "low_usage" ? "LOW POWER" : "NORMAL")
                                 color: "#07131b"; font.family: Constants.technicalFont; font.bold: true
                             }
                         }
                         Label { text: "SELECT MODE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                         ComboBox {
                             id: operatingProfileControl
-                            model: ["NORMAL", "LOW USAGE"]
+                            model: ["NORMAL", "LOW POWER"]
                             Layout.preferredWidth: 220
                         }
                         Button {
@@ -330,7 +330,7 @@ Item {
                     Label {
                         Layout.fillWidth: true
                         text: root.activeOperatingProfileName === "low_usage"
-                              ? "ACTIVE LOW USAGE BEHAVIOR · SAFETY, STOP, FOCUSED TELEMETRY, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL SYNCHRONIZATION CHANGES FROM 5 TO 15 MINUTES, BACKGROUND FLEET CHECKS ARE HALVED, AND DISTANT MAP DETAIL IS REDUCED."
+                              ? "ACTIVE LOW POWER BEHAVIOR · SAFETY, STOP, FOCUSED TELEMETRY, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL SYNCHRONIZATION CHANGES FROM 5 TO 15 MINUTES, BACKGROUND FLEET CHECKS DROP FROM FOUR PROBES TO ONE PER CYCLE, AND DISTANT MAP DETAIL IS REDUCED."
                               : "ACTIVE NORMAL BEHAVIOR · BACKGROUND FLEET CHECKS USE THE NORMAL BREADTH, ARCHIVAL SYNCHRONIZATION MAY RUN EVERY 5 MINUTES, AND THE SETTLED GALAXY MAP USES FULL DETAIL."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }

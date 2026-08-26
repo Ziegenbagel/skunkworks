@@ -249,9 +249,9 @@ Relevant code/tests:
 - `src/ui/qml/components/GalaxyMap3D.qml`
 - `tests/test_ui_assets.py`
 
-### Low Usage mode never delays operational safety or dispatch
+### Low Power mode never delays operational safety or dispatch
 
-The Low Usage profile may reduce stale-tolerant archival imports, background
+The Low Power profile may reduce stale-tolerant archival imports, background
 probe breadth, and distant map detail. It must not lengthen the one-minute
 automation heartbeat or defer Stop, focused safety telemetry, active-operation
 reconciliation, or an explicitly focused probe refresh. Enabled map overlays
@@ -391,7 +391,7 @@ Physical vacuuming remains an explicit offline maintenance action.
 Only one Skunkworks process may write a given application data root at a time.
 Separate test and release instances require separate `SKUNKWORKS_HOME` roots.
 
-Low Usage may reduce cosmetic countdown cadence and reuse shared immutable
+Low Power may reduce cosmetic countdown cadence and reuse shared immutable
 cartography, but it must not lengthen the one-minute automation heartbeat or
 delay safety, active-task reconciliation, Stop, or explicit operator refreshes.
 
