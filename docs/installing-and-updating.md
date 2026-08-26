@@ -103,14 +103,15 @@ continues to use the normal accumulated user-data profile unless an isolated
 ```bash
 git switch develop
 git pull --ff-only origin develop
-source .venv/bin/activate
-python -m pip install -e .
-skunkworks
+uv sync --locked
+uv run skunkworks
 ```
 
 Back up the database before testing persistence or migration changes. The
 development footer must show `1.1.0.dev...`; development builds are not public
 releases and should not replace the stable package used for rollback.
+The repository `.venv` is managed by `uv` and may not contain `pip`; use the
+commands above instead of installing into that environment with `python -m pip`.
 
 ## Updating a source checkout
 

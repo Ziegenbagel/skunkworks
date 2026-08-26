@@ -449,7 +449,7 @@ wheels = [
 [[package]]
 name = "skunkworks"
 version = "1.1.0.dev0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "keyring" },
     { name = "pyside6" },

@@ -77,9 +77,8 @@ Update and launch the development branch on macOS or Linux:
 cd /absolute/path/to/Skunkworks
 git switch develop
 git pull --ff-only origin develop
-source .venv/bin/activate
-python -m pip install -e .
-skunkworks
+uv sync --locked
+uv run skunkworks
 ```
 
 On Windows PowerShell:
@@ -88,10 +87,13 @@ On Windows PowerShell:
 Set-Location C:\absolute\path\to\Skunkworks
 git switch develop
 git pull --ff-only origin develop
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e .
-skunkworks
+uv sync --locked
+uv run skunkworks
 ```
+
+`uv` owns this repository's `.venv`; that environment may intentionally omit
+`pip`. Do not assume `python -m pip` is available inside it. `uv sync --locked`
+installs the editable Skunkworks launcher and the exact locked dependencies.
 
 The footer must show a `1.1.0.dev...` version while this branch is under
 development. If it shows a public `1.0.x` version, stop and confirm the selected
