@@ -71,11 +71,12 @@ def test_development_launch_selects_preserved_private_profile_explicitly():
 
     assert (
         'SKUNKWORKS_HOME="$PWD/private/test-data" '
-        "uv run --no-sync skunkworks"
+        "uv run --no-sync python -m src.ui.app"
     ) in workflow
     assert (
         '$env:SKUNKWORKS_HOME = "$PWD\\private\\test-data"'
     ) in workflow
+    assert "uv run --no-sync python -m src.ui.app" in workflow
     assert "can make the development copy appear to have reset" in workflow
 
 

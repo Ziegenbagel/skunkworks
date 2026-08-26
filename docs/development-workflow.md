@@ -84,8 +84,8 @@ Update and launch the development branch on macOS or Linux:
 cd /absolute/path/to/Skunkworks
 git switch develop
 git pull --ff-only origin develop
-uv sync --locked --no-editable
-SKUNKWORKS_HOME="$PWD/private/test-data" uv run --no-sync skunkworks
+uv sync --locked
+SKUNKWORKS_HOME="$PWD/private/test-data" uv run --no-sync python -m src.ui.app
 ```
 
 On Windows PowerShell:
@@ -94,18 +94,18 @@ On Windows PowerShell:
 Set-Location C:\absolute\path\to\Skunkworks
 git switch develop
 git pull --ff-only origin develop
-uv sync --locked --no-editable
+uv sync --locked
 $env:SKUNKWORKS_HOME = "$PWD\private\test-data"
-uv run --no-sync skunkworks
+uv run --no-sync python -m src.ui.app
 ```
 
 `uv` owns this repository's `.venv`; that environment may intentionally omit
-`pip`. Do not assume `python -m pip` is available inside it. Python 3.14 skips
-hidden `.pth` files, including the file currently produced by setuptools for an
-editable install. `uv sync --locked --no-editable` installs the actual package
-and launcher into the environment without relying on that skipped file. Run it
-again after pulling source changes. `--no-sync` on the launch command prevents
-`uv run` from silently changing the project back to an editable installation.
+`pip`. Do not assume `python -m pip` is available inside it. The development
+launch deliberately runs `src.ui.app` from the checked-out repository instead
+of relying on an editable installation's generated console launcher. Run
+`uv sync --locked` again after pulling dependency changes. `--no-sync` on the
+launch command prevents `uv run` from silently changing the environment while
+starting the application.
 Keep the `SKUNKWORKS_HOME` assignment on every development launch; it is the
 identity of the selected writable profile, not an installation option.
 
