@@ -388,6 +388,12 @@ must be tested against a verified copy or backup of existing user state. An
 upgrade never deletes accumulated data, and isolated experiments use a distinct
 `SKUNKWORKS_HOME`.
 
+Development launch instructions must name the intended writable profile
+explicitly. When a checkout has a preserved private test profile, every launch
+command includes the same `SKUNKWORKS_HOME`; omitting it would select a clean
+platform profile whose safe Observe Only defaults can be mistaken for erased
+operator settings.
+
 The complete procedure is authoritative in `docs/development-workflow.md`.
 
 ## API and Safety Invariants

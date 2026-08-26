@@ -63,6 +63,19 @@ def test_upgrade_guide_preserves_accumulated_user_data():
     assert "do not set a new" in guide and "`SKUNKWORKS_HOME`" in guide
 
 
+def test_development_launch_selects_preserved_private_profile_explicitly():
+    workflow = Path("docs/development-workflow.md").read_text(encoding="utf-8")
+
+    assert (
+        'SKUNKWORKS_HOME="$PWD/private/test-data" '
+        "uv run --no-sync skunkworks"
+    ) in workflow
+    assert (
+        '$env:SKUNKWORKS_HOME = "$PWD\\private\\test-data"'
+    ) in workflow
+    assert "can make the development copy appear to have reset" in workflow
+
+
 def test_release_candidate_build_excludes_private_and_development_directories():
     workflow = Path(".github/workflows/release-candidate.yml").read_text()
     assert "python -m tools.build_release_candidate --clean" in workflow

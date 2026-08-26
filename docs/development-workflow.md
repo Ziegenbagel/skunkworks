@@ -66,10 +66,17 @@ settings, roles, operations, galaxy history, or action history.
 
 ## Launching the 1.1 development line
 
-The development checkout uses the normal platform user-data location unless
-`SKUNKWORKS_HOME` is explicitly set. Therefore the operator can test 1.1 with
-the existing accumulated profile, but must create a verified backup before
-testing persistence, migration, compaction, or restore changes.
+This owner checkout uses the preserved private test profile at
+`private/test-data`. Always set `SKUNKWORKS_HOME` to that same directory when
+launching this checkout. Omitting it selects the platform default profile and
+can make the development copy appear to have reset settings and history even
+though the preserved profile is intact. A clean platform profile correctly
+starts in Observe Only; do not reconfigure it as a substitute for selecting the
+intended test profile.
+
+The preserved private profile points to the existing accumulated development
+database and retains its saved policy files. A verified backup is still
+required before testing persistence, migration, compaction, or restore changes.
 
 Update and launch the development branch on macOS or Linux:
 
@@ -78,7 +85,7 @@ cd /absolute/path/to/Skunkworks
 git switch develop
 git pull --ff-only origin develop
 uv sync --locked --no-editable
-uv run --no-sync skunkworks
+SKUNKWORKS_HOME="$PWD/private/test-data" uv run --no-sync skunkworks
 ```
 
 On Windows PowerShell:
@@ -88,6 +95,7 @@ Set-Location C:\absolute\path\to\Skunkworks
 git switch develop
 git pull --ff-only origin develop
 uv sync --locked --no-editable
+$env:SKUNKWORKS_HOME = "$PWD\private\test-data"
 uv run --no-sync skunkworks
 ```
 
@@ -98,6 +106,8 @@ editable install. `uv sync --locked --no-editable` installs the actual package
 and launcher into the environment without relying on that skipped file. Run it
 again after pulling source changes. `--no-sync` on the launch command prevents
 `uv run` from silently changing the project back to an editable installation.
+Keep the `SKUNKWORKS_HOME` assignment on every development launch; it is the
+identity of the selected writable profile, not an installation option.
 
 The footer must show a `1.1.0.dev...` version while this branch is under
 development. If it shows a public `1.0.x` version, stop and confirm the selected
