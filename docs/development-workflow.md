@@ -77,8 +77,8 @@ Update and launch the development branch on macOS or Linux:
 cd /absolute/path/to/Skunkworks
 git switch develop
 git pull --ff-only origin develop
-uv sync --locked
-uv run skunkworks
+uv sync --locked --no-editable
+uv run --no-sync skunkworks
 ```
 
 On Windows PowerShell:
@@ -87,13 +87,17 @@ On Windows PowerShell:
 Set-Location C:\absolute\path\to\Skunkworks
 git switch develop
 git pull --ff-only origin develop
-uv sync --locked
-uv run skunkworks
+uv sync --locked --no-editable
+uv run --no-sync skunkworks
 ```
 
 `uv` owns this repository's `.venv`; that environment may intentionally omit
-`pip`. Do not assume `python -m pip` is available inside it. `uv sync --locked`
-installs the editable Skunkworks launcher and the exact locked dependencies.
+`pip`. Do not assume `python -m pip` is available inside it. Python 3.14 skips
+hidden `.pth` files, including the file currently produced by setuptools for an
+editable install. `uv sync --locked --no-editable` installs the actual package
+and launcher into the environment without relying on that skipped file. Run it
+again after pulling source changes. `--no-sync` on the launch command prevents
+`uv run` from silently changing the project back to an editable installation.
 
 The footer must show a `1.1.0.dev...` version while this branch is under
 development. If it shows a public `1.0.x` version, stop and confirm the selected

@@ -268,7 +268,18 @@ inspect or monitor a run only when the operator asks or reports a failure.
 The console entry point must work from an activated environment without relying
 on the repository root being present in `PYTHONPATH`. Packaging metadata must
 explicitly include the `src` application package and its QML and asset data.
-Test the installed `skunkworks` command from outside the checkout.
+Test the installed application import from outside the checkout. Python 3.14
+skips hidden `.pth` files, so setuptools' current `__editable__...pth` output is
+not a valid basis for the launcher. Source and `uv` instructions use a regular
+non-editable install until the editable mechanism is verified independently on
+every supported Python version.
+
+Relevant files/tests:
+
+- `pyproject.toml`
+- `.github/workflows/ci.yml`
+- `docs/installing-and-updating.md`
+- `tests/test_release_readiness.py`
 
 ### Upgrades preserve the existing user-data root
 

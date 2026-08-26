@@ -41,6 +41,20 @@ def test_source_distribution_explicitly_packages_launcher_and_ui_assets():
     ]
 
 
+def test_python_314_install_instructions_do_not_rely_on_hidden_editable_pth():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    guide = Path("docs/installing-and-updating.md").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "pip install -e ." not in readme
+    assert "pip install -e ." not in guide
+    assert "uv sync --locked --no-editable" in guide
+    assert "uv run --no-sync skunkworks" in guide
+    assert "pip install -e ." not in workflow
+    assert "working-directory: ${{ runner.temp }}" in workflow
+    assert "from src.ui.app import run" in workflow
+
+
 def test_upgrade_guide_preserves_accumulated_user_data():
     guide = Path("docs/installing-and-updating.md").read_text(encoding="utf-8")
 
