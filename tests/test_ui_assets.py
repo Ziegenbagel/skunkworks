@@ -143,6 +143,8 @@ def test_operating_profile_controls_follow_audio_and_precede_automation():
     assert 'model: ["NORMAL", "LOW POWER", "AUTO"]' in settings
     assert 'root.activeOperatingProfileName === "auto" ? "AUTO → "' in settings
     assert 'id: autoIdleMinutes' in settings
+    assert 'Layout.preferredWidth: 150' in settings
+    assert 'text: "MINUTES · RANGE 1–120"' in settings
     assert 'text: "SAVE PROFILE"' in settings
     assert '"ACTIVE MODE · "' in settings
     assert '"SELECTION NOT ACTIVE UNTIL SAVED"' in settings

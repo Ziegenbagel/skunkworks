@@ -334,9 +334,14 @@ Item {
                             visible: operatingProfileControl.currentIndex === 2
                             from: 1; to: 120; value: 10
                             editable: true
-                            Layout.preferredWidth: 110
-                            textFromValue: function(value) { return value + " MIN" }
+                            Layout.preferredWidth: 150
+                            textFromValue: function(value) { return String(value) }
                             valueFromText: function(text) { return Math.max(1, Math.min(120, parseInt(text) || 10)) }
+                        }
+                        Label {
+                            text: "MINUTES · RANGE 1–120"
+                            visible: operatingProfileControl.currentIndex === 2
+                            color: Constants.mutedTextColor; font.family: Constants.technicalFont
                         }
                         Button {
                             text: "SAVE PROFILE"
