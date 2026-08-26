@@ -42,6 +42,7 @@ Item {
     property bool showAxisLabels: true
     property bool filtersExpanded: true
     property bool cameraMoving: false
+    property string detailProfile: "normal"
     property bool showDeuterium: false
     property bool showMetals: false
     property bool showIce: false
@@ -60,7 +61,7 @@ Item {
     // Neighbor links dominate scene cost as explored space grows. Suspend them
     // only while the camera moves, then restore the complete topology after a
     // debounce. Distance must not permanently remove operational overlays.
-    readonly property bool distantOverview: camera.z > 1500
+    readonly property bool distantOverview: camera.z > (detailProfile === "reduced" ? 1100 : 1500)
     readonly property var renderedEdges: cameraMoving ? [] : visibleEdges
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
@@ -327,7 +328,9 @@ Item {
                     ? "#Sphere" : "#Cube"
                 pickable: true
                 position: root.positionFor(modelData)
-                scale: modelData.isFocused ? Qt.vector3d(0.34, 0.34, 0.34) : Qt.vector3d(0.24, 0.24, 0.24)
+                scale: modelData.isFocused ? Qt.vector3d(0.34, 0.34, 0.34)
+                     : root.detailProfile === "reduced" && root.distantOverview
+                     ? Qt.vector3d(0.19, 0.19, 0.19) : Qt.vector3d(0.24, 0.24, 0.24)
                 materials: DefaultMaterial {
                     lighting: DefaultMaterial.NoLighting
                     diffuseColor: root.colorFor(sectorModel.modelData)

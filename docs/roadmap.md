@@ -511,6 +511,16 @@ Suggested branch: `codex/local-notifications`.
 Acceptance: opted-in notifications are timely, deduplicated, restart-safe, and
 do not expose credentials or private message content unexpectedly.
 
+Testing slice status (2026-08-25): phases 1–3 are implemented together on
+`codex/1-1-efficient-background-ops` for private testing before integration
+into `develop`. The slice adds Normal/Low Usage controls, profile-governed
+archival cadence and background fleet breadth, settled-map detail selection,
+explicit deferred-history diagnostics, and opt-in restart-deduplicated desktop
+notifications. The existing lazy heavy-tab loaders, local production
+countdowns, view-relative map controls, interaction LOD, overlay restoration,
+and fit-all-visible behavior remain the Phase 2 foundation. Phases 4–6 remain
+unstarted until this slice is accepted.
+
 #### Phase 4 — Away Summaries and Archive Search
 
 Suggested branch: `codex/away-summaries`.

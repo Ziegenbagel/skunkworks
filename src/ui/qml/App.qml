@@ -381,6 +381,18 @@ ApplicationWindow {
                 window.backend.saveAutomationSettings(settings);
         }
 
+        function onOperatingProfileSaveRequested(name) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.saveOperatingProfile(name);
+        }
+
+        function onNotificationPolicySaveRequested(policy) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.saveNotificationPolicy(policy);
+        }
+
         function onShutdownRequested() {
             AudioManager.play("confirm");
             if (window.backend)

@@ -12,6 +12,8 @@ PanelFrame {
     property var availableProbes: []
     property int focusedProbeId: -1
     property double currentEpochMs: Date.now()
+    property var operatingProfile: ({"name": "normal", "map_detail": "normal"})
+    property var notificationPolicy: ({"enabled": false, "categories": []})
     // Mining is the longest normal production record. Keep enough fixed room
     // for its full telemetry, countdown, and recall control without nested
     // card scrolling or content-driven layout calculations.
@@ -73,6 +75,8 @@ PanelFrame {
     signal mannyCancelRequested(string mannyId)
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
+    signal operatingProfileSaveRequested(string name)
+    signal notificationPolicySaveRequested(var policy)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -209,6 +213,7 @@ PanelFrame {
                 GalaxyMap3D {
                     galaxyData: root.dashboardData.galaxy || ({})
                     focusedProbeId: root.focusedProbeId
+                    detailProfile: String(root.operatingProfile.map_detail || "normal")
                     onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
                 }
             }
@@ -227,6 +232,10 @@ PanelFrame {
                     focusedProbeId: root.focusedProbeId
                     focusedProbeData: root.dashboardData.focus || ({})
                     defaultProbeId: root.dashboardData.defaultProbeId === undefined ? -1 : Number(root.dashboardData.defaultProbeId)
+                    operatingProfile: root.operatingProfile
+                    notificationPolicy: root.notificationPolicy
+                    onOperatingProfileSaveRequested: name => root.operatingProfileSaveRequested(name)
+                    onNotificationPolicySaveRequested: policy => root.notificationPolicySaveRequested(policy)
                     onSaveRequested: settings => root.automationSettingsSaved(settings)
                     onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
                     onRoleSettingsSaveRequested: (probeId, settings) => root.probeRoleSettingsSaved(probeId, settings)

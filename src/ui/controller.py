@@ -52,6 +52,8 @@ from src.execution import (
 from src.execution.policy import ExecutionPolicyStore
 from src.diagnostics import diagnostic_log_directory, log_handled_error
 from src.reporting import DailyProbeReportService
+from src.application.operating_profile import load_operating_profile, save_operating_profile
+from src.application.notifications import NotificationCoordinator, load_policy, save_policy
 
 
 class ManualCraftReservationConflict(ValueError):
@@ -107,7 +109,7 @@ class MissionControlDataService:
     def load(
         self, probe_id=None, include_archival=True, progress=None,
         prefer_cached_fleet=False, priority_section=None,
-        priority_progress=None,
+        priority_progress=None, archival_sync_seconds=300,
     ):
         report = progress or (lambda percent, label: None)
         load_started = time.monotonic()
@@ -179,7 +181,7 @@ class MissionControlDataService:
         should_sync_history = (
             include_archival
             and bool(selected.get("isDefault"))
-            and now - self._history_sync_at.get(selected_id, 0) >= 300
+            and now - self._history_sync_at.get(selected_id, 0) >= max(60, int(archival_sync_seconds))
         )
         if should_sync_history:
             report(62, "Synchronizing fleet history")
@@ -551,6 +553,12 @@ class MissionControlDataService:
             "elapsedSeconds": timings["total"],
             "stages": timings,
             "reusedFleetIndex": reused_fleet_index,
+            "archivalHistoryState": (
+                "synchronized" if should_sync_history
+                else "deferred" if include_archival and bool(selected.get("isDefault"))
+                else "not_requested"
+            ),
+            "archivalSyncSeconds": max(60, int(archival_sync_seconds)),
         }
         report(100, "Mission control ready")
         return dashboard
@@ -2643,7 +2651,7 @@ def _safe_emit(signal, *args):
 class _RefreshWorker(QRunnable):
     def __init__(
         self, service, probe_id, prefer_cached_fleet=False,
-        include_archival=True, priority_section=None,
+        include_archival=True, priority_section=None, archival_sync_seconds=300,
     ):
         super().__init__()
         self.service = service
@@ -2651,12 +2659,14 @@ class _RefreshWorker(QRunnable):
         self.prefer_cached_fleet = prefer_cached_fleet
         self.include_archival = include_archival
         self.priority_section = priority_section
+        self.archival_sync_seconds = archival_sync_seconds
         self.signals = _WorkerSignals()
 
     def run(self):
         try:
             load_options = {
                 "prefer_cached_fleet": self.prefer_cached_fleet,
+                "archival_sync_seconds": self.archival_sync_seconds,
                 "progress": lambda value, message: _safe_emit(
                     self.signals.progress, value, message,
                 ),
@@ -2845,6 +2855,9 @@ class MissionControlController(QObject):
     loadingProgressChanged = Signal()
     manualCraftOverrideChanged = Signal()
     operationNoticeChanged = Signal()
+    operatingProfileChanged = Signal()
+    notificationPolicyChanged = Signal()
+    desktopNotificationRequested = Signal(str, str)
 
     def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
         super().__init__()
@@ -2867,6 +2880,10 @@ class MissionControlController(QObject):
         self._active_section = "MISSION CONTROL"
         self._refresh_previous_idle_manny_ids = set()
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
+        self._operating_profile = load_operating_profile(self.settings_engine)
+        self._notification_policy = load_policy(self.settings_engine)
+        self._notification_coordinator = NotificationCoordinator(self.settings_engine)
+        self._notifications_primed = False
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
         self._startup_loading = True
@@ -2899,7 +2916,7 @@ class MissionControlController(QObject):
         self._initial_automation_cycle_pending = True
         self._fleet_automation_worker = None
         self._fleet_automation_cursor = 0
-        self._maximum_probes_per_fleet_cycle = 4
+        self._maximum_probes_per_fleet_cycle = self._operating_profile.background_probes_per_cycle
         self._automation_cycle_worker = None
         self._compatibility_timer = QTimer(self)
         self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
@@ -3008,6 +3025,36 @@ class MissionControlController(QObject):
     @Property(str, notify=operationNoticeChanged)
     def operationNotice(self):
         return getattr(self, "_operation_notice", "")
+
+    @Property("QVariantMap", notify=operatingProfileChanged)
+    def operatingProfile(self):
+        return self._operating_profile.payload()
+
+    @Property("QVariantMap", notify=notificationPolicyChanged)
+    def notificationPolicy(self):
+        return dict(self._notification_policy)
+
+    @Slot(str)
+    def saveOperatingProfile(self, name):
+        self._operating_profile = save_operating_profile(self.settings_engine, name)
+        self._maximum_probes_per_fleet_cycle = self._operating_profile.background_probes_per_cycle
+        self.operatingProfileChanged.emit()
+        self._set_operation_notice("OPERATING PROFILE SAVED")
+        self._apply_local_policy_to_dashboard()
+
+    @Slot("QVariantMap")
+    def saveNotificationPolicy(self, policy):
+        self._notification_policy = save_policy(self.settings_engine, dict(policy or {}))
+        self.notificationPolicyChanged.emit()
+        self._set_operation_notice("DESKTOP NOTIFICATION SETTINGS SAVED")
+        self._apply_local_policy_to_dashboard()
+
+    def _apply_local_policy_to_dashboard(self):
+        if not self._dashboard:
+            return
+        self._dashboard["operatingProfile"] = self._operating_profile.payload()
+        self._dashboard["notificationPolicy"] = dict(self._notification_policy)
+        self.dashboardChanged.emit()
 
     def _set_operation_notice(self, message):
         message = str(message or "")
@@ -4447,6 +4494,7 @@ class MissionControlController(QObject):
             prefer_cached_fleet=prefer_cached_fleet,
             include_archival=include_archival,
             priority_section=self._active_section,
+            archival_sync_seconds=self._operating_profile.archival_sync_seconds,
         )
         worker.signals.succeeded.connect(self._accept_dashboard)
         worker.signals.failed.connect(self._reject_dashboard)
@@ -4500,10 +4548,22 @@ class MissionControlController(QObject):
             "message": self.credentialMessage,
         }
         self._dashboard = payload
+        self._dashboard["operatingProfile"] = self._operating_profile.payload()
+        self._dashboard["notificationPolicy"] = dict(self._notification_policy)
         if previous_last_result is not None:
             runtime = dict(self._dashboard.get("automationRuntime", {}))
             runtime["lastResult"] = previous_last_result
             self._dashboard["automationRuntime"] = runtime
+        fresh_notifications = self._notification_coordinator.take_new(
+            self._dashboard,
+            self._notification_policy,
+            prime=not self._notifications_primed,
+        )
+        self._notifications_primed = True
+        for notification in fresh_notifications:
+            self.desktopNotificationRequested.emit(
+                notification.title, notification.message,
+            )
         self._api_compatible = True
         server_version = int(payload.get("apiVersion") or MAXIMUM_API_VERSION)
         reviewed = api_is_reviewed(server_version)

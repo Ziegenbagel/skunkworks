@@ -15,6 +15,8 @@ Item {
     property int defaultProbeId: -1
     property var focusedProbeData: ({})
     property int desiredStateProbeId: -2
+    property var operatingProfile: ({"name": "normal"})
+    property var notificationPolicy: ({"enabled": false, "categories": [], "minimumSeverity": "warning"})
     readonly property bool canManageProbeRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
     signal saveRequested(var settings)
     signal roleAssignmentRequested(int probeId, string role)
@@ -37,6 +39,8 @@ Item {
     signal diagnosticLogsRequested()
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
+    signal operatingProfileSaveRequested(string name)
+    signal notificationPolicySaveRequested(var policy)
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -182,6 +186,10 @@ Item {
     Component.onCompleted: {
         syncExecutionControls();
         syncDesiredStateControls();
+        operatingProfileControl.currentIndex = String(operatingProfile.name || "normal") === "low_usage" ? 1 : 0;
+        notificationEnabled.checked = Boolean(notificationPolicy.enabled);
+        notificationSeverity.currentIndex = String(notificationPolicy.minimumSeverity || "warning") === "critical" ? 2
+                                          : String(notificationPolicy.minimumSeverity || "warning") === "info" ? 0 : 1;
     }
     function payload() {
         const production = [];
@@ -549,6 +557,63 @@ Item {
             }
 
             GroupBox {
+                title: "PERFORMANCE AND LOCAL NOTIFICATIONS"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label { text: "OPERATING PROFILE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        ComboBox {
+                            id: operatingProfileControl
+                            model: ["NORMAL", "LOW USAGE"]
+                            Layout.preferredWidth: 220
+                        }
+                        Button {
+                            text: "SAVE PROFILE"
+                            onClicked: root.operatingProfileSaveRequested(operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal")
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: operatingProfileControl.currentIndex === 1
+                              ? "LOW USAGE · SAFETY, STOP, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL WORK, BACKGROUND PROBES, AND MAP DETAIL ARE REDUCED."
+                              : "NORMAL · BALANCED BACKGROUND RECONCILIATION AND FULL SETTLED MAP DETAIL."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        CheckBox { id: notificationEnabled; text: "ENABLE DESKTOP NOTIFICATIONS (APP MUST BE RUNNING)" }
+                        CheckBox { id: notifyCritical; text: "SAFETY"; checked: (root.notificationPolicy.categories || []).indexOf("critical") >= 0 }
+                        CheckBox { id: notifyDiscoveries; text: "DISCOVERIES"; checked: (root.notificationPolicy.categories || []).indexOf("discoveries") >= 0 }
+                        CheckBox { id: notifyApprovals; text: "APPROVALS"; checked: (root.notificationPolicy.categories || []).indexOf("approvals") >= 0 }
+                        CheckBox { id: notifyOperations; text: "OPERATIONS"; checked: (root.notificationPolicy.categories || []).indexOf("operations") >= 0 }
+                        CheckBox { id: notifyFailures; text: "FAILURES"; checked: (root.notificationPolicy.categories || []).indexOf("failures") >= 0 }
+                        ComboBox { id: notificationSeverity; model: ["INFO+", "WARNING+", "CRITICAL ONLY"]; Layout.preferredWidth: 170 }
+                        Button {
+                            text: "SAVE NOTIFICATIONS"
+                            onClicked: {
+                                const categories = [];
+                                if (notifyCritical.checked) categories.push("critical");
+                                if (notifyDiscoveries.checked) categories.push("discoveries");
+                                if (notifyApprovals.checked) categories.push("approvals");
+                                if (notifyOperations.checked) categories.push("operations");
+                                if (notifyFailures.checked) categories.push("failures");
+                                const severity = notificationSeverity.currentIndex === 2 ? "critical"
+                                               : notificationSeverity.currentIndex === 0 ? "info" : "warning";
+                                root.notificationPolicySaveRequested({"enabled": notificationEnabled.checked, "categories": categories, "minimumSeverity": severity});
+                            }
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "NOTIFICATIONS ARE DEDUPLICATED ACROSS REFRESHES AND RESTARTS. DELIVERY DOES NOT MARK AN ALERT VIEWED OR PROVE A COMMAND SUCCEEDED."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                }
+            }
+
+            GroupBox {
                 title: "REFRESH DIAGNOSTICS"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 5
@@ -572,6 +637,17 @@ Item {
                               ? "FLEET LIST CACHE USED · SKIPPED A DUPLICATE GAME API REQUEST"
                               : "FLEET LIST DOWNLOADED FROM THE GAME API"
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: String((root.refreshDiagnostics || {}).archivalHistoryState || "not_requested") === "deferred"
+                              ? "ARCHIVAL HISTORY DEFERRED BY OPERATING PROFILE · LIVE SAFETY AND FOCUSED TELEMETRY STILL REFRESHED"
+                              : String((root.refreshDiagnostics || {}).archivalHistoryState || "not_requested") === "synchronized"
+                              ? "ARCHIVAL HISTORY SYNCHRONIZED THIS REFRESH"
+                              : "ARCHIVAL HISTORY NOT REQUESTED BY THIS FAST REFRESH"
+                        color: String((root.refreshDiagnostics || {}).archivalHistoryState || "") === "deferred"
+                               ? Constants.warningColor : Constants.mutedTextColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                 }
             }

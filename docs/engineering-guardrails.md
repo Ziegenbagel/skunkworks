@@ -249,6 +249,31 @@ Relevant code/tests:
 - `src/ui/qml/components/GalaxyMap3D.qml`
 - `tests/test_ui_assets.py`
 
+### Low Usage mode never delays operational safety or dispatch
+
+The Low Usage profile may reduce stale-tolerant archival imports, background
+probe breadth, and distant map detail. It must not lengthen the one-minute
+automation heartbeat or defer Stop, focused safety telemetry, active-operation
+reconciliation, or an explicitly focused probe refresh. Enabled map overlays
+must still return when camera interaction settles.
+
+Relevant code/tests:
+
+- `src/application/operating_profile.py`
+- `tests/test_operating_profile.py`
+
+### Desktop notifications are advisory and restart-safe
+
+Desktop notifications are opt-in. Refreshes and restarts must not replay the
+same alert or operation result, and delivery must never mark a game alert
+viewed or prove that a command succeeded. Notifications are available only
+while Skunkworks is running; background continuation is outside 1.1 scope.
+
+Relevant code/tests:
+
+- `src/application/notifications.py`
+- `tests/test_notifications.py`
+
 ## Release Packaging Invariants
 
 ### Release patches finish by staging new packages

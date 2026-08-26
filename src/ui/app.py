@@ -5,7 +5,8 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QLibraryInfo, QTimer, QUrl, qVersion
-from PySide6.QtGui import QGuiApplication, QIcon
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
@@ -54,7 +55,7 @@ def run(controller=None):
     install_exception_hooks()
     configure_qt_plugin_paths()
     QQuickStyle.setStyle("Basic")
-    application = QGuiApplication(sys.argv)
+    application = QApplication(sys.argv)
     application.setApplicationName("Skunkworks")
     application.setOrganizationName("Skunkworks")
     application.setWindowIcon(QIcon(str(application_icon_path())))
@@ -67,6 +68,21 @@ def run(controller=None):
     if not engine.rootObjects():
         return 1
     controller = controller or MissionControlController()
+    notification_icon = QSystemTrayIcon(QIcon(str(application_icon_path())), application)
+    notification_icon.setToolTip("Skunkworks")
+    if QSystemTrayIcon.isSystemTrayAvailable():
+        notification_icon.setVisible(bool(controller.notificationPolicy.get("enabled")))
+        controller.notificationPolicyChanged.connect(
+            lambda: notification_icon.setVisible(
+                bool(controller.notificationPolicy.get("enabled"))
+            )
+        )
+        controller.desktopNotificationRequested.connect(
+            lambda title, message: notification_icon.showMessage(
+                title, message, QSystemTrayIcon.Information, 8000,
+            )
+        )
+    application._skunkworks_notification_icon = notification_icon
     engine.rootObjects()[0].setProperty("backend", controller)
     QTimer.singleShot(0, controller.start)
     return application.exec()
