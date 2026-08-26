@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-skunkworks = "src.ui.app:run"
+skunkworks = "skunkworks_launcher:run"
 
 [build-system]
 requires = ["setuptools>=80"]
@@ -34,8 +34,18 @@ build-backend = "setuptools.build_meta"
 where = ["."]
 include = ["src", "src.*"]
 
+[tool.setuptools]
+py-modules = ["skunkworks_launcher"]
+
 [tool.setuptools.package-data]
 "src.ui" = ["qml/**/*", "assets/**/*"]
+
+[tool.uv]
+# Setuptools' strict editable finder currently fails to resolve ``src.ui`` on
+# Python 3.14 when invoked through a generated console script. Compat mode
+# installs a project-root .pth file, so source changes remain live while normal
+# Python package discovery works consistently.
+config-settings = { editable_mode = "compat" }
 
 [project.urls]
 Homepage = "https://github.com/Ziegenbagel/skunkworks"

@@ -31,10 +31,13 @@ def test_pep_639_license_expression_is_not_combined_with_legacy_classifier():
 def test_source_distribution_explicitly_packages_launcher_and_ui_assets():
     metadata = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 
-    assert metadata["project"]["scripts"]["skunkworks"] == "src.ui.app:run"
+    assert metadata["project"]["scripts"]["skunkworks"] == "skunkworks_launcher:run"
     assert metadata["build-system"]["build-backend"] == "setuptools.build_meta"
     assert metadata["tool"]["setuptools"]["packages"]["find"]["include"] == [
         "src", "src.*",
+    ]
+    assert metadata["tool"]["setuptools"]["py-modules"] == [
+        "skunkworks_launcher",
     ]
     assert metadata["tool"]["setuptools"]["package-data"]["src.ui"] == [
         "qml/**/*", "assets/**/*",

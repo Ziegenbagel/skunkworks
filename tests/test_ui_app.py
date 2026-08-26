@@ -9,9 +9,17 @@ from PySide6.QtCore import QCoreApplication, QLibraryInfo
 
 from src.application.paths import ApplicationPaths
 from src.ui.app import acquire_instance_lock, configure_qt_plugin_paths
+import skunkworks_launcher
 
 
 class QtApplicationBootstrapTests(unittest.TestCase):
+    def test_console_launcher_imports_ui_after_restoring_package_root(self):
+        expected_root = str(Path(skunkworks_launcher.__file__).resolve().parent)
+        with patch.object(sys, "path", [entry for entry in sys.path if entry != expected_root]):
+            with patch("src.ui.app.run", return_value=17) as application_run:
+                self.assertEqual(skunkworks_launcher.run(), 17)
+        application_run.assert_called_once_with()
+
     def test_only_one_instance_can_hold_a_data_root_lock(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
