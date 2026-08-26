@@ -362,6 +362,23 @@ source. `SKUNKWORKS_HOME` exists for isolated private development and tests.
 Repository `config/` files are non-live templates and must contain no probe IDs
 or enabled mutation policy.
 
+## Branch and Release Isolation Invariants
+
+`main` is the stable public line, `develop` is the next-release integration
+line, and isolated work branches use `codex/<feature-name>` from `develop`.
+Unfinished roadmap work never lands directly on `main`. Public packages are
+created only from an approved `v*` tag on `main`; development and feature
+branches remain untagged and may create only clearly labeled unpublished test
+artifacts.
+
+Every hotfix released from `main` must also be merged back into `develop` so a
+later feature release cannot erase the repair. Persistence or migration work
+must be tested against a verified copy or backup of existing user state. An
+upgrade never deletes accumulated data, and isolated experiments use a distinct
+`SKUNKWORKS_HOME`.
+
+The complete procedure is authoritative in `docs/development-workflow.md`.
+
 ## API and Safety Invariants
 
 - Explicit probe ID is required at every probe-scoped gateway.

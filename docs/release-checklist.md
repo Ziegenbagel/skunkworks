@@ -67,6 +67,8 @@ space for SQLite to rebuild the file.
 
 ## Platform packaging gate
 
+- [ ] Confirm the release candidate was integrated on `develop`, promoted to
+  `main`, and that the proposed `v*` tag points to that approved `main` commit.
 - [ ] Classify the change before packaging: a current-release patch must update
   version/release notes and push its release tag; future-release work stays
   untagged until explicitly promoted.
@@ -82,3 +84,6 @@ space for SQLite to rebuild the file.
 After the tag triggers packaging, routine run monitoring belongs to the release
 operator. Investigate Actions only when requested or when the operator reports a
 failure.
+
+Branch creation, hotfix synchronization, unpublished test builds, and operator
+data isolation follow `docs/development-workflow.md`.
