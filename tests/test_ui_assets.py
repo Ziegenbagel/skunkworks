@@ -1,5 +1,4 @@
 from pathlib import Path
-from importlib.metadata import PackageNotFoundError
 from unittest.mock import patch
 
 from PIL import Image
@@ -134,14 +133,12 @@ def test_application_uses_dedicated_skunkworks_icon():
 
 
 def test_frozen_footer_version_falls_back_to_release_constant():
-    with (
-        patch(
-            "src.ui.controller.package_version",
-            side_effect=PackageNotFoundError,
-        ),
-        patch("src.ui.controller.Path.read_text", side_effect=OSError),
-    ):
+    with patch("src.ui.controller.Path.read_text", side_effect=OSError):
         assert MissionControlDataService._app_version() == APP_VERSION
+
+
+def test_development_footer_uses_checked_out_project_version():
+    assert MissionControlDataService._app_version() == APP_VERSION
 
 
 def test_top_navigation_is_interactive_and_has_connected_workspace():
@@ -164,7 +161,18 @@ def test_safety_navigation_pulses_for_unviewed_alerts():
     assert "SequentialAnimation on opacity" in navigation
     assert 'navigationItem.modelData === "SAFETY"' in navigation
     assert "viewedAlertKeys" in screen
+    assert "alertBaselineEstablished" in screen
     assert "updateUnviewedAlerts" in screen
+
+
+def test_automation_targets_include_integrated_circuits():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'productionQuantity("integrated_circuit")' in settings
+    assert '"recipeId": "integrated_circuit"' in settings
+    assert 'text: "INTEGRATED CIRCUITS"' in settings
 
 
 def test_manual_field_operations_expose_sector_object_inspection():

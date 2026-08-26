@@ -1,4 +1,15 @@
-# Skunkworks 1.0.4
+# Skunkworks 1.0.5
+
+Skunkworks 1.0.5 keeps the development footer synchronized with the version in
+the active source tree, adds Integrated Circuits to automation production
+targets alongside SCUT relays and transit beacons, and treats existing safety
+history as the startup baseline instead of a new notification after every
+restart.
+
+The live sector map now condenses two or more depleted asteroids into one
+counted marker while leaving resource-bearing asteroids individually visible.
+
+## Skunkworks 1.0.4
 
 Skunkworks 1.0.4 restores sector-object inspection as an explicit Manny Field
 Operations control and recognizes equivalent hyphenated, spaced, camel-case,

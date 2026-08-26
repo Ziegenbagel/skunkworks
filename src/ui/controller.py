@@ -7,7 +7,6 @@ import json
 import re
 import sys
 import time
-from importlib.metadata import PackageNotFoundError, version as package_version
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -557,16 +556,18 @@ class MissionControlDataService:
 
     @staticmethod
     def _app_version():
-        """Use installed package metadata, with source-tree metadata fallback."""
+        """Use source metadata in development and the release constant in packages."""
+        # A development checkout can coexist with an older installed build.
+        # Reading its pyproject first keeps the footer tied to the tree that is
+        # actually running instead of stale site-package metadata.
         try:
-            return package_version("skunkworks")
-        except PackageNotFoundError:
-            try:
-                import tomllib
-                project = Path(__file__).resolve().parents[2] / "pyproject.toml"
-                return str(tomllib.loads(project.read_text())["project"]["version"])
-            except (KeyError, OSError, TypeError, ValueError):
-                return APP_VERSION
+            import tomllib
+            project = Path(__file__).resolve().parents[2] / "pyproject.toml"
+            return str(tomllib.loads(project.read_text())["project"]["version"])
+        except (KeyError, OSError, TypeError, ValueError):
+            # Frozen distributions bundle this release constant. Avoid reading
+            # unrelated or leftover environment metadata around the executable.
+            return APP_VERSION
 
     def logbook_view(self, probe_id=None, probes=None):
         probe_id = probe_id or self._selected_probe_id

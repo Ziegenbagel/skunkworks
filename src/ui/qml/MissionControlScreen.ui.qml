@@ -76,6 +76,7 @@ Rectangle {
     property string currentNavigation: "MISSION CONTROL"
     property var viewedAlertKeys: ({})
     property int unviewedAlertCount: 0
+    property bool alertBaselineEstablished: false
     property alias probeSelectorControl: probeSelector
     property alias navigationBarControl: navigationBar
     property alias navigationWorkspaceControl: navigationWorkspace
@@ -96,12 +97,17 @@ Rectangle {
 
     function updateUnviewedAlerts() {
         const alerts = root.dashboardData.alerts || [];
-        if (root.currentNavigation === "SAFETY") {
+        // Alerts already present when the application starts are the baseline,
+        // not new notifications. Only arrivals after the first live dashboard
+        // payload should light the Safety navigation item.
+        if (!root.alertBaselineEstablished || root.currentNavigation === "SAFETY") {
             const viewed = Object.assign({}, root.viewedAlertKeys);
             for (let index = 0; index < alerts.length; index++)
                 viewed[root.alertKey(alerts[index])] = true;
             root.viewedAlertKeys = viewed;
             root.unviewedAlertCount = 0;
+            if (root.dashboardData && root.dashboardData.alerts !== undefined)
+                root.alertBaselineEstablished = true;
             return;
         }
         let count = 0;

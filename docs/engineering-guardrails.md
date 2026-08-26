@@ -199,6 +199,12 @@ archival synchronization, logbooks, planner explanations, or hidden workspaces.
 Production and Navigation use two-stage live updates. Cached data must be labeled
 as cached/refreshing; early live data must be labeled as finishing refresh.
 
+### Existing safety history is not a new-session notification
+
+Alerts present in the first live dashboard payload establish the session
+baseline. Only alerts first observed after that baseline may pulse the Safety
+navigation item; reopening Skunkworks must not relabel unchanged history as new.
+
 ### Hidden heavy workspaces remain lazy
 
 Do not restore a design in which every QML workspace is instantiated and rebuilds
