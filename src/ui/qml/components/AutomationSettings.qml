@@ -17,6 +17,7 @@ Item {
     property int desiredStateProbeId: -2
     property var operatingProfile: ({"name": "normal"})
     property var notificationPolicy: ({"enabled": false, "categories": [], "minimumSeverity": "warning"})
+    property var notificationDelivery: ({"available": false, "supportsMessages": false, "detail": "CHECKING DESKTOP NOTIFICATION SUPPORT"})
     readonly property string activeOperatingProfileName: String(operatingProfile.name || "normal")
     readonly property string effectiveOperatingProfileName: String(operatingProfile.effective_name || activeOperatingProfileName)
     readonly property int savedOperatingProfileIdleMinutes: Number(operatingProfile.idle_minutes || 10)
@@ -49,6 +50,7 @@ Item {
     signal shutdownRequested()
     signal operatingProfileSaveRequested(string name, int idleMinutes)
     signal notificationPolicySaveRequested(var policy)
+    signal testNotificationRequested()
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -409,7 +411,22 @@ Item {
                                 root.notificationPolicySaveRequested({"enabled": notificationEnabled.checked, "categories": categories, "minimumSeverity": severity});
                             }
                         }
+                        Button {
+                            text: "SEND TEST NOTIFICATION"
+                            enabled: Boolean(root.notificationPolicy.enabled)
+                                     && Boolean(root.notificationDelivery.available)
+                                     && Boolean(root.notificationDelivery.supportsMessages)
+                            onClicked: root.testNotificationRequested()
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Uses the saved notification policy. A request is not proof that macOS displayed the banner."
+                        }
                         Item { Layout.fillWidth: true }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: String(root.notificationDelivery.detail || "DESKTOP NOTIFICATION STATUS UNAVAILABLE")
+                        color: root.notificationDelivery.supportsMessages ? Constants.nominalColor : Constants.warningColor
+                        font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
                     }
                     Label {
                         Layout.fillWidth: true

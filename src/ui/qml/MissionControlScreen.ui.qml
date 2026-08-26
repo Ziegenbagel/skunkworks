@@ -579,6 +579,7 @@ Rectangle {
                 focusedProbeId: root.focusedProbeId
                 operatingProfile: root.dashboardData.operatingProfile || ({"name": "normal", "map_detail": "normal"})
                 notificationPolicy: root.dashboardData.notificationPolicy || ({"enabled": false, "categories": []})
+                notificationDelivery: root.dashboardData.notificationDelivery || ({"available": false, "supportsMessages": false, "detail": ""})
             }
 
             RowLayout {

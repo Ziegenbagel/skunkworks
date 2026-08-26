@@ -393,6 +393,12 @@ ApplicationWindow {
                 window.backend.saveNotificationPolicy(policy);
         }
 
+        function onTestNotificationRequested() {
+            AudioManager.play("select");
+            if (window.backend)
+                window.backend.sendTestNotification();
+        }
+
         function onShutdownRequested() {
             AudioManager.play("confirm");
             if (window.backend)

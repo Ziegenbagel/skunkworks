@@ -1,4 +1,5 @@
 from src.application.notifications import NotificationCoordinator, save_policy
+from src.ui.controller import MissionControlController
 
 
 class Preferences:
@@ -28,3 +29,28 @@ def test_discoveries_and_approvals_respect_category_controls():
     }
     fresh = NotificationCoordinator(preferences).take_new(dashboard, policy)
     assert {item.category for item in fresh} == {"discoveries", "approvals"}
+
+
+def test_test_notification_requires_saved_policy_and_supported_delivery():
+    preferences = Preferences()
+    controller = MissionControlController(settings_engine=preferences)
+    requested = []
+    controller.desktopNotificationRequested.connect(
+        lambda title, message: requested.append((title, message))
+    )
+
+    controller.configureNotificationDelivery(True, True, "SUPPORTED")
+    controller.sendTestNotification()
+    assert requested == []
+
+    controller.saveNotificationPolicy(
+        {"enabled": True, "categories": ["critical"], "minimumSeverity": "warning"}
+    )
+    controller.sendTestNotification()
+    assert requested == [
+        (
+            "Skunkworks test notification",
+            "Desktop notification delivery was requested successfully.",
+        )
+    ]
+    assert "REQUESTED" in controller.operationNotice

@@ -2864,6 +2864,7 @@ class MissionControlController(QObject):
     operationNoticeChanged = Signal()
     operatingProfileChanged = Signal()
     notificationPolicyChanged = Signal()
+    notificationDeliveryChanged = Signal()
     desktopNotificationRequested = Signal(str, str)
 
     def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
@@ -2898,6 +2899,11 @@ class MissionControlController(QObject):
             else self._selected_operating_profile
         )
         self._notification_policy = load_policy(self.settings_engine)
+        self._notification_delivery = {
+            "available": False,
+            "supportsMessages": False,
+            "detail": "CHECKING DESKTOP NOTIFICATION SUPPORT",
+        }
         self._notification_coordinator = NotificationCoordinator(self.settings_engine)
         self._notifications_primed = False
         self.credential_store = credential_store or CredentialStore()
@@ -3061,6 +3067,40 @@ class MissionControlController(QObject):
     def notificationPolicy(self):
         return dict(self._notification_policy)
 
+    @Property("QVariantMap", notify=notificationDeliveryChanged)
+    def notificationDelivery(self):
+        return dict(self._notification_delivery)
+
+    @Slot(bool, bool, str)
+    def configureNotificationDelivery(self, available, supports_messages, detail):
+        delivery = {
+            "available": bool(available),
+            "supportsMessages": bool(supports_messages),
+            "detail": str(detail or "DESKTOP NOTIFICATION STATUS UNAVAILABLE"),
+        }
+        if delivery == self._notification_delivery:
+            return
+        self._notification_delivery = delivery
+        self.notificationDeliveryChanged.emit()
+        self._apply_local_policy_to_dashboard()
+
+    @Slot()
+    def sendTestNotification(self):
+        if not self._notification_policy.get("enabled"):
+            self._set_operation_notice("ENABLE AND SAVE DESKTOP NOTIFICATIONS FIRST")
+            return
+        if not (
+            self._notification_delivery.get("available")
+            and self._notification_delivery.get("supportsMessages")
+        ):
+            self._set_operation_notice("DESKTOP NOTIFICATIONS UNAVAILABLE · SEE SETTINGS STATUS")
+            return
+        self.desktopNotificationRequested.emit(
+            "Skunkworks test notification",
+            "Desktop notification delivery was requested successfully.",
+        )
+        self._set_operation_notice("TEST NOTIFICATION REQUESTED · CHECK NOTIFICATION CENTER")
+
     @Slot(str, int)
     def saveOperatingProfile(self, name, idle_minutes=10):
         self._selected_operating_profile = save_operating_profile(
@@ -3149,6 +3189,7 @@ class MissionControlController(QObject):
             return
         self._dashboard["operatingProfile"] = self._operating_profile_payload()
         self._dashboard["notificationPolicy"] = dict(self._notification_policy)
+        self._dashboard["notificationDelivery"] = dict(self._notification_delivery)
         self.dashboardChanged.emit()
 
     def _set_operation_notice(self, message):
@@ -4645,6 +4686,7 @@ class MissionControlController(QObject):
         self._dashboard = payload
         self._dashboard["operatingProfile"] = self._operating_profile_payload()
         self._dashboard["notificationPolicy"] = dict(self._notification_policy)
+        self._dashboard["notificationDelivery"] = dict(self._notification_delivery)
         if previous_last_result is not None:
             runtime = dict(self._dashboard.get("automationRuntime", {}))
             runtime["lastResult"] = previous_last_result

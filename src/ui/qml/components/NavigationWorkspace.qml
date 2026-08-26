@@ -14,6 +14,7 @@ PanelFrame {
     property double currentEpochMs: Date.now()
     property var operatingProfile: ({"name": "normal", "map_detail": "normal"})
     property var notificationPolicy: ({"enabled": false, "categories": []})
+    property var notificationDelivery: ({"available": false, "supportsMessages": false, "detail": ""})
     // Mining is the longest normal production record. Keep enough fixed room
     // for its full telemetry, countdown, and recall control without nested
     // card scrolling or content-driven layout calculations.
@@ -77,6 +78,7 @@ PanelFrame {
     signal shutdownRequested()
     signal operatingProfileSaveRequested(string name, int idleMinutes)
     signal notificationPolicySaveRequested(var policy)
+    signal testNotificationRequested()
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -234,8 +236,10 @@ PanelFrame {
                     defaultProbeId: root.dashboardData.defaultProbeId === undefined ? -1 : Number(root.dashboardData.defaultProbeId)
                     operatingProfile: root.operatingProfile
                     notificationPolicy: root.notificationPolicy
+                    notificationDelivery: root.notificationDelivery
                     onOperatingProfileSaveRequested: (name, idleMinutes) => root.operatingProfileSaveRequested(name, idleMinutes)
                     onNotificationPolicySaveRequested: policy => root.notificationPolicySaveRequested(policy)
+                    onTestNotificationRequested: root.testNotificationRequested()
                     onSaveRequested: settings => root.automationSettingsSaved(settings)
                     onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
                     onRoleSettingsSaveRequested: (probeId, settings) => root.probeRoleSettingsSaved(probeId, settings)

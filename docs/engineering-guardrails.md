@@ -287,6 +287,9 @@ Desktop notifications are opt-in. Refreshes and restarts must not replay the
 same alert or operation result, and delivery must never mark a game alert
 viewed or prove that a command succeeded. Notifications are available only
 while Skunkworks is running; background continuation is outside 1.1 scope.
+Settings must expose the platform capability and a test action. A successful
+test request must be labeled as requested, never as confirmed OS delivery,
+because desktop policy can suppress a banner after Qt accepts it.
 
 Relevant code/tests:
 

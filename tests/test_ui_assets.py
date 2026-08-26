@@ -791,6 +791,17 @@ def test_full_page_lists_avoid_nested_scroll_regions():
     assert "model: root.waitingPlans()" in settings
 
 
+def test_notification_settings_expose_delivery_status_and_test_action():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+
+    assert 'text: "SEND TEST NOTIFICATION"' in settings
+    assert "notificationDelivery.detail" in settings
+    assert "onTestNotificationRequested" in navigation
+    assert "sendTestNotification()" in app
+
+
 def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
     manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
