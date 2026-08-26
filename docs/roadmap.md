@@ -2,12 +2,13 @@
 
 ## Status
 
-This is the canonical Skunkworks roadmap as of 2026-08-21.
+This is the canonical Skunkworks roadmap as of 2026-08-25.
 
-Missions 1–23 are complete. Mission 24's application interface is implemented
-and undergoing acceptance testing; its cross-platform packaging gate remains
-part of Mission 26. Current feature development continues with Mission 25 and
-targets the 1.0 release at Mission 26.
+Skunkworks 1.0 shipped on 2026-08-23 and the stable patch line has advanced
+through 1.0.4. Missions 1–26 below are retained as the historical foundation
+and release record. Active development now occurs on `develop` and targets
+Version 1.1 — Efficient Background Operations. Public 1.0 maintenance remains
+on `main` and every released hotfix is merged back into `develop`.
 
 This roadmap reconciles:
 
@@ -17,8 +18,8 @@ This roadmap reconciles:
 - The capabilities currently implemented in this repository.
 
 Mission numbers and release gates should only change through an explicit
-roadmap revision. New ideas belong in the post-1.0 backlog unless they are
-required for safety, data integrity, API parity, or a listed 1.0 release gate.
+roadmap revision. New ideas belong in the appropriate future-version backlog
+unless they are required for safety, data integrity, or API compatibility.
 
 ## Product Direction
 
@@ -223,9 +224,13 @@ Release gate: the UI stays current through local prediction and reasoned
 refreshes, while Skunkworks warns before major operational constraints become
 failures.
 
-## Roadmap to 1.0
+## Historical Roadmap to 1.0
 
-### Mission 24 — Mission Control User Interface (implemented; acceptance open)
+Missions 24–26 describe the objectives used to reach the initial public
+release. Remaining refinements are tracked as supported-version patches or in
+the active 1.1 plan rather than reopening the 1.0 release gate.
+
+### Mission 24 — Mission Control User Interface (completed)
 
 Goal: provide a polished, complete player-facing operations console.
 
@@ -289,7 +294,7 @@ Release gate: every supported routine game operation can be inspected,
 planned, approved, and controlled without editing configuration files or
 requiring the game website.
 
-### Mission 25 — Continuous Autonomy, Recovery, and API Parity
+### Mission 25 — Continuous Autonomy, Recovery, and API Parity (completed foundation)
 
 Goal: safely extend the one-command runtime into durable fleet operations.
 
@@ -326,7 +331,7 @@ Goal: safely extend the one-command runtime into durable fleet operations.
 Release gate: Skunkworks can run approved operations unattended and recover
 safely from restarts, API errors, rate limits, and unexpected state changes.
 
-### Mission 26 — 1.0 Release Hardening
+### Mission 26 — 1.0 Release Hardening (initial public release completed)
 
 Goal: make the release reproducible, supportable, and trustworthy.
 
@@ -356,10 +361,11 @@ Goal: make the release reproducible, supportable, and trustworthy.
 - Changelog, license, packaging, and release artifacts.
 - Release-candidate soak period.
 
-#### Active pre-release checklist
+#### Historical 1.0 acceptance checklist
 
-This is the short operational checklist for deciding when the 1.0 candidate is
-ready. The detailed Mission 24–26 requirements above remain authoritative.
+This checklist is retained as a record of the original acceptance plan. It is
+not the active development queue. Unfinished quality improvements are assigned
+to a supported patch or a named future release before work begins.
 
 Repository preparation completed on 2026-08-23: verified SQLite online backup,
 integrity and allocation reporting, explicit compaction/vacuum tooling, a local
@@ -424,7 +430,7 @@ Von Neumann API key through first-run onboarding, and reach Mission Control.
 This clean-machine acceptance test must pass on supported Windows, macOS, and
 Linux versions without opening a terminal or installing development tools.
 
-## 1.0 Definition of Done
+## Historical 1.0 Definition of Done
 
 Skunkworks 1.0 must:
 
@@ -444,16 +450,127 @@ Skunkworks 1.0 must:
 - Keep the core independent from the UI.
 - Pass the Mission 26 release gates.
 
-## Post-1.0 Backlog
+## Active Development
 
 ### Version 1.1 — Efficient Background Operations
 
-- Low Usage Mode.
-- Background polling and reduced rendering.
-- Persistent local notifications.
-- Richer away summaries and archive search.
-- Additional mining-depot ROI and historical analytics.
-- User annotations and research archive.
+Goal: keep Skunkworks responsive and informative as fleet size, discovered
+space, and retained history grow, without weakening command safety or making
+the UI authoritative over accepted game state.
+
+Development version: `1.1.0.dev0`. Feature branches start from `develop`, use
+the `codex/<feature-name>` convention, and return to `develop` only after their
+focused regression tests pass. No 1.1 development commit receives a public
+`v*` tag until the integrated release candidate is promoted to `main`.
+
+#### Phase 1 — Baselines and Low Usage Mode
+
+Suggested branch: `codex/low-usage-mode`.
+
+- Record repeatable startup, ordinary refresh, focused-probe switch, database,
+  memory, and galaxy-map frame-time baselines with small and large synthetic
+  fleets.
+- Add Normal and Low Usage operating profiles with clearly explained polling
+  and rendering tradeoffs.
+- Preserve immediate capacity for emergency stop, accepted-command
+  reconciliation, active-operation telemetry, safety alerts, and the focused
+  probe while deferring stale-tolerant background work.
+- Show when information is intentionally cached, deferred, or syncing.
+- Protect deferred work from starvation and avoid synchronized request bursts.
+
+Acceptance: Low Usage Mode measurably reduces background requests and CPU/GPU
+work while command safety, active operations, and visible state remain current.
+
+#### Phase 2 — Background and Galaxy Rendering
+
+Suggested branch: `codex/background-rendering`.
+
+- Suspend expensive hidden-tab rendering while keeping the backend operational.
+- Advance countdowns and progress locally without rebuilding complete screens.
+- Cull galaxy objects and links outside the view and use distance-appropriate
+  detail without hiding selected objects, enabled overlays, SCUT coverage, or
+  recent routes.
+- Retain view-relative orbit, pan, zoom, selection, filter, and fit-all-visible
+  behavior as discovered space expands.
+
+Acceptance: large synthetic maps remain responsive during rotation, pan, and
+zoom; every enabled overlay returns at rest and all filtered sectors can still
+be fit into one view.
+
+#### Phase 3 — Local Notifications
+
+Suggested branch: `codex/local-notifications`.
+
+- Add operating-system notifications for critical safety alerts, discoveries,
+  approval requests, completed operations, and failed commands.
+- Provide severity and category controls with duplicate prevention across
+  refreshes and restarts.
+- Keep notification state local and never treat notification delivery as proof
+  that an alert was viewed or a command succeeded.
+
+Acceptance: opted-in notifications are timely, deduplicated, restart-safe, and
+do not expose credentials or private message content unexpectedly.
+
+#### Phase 4 — Away Summaries and Archive Search
+
+Suggested branch: `codex/away-summaries`.
+
+- Summarize relevant activity since the operator last viewed Skunkworks.
+- Group repeated events and retain links to their authoritative detailed views.
+- Add scoped search and filters for operational history and reports.
+- Preserve the existing opt-in requirement for game-logbook daily reports.
+
+Acceptance: an operator can understand an unattended interval without reading
+raw event spam, and can find the underlying events by probe, operation, domain,
+severity, and time.
+
+#### Phase 5 — Industrial Analytics
+
+Suggested branch: `codex/industrial-analytics`.
+
+- Add mining-depot throughput, utilization, container pressure, source
+  depletion, transport bottleneck, and idle-time history.
+- Estimate depot break-even and return on investment from retained observations.
+- Label measured, inferred, and unavailable values distinctly.
+
+Acceptance: analytics reproduce from retained data, remain bounded in storage,
+and never present an estimate as a verified game rule.
+
+#### Phase 6 — Research Annotations
+
+Suggested branch: `codex/research-annotations`.
+
+- Attach user-authored notes to probes, sectors, objects, discoveries, and
+  operations using stable identifiers.
+- Add a searchable research archive with export and verified backup coverage.
+- Keep annotations separate from game-authored and player-authored logbook text.
+
+Acceptance: annotations survive restart, backup, restore, and upgrade without
+altering or duplicating game logbook pages.
+
+#### 1.1 Integration and Release Gate
+
+- Each phase passes focused tests and the complete offline suite before merging
+  to `develop`.
+- Development candidates use unique labels such as `1.1.0-dev.1` and remain
+  unpublished GitHub Actions artifacts.
+- Persistence work is tested first against an isolated verified data copy, then
+  against a backed-up representative profile for compatibility acceptance.
+- Complete large-fleet, large-map, long-running, restart, notification,
+  reduced-polling, backup/restore, and cross-platform package tests.
+- Update the manual, changelog, release notes, dependency notices, and version
+  metadata before promoting `develop` to `main`.
+- Create `v1.1.0` only from the approved `main` commit.
+
+Release gate: 1.1 reduces background resource use and remains responsive at
+scale without delaying urgent work, losing accumulated data, hiding enabled map
+information, duplicating notifications, or weakening execution safeguards.
+
+The following remain outside 1.1: system-tray execution, continuing automation
+after the main process exits, saved workspace layouts, and trusted-device
+synchronization. They remain Version 1.2 work.
+
+## Future Backlog
 
 ### Version 1.2 — Desktop Continuity
 

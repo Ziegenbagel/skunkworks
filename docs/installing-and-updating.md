@@ -94,6 +94,24 @@ Do not run unreviewed source from a moving branch against a valuable game
 account. Prefer a signed release tag, and review configuration before enabling
 automatic orders.
 
+### Owner testing of the 1.1 development branch
+
+The `develop` branch is installed separately from public package updates. It
+continues to use the normal accumulated user-data profile unless an isolated
+`SKUNKWORKS_HOME` is set:
+
+```bash
+git switch develop
+git pull --ff-only origin develop
+source .venv/bin/activate
+python -m pip install -e .
+skunkworks
+```
+
+Back up the database before testing persistence or migration changes. The
+development footer must show `1.1.0.dev...`; development builds are not public
+releases and should not replace the stable package used for rollback.
+
 ## Updating a source checkout
 
 Stop Skunkworks, create a verified database backup, then update to a named tag:

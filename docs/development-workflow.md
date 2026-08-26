@@ -64,6 +64,39 @@ Do not commit either location. A feature that changes the database schema must
 also prove that the previous public version can be upgraded without losing
 settings, roles, operations, galaxy history, or action history.
 
+## Launching the 1.1 development line
+
+The development checkout uses the normal platform user-data location unless
+`SKUNKWORKS_HOME` is explicitly set. Therefore the operator can test 1.1 with
+the existing accumulated profile, but must create a verified backup before
+testing persistence, migration, compaction, or restore changes.
+
+Update and launch the development branch on macOS or Linux:
+
+```bash
+cd /absolute/path/to/Skunkworks
+git switch develop
+git pull --ff-only origin develop
+source .venv/bin/activate
+python -m pip install -e .
+skunkworks
+```
+
+On Windows PowerShell:
+
+```powershell
+Set-Location C:\absolute\path\to\Skunkworks
+git switch develop
+git pull --ff-only origin develop
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+skunkworks
+```
+
+The footer must show a `1.1.0.dev...` version while this branch is under
+development. If it shows a public `1.0.x` version, stop and confirm the selected
+branch and editable installation before testing new behavior.
+
 ## Working procedure
 
 1. Begin new roadmap work from an up-to-date `develop`.
@@ -77,4 +110,3 @@ settings, roles, operations, galaxy history, or action history.
    metadata, rerun the release checklist, and create the release tag.
 8. After a hotfix ships from `main`, merge that same fix back into `develop` so
    future releases cannot erase it.
-
