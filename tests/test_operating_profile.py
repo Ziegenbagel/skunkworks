@@ -10,7 +10,7 @@ class Preferences:
 def test_low_usage_reduces_only_background_work():
     preferences = Preferences()
     profile = save_operating_profile(preferences, "low_usage")
-    assert profile.background_probes_per_cycle == 2
+    assert profile.background_probes_per_cycle == 1
     assert profile.archival_sync_seconds == 900
     assert profile.map_detail == "reduced"
     assert load_operating_profile(preferences) == profile

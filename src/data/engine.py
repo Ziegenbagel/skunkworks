@@ -21,12 +21,16 @@ class DataEngine:
     # one process. Share the last persisted sector/resource signature so each
     # worker does not append the same large snapshot again.
     _shared_world_history_signatures = {}
+    # Fleet automation creates short-lived DataEngine instances. Cartography
+    # is process-wide state backed by one database, so rebuilding the same
+    # large GalaxyMap once per worker wastes CPU and retains duplicate scene
+    # data until garbage collection catches up.
+    _shared_galaxy_caches = {}
 
     def __init__(self, path=None):
         self.path = Path(path) if path is not None else application_paths().database
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._galaxy_cache = None
-        self._galaxy_cache_built_at = 0.0
+        self._galaxy_cache_key = str(self.path.resolve())
         # WAL mode is persistent database state. Configuring it on every
         # short-lived read connection takes a write lock and turns otherwise
         # tiny preference/history lookups into multi-second stalls when the UI
@@ -601,7 +605,7 @@ class DataEngine:
             (int(probe_id), max(1, int(limit))),
         )
 
-    def compact_history(self, retain_high_resolution_days=30, *, vacuum=False):
+    def compact_history(self, retain_high_resolution_days=7, *, vacuum=False):
         """Downsample old telemetry while preserving every current state.
 
         Recent telemetry remains untouched. Older probe and resource history
@@ -693,6 +697,23 @@ class DataEngine:
             "vacuumed": bool(vacuum),
         }
 
+    def compact_legacy_history_once(self):
+        """Downsample pre-deduplication telemetry once after upgrading.
+
+        The refresh-signature fix stops new duplicate rows, but it cannot
+        remove the recent backlog produced by older releases. Preserve seven
+        days at full resolution and one daily sample thereafter. SQLite may
+        reuse the freed pages immediately; an exclusive VACUUM remains an
+        explicit maintenance operation so startup never blocks live control.
+        """
+
+        key = "legacy_history_compaction_v1"
+        if self.get_preference(key) == "complete":
+            return None
+        result = self.compact_history(7)
+        self.set_preference(key, "complete")
+        return result
+
     def run_due_maintenance(self, interval_days=7):
         """Downsample history at most weekly without an exclusive vacuum.
 
@@ -701,6 +722,7 @@ class DataEngine:
         work so only the first instance pays the bounded startup cost.
         """
 
+        legacy_result = self.compact_legacy_history_once()
         key = "last_history_compaction_at"
         now = datetime.now(UTC)
         interval = timedelta(days=max(1, int(interval_days)))
@@ -712,7 +734,7 @@ class DataEngine:
             if row:
                 try:
                     if now - datetime.fromisoformat(row["value"]) < interval:
-                        return None
+                        return legacy_result
                 except ValueError:
                     pass
             connection.execute(
@@ -725,7 +747,8 @@ class DataEngine:
                 """,
                 (key, now.isoformat(), now.isoformat()),
             )
-        return self.compact_history()
+        result = self.compact_history()
+        return result if result is not None else legacy_result
 
     def integrity_report(self):
         """Return non-mutating SQLite integrity and foreign-key results."""
@@ -1054,17 +1077,18 @@ class DataEngine:
         from src.intelligence.galaxy import GalaxyMapBuilder
 
         now = time.monotonic()
+        cached = self._shared_galaxy_caches.get(self._galaxy_cache_key)
         if (
-            self._galaxy_cache is not None
+            cached is not None
             and (
                 max_age_seconds is None
                 or (
                     max_age_seconds > 0
-                    and now - self._galaxy_cache_built_at < max_age_seconds
+                    and now - cached[0] < max_age_seconds
                 )
             )
         ):
-            return self._galaxy_cache
+            return cached[1]
 
         fleet_history = {
             "visitedSectors": [
@@ -1115,13 +1139,11 @@ class DataEngine:
                 probe_id=row["probe_id"],
             )
 
-        self._galaxy_cache = galaxy
-        self._galaxy_cache_built_at = now
+        self._shared_galaxy_caches[self._galaxy_cache_key] = (now, galaxy)
         return galaxy
 
     def _invalidate_galaxy_cache(self):
-        self._galaxy_cache = None
-        self._galaxy_cache_built_at = 0.0
+        self._shared_galaxy_caches.pop(self._galaxy_cache_key, None)
 
     def schema_version(self):
         with self._connect() as connection:

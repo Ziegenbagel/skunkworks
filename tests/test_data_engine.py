@@ -358,6 +358,35 @@ class DataEngineTests(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertIsNone(second)
 
+    def test_legacy_compaction_runs_once_and_preserves_daily_history(self):
+        self.engine.set_preference("legacy_history_compaction_v1", "pending")
+        for minute in range(3):
+            world = SimpleNamespace(
+                probe={
+                    "id": 762, "name": "Beta", "model": "generic", "status": "idle",
+                    "sector": {"relative": {"x": minute, "y": 0, "z": 0}},
+                },
+                sector={"snapshot": None, "resources": []},
+            )
+            self.engine.record_world(
+                world, observed_at=f"2020-01-01T00:0{minute}:00+00:00",
+            )
+
+        result = self.engine.compact_legacy_history_once()
+
+        self.assertEqual(result["probeRowsRemoved"], 2)
+        self.assertEqual(len(self.engine.probe_history(762)), 1)
+        self.assertEqual(
+            self.engine.get_preference("legacy_history_compaction_v1"), "complete",
+        )
+        self.assertIsNone(self.engine.compact_legacy_history_once())
+
+    def test_galaxy_cache_is_shared_between_engines_for_same_database(self):
+        first = self.engine.galaxy_map()
+        second_engine = DataEngine(self.engine.path)
+
+        self.assertIs(second_engine.galaxy_map(), first)
+
     def test_database_report_exposes_reclaimable_space_and_row_counts(self):
         self.engine.set_preference("operator", "ready")
 
@@ -366,7 +395,7 @@ class DataEngineTests(unittest.TestCase):
         self.assertEqual(report["schemaVersion"], SCHEMA_VERSION)
         self.assertGreater(report["allocatedBytes"], 0)
         self.assertGreaterEqual(report["totalFileBytes"], report["files"]["database"])
-        self.assertEqual(report["rowCounts"]["preferences"], 2)
+        self.assertEqual(report["rowCounts"]["preferences"], 3)
         self.assertGreaterEqual(report["reclaimableBytes"], 0)
 
     def test_integrity_report_checks_database_and_foreign_keys(self):

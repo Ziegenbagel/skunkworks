@@ -24,6 +24,7 @@ Item {
     property var pendingMiningOrder: ({})
     property var pendingTransferOrder: ({})
     property var pendingInspectionOrder: ({})
+    property var operatingProfile: ({"name": "normal"})
     property double currentEpochMs: Date.now()
     signal probeSelected(int probeId)
     signal probeRenameRequested(string name)
@@ -141,7 +142,7 @@ Item {
     Component.onCompleted: root.syncNamingControls()
 
     Timer {
-        interval: 1000
+        interval: String(root.operatingProfile.name || "normal") === "low_usage" ? 5000 : 1000
         running: root.visible
         repeat: true
         triggeredOnStart: true

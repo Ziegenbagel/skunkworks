@@ -21,7 +21,7 @@ class OperatingProfile:
 
 PROFILES = {
     "normal": OperatingProfile("normal", 4, 300, "normal"),
-    "low_usage": OperatingProfile("low_usage", 2, 900, "reduced"),
+    "low_usage": OperatingProfile("low_usage", 1, 900, "reduced"),
 }
 
 

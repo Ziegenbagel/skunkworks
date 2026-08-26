@@ -4,7 +4,7 @@ import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QLibraryInfo, QTimer, QUrl, qVersion
+from PySide6.QtCore import QCoreApplication, QLibraryInfo, QLockFile, QTimer, QUrl, qVersion
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 from PySide6.QtQml import QQmlApplicationEngine
@@ -49,6 +49,16 @@ def application_icon_path():
     return root / "src" / "ui" / "assets" / "icons" / "skunkworks-app.png"
 
 
+def acquire_instance_lock(paths=None):
+    """Hold one application instance per writable data root."""
+
+    paths = (paths or application_paths()).ensure()
+    lock = QLockFile(str(paths.state / "skunkworks-instance.lock"))
+    if not lock.tryLock(0):
+        return None
+    return lock
+
+
 def run(controller=None):
     application_paths().migrate_legacy(Path(__file__).resolve().parents[2])
     configure_diagnostics()
@@ -59,6 +69,14 @@ def run(controller=None):
     application.setApplicationName("Skunkworks")
     application.setOrganizationName("Skunkworks")
     application.setWindowIcon(QIcon(str(application_icon_path())))
+    instance_lock = acquire_instance_lock()
+    if instance_lock is None:
+        sys.stderr.write(
+            "Skunkworks is already running for this data directory. "
+            "Use the existing window or close it before starting another copy.\n"
+        )
+        return 2
+    application._skunkworks_instance_lock = instance_lock
 
     engine = QQmlApplicationEngine()
     qml_root = Path(__file__).parent / "qml"

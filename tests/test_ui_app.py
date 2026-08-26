@@ -1,15 +1,31 @@
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from PySide6.QtCore import QCoreApplication, QLibraryInfo
 
-from src.ui.app import configure_qt_plugin_paths
+from src.application.paths import ApplicationPaths
+from src.ui.app import acquire_instance_lock, configure_qt_plugin_paths
 
 
 class QtApplicationBootstrapTests(unittest.TestCase):
+    def test_only_one_instance_can_hold_a_data_root_lock(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            paths = ApplicationPaths(
+                root / "data", root / "config", root / "cache", root / "state",
+            )
+            first = acquire_instance_lock(paths)
+            second = acquire_instance_lock(paths)
+
+            self.assertIsNotNone(first)
+            self.assertIsNone(second)
+            first.unlock()
+            self.assertIsNotNone(acquire_instance_lock(paths))
+
     def test_frozen_launcher_never_uses_home_qt_installation(self):
         bundled_plugins = Path(
             QLibraryInfo.path(QLibraryInfo.LibraryPath.PluginsPath)

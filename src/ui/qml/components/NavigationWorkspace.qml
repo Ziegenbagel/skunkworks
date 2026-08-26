@@ -99,7 +99,7 @@ PanelFrame {
     }
 
     Timer {
-        interval: 1000
+        interval: String(root.operatingProfile.name || "normal") === "low_usage" ? 5000 : 1000
         running: root.visible && root.section === "PRODUCTION"
         repeat: true
         triggeredOnStart: true
@@ -302,6 +302,7 @@ PanelFrame {
             active: root.section === "FLEET"
             sourceComponent: Component {
                 FleetWorkspace {
+                    operatingProfile: root.operatingProfile
                     probes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
                     probeData: root.dashboardData.probe || ({})

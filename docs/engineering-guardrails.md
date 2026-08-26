@@ -353,6 +353,10 @@ Runtime JSON snapshots are diagnostic artifacts, not permanent history. Keep
 compact latest snapshots plus no more than one timestamped archive per probe per
 hour, bounded to seven days and 168 archives per probe.
 
+A write-deduplication repair must also include a bounded migration for telemetry
+accumulated by older releases. Stopping new duplicate rows while leaving a
+recent legacy backlog at full resolution is not a complete growth fix.
+
 ### Local reads must stay bounded
 
 - Configure persistent SQLite WAL mode once per DataEngine, not on every short-
@@ -383,6 +387,13 @@ transactions. Use `DataEngine.backup()` (SQLite's online backup API), verify the
 result with `PRAGMA quick_check`, and write through a partial file before an
 atomic replace. Never overwrite the live database as a backup destination.
 Physical vacuuming remains an explicit offline maintenance action.
+
+Only one Skunkworks process may write a given application data root at a time.
+Separate test and release instances require separate `SKUNKWORKS_HOME` roots.
+
+Low Usage may reduce cosmetic countdown cadence and reuse shared immutable
+cartography, but it must not lengthen the one-minute automation heartbeat or
+delay safety, active-task reconciliation, Stop, or explicit operator refreshes.
 
 Every SQLite connection must also be closed explicitly. A
 `sqlite3.Connection` context manager controls transactions but does not close
