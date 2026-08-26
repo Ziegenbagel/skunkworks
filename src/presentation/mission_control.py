@@ -875,6 +875,7 @@ class MissionControlViewModelBuilder:
                 nested["layoutRole"] = "orbital_body"
                 nested["orbitIndex"] = orbit_index
                 objects.append(nested)
+        objects = self._condense_empty_asteroids(objects)
         active_mannies = []
         for manny in (world.mannies or {}).get("mannies", ()):
             current_task = manny.get("currentTask")
@@ -912,6 +913,44 @@ class MissionControlViewModelBuilder:
                 else ""
             ),
         }
+
+    @staticmethod
+    def _condense_empty_asteroids(objects):
+        """Represent multiple depleted asteroids as one stable map marker."""
+        empty = []
+        visible = []
+        for item in objects:
+            resources = item.get("resources")
+            is_asteroid = str(item.get("type", "")).casefold() == "asteroid"
+            depleted = is_asteroid and isinstance(resources, dict) and bool(resources)
+            if depleted:
+                for amount in resources.values():
+                    try:
+                        if float(amount or 0) > 0:
+                            depleted = False
+                            break
+                    except (TypeError, ValueError):
+                        if amount:
+                            depleted = False
+                            break
+            (empty if depleted else visible).append(item)
+        if len(empty) < 2:
+            return visible + empty
+        return visible + [{
+            "id": "depleted-asteroids-summary",
+            "type": "asteroid",
+            "name": f"×{len(empty)} EMPTY ASTEROIDS",
+            "category": "depleted_asteroid_group",
+            "estimated": False,
+            "dangerLevel": "nominal",
+            "resources": {},
+            "mode": "grouped",
+            "status": "depleted",
+            "isTransitBeacon": False,
+            "layoutRole": "free_object",
+            "aggregateCount": len(empty),
+            "aggregateIds": tuple(item["id"] for item in empty),
+        }]
 
     @classmethod
     def _black_hole_destruction_epoch_ms(cls, sector, snapshot, black_holes):

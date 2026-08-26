@@ -1514,6 +1514,34 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("6:-1:3", boundary)
         self.assertNotIn("4:-1:3", boundary)  # Relay center is interior.
 
+    def test_sector_view_condenses_multiple_depleted_asteroids(self):
+        base = build_operations()
+        base.world.sector["snapshot"] = {"sector": {
+            "knowledgeLevel": "detailed", "confidence": 1,
+            "objects": [
+                {"id": "empty-1", "type": "asteroid", "name": "Spent One",
+                 "resourceAmounts": {"deuterium": 0}},
+                {"id": "empty-2", "type": "asteroid", "name": "Spent Two",
+                 "resourceAmounts": {"deuterium": 0}},
+                {"id": "active", "type": "asteroid", "name": "Working Rock",
+                 "resourceAmounts": {"deuterium": 2}},
+            ],
+        }}
+
+        view = MissionControlViewModelBuilder(base)._sector_view(
+            base.world, {"x": 0, "y": 0, "z": 0}
+        )
+
+        self.assertEqual(len(view["objects"]), 2)
+        grouped = next(
+            item for item in view["objects"]
+            if item["id"] == "depleted-asteroids-summary"
+        )
+        self.assertEqual(grouped["name"], "×2 EMPTY ASTEROIDS")
+        self.assertEqual(grouped["aggregateCount"], 2)
+        self.assertEqual(grouped["aggregateIds"], ("empty-1", "empty-2"))
+        self.assertIn("active", {item["id"] for item in view["objects"]})
+
     def test_sector_view_exposes_black_hole_destruction_deadline(self):
         base = build_operations()
         base.world.sector["snapshot"] = {"sector": {
