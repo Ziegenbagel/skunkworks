@@ -62,7 +62,10 @@ Item {
     // only while the camera moves, then restore the complete topology after a
     // debounce. Distance must not permanently remove operational overlays.
     readonly property bool distantOverview: camera.z > (detailProfile === "reduced" ? 1100 : 1500)
-    readonly property var renderedEdges: cameraMoving ? [] : visibleEdges
+    // Keep the edge delegates allocated while interacting. Replacing their
+    // model with an empty list destroyed and recreated the complete mesh on
+    // every wheel/drag gesture, which caused the visible post-gesture freeze.
+    readonly property var renderedEdges: visibleEdges
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
 
@@ -266,6 +269,7 @@ Item {
             model: root.showScutCoverage ? (root.galaxyData.scutCoverageBoundary || []) : []
             delegate: CoverageCell {
                 required property var modelData
+                visible: !root.cameraMoving
                 objectName: "scut:" + String(modelData.id)
                 coverageSelected: root.selectedCoveragePoint !== null
                     && String(root.selectedCoveragePoint.id) === String(modelData.id)
@@ -278,6 +282,7 @@ Item {
             delegate: Model {
                 id: linkModel
                 required property var modelData
+                visible: !root.cameraMoving
                 property var fromNode: root.nodeById(modelData.from)
                 property var toNode: root.nodeById(modelData.to)
                 property vector3d fromPosition: fromNode ? root.positionFor(fromNode) : Qt.vector3d(0, 0, 0)
@@ -307,7 +312,7 @@ Item {
                 property real dy: toPosition.y - fromPosition.y
                 property real dz: toPosition.z - fromPosition.z
                 property real linkLength: Math.sqrt(dx * dx + dy * dy + dz * dz)
-                visible: fromNode !== null && toNode !== null
+                visible: !root.cameraMoving && fromNode !== null && toNode !== null
                 source: "#Cube"
                 position: Qt.vector3d((fromPosition.x + toPosition.x) / 2, (fromPosition.y + toPosition.y) / 2, (fromPosition.z + toPosition.z) / 2)
                 scale: Qt.vector3d(linkLength / 100, 0.045, 0.045)
@@ -322,8 +327,7 @@ Item {
                 id: sectorModel
                 required property var modelData
                 objectName: String(modelData.id)
-                source: (!root.cameraMoving && !root.distantOverview)
-                        || modelData.isFocused
+                source: !root.distantOverview || modelData.isFocused
                         || (root.selectedNode && String(root.selectedNode.id) === String(modelData.id))
                     ? "#Sphere" : "#Cube"
                 pickable: true

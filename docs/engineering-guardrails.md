@@ -173,6 +173,28 @@ Relevant code/tests:
 
 ## Refresh and UI Responsiveness Invariants
 
+### Operator actions never occupy the Qt UI thread
+
+API requests, live preflight, credential-vault access, SQLite writes, route
+calculation, and post-command synchronization triggered by buttons or settings
+must execute through a background worker. The initiating slot returns
+immediately, exposes a visible sending/saving state, and applies results on the
+Qt thread. Accepted commands use a focused lightweight sync; they do not force
+unrelated archival work before the interface becomes usable again.
+
+Production scrolling and Galaxy Map camera interaction are interaction
+boundaries. Dashboard updates may be coalesced until a production flick settles,
+and camera LOD may hide expensive geometry, but neither path may destroy and
+recreate its full delegate/model population for every wheel or drag event.
+
+Relevant code/tests:
+
+- `src/ui/controller.py::_run_background_call`
+- `src/ui/qml/components/NavigationWorkspace.qml`
+- `src/ui/qml/components/GalaxyMap3D.qml`
+- `tests/test_ui_preparation.py`
+- `tests/test_ui_assets.py`
+
 ### Focused-probe safety telemetry is not default-probe archival history
 
 Alerts and damage warnings belong to the focused reachable probe. Synchronize

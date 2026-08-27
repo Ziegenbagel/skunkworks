@@ -492,10 +492,18 @@ Suggested branch: `codex/background-rendering`.
   recent routes.
 - Retain view-relative orbit, pan, zoom, selection, filter, and fit-all-visible
   behavior as discovered space expands.
+- Move every operator-triggered API call, route calculation, credential-vault
+  operation, and settings/database write off the Qt UI thread.
+- Show immediate sending/saving state, publish accepted-command state before
+  reconciliation, and use focused lightweight sync instead of a full archival
+  refresh after ordinary commands.
+- Coalesce Production model replacement until active scrolling settles, reuse
+  delegates, and retain Galaxy Map scene allocations across camera gestures.
 
-Acceptance: large synthetic maps remain responsive during rotation, pan, and
-zoom; every enabled overlay returns at rest and all filtered sectors can still
-be fit into one view.
+Acceptance: commands and settings never stop window interaction; Production
+remains smooth during refreshes and countdown updates; large synthetic maps
+remain responsive during rotation, pan, and zoom; every enabled overlay returns
+at rest and all filtered sectors can still be fit into one view.
 
 #### Phase 3 — Local Notifications
 

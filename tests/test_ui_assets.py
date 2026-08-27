@@ -383,7 +383,8 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "function panBy(" in galaxy
     assert "mapDirectionToScene" in galaxy
     assert "renderedEdges" in galaxy
-    assert "cameraMoving ? [] : visibleEdges" in galaxy
+    assert "readonly property var renderedEdges: visibleEdges" in galaxy
+    assert "visible: !root.cameraMoving" in galaxy
     assert "cameraMoving || distantOverview ? [] : visibleEdges" not in galaxy
     assert "id: cameraSettle" in galaxy
     assert "function fitVisibleMap()" in galaxy
@@ -427,6 +428,17 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert 'text: "SCANNED"' in galaxy
     assert 'text: "OBSERVED"' not in galaxy
     assert 'text: "UNKNOWN"' not in galaxy
+
+
+def test_production_defers_model_replacement_during_active_scrolling():
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'root.section === "PRODUCTION" && sectionGrid.moving' in workspace
+    assert "renderedRowsRefreshPending" in workspace
+    assert "onMovementEnded" in workspace
+    assert "reuseItems: true" in workspace
 
 
 def test_probe_selector_display_is_keyed_to_authoritative_focus_id():

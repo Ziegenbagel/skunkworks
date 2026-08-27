@@ -9,6 +9,12 @@ from src.security import CredentialStore
 from src.ui.controller import MissionControlController
 
 
+class ImmediatePool:
+    @staticmethod
+    def start(worker):
+        worker.run()
+
+
 class MemoryKeyring:
     def __init__(self):
         self.value = None
@@ -76,6 +82,7 @@ class CredentialTests(unittest.TestCase):
             controller = MissionControlController(
                 settings_engine=engine,
                 credential_store=credentials,
+                thread_pool=ImmediatePool(),
             )
 
             self.assertTrue(controller.onboardingRequired)

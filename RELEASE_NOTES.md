@@ -1,4 +1,17 @@
-# Skunkworks 1.0.5
+# Skunkworks 1.1.0.dev0
+
+The 1.1 development line introduces a shared background boundary for manual
+orders, scans, communications, logbook actions, credential operations, and
+automation/settings persistence. Buttons now return immediately with visible
+sending or saving state; accepted commands reconcile through a focused
+lightweight refresh instead of holding the interface through unrelated work.
+
+Production defers model replacement while the operator is actively scrolling
+and reuses viewport delegates. Galaxy Map camera interaction retains its scene
+allocation and temporarily hides expensive links instead of destroying and
+recreating the mesh after every drag or wheel event.
+
+## Skunkworks 1.0.5
 
 Skunkworks 1.0.5 keeps the development footer synchronized with the version in
 the active source tree, adds Integrated Circuits to automation production

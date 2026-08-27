@@ -10,6 +10,7 @@ from src.data import DataEngine
 from src.execution import ExecutionMode
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
+from src.planner.desired_state_store import DesiredStateStore
 from src.presentation import MissionControlViewModelBuilder
 from src.ui.controller import (
     ManualCraftReservationConflict,
@@ -18,6 +19,12 @@ from src.ui.controller import (
     _FleetAutomationWorker,
 )
 from tests.test_planner_missions import build_operations
+
+
+class ImmediatePool:
+    @staticmethod
+    def start(worker):
+        worker.run()
 
 
 class UiPreparationTests(unittest.TestCase):
@@ -686,10 +693,10 @@ class UiPreparationTests(unittest.TestCase):
                 if not override_reservations:
                     raise ManualCraftReservationConflict("Reserved resources")
 
-        controller = MissionControlController(service=Service())
+        controller = MissionControlController(service=Service(), thread_pool=ImmediatePool())
         controller._focused_probe_id = 7
         controller._require_manual_control = lambda: True
-        controller._start_refresh = lambda probe_id: calls.append(("refresh", probe_id))
+        controller._start_refresh = lambda probe_id, **_kwargs: calls.append(("refresh", probe_id))
 
         controller.queueManualCraft("container", "manny-a")
 
@@ -699,6 +706,32 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(calls[1], ("container", "manny-a", True))
         self.assertEqual(calls[2], ("refresh", 7))
         self.assertEqual(controller.manualCraftOverride, {})
+
+    def test_manual_command_returns_before_background_dispatch_runs(self):
+        started = []
+        calls = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                started.append(worker)
+
+        class Service:
+            @staticmethod
+            def manual_repair(manny_id, integrity_percent):
+                calls.append((manny_id, integrity_percent))
+
+        controller = MissionControlController(Service(), DeferredPool())
+        controller._focused_probe_id = 7
+        controller._require_manual_control = lambda: True
+
+        controller.queueManualRepair("manny-a", 75)
+
+        self.assertEqual(calls, [])
+        self.assertEqual(len(started), 1)
+        self.assertIn("SENDING REPAIR ORDER", controller.operationNotice)
+        started[0].run()
+        self.assertEqual(calls, [("manny-a", 75)])
 
     def test_manual_craft_override_can_be_cancelled_without_dispatch(self):
         controller = MissionControlController()
@@ -723,7 +756,7 @@ class UiPreparationTests(unittest.TestCase):
             def manual_craft(*_args, **_kwargs):
                 raise requests.HTTPError(response=response)
 
-        controller = MissionControlController(service=Service())
+        controller = MissionControlController(service=Service(), thread_pool=ImmediatePool())
         controller._focused_probe_id = 7
         controller._manual_craft_override = {
             "probeId": 7, "recipeId": "manny", "mannyId": "manny-a",
@@ -1141,7 +1174,7 @@ class UiPreparationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")
             service = type("Service", (), {"data_engine": engine})()
-            controller = MissionControlController(service)
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
             controller._focused_probe_id = 9
             controller._dashboard = {
                 "defaultProbeId": 9,
@@ -1158,7 +1191,7 @@ class UiPreparationTests(unittest.TestCase):
             engine = DataEngine(Path(temporary) / "ui.sqlite3")
             FleetRoleService(engine).assign("probe", 7, "deuterium_reserve")
             service = type("Service", (), {"data_engine": engine})()
-            controller = MissionControlController(service)
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
             controller._dashboard = {"automation": {"probeRoleSettings": {}}}
 
             controller.saveProbeRoleSettings(
@@ -1202,7 +1235,7 @@ class UiPreparationTests(unittest.TestCase):
                     },
                 },
             )()
-            controller = MissionControlController(service)
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
             controller._focused_probe_id = 1
             controller._dashboard = {
                 "automation": {
@@ -1217,6 +1250,42 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(automation["probeRoles"], {"1": "hub", "2": "miner"})
             self.assertEqual(automation["fleetStatus"], [{"model": "generic"}])
             self.assertEqual(automation["minimumFuelPercent"], 35)
+
+    def test_saving_targets_returns_before_persistence_runs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            started = []
+
+            class DeferredPool:
+                @staticmethod
+                def start(worker):
+                    started.append(worker)
+
+            engine = DataEngine(Path(temporary) / "settings-background.sqlite3")
+            service = type(
+                "Service",
+                (),
+                {
+                    "data_engine": engine,
+                    "automation_view": lambda self: {
+                        "mode": "observe", "liveExecutionEnabled": False,
+                    },
+                },
+            )()
+            controller = MissionControlController(service, DeferredPool())
+            controller._focused_probe_id = 1
+            controller._dashboard = {"automation": {}}
+
+            controller.saveAutomationSettings({"minimumFuelPercent": 42})
+
+            self.assertEqual(
+                DesiredStateStore(engine).load(1).fuel.minimum_percent, 20,
+            )
+            self.assertEqual(len(started), 1)
+            self.assertIn("SAVING AUTOMATION TARGETS", controller.operationNotice)
+            started[0].run()
+            self.assertEqual(
+                DesiredStateStore(engine).load(1).fuel.minimum_percent, 42,
+            )
 
     def test_resource_summary_uses_current_probe_fuel_and_inventory_amounts(self):
         resources = MissionControlViewModelBuilder._resources({

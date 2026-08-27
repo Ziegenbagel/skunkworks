@@ -21,6 +21,7 @@ PanelFrame {
     readonly property int standardProductionCardHeight: 500
     property string productionSort: "name"
     property var renderedRows: []
+    property bool renderedRowsRefreshPending: false
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)
@@ -198,11 +199,28 @@ PanelFrame {
         }
     }
 
-    onDashboardDataChanged: refreshRenderedRows()
-    onAvailableProbesChanged: refreshRenderedRows()
-    onFocusedProbeIdChanged: refreshRenderedRows()
-    onSectionChanged: refreshRenderedRows()
-    onProductionSortChanged: refreshRenderedRows()
+    function scheduleRenderedRowsRefresh() {
+        renderedRowsRefreshPending = true;
+        if (root.section === "PRODUCTION" && sectionGrid.moving)
+            return;
+        rowRefreshTimer.restart();
+    }
+
+    Timer {
+        id: rowRefreshTimer
+        interval: 80
+        repeat: false
+        onTriggered: {
+            root.renderedRowsRefreshPending = false;
+            root.refreshRenderedRows();
+        }
+    }
+
+    onDashboardDataChanged: scheduleRenderedRowsRefresh()
+    onAvailableProbesChanged: scheduleRenderedRowsRefresh()
+    onFocusedProbeIdChanged: scheduleRenderedRowsRefresh()
+    onSectionChanged: scheduleRenderedRowsRefresh()
+    onProductionSortChanged: scheduleRenderedRowsRefresh()
     Component.onCompleted: refreshRenderedRows()
 
     contentItem: Item {
@@ -435,6 +453,11 @@ PanelFrame {
                 // keeps long Manny rosters from laying out every large card on
                 // each countdown tick or dashboard refresh.
                 cacheBuffer: cellHeight
+                reuseItems: true
+                onMovementEnded: {
+                    if (root.renderedRowsRefreshPending)
+                        root.scheduleRenderedRowsRefresh();
+                }
 
                 delegate: Rectangle {
                             id: sectionRow

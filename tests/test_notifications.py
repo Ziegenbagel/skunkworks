@@ -2,6 +2,12 @@ from src.application.notifications import NotificationCoordinator, save_policy
 from src.ui.controller import MissionControlController
 
 
+class ImmediatePool:
+    @staticmethod
+    def start(worker):
+        worker.run()
+
+
 class Preferences:
     def __init__(self): self.values = {}
     def get_preference(self, key, default=None): return self.values.get(key, default)
@@ -33,7 +39,9 @@ def test_discoveries_and_approvals_respect_category_controls():
 
 def test_test_notification_requires_saved_policy_and_supported_delivery():
     preferences = Preferences()
-    controller = MissionControlController(settings_engine=preferences)
+    controller = MissionControlController(
+        settings_engine=preferences, thread_pool=ImmediatePool(),
+    )
     requested = []
     controller.desktopNotificationRequested.connect(
         lambda title, message: requested.append((title, message))
