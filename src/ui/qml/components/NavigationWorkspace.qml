@@ -18,6 +18,7 @@ PanelFrame {
     readonly property int standardProductionCardHeight: 500
     property string productionSort: "name"
     property var renderedRows: []
+    property int manualControlTabIndex: 0
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
     signal probeRoleAssigned(int probeId, string role)
@@ -67,6 +68,9 @@ PanelFrame {
     signal manualProbeAssemblyRequested(string mannyId, string model, var containerIds)
     signal asteroidTrajectoryRequested(string asteroidId, var payload)
     signal improvementBlueprintShareRequested(int networkId, string improvementId, int recipientProbeId)
+    signal missileLaunchRequested(string mannyId, string missileItemId, string targetId)
+    signal emergencyMissileEscapeChanged(bool enabled)
+    signal unusualMiningTargetApprovalRequested(string targetId, bool approved)
     signal makeDefaultProbeRequested()
     signal mindSnapshotReassignRequested()
     signal alertDeleteRequested(string alertId, string domain)
@@ -90,8 +94,8 @@ PanelFrame {
             return "COUNTDOWN  ·  " + root.countdown(eta);
         const overdue = root.countdown(root.currentEpochMs + (root.currentEpochMs - eta));
         if (Boolean(row.storageBlockRisk))
-            return "BLOCKED · INSUFFICIENT PROBE STORAGE · OVERDUE " + overdue;
-        return "OVERDUE  ·  " + overdue;
+            return "BLOCKED · INSUFFICIENT PROBE STORAGE · AWAITING SERVER COMPLETION " + overdue;
+        return "AWAITING SERVER COMPLETION  ·  " + overdue;
     }
 
     Timer {
@@ -284,6 +288,7 @@ PanelFrame {
             sourceComponent: Component {
                 ResourceWorkspace {
                     ledgerData: root.dashboardData.resourceLedger || ({})
+                    onUnusualMiningTargetApprovalRequested: (targetId, approved) => root.unusualMiningTargetApprovalRequested(targetId, approved)
                 }
             }
         }
@@ -313,6 +318,7 @@ PanelFrame {
             sourceComponent: Component {
                 ManualControlWorkspace {
                     dashboardData: root.dashboardData
+                    requestedTabIndex: root.manualControlTabIndex
                     probes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
                     onCraftRequested: (recipeId, mannyId) => root.manualCraftRequested(recipeId, mannyId)
@@ -328,6 +334,8 @@ PanelFrame {
                     onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
                     onAsteroidTrajectoryRequested: (asteroidId, payload) => root.asteroidTrajectoryRequested(asteroidId, payload)
                     onImprovementBlueprintShareRequested: (networkId, improvementId, recipientProbeId) => root.improvementBlueprintShareRequested(networkId, improvementId, recipientProbeId)
+                    onMissileLaunchRequested: (mannyId, missileItemId, targetId) => root.missileLaunchRequested(mannyId, missileItemId, targetId)
+                    onEmergencyMissileEscapeChanged: enabled => root.emergencyMissileEscapeChanged(enabled)
                 }
             }
         }

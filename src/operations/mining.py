@@ -12,6 +12,8 @@ class MiningService:
             "resources",
             [],
         ):
+            if target.get("requiresAutomationApproval") and not target.get("automationApproved"):
+                continue
             amount = target.get(
                 "resources",
                 {},

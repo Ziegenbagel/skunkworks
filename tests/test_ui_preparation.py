@@ -15,12 +15,42 @@ from src.ui.controller import (
     ManualCraftReservationConflict,
     MissionControlController,
     MissionControlDataService,
+    _EmergencyMissileEscapeWorker,
     _FleetAutomationWorker,
 )
 from tests.test_planner_missions import build_operations
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_emergency_missile_escape_revalidates_and_dispatches_exactly_once(self):
+        calls = []
+
+        class Service:
+            def load(self, probe_id, include_archival=False):
+                return {
+                    "focus": {"probeId": probe_id, "status": "idle", "sector": {"x": 0, "y": 0, "z": 0}},
+                    "probe": {"integrityPercent": 10},
+                    "inventoryManagement": {"targetedMissiles": ({"id": "missile-1"},)},
+                }
+
+            def preview_travel(self, probe_id, target, route_mode):
+                calls.append(("preview", probe_id, target, route_mode))
+                return {"blockers": [], "executionTarget": target}
+
+            def execute_travel(self, preview, risk_acknowledged=False):
+                calls.append(("execute", preview["executionTarget"], risk_acknowledged))
+
+        results = []
+        worker = _EmergencyMissileEscapeWorker(
+            7, ["missile-1"], service_factory=Service,
+        )
+        worker.signals.succeeded.connect(results.append)
+        worker.run()
+
+        self.assertEqual(sum(call[0] == "execute" for call in calls), 1)
+        self.assertTrue(next(call for call in calls if call[0] == "execute")[2])
+        self.assertEqual(results[0]["status"], "launched")
+
     def test_refresh_reconciles_sector_before_fetching_authoritative_manny_state(self):
         events = []
 
@@ -896,11 +926,11 @@ class UiPreparationTests(unittest.TestCase):
         notices = []
         controller._set_operation_notice = notices.append
 
-        controller._notify_unreviewed_api_version(117)
-        controller._notify_unreviewed_api_version(117)
+        controller._notify_unreviewed_api_version(123)
+        controller._notify_unreviewed_api_version(123)
 
         self.assertEqual(notices, [
-            "NEW GAME API v117 DETECTED · CONTINUING IN COMPATIBILITY MODE",
+            "NEW GAME API v123 DETECTED · CONTINUING IN COMPATIBILITY MODE",
         ])
 
     def test_production_includes_active_manny_crafting_and_mining(self):
@@ -1541,6 +1571,37 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(grouped["aggregateCount"], 2)
         self.assertEqual(grouped["aggregateIds"], ("empty-1", "empty-2"))
         self.assertIn("active", {item["id"] for item in view["objects"]})
+
+    def test_v122_sector_view_exposes_targeted_missile_and_planet_resources(self):
+        base = build_operations()
+        base.world.sector["resources"] = [{
+            "id": "planet-1", "name": "World One", "type": "planet",
+            "resources": {"metals": 12.345}, "classification": "persistent",
+        }]
+        base.world.sector["snapshot"] = {"sector": {
+            "knowledgeLevel": "detailed", "confidence": 1,
+            "objects": [
+                {"id": "missile-1", "type": "missile", "name": "missile-1",
+                 "targetKind": "probe", "targetId": "1",
+                 "impactAt": "2030-01-02T03:04:05+00:00",
+                 "targetsCurrentProbe": True},
+                {"id": "planet-1", "type": "planet", "name": "World One",
+                 "mannyMineable": True,
+                 "resourceTypes": ["metals"],
+                 "resourceAmounts": {"metals": 12.345}},
+            ],
+        }}
+
+        builder = MissionControlViewModelBuilder(base)
+        sector = builder._sector_view(base.world, {"x": 0, "y": 0, "z": 0})
+        inventory = builder._inventory_management(base.world)
+        ledger = builder._resource_ledger(base.world)
+
+        self.assertEqual(sector["targetedMissiles"][0]["id"], "missile-1")
+        self.assertGreater(sector["targetedMissiles"][0]["impactEpochMs"], 0)
+        self.assertIn("planet-1", {item["id"] for item in inventory["inspectableObjects"]})
+        self.assertIn("planet-1", {item["id"] for item in inventory["miningTargets"]})
+        self.assertEqual(builder._sector_resource_totals(ledger, "planet")[1]["amount"], 12.345)
 
     def test_sector_view_exposes_black_hole_destruction_deadline(self):
         base = build_operations()

@@ -387,6 +387,42 @@ The complete procedure is authoritative in `docs/development-workflow.md`.
 
 ## API and Safety Invariants
 
+### Missile response remains explicit, probe-scoped, and restart-safe
+
+`weapon_targeted` and sector missiles with `targetsCurrentProbe=true` are live
+critical safety state for the focused probe. They replace the Live Sector view
+with an impact countdown and a direct route to Combat Control, but do not emit
+an operating-system desktop notification in 1.0.6. Missile launches remain
+manual, require the operator to type `Confirm`, and revalidate the selected
+Manny, inventory missile, and public target identifier at dispatch.
+
+Emergency missile escape is a separate per-probe opt-in. It may issue at most
+one random nearest-sector jump for a newly observed missile identifier, only
+after fresh live revalidation confirms the probe is idle, sufficiently fueled,
+and at least 10% intact. The ordinary emergency stop disables it.
+
+### API impossibility is not an overridable safety preference
+
+API v121 requires at least 10% probe integrity to prepare movement. Skunkworks
+locally blocks values strictly below 10%; exactly 10% remains eligible. Safety
+profiles cannot override an authoritative game rejection.
+
+### Unusual mineable structures require automation approval
+
+Planets and asteroids exposed as Manny-mineable are ordinary mining sources.
+Automatic mining ignores abandoned or unusual artificial structures until the
+operator explicitly approves the opaque object ID in Resources.
+
+Relevant code/tests:
+
+- `src/api/gateways/probes.py`
+- `src/operations/travel.py`
+- `src/operations/mining.py`
+- `src/ui/controller.py`
+- `tests/test_api_gateways.py`
+- `tests/test_planner_missions.py`
+- `tests/test_ui_preparation.py`
+
 - Explicit probe ID is required at every probe-scoped gateway.
 - Read the operating-system credential vault at most once per application
   process. UI property reevaluation and worker/service construction must reuse

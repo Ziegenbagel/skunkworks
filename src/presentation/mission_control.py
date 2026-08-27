@@ -86,14 +86,21 @@ class MissionControlViewModelBuilder:
             "communications": self._communications(probe),
         }
         result["navigation"] = self.navigation_view()
-        result["sectorResources"] = self._sector_resource_totals(result["resourceLedger"])
+        result["sectorResources"] = self._sector_resource_totals(
+            result["resourceLedger"], source_type="asteroid",
+        )
+        result["planetaryResources"] = self._sector_resource_totals(
+            result["resourceLedger"], source_type="planet",
+        )
         return result
 
     @staticmethod
-    def _sector_resource_totals(ledger):
+    def _sector_resource_totals(ledger, source_type=None):
         totals = {"deuterium": 0.0, "metals": 0.0, "ice": 0.0, "carbon_compounds": 0.0}
         for row in ledger.get("rows", ()):
             if row.get("scope") != "natural_deposit":
+                continue
+            if source_type is not None and row.get("sourceType") != source_type:
                 continue
             for resource_type, amount in (row.get("resources") or {}).items():
                 key = MissionControlViewModelBuilder._normalized_resource_type(resource_type)
@@ -176,6 +183,8 @@ class MissionControlViewModelBuilder:
         launchable_asteroids = []
         sculptable_asteroids = []
         impact_targets = []
+        missile_targets = []
+        moving_missiles = []
         asteroid_trajectories = []
         seen_targets = set()
         seen_recoverable = set()
@@ -188,6 +197,8 @@ class MissionControlViewModelBuilder:
                     r"([a-z0-9])([A-Z])", r"\1_\2", str(value.get("type", ""))
                 ).strip().lower().replace("-", "_").replace(" ", "_")
                 target_kind = "planet" if "planet" in target_type else "asteroid" if "asteroid" in target_type else ""
+                if not target_kind and value.get("mannyMineable", False):
+                    target_kind = target_type or "mineable_object"
                 target_id = str(value.get("id", ""))
                 if target_id and target_type in {"star", "planet", "asteroid", "probe"}:
                     impact_targets.append({
@@ -198,6 +209,33 @@ class MissionControlViewModelBuilder:
                             f" · {target_type.replace('_', ' ').upper()}"
                         ),
                         "type": target_type,
+                    })
+                combat_target_type = (
+                    "motorized_asteroid"
+                    if target_type == "asteroid" and value.get("motorized", False)
+                    else target_type
+                )
+                if target_id and combat_target_type in {
+                    "probe", "manny", "missile", "others_ship",
+                    "others_auxiliary", "motorized_asteroid",
+                }:
+                    missile_targets.append({
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or target_id,
+                        "type": combat_target_type,
+                        "label": f"{value.get('name') or value.get('summary') or target_id} · {combat_target_type.replace('_', ' ').upper()}",
+                    })
+                if target_type == "missile" and target_id:
+                    moving_missiles.append({
+                        "id": target_id,
+                        "name": value.get("name") or target_id,
+                        "launcherKind": value.get("launcherKind", "unknown"),
+                        "targetKind": value.get("targetKind", "unknown"),
+                        "targetId": str(value.get("targetId", "")),
+                        "launchedAt": value.get("launchedAt"),
+                        "impactAt": value.get("impactAt"),
+                        "impactEpochMs": MissionControlViewModelBuilder._iso_epoch_ms(value.get("impactAt")),
+                        "targetsCurrentProbe": bool(value.get("targetsCurrentProbe", False)),
                     })
                 if target_type == "asteroid" and target_id:
                     asteroid = {
@@ -259,7 +297,7 @@ class MissionControlViewModelBuilder:
                         "name": value.get("name") or value.get("summary") or f"{target_type.replace('_', ' ').title()} · {target_id}",
                         "type": target_type or "celestial_object",
                     })
-                if target_type in {"asteroid", "detached_container", "dormant_construct"} and target_id and target_id not in seen_inspectable:
+                if target_type in {"planet", "asteroid", "detached_container", "dormant_construct"} and target_id and target_id not in seen_inspectable:
                     seen_inspectable.add(target_id)
                     inspectable_objects.append({
                         "id": target_id,
@@ -288,7 +326,20 @@ class MissionControlViewModelBuilder:
                 collect_targets(value.get("bookmarkTargets"), bookmark_candidates=True)
         collect_targets(snapshot.get("objects"))
         collect_targets(snapshot.get("minableTargets"))
+        for candidate in snapshot.get("probes", ()) or ():
+            if candidate.get("owned", False) or not candidate.get("id"):
+                continue
+            candidate_name = candidate.get("name") or f"Probe {candidate['id']}"
+            missile_targets.append({
+                "id": str(candidate["id"]),
+                "name": candidate_name,
+                "type": "probe",
+                "label": f"{candidate_name} · PROBE",
+            })
         detached = tuple(item for item in recoverable_objects if "container" in item["type"])
+        missile_items = tuple(
+            item for item in items if str(item.get("type", "")).casefold() == "missile"
+        )
         return {
             "probeId": world.probe.get("id"),
             "probeName": world.probe.get("name", "Probe"),
@@ -320,6 +371,10 @@ class MissionControlViewModelBuilder:
             "sculptableAsteroids": tuple({item["id"]: item for item in sculptable_asteroids}.values()),
             "asteroidImpactTargets": tuple({item["id"]: item for item in impact_targets}.values()),
             "asteroidTrajectories": tuple({item.get("id"): item for item in asteroid_trajectories if item}.values()),
+            "missileItems": missile_items,
+            "missileTargets": tuple({item["id"]: item for item in missile_targets}.values()),
+            "movingMissiles": tuple({item["id"]: item for item in moving_missiles}.values()),
+            "targetedMissiles": tuple(item for item in moving_missiles if item["targetsCurrentProbe"]),
             "asteroidMotorizationAvailable": any(
                 improvement.get("id") == "distributed_thrust_anchoring"
                 and improvement.get("available", False)
@@ -400,11 +455,15 @@ class MissionControlViewModelBuilder:
             ]
             rows.append({
                 "scope": "natural_deposit",
+                "objectId": str(target.get("id", "")),
                 "title": target.get("name") or target.get("id", "Mineable object"),
                 "detail": "\n".join(reserve_lines) if reserve_lines else "No remaining mineable resources",
                 "sourceType": target.get("type", "mineable_object"),
                 "classification": target.get("classification", "observed"),
                 "resources": amounts,
+                "harvestedByOthers": bool(target.get("harvestedByOthers", False)),
+                "requiresAutomationApproval": bool(target.get("requiresAutomationApproval", False)),
+                "automationApproved": bool(target.get("automationApproved", False)),
             })
 
         snapshot = world.sector.get("snapshot") or {}
@@ -666,6 +725,15 @@ class MissionControlViewModelBuilder:
         return int(datetime.now().timestamp() * 1000 + max(0, seconds) * 1000)
 
     @staticmethod
+    def _iso_epoch_ms(value):
+        if not value:
+            return 0
+        try:
+            return int(datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp() * 1000)
+        except (TypeError, ValueError):
+            return 0
+
+    @staticmethod
     def _normalized_resource_type(value):
         normalized = str(value or "").strip().casefold().replace(" ", "_").replace("-", "_")
         if normalized in {
@@ -857,6 +925,7 @@ class MissionControlViewModelBuilder:
         system = None
         sector_objects = sector.get("objects", ()) or ()
         black_holes = []
+        nested_ids = set()
         for item in sector_objects:
             view = self._sector_object(item)
             if str(item.get("type", "")).casefold() == "black_hole":
@@ -867,9 +936,22 @@ class MissionControlViewModelBuilder:
                     "systemId": str(item.get("id") or item.get("name") or "UNKNOWN"),
                 }
             else:
-                view["layoutRole"] = "free_object"
+                is_planet = "planet" in str(item.get("type", "")).casefold()
+                view["layoutRole"] = "orbital_body" if is_planet else "free_object"
+                if is_planet:
+                    view["orbitIndex"] = len(nested_ids)
+                    nested_ids.add(str(item.get("id", f"planet-{len(nested_ids)}")))
                 objects.append(view)
-            for orbit_index, child in enumerate(item.get("bookmarkTargets", ()) or ()):
+            nested_candidates = list(item.get("bookmarkTargets", ()) or ())
+            nested_candidates.extend(item.get("minableTargets", ()) or ())
+            nested_candidates.extend(item.get("objects", ()) or ())
+            for child in nested_candidates:
+                child_id = str(child.get("id", ""))
+                if child_id and child_id in nested_ids:
+                    continue
+                if child_id:
+                    nested_ids.add(child_id)
+                orbit_index = len(nested_ids) - 1
                 nested = self._sector_object(child)
                 nested["parentId"] = item.get("id")
                 nested["layoutRole"] = "orbital_body"
@@ -903,6 +985,11 @@ class MissionControlViewModelBuilder:
             "knowledgeLevel": sector.get("knowledgeLevel", "unknown"),
             "confidence": float(sector.get("confidence", 0) or 0),
             "objects": tuple(objects),
+            "targetedMissiles": tuple(
+                item for item in objects
+                if str(item.get("type", "")).casefold() == "missile"
+                and item.get("targetsCurrentProbe", False)
+            ),
             "system": system or {},
             "activeMannies": tuple(active_mannies),
             "blackHoleDanger": bool(black_holes),
@@ -922,7 +1009,11 @@ class MissionControlViewModelBuilder:
         for item in objects:
             resources = item.get("resources")
             is_asteroid = str(item.get("type", "")).casefold() == "asteroid"
-            depleted = is_asteroid and isinstance(resources, dict) and bool(resources)
+            depleted = is_asteroid and (
+                item.get("status") == "depleted"
+                or item.get("depleted") is True
+                or (isinstance(resources, dict) and bool(resources))
+            )
             if depleted:
                 for amount in resources.values():
                     try:
@@ -1116,18 +1207,43 @@ class MissionControlViewModelBuilder:
 
     @staticmethod
     def _sector_object(item):
-        return {
+        view = {
             "id": str(item.get("id", "unknown")),
             "type": item.get("type", "unknown"),
             "name": item.get("name") or item.get("summary") or item.get("type", "Unknown").replace("_", " ").title(),
             "category": item.get("category"),
+            "mass": item.get("mass"),
+            "massUnit": item.get("massUnit"),
+            "radius": item.get("radius"),
+            "radiusUnit": item.get("radiusUnit"),
             "estimated": bool(item.get("estimated", False)),
             "dangerLevel": item.get("dangerLevel", "unknown"),
-            "resources": item.get("resources") or item.get("resourceAmounts") or {},
+            # API v122 supplies both human resource hints and authoritative
+            # remaining amounts. Depletion/grouping must use the latter even
+            # when the hint list is non-empty (including older persisted scans).
+            "resources": (
+                item.get("resourceAmounts")
+                if "resourceAmounts" in item
+                else item.get("resources") or {}
+            ),
             "mode": item.get("mode"),
             "status": item.get("status"),
             "isTransitBeacon": bool(item.get("isTransitBeacon", False)),
+            "resourceTypes": tuple(item.get("resourceTypes") or ()),
+            "resourceComposition": item.get("resourceComposition") or {},
+            "resourceAmounts": item.get("resourceAmounts") or {},
+            "habitabilityScore": item.get("habitabilityScore"),
+            "mannyMineable": bool(item.get("mannyMineable", False)),
+            "harvestedByOthers": bool(item.get("harvestedByOthers", False)),
+            "launcherKind": item.get("launcherKind"),
+            "targetKind": item.get("targetKind"),
+            "targetId": str(item.get("targetId", "")),
+            "launchedAt": item.get("launchedAt"),
+            "impactAt": item.get("impactAt"),
+            "impactEpochMs": MissionControlViewModelBuilder._iso_epoch_ms(item.get("impactAt")),
+            "targetsCurrentProbe": bool(item.get("targetsCurrentProbe", False)),
         }
+        return view
 
     def _event_alerts(self):
         alerts = []
@@ -1135,12 +1251,14 @@ class MissionControlViewModelBuilder:
             if event["domain"] not in {"alerts", "damage_warnings"}:
                 continue
             payload = event.get("payload", {})
+            phase = str(payload.get("phase") or payload.get("code") or "")
             alerts.append({
                 "id": str(event.get("id", "event")),
                 "domain": event["domain"],
                 "deletable": True,
-                "code": str(payload.get("code") or event.get("id", "event")),
-                "severity": payload.get("severity", event.get("priority", "warning")),
+                "code": str(payload.get("code") or phase or event.get("id", "event")),
+                "phase": phase,
+                "severity": "critical" if phase == "weapon_targeted" else payload.get("severity", event.get("priority", "warning")),
                 "summary": payload.get("title") or payload.get("message") or payload.get("summary") or event["domain"].replace("_", " ").title(),
                 "illustrationImageUrl": payload.get("illustrationImageUrl"),
                 "entity_id": payload.get("probeId"),
@@ -1500,6 +1618,9 @@ class MissionControlViewModelBuilder:
                 lines.append(f"Deposited: {task['depositedAmount']} ECE (commits at completion)")
             if progress < 100 and float(task.get("depositedAmount", 0) or 0) == 0:
                 lines.append("Delivery: commits atomically at the final task deadline")
+        recall_reason = str(task.get("reason") or task.get("returnReason") or "")
+        if recall_reason == "target_container_departed_with_asteroid":
+            lines.append("Recall reason: Target container departed with motorized asteroid")
         return "\n".join(lines)
 
     @staticmethod

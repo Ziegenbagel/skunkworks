@@ -351,8 +351,8 @@ Item {
                 Label {
                     Layout.columnSpan: 3; Layout.fillWidth: true
                     text: inspectionObject.count
-                        ? "Sends the selected idle Manny to inspect an asteroid, detached container, or dormant construct without beginning a mining order."
-                        : "No inspectable asteroid, detached container, or dormant construct is visible in the current detailed sector scan."
+                        ? "Sends the selected idle Manny to inspect a planet, asteroid, detached container, or dormant construct without beginning a mining order."
+                        : "No inspectable planet, asteroid, detached container, or dormant construct is visible in the current detailed sector scan."
                     color: inspectionObject.count ? Constants.mutedTextColor : Constants.warningColor
                     wrapMode: Text.Wrap
                 }
@@ -380,15 +380,22 @@ Item {
                 ComboBox { id: transferManny; textRole: "name"; valueRole: "id"; model: root.idleMannies; Layout.fillWidth: true }
                 Label { text: "DEUTERIUM AMOUNT"; color: Constants.textColor }
                 RowLayout {
-                    SpinBox { id: deuteriumAmount; from: 1; to: Math.max(1, Math.floor(root.deuterium * 100) - 1); value: 1; editable: true }
-                    Label { text: "× 0.01 ECE"; color: Constants.mutedTextColor }
+                    TextField {
+                        id: deuteriumAmount
+                        Layout.preferredWidth: 150
+                        text: "0.01"
+                        placeholderText: "26.67"
+                        inputMethodHints: Qt.ImhFormattedNumbersOnly
+                        validator: DoubleValidator { bottom: 0.01; top: Math.max(0.01, root.deuterium - 0.01); decimals: 2; notation: DoubleValidator.StandardNotation }
+                    }
+                    Label { text: "ECE"; color: Constants.mutedTextColor }
                 }
                 Label { Layout.fillWidth: true; text: "SOURCE RESERVE · " + root.deuterium.toFixed(2) + " ECE"; color: Constants.warningColor; wrapMode: Text.Wrap }
                 Button {
                     text: "REVIEW FUEL TRANSFER"
                     enabled: root.selectedIntegerId(targetProbe) > 0 && transferManny.count > 0 && root.deuterium > 0.01
                     onClicked: {
-                        root.pendingTransferOrder = {"action":"transfer-deuterium-to-probe", "mannyId":String(transferManny.currentValue), "payload":{"targetProbeId":root.selectedIntegerId(targetProbe), "amount":Number(deuteriumAmount.value) / 100}};
+                        root.pendingTransferOrder = {"action":"transfer-deuterium-to-probe", "mannyId":String(transferManny.currentValue), "payload":{"targetProbeId":root.selectedIntegerId(targetProbe), "amount":Number(deuteriumAmount.text)}};
                         transferConfirmation.open();
                     }
                 }

@@ -34,6 +34,7 @@ ApplicationWindow {
         connectionError: window.backend ? window.backend.error : ""
         emergencyStopActive: window.backend ? window.backend.emergencyStopActive : false
         visible: !startupOverlay.visible
+        onCombatControlsRequested: if (window.backend) window.backend.setActiveSection("MANUAL CONTROL")
     }
 
     Rectangle {
@@ -435,6 +436,24 @@ ApplicationWindow {
             AudioManager.play("confirm");
             if (window.backend)
                 window.backend.shareImprovementBlueprint(networkId, improvementId, recipientProbeId);
+        }
+
+        function onMissileLaunchRequested(mannyId, missileItemId, targetId) {
+            AudioManager.play("warning");
+            if (window.backend)
+                window.backend.launchMissile(mannyId, missileItemId, targetId);
+        }
+
+        function onEmergencyMissileEscapeChanged(enabled) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.setEmergencyMissileEscapeEnabled(enabled);
+        }
+
+        function onUnusualMiningTargetApprovalRequested(targetId, approved) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.setUnusualMiningTargetApproval(targetId, approved);
         }
 
         function onMakeDefaultProbeRequested() {

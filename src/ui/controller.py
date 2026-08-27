@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import traceback
 import json
+import random
 import re
 import sys
 import time
@@ -226,6 +227,21 @@ class MissionControlDataService:
                 ),
             )
             self._hazard_cache[selected_id] = (now, world.hazard_context)
+
+        try:
+            approved_unusual_targets = set(json.loads(
+                self.data_engine.get_preference(
+                    f"approved_unusual_mining_targets:{selected_id}", "[]",
+                ) or "[]"
+            ))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            approved_unusual_targets = set()
+        for target in world.sector.get("resources", ()):
+            unusual = str(target.get("type", "")).casefold() not in {"asteroid", "planet"}
+            target["requiresAutomationApproval"] = unusual
+            target["automationApproved"] = (
+                not unusual or str(target.get("id")) in approved_unusual_targets
+            )
 
         operations = Operations(
             world,
@@ -2219,6 +2235,58 @@ class MissionControlDataService:
             self._selected_probe_id, asteroid_id, payload,
         )
 
+    def launch_missile(self, manny_id, missile_item_id, target_id):
+        if not manny_id or not missile_item_id or not target_id:
+            raise ValueError("Select an idle Manny, one missile, and a local target.")
+        inventory = self._operations.world.probe.get("inventory", {}) if self._operations else {}
+        missile_ids = {
+            str(item.get("id")) for item in inventory.get("items", ())
+            if str(item.get("type", "")).casefold() == "missile"
+        }
+        if str(missile_item_id) not in missile_ids:
+            raise ValueError("The selected missile is no longer in focused-probe storage. Refresh and review again.")
+        idle_manny_ids = {
+            str(item.get("id")) for item in (self._operations.world.mannies or {}).get("mannies", ())
+            if item.get("currentTask") is None and item.get("canReceiveOrders", False)
+        }
+        if str(manny_id) not in idle_manny_ids:
+            raise ValueError("The selected Manny is no longer idle and ready. Refresh and review again.")
+        snapshot = (self._operations.world.sector.get("snapshot") or {}).get("sector", {})
+        visible_target_ids = set()
+
+        def collect(values):
+            for value in values or ():
+                if value.get("id") not in {None, ""}:
+                    visible_target_ids.add(str(value["id"]))
+                collect(value.get("objects"))
+                collect(value.get("minableTargets"))
+
+        collect(snapshot.get("objects"))
+        for probe in snapshot.get("probes", ()) or ():
+            if not probe.get("owned", False) and probe.get("id") not in {None, ""}:
+                visible_target_ids.add(str(probe["id"]))
+        if str(target_id) not in visible_target_ids:
+            raise ValueError("The confirmed target is no longer locally detected. Refresh and review again.")
+        return self.capabilities.probes.launch_missile(
+            self._selected_probe_id, manny_id, missile_item_id, target_id,
+        )
+
+    def set_unusual_mining_target_approval(self, target_id, approved):
+        target_id = str(target_id or "")
+        if not target_id:
+            raise ValueError("Select an unusual resource target.")
+        key = f"approved_unusual_mining_targets:{self._selected_probe_id}"
+        try:
+            values = set(json.loads(self.data_engine.get_preference(key, "[]") or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            values = set()
+        if approved:
+            values.add(target_id)
+        else:
+            values.discard(target_id)
+        self.data_engine.set_preference(key, json.dumps(sorted(values)))
+        return {"targetId": target_id, "approved": bool(approved)}
+
     def share_improvement_blueprint(
         self, network_id, improvement_id, recipient_probe_id,
     ):
@@ -2829,6 +2897,64 @@ class _AutomationCycleWorker(QRunnable):
         _safe_emit(self.signals.succeeded, result)
 
 
+class _EmergencyMissileEscapeWorker(QRunnable):
+    """Revalidate a targeted missile and issue one explicitly opted-in escape."""
+
+    def __init__(self, probe_id, missile_ids, service_factory=MissionControlDataService):
+        super().__init__()
+        self.probe_id = int(probe_id)
+        self.missile_ids = tuple(str(value) for value in missile_ids)
+        self.service_factory = service_factory
+        self.signals = _WorkerSignals()
+
+    def run(self):
+        try:
+            service = self.service_factory()
+            payload = service.load(self.probe_id, include_archival=False)
+            live = payload.get("inventoryManagement", {}).get("targetedMissiles", ())
+            live_ids = {str(item.get("id")) for item in live}
+            if not live_ids.intersection(self.missile_ids):
+                _safe_emit(self.signals.succeeded, {"status": "threat_cleared", "missileIds": []})
+                return
+            focus = payload.get("focus", {})
+            probe = payload.get("probe", {})
+            if str(focus.get("status", "")).casefold() != "idle":
+                raise RuntimeError("the targeted probe is not idle")
+            if float(probe.get("integrityPercent", 0) or 0) < 10:
+                raise RuntimeError("probe integrity is below the API minimum of 10%")
+            current = SectorCoordinates.from_api(focus.get("sector") or {})
+            candidates = list(current.neighbors())
+            random.SystemRandom().shuffle(candidates)
+            failures = []
+            selected_preview = None
+            for target in candidates:
+                try:
+                    preview = service.preview_travel(
+                        self.probe_id,
+                        {"x": target.x, "y": target.y, "z": target.z},
+                        "direct",
+                    )
+                    if preview.get("blockers"):
+                        failures.extend(preview["blockers"])
+                        continue
+                    selected_preview = preview
+                    break
+                except Exception as error:
+                    failures.append(str(error) or type(error).__name__)
+            if selected_preview is None:
+                raise RuntimeError("no eligible nearest-sector jump was found: " + " · ".join(failures[-3:]))
+            # Dispatch exactly once. A timeout is ambiguous and must never
+            # cause a second movement order toward a different random sector.
+            service.execute_travel(selected_preview, risk_acknowledged=True)
+            _safe_emit(self.signals.succeeded, {
+                "status": "launched", "missileIds": sorted(live_ids),
+                "target": selected_preview["executionTarget"],
+            })
+        except Exception as error:
+            traceback.print_exc()
+            _safe_emit(self.signals.failed, str(error) or type(error).__name__)
+
+
 class MissionControlController(QObject):
     """Asynchronous QObject consumed by App.qml."""
 
@@ -2902,6 +3028,7 @@ class MissionControlController(QObject):
         self._fleet_automation_cursor = 0
         self._maximum_probes_per_fleet_cycle = 4
         self._automation_cycle_worker = None
+        self._emergency_escape_worker = None
         self._compatibility_timer = QTimer(self)
         self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
         self._compatibility_timer.timeout.connect(self._start_compatibility_check)
@@ -4282,6 +4409,61 @@ class MissionControlController(QObject):
             asteroid_id, self._qt_safe(payload),
         ))
 
+    @Slot(str, str, str)
+    def launchMissile(self, manny_id, missile_item_id, target_id):
+        self._inventory_mutation(lambda: self.service.launch_missile(
+            manny_id, missile_item_id, target_id,
+        ), "MISSILE PREPARATION ACCEPTED · AWAITING SERVER COMPLETION")
+
+    @Slot(bool)
+    def setEmergencyMissileEscapeEnabled(self, enabled):
+        if self._focused_probe_id < 0:
+            self._set_error("Select a focused probe before changing combat safety.")
+            return
+        self.settings_engine.set_preference(
+            f"emergency_missile_escape:{self._focused_probe_id}",
+            "true" if enabled else "false",
+        )
+        combat = dict(self._dashboard.get("combatSafety", {}))
+        combat["emergencyMissileEscapeEnabled"] = bool(enabled)
+        self._dashboard["combatSafety"] = combat
+        self.dashboardChanged.emit()
+        self._set_operation_notice(
+            "EMERGENCY MISSILE ESCAPE " + ("ARMED" if enabled else "DISARMED")
+        )
+        if enabled:
+            self._arm_emergency_missile_escape()
+
+    @Slot(str, bool)
+    def setUnusualMiningTargetApproval(self, target_id, approved):
+        target_id = str(target_id or "")
+        if not target_id or self._focused_probe_id < 0:
+            self._set_error("Select a focused unusual resource target.")
+            return
+        key = f"approved_unusual_mining_targets:{self._focused_probe_id}"
+        try:
+            values = set(json.loads(self.settings_engine.get_preference(key, "[]") or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            values = set()
+        if approved:
+            values.add(target_id)
+        else:
+            values.discard(target_id)
+        serialized = json.dumps(sorted(values))
+        self.settings_engine.set_preference(key, serialized)
+        if self.service is not None and self.service.data_engine is not self.settings_engine:
+            self.service.data_engine.set_preference(key, serialized)
+        ledger = dict(self._dashboard.get("resourceLedger", {}))
+        ledger["rows"] = tuple(
+            {**row, "automationApproved": bool(approved)}
+            if str(row.get("objectId")) == target_id else row
+            for row in ledger.get("rows", ())
+        )
+        self._dashboard["resourceLedger"] = ledger
+        self.dashboardChanged.emit()
+        self._set_error("")
+        self._set_operation_notice("MINING AUTOMATION TARGET APPROVAL SAVED")
+
     @Slot(int, str, int)
     def shareImprovementBlueprint(
         self, network_id, improvement_id, recipient_probe_id,
@@ -4500,6 +4682,12 @@ class MissionControlController(QObject):
             "source": self.credentialSource,
             "message": self.credentialMessage,
         }
+        focus_probe_id = int((payload.get("focus") or {}).get("probeId", -1))
+        payload["combatSafety"] = {
+            "emergencyMissileEscapeEnabled": self.settings_engine.get_preference(
+                f"emergency_missile_escape:{focus_probe_id}", "false",
+            ) == "true",
+        }
         self._dashboard = payload
         if previous_last_result is not None:
             runtime = dict(self._dashboard.get("automationRuntime", {}))
@@ -4683,7 +4871,52 @@ class MissionControlController(QObject):
             if cached_id in active_probe_ids
         }
         self.dashboardChanged.emit()
+        self._arm_emergency_missile_escape()
         self._finish_refresh()
+
+    def _arm_emergency_missile_escape(self):
+        if self._emergency_stop or self._emergency_escape_worker is not None:
+            return
+        if not self._dashboard.get("combatSafety", {}).get("emergencyMissileEscapeEnabled"):
+            return
+        missiles = self._dashboard.get("inventoryManagement", {}).get("targetedMissiles", ())
+        handled_key = f"emergency_missile_escape_handled:{self._focused_probe_id}"
+        try:
+            handled = set(json.loads(self.settings_engine.get_preference(handled_key, "[]") or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            handled = set()
+        pending = [str(item.get("id")) for item in missiles if str(item.get("id")) not in handled]
+        if not pending:
+            return
+        worker = _EmergencyMissileEscapeWorker(self._focused_probe_id, pending)
+        worker.signals.succeeded.connect(self._accept_emergency_missile_escape)
+        worker.signals.failed.connect(self._reject_emergency_missile_escape)
+        self._emergency_escape_worker = worker
+        self._set_operation_notice("MISSILE TARGET LOCK · EMERGENCY ESCAPE REVALIDATING")
+        self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_emergency_missile_escape(self, result):
+        self._emergency_escape_worker = None
+        if result.get("status") != "launched":
+            return
+        key = f"emergency_missile_escape_handled:{self._focused_probe_id}"
+        try:
+            handled = set(json.loads(self.settings_engine.get_preference(key, "[]") or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            handled = set()
+        handled.update(str(value) for value in result.get("missileIds", ()))
+        self.settings_engine.set_preference(key, json.dumps(sorted(handled)[-100:]))
+        target = result.get("target") or {}
+        self._set_operation_notice(
+            f"EMERGENCY ESCAPE ACCEPTED · FCC {target.get('x')} / {target.get('y')} / {target.get('z')} · SYNCING"
+        )
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot(str)
+    def _reject_emergency_missile_escape(self, message):
+        self._emergency_escape_worker = None
+        self._set_error("EMERGENCY MISSILE ESCAPE NOT SENT · " + message)
 
     def _unseen_manny_ids(self, payload):
         """Return focused-probe Mannys absent from its persisted naming history."""

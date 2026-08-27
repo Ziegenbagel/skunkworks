@@ -175,6 +175,15 @@ def test_automation_targets_include_integrated_circuits():
     assert 'text: "INTEGRATED CIRCUITS"' in settings
 
 
+def test_automation_targets_include_missile_stockpiles_without_launch_automation():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+
+    assert 'productionQuantity("missile")' in settings
+    assert '"recipeId": "missile"' in settings
+    assert 'text: "MISSILES"' in settings
+    assert "Launching remains a separately confirmed manual combat action" in settings
+
+
 def test_manual_field_operations_expose_sector_object_inspection():
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
     manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
@@ -857,3 +866,29 @@ def test_resource_ledger_avoids_content_dependent_quick_layouts():
     assert "width: resourceScroll.availableWidth" in workspace
     assert "GridLayout {\n                        id: resourceGrid" not in workspace
     assert "ColumnLayout {\n                    width: root.width - 20" not in workspace
+
+
+def test_v122_combat_control_and_targeted_warning_are_wired_without_desktop_notification():
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
+
+    assert 'TabButton { text: "COMBAT CONTROL SYSTEMS" }' in manual
+    assert "TYPE CONFIRM TO LAUNCH MISSILE" in manual
+    assert "OPT-IN EMERGENCY MISSILE ESCAPE" in manual
+    assert "MISSILE TARGETING THIS PROBE" in sector
+    assert "OPEN COMBAT CONTROL SYSTEMS" in sector
+    assert "launchMissile" in controller
+    assert "desktop" not in manual.lower()
+
+
+def test_operator_amounts_and_scheduler_language_are_human_scaled():
+    fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+
+    assert 'placeholderText: "26.67"' in fleet
+    assert 'Label { text: "ECE"' in fleet
+    assert "× 0.01 ECE" not in fleet[fleet.index('title: "SAME-SECTOR PROBE TRANSFERS"'):]
+    assert "AWAITING SERVER COMPLETION" in navigation
+    assert "Number(item.quantity || 0).toFixed(2)" in manual

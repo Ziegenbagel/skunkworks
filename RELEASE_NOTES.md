@@ -1,4 +1,30 @@
-# Skunkworks 1.0.5
+# Skunkworks 1.0.6
+
+Skunkworks 1.0.6 reviews and integrates Von Neumann Game API v116–v122. Manual
+Control adds a fifth **Combat Control Systems** tab for explicitly confirmed
+probe missile launches, moving-projectile telemetry, and a per-probe opt-in
+emergency escape to a random eligible nearest sector.
+Missiles are also available as ordinary production stockpile targets; crafting
+them does not authorize Skunkworks to launch them.
+
+When a missile targets the focused probe, its critical warning replaces Live
+Sector with an impact countdown and a button that opens Combat Control
+directly. Missile alerts remain in-app in this patch; operating-system desktop
+notifications remain planned for 1.1.
+
+Movement is blocked locally below the API's exact 10% integrity threshold.
+Expired task timers now say **Awaiting Server Completion**. Planets are
+selectable on Live Sector, expose detailed resource information, can be
+inspected and mined when the API permits it, and contribute a separate
+planetary resource count. Unusual artificial mining targets require explicit
+approval under Resources.
+
+The patch also fixes depleted-asteroid grouping when older observations carry
+both resource hints and zero authoritative amounts, accepts direct decimal ECE
+values for same-sector Deuterium transfers, and rounds recipe raw-resource
+totals to two decimals.
+
+## Skunkworks 1.0.5
 
 Skunkworks 1.0.5 keeps the development footer synchronized with the version in
 the active source tree, adds Integrated Circuits to automation production

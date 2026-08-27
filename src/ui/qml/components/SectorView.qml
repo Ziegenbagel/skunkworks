@@ -5,6 +5,7 @@ import ".."
 
 Rectangle {
     id: root
+    signal combatControlsRequested()
     property bool previewMode: true
     property var sectorData: ({})
     property var focusProbe: ({"name": "Manny One", "model": "generic"})
@@ -22,8 +23,10 @@ Rectangle {
     property string sectorLabel: "FCC 0 / 0 / 0"
     property string connectionState: "connected"
     property double currentEpochMs: Date.now()
+    property var selectedPlanet: ({})
     readonly property bool probeInTransit: ["preparing", "accelerating", "cruising", "decelerating", "traveling"].indexOf(String(focusProbe.status || "").toLowerCase()) >= 0
     readonly property bool blackHoleDanger: Boolean(sectorData.blackHoleDanger)
+    readonly property var targetedMissiles: sectorData.targetedMissiles || []
     function headingLabel(value) { return value && typeof value === "object" ? [value.x || 0, value.y || 0, value.z || 0].join(":") : String(value || "—"); }
     function remainingLabel(movement) {
         if (Number(movement.arrivalEpochMs || 0) > 0) {
@@ -69,7 +72,7 @@ Rectangle {
 
     Timer {
         interval: 1000
-        running: root.visible && (root.probeInTransit || root.blackHoleDanger)
+        running: root.visible && (root.probeInTransit || root.blackHoleDanger || root.targetedMissiles.length > 0)
         repeat: true
         triggeredOnStart: true
         onTriggered: root.currentEpochMs = Date.now()
@@ -147,6 +150,38 @@ Rectangle {
 
     onBlackHoleDangerChanged: if (blackHoleDanger) AudioManager.play("warning")
     Component.onCompleted: if (blackHoleDanger) AudioManager.play("warning")
+
+    Rectangle {
+        id: missileAlert
+        visible: root.targetedMissiles.length > 0
+        z: 1200
+        anchors.fill: parent
+        color: Qt.rgba(0.18, 0.005, 0.01, 0.97)
+        border.color: Constants.criticalColor
+        border.width: 4
+        Column {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 80, 760)
+            spacing: 18
+            Label { anchors.horizontalCenter: parent.horizontalCenter; text: "⚠  MISSILE TARGETING THIS PROBE  ⚠"; color: Constants.criticalColor; font.family: Constants.displayFont; font.pixelSize: 28; font.bold: true }
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: {
+                    const missile = root.targetedMissiles[0] || ({});
+                    const seconds = Math.max(0, Math.floor((Number(missile.impactEpochMs || 0) - root.currentEpochMs) / 1000));
+                    return "IMPACT COUNTDOWN · " + root.readableDuration(seconds) + (root.targetedMissiles.length > 1 ? " · " + root.targetedMissiles.length + " INCOMING" : "");
+                }
+                color: "#ffb0b0"; font.family: Constants.technicalFont; font.pixelSize: 22; font.bold: true
+            }
+            Button { anchors.horizontalCenter: parent.horizontalCenter; text: "OPEN COMBAT CONTROL SYSTEMS"; onClicked: root.combatControlsRequested() }
+        }
+        SequentialAnimation on opacity {
+            running: missileAlert.visible; loops: Animation.Infinite
+            NumberAnimation { to: 0.72; duration: 650 }
+            NumberAnimation { to: 1.0; duration: 650 }
+        }
+        onVisibleChanged: if (visible) AudioManager.play("warning")
+    }
 
     Rectangle {
         id: blackHoleAlert
@@ -296,6 +331,33 @@ Rectangle {
                 text: (orbitalMarker.index + 1) + " · " + (orbitalMarker.modelData.name || String(orbitalMarker.modelData.type).toUpperCase())
                 color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 14; font.bold: true
             }
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    root.selectedPlanet = orbitalMarker.modelData;
+                    planetDetails.open();
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: planetDetails
+        z: 1300
+        anchors.centerIn: parent
+        modal: true
+        title: String(root.selectedPlanet.name || "PLANET DETAILS").toUpperCase()
+        standardButtons: Dialog.Close
+        contentItem: Column {
+            width: 560
+            spacing: 9
+            Label { width: parent.width; text: "TYPE · " + String(root.selectedPlanet.category || root.selectedPlanet.type || "unknown").replace(/_/g, " ").toUpperCase(); color: Constants.cyanColor; font.bold: true; wrapMode: Text.Wrap }
+            Label { width: parent.width; text: "MASS · " + (root.selectedPlanet.mass === undefined ? "UNKNOWN" : Number(root.selectedPlanet.mass).toFixed(2) + " EARTH MASSES") + "    RADIUS · " + (root.selectedPlanet.radius === undefined ? "UNKNOWN" : Number(root.selectedPlanet.radius).toFixed(2) + " EARTH RADII"); color: Constants.textColor; wrapMode: Text.Wrap }
+            Label { width: parent.width; text: "HABITABILITY · " + (root.selectedPlanet.habitabilityScore === null || root.selectedPlanet.habitabilityScore === undefined ? "UNKNOWN" : (Number(root.selectedPlanet.habitabilityScore) * 100).toFixed(2) + "%"); color: Constants.textColor }
+            Label { width: parent.width; text: "MANNY MINING · " + (root.selectedPlanet.mannyMineable ? "AVAILABLE" : "NOT CURRENTLY AVAILABLE"); color: root.selectedPlanet.mannyMineable ? Constants.nominalColor : Constants.mutedTextColor; font.bold: true }
+            Label { width: parent.width; text: "RESOURCE AMOUNTS · " + Object.keys(root.selectedPlanet.resourceAmounts || {}).map(function(key) { return key.replace(/_/g, " ").toUpperCase() + " " + Number(root.selectedPlanet.resourceAmounts[key] || 0).toFixed(2) + " ECE"; }).join("  ·  "); color: Constants.warningColor; wrapMode: Text.Wrap }
+            Label { width: parent.width; visible: Boolean(root.selectedPlanet.harvestedByOthers); text: "HARVEST TRACES FROM OTHERS DETECTED"; color: Constants.criticalColor; font.bold: true }
         }
     }
 

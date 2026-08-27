@@ -6,6 +6,7 @@ import ".."
 Item {
     id: root
     property var ledgerData: ({})
+    signal unusualMiningTargetApprovalRequested(string targetId, bool approved)
     readonly property var categories: [
         {"key": "probe", "title": "PROBE STORAGE", "description": "Resources aboard the selected probe, separated by storage container."},
         {"key": "drifting", "title": "DRIFTING CONTAINERS", "description": "Visible detached containers floating in the current sector."},
@@ -122,6 +123,11 @@ Item {
                                         font.pixelSize: 15
                                         lineHeight: 1.3
                                         wrapMode: Text.Wrap
+                                    }
+                                    Button {
+                                        visible: Boolean(resourceCard.modelData.requiresAutomationApproval)
+                                        text: resourceCard.modelData.automationApproved ? "REVOKE AUTOMATION APPROVAL" : "APPROVE FOR MINING AUTOMATION"
+                                        onClicked: root.unusualMiningTargetApprovalRequested(String(resourceCard.modelData.objectId), !Boolean(resourceCard.modelData.automationApproved))
                                     }
                                 }
                             }

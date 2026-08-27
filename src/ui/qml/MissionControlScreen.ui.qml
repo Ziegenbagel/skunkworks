@@ -6,6 +6,7 @@ import "components"
 
 Rectangle {
     id: root
+    signal combatControlsRequested()
     objectName: "missionControlScreen"
     property bool liveMode: false
     property bool refreshing: false
@@ -384,6 +385,7 @@ Rectangle {
                         contentItem: Column {
                             width: parent.width
                             spacing: 12
+                            Label { text: "ASTEROID RESOURCE COUNTS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                             Repeater {
                                 model: root.dashboardData.sectorResources || []
                                 delegate: Row {
@@ -395,6 +397,16 @@ Rectangle {
                                         color: Number(modelData.amount || 0) < 25 ? Constants.criticalColor : Number(modelData.amount || 0) < 100 ? Constants.warningColor : Constants.nominalColor
                                         font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
                                     }
+                                }
+                            }
+                            Label { text: "PLANETARY RESOURCE COUNTS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                            Repeater {
+                                model: root.dashboardData.planetaryResources || []
+                                delegate: Row {
+                                    required property var modelData
+                                    width: parent.width; spacing: 8
+                                    Label { width: parent.width * 0.62; text: modelData.label; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }
+                                    Label { text: Number(modelData.amount || 0).toFixed(2) + " ECE"; color: Number(modelData.amount || 0) <= 0 ? Constants.mutedTextColor : Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
                                 }
                             }
                         }
@@ -417,6 +429,11 @@ Rectangle {
                             sectorData: root.dashboardData.sector || ({})
                             focusProbe: root.focusData
                             connectionState: String(root.dashboardData.connection || "disconnected")
+                            onCombatControlsRequested: {
+                                navigationWorkspace.manualControlTabIndex = 4;
+                                root.currentNavigation = "MANUAL CONTROL";
+                                root.combatControlsRequested();
+                            }
                         }
                     }
 

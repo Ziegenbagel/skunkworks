@@ -45,6 +45,25 @@ class ProbeGateway:
             f"/api/probe/{probe_id}/move",
         )
 
+    def launch_missile(self, probe_id, actor_manny_id, missile_item_id, target_id):
+        """Start the API v122 one-minute Manny missile preparation."""
+
+        return self.client.request(
+            "POST",
+            f"/api/probe/{probe_id}/missiles",
+            json={
+                "actorMannyId": str(actor_manny_id),
+                "missileItemId": str(missile_item_id),
+                "targetId": str(target_id),
+            },
+        )
+
+    def missile(self, probe_id, missile_id):
+        return self.client.request(
+            "GET",
+            f"/api/probe/{probe_id}/missiles/{missile_id}",
+        )
+
     def visited_sectors(self, probe_id):
         return self.client.request(
             "GET",

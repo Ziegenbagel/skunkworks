@@ -144,6 +144,8 @@ Item {
         relayPriority.value = productionPriority("scut_relay");
         circuitTarget.value = productionQuantity("integrated_circuit");
         circuitPriority.value = productionPriority("integrated_circuit");
+        missileTarget.value = productionQuantity("missile");
+        missilePriority.value = productionPriority("missile");
         beaconTarget.value = productionQuantity("scut_transit_beacon");
         beaconPriority.value = productionPriority("scut_transit_beacon");
         deuteriumReserve.value = reserve("deuterium");
@@ -189,13 +191,14 @@ Item {
         const production = [];
         const existing = settingsData.production || [];
         for (let i = 0; i < existing.length; ++i)
-            if (existing[i].recipeId !== "manny" && existing[i].recipeId !== "additional_container" && existing[i].recipeId !== "scut_relay" && existing[i].recipeId !== "scut_transit_beacon" && existing[i].recipeId !== "integrated_circuit")
+            if (existing[i].recipeId !== "manny" && existing[i].recipeId !== "additional_container" && existing[i].recipeId !== "scut_relay" && existing[i].recipeId !== "scut_transit_beacon" && existing[i].recipeId !== "integrated_circuit" && existing[i].recipeId !== "missile")
                 production.push(existing[i]);
         production.push({"recipeId": "manny", "quantity": mannyTarget.value, "priority": mannyPriority.value});
         production.push({"recipeId": "additional_container", "quantity": containerTarget.value, "priority": containerPriority.value});
         production.push({"recipeId": "scut_relay", "quantity": relayTarget.value, "priority": relayPriority.value});
         production.push({"recipeId": "scut_transit_beacon", "quantity": beaconTarget.value, "priority": beaconPriority.value});
         production.push({"recipeId": "integrated_circuit", "quantity": circuitTarget.value, "priority": circuitPriority.value});
+        production.push({"recipeId": "missile", "quantity": missileTarget.value, "priority": missilePriority.value});
         return {
             "priorityScaleMax": 10,
             "fleetTargets": {"generic": genericTarget.value, "deuterium_tanker": tankerTarget.value},
@@ -424,6 +427,9 @@ Item {
                     Label { text: "INTEGRATED CIRCUITS"; color: Constants.cyanColor; font.family: Constants.technicalFont; ToolTip.visible: circuitHover.hovered; ToolTip.text: "Maintain integrated circuits for relay activation and other component-dependent work."; HoverHandler { id: circuitHover } }
                     SpinBox { id: circuitTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("integrated_circuit") }
                     SpinBox { id: circuitPriority; from: 1; to: 10; editable: true; value: root.productionPriority("integrated_circuit") }
+                    Label { text: "MISSILES"; color: Constants.criticalColor; font.family: Constants.technicalFont; ToolTip.visible: missileHover.hovered; ToolTip.text: "Maintain completed missiles in inventory. Launching remains a separately confirmed manual combat action."; HoverHandler { id: missileHover } }
+                    SpinBox { id: missileTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("missile") }
+                    SpinBox { id: missilePriority; from: 1; to: 10; editable: true; value: root.productionPriority("missile") }
                 }
             }
 

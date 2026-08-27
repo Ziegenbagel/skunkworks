@@ -124,6 +124,26 @@ def build_operations(
 
 
 class PlannerMissionTests(unittest.TestCase):
+    def test_api_v121_blocks_movement_strictly_below_ten_percent_integrity(self):
+        operations = build_operations()
+        target = SectorCoordinates(1, 1, 0)
+        operations.world.probe["systems"] = {"integrityPercent": 9.99}
+        self.assertIn("probe_integrity_too_low", operations.travel.travel_blockers(target))
+
+        operations.world.probe["systems"]["integrityPercent"] = 10
+        self.assertNotIn("probe_integrity_too_low", operations.travel.travel_blockers(target))
+
+    def test_unapproved_unusual_resource_target_is_not_automatic(self):
+        operations = build_operations(metals=0)
+        operations.world.sector["resources"] = [{
+            "id": "abandoned-auxiliary", "type": "dormant_construct",
+            "resources": {"metals": 20}, "composition": {"metals": 1},
+            "requiresAutomationApproval": True, "automationApproved": False,
+        }]
+        self.assertIsNone(operations.mining.best_target("metals"))
+
+        operations.world.sector["resources"][0]["automationApproved"] = True
+        self.assertEqual(operations.mining.best_target("metals")["id"], "abandoned-auxiliary")
     def test_mission_11_recommends_achievable_craft(self):
         tasks = Planner(
             build_operations(),

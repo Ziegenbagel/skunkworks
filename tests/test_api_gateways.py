@@ -74,6 +74,19 @@ class ApiGatewayTests(unittest.TestCase):
             {"json": {"recipientProbeId": 314}},
         ))
 
+    def test_v122_probe_missile_launch_uses_documented_payload(self):
+        self.api.probes.launch_missile(42, "mny_1", "itm_missile", "target_public")
+
+        self.assertEqual(self.client.calls[-1], (
+            "POST",
+            "/api/probe/42/missiles",
+            {"json": {
+                "actorMannyId": "mny_1",
+                "missileItemId": "itm_missile",
+                "targetId": "target_public",
+            }},
+        ))
+
     def test_v111_asteroid_operations_use_documented_routes(self):
         self.api.mannies.start_task(
             42, "mny_1", "motorize-asteroid", {"objectId": "asteroid-1"},
