@@ -14,9 +14,11 @@ the Operator Manual, architecture, API notes, planner, and safety references.
 | Deuterium logistics | Yes | Transfer and refuel | Tanker and reserve chains | Full-loop fuel and protected reserve |
 | SCUT/network operations | Yes | Relay/beacon workflow and blueprint share | No general autonomous network construction | Capability, inventory, and network checks |
 | Motorized asteroids | Yes where API exposes it | Install, refuel, launch, sculpt | No | High-impact confirmation and capability locks |
+| Combat systems | Projectile/target alerts and countdowns | Typed-confirm missile launch | Missile crafting only; per-probe opt-in emergency escape | Fresh target identity, one dispatch, 10% integrity floor |
 | Communications | Yes | Messages and logbook editing | Optional daily role reports | Explicit recipient/page and API validation |
 | Safety and policy | Yes | Configure and acknowledge | Preflight, leases, allowlists, emergency stop | Policy never replaces live validation |
 
-Reviewed compatibility is API v103 through v115. A newer unreviewed server
-version must pause mutation rather than be assumed compatible. Endpoint-level
+Reviewed compatibility is API v103 through v122. A newer unreviewed server
+version is visibly identified and continues only under the forward-compatible
+contract boundary. Endpoint-level
 evidence and unresolved upstream behavior are maintained in `docs/api-notes.md`.

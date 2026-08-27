@@ -9,7 +9,9 @@ Item {
     property var dashboardData: ({})
     property var probes: []
     property int focusedProbeId: -1
+    property int requestedTabIndex: 0
     readonly property bool manualCommandsEnabled: String((dashboardData.automationRuntime || {}).mode || "observe") !== "observe"
+        && String((dashboardData.focus || {}).status || "unknown").toLowerCase() !== "dead"
     readonly property var blueprintSharing: dashboardData.blueprintSharing || ({})
 
     signal craftRequested(string recipeId, string mannyId)
@@ -25,7 +27,12 @@ Item {
     signal inventoryMannyActionRequested(string action, string mannyId, var payload)
     signal asteroidTrajectoryRequested(string asteroidId, var payload)
     signal improvementBlueprintShareRequested(int networkId, string improvementId, int recipientProbeId)
+    signal missileLaunchRequested(string mannyId, string missileItemId, string targetId)
+    signal emergencyMissileEscapeChanged(bool enabled)
     property var pendingAsteroidAction: ({})
+    property var pendingMissileAction: ({})
+
+    onRequestedTabIndexChanged: tabs.currentIndex = Math.max(0, Math.min(tabs.count - 1, requestedTabIndex))
 
     function readableDuration(secondsValue) {
         const seconds = Math.max(0, Math.round(Number(secondsValue || 0)));
@@ -71,6 +78,7 @@ Item {
             TabButton { text: "MANNY FIELD OPERATIONS" }
             TabButton { text: "CARGO AND TRANSFERS" }
             TabButton { text: "INFRASTRUCTURE AND NETWORKS" }
+            TabButton { text: "COMBAT CONTROL SYSTEMS" }
         }
         StackLayout {
             enabled: root.manualCommandsEnabled
@@ -221,7 +229,7 @@ Item {
                                         Layout.fillWidth: true; Layout.fillHeight: true
                                         text: "TOTAL RAW RESOURCES · " + ((recipeCard.modelData.rawIngredients || []).length
                                             ? (recipeCard.modelData.rawIngredients || []).map(function(item) {
-                                                return Number(item.quantity || 0) + " × " + String(item.name || item.type || "unknown").split("_").join(" ").toUpperCase();
+                                                return Number(item.quantity || 0).toFixed(2) + " × " + String(item.name || item.type || "unknown").split("_").join(" ").toUpperCase();
                                             }).join("  ·  ")
                                             : "NO INPUTS")
                                         color: Constants.warningColor; font.pixelSize: 13; wrapMode: Text.Wrap
@@ -375,9 +383,73 @@ Item {
                     }
                 }
             }
+
+            Item {
+                ScrollView {
+                    id: combatControls
+                    anchors.fill: parent
+                    contentWidth: availableWidth
+                    clip: true
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ColumnLayout {
+                        width: Math.max(1, combatControls.availableWidth - 12)
+                        spacing: 14
+                        Label { Layout.fillWidth: true; text: "COMBAT CONTROL SYSTEMS · API v122"; color: Constants.criticalColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                        Label { Layout.fillWidth: true; text: "Combat orders remain manual. Skunkworks will never choose or launch at a target without your explicit confirmation."; color: Constants.warningColor; wrapMode: Text.Wrap }
+                        GroupBox {
+                            title: "MISSILE LAUNCH"
+                            Layout.fillWidth: true
+                            GridLayout {
+                                anchors.fill: parent; columns: 3; columnSpacing: 12; rowSpacing: 10
+                                Label { text: "IDLE MANNY"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: missileManny; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).idleMannies || [] }
+                                Label { text: "MISSILE"; color: Constants.cyanColor; font.bold: true }
+                                ComboBox { id: missileItem; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "name"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).missileItems || [] }
+                                Label { text: "LOCAL TARGET"; color: Constants.criticalColor; font.bold: true }
+                                ComboBox { id: missileTarget; Layout.fillWidth: true; Layout.columnSpan: 2; textRole: "label"; valueRole: "id"; model: (root.dashboardData.inventoryManagement || {}).missileTargets || [] }
+                                Label { Layout.columnSpan: 2; Layout.fillWidth: true; text: "Preparation reserves the selected Manny for one minute. The scheduler creates and resolves the projectile asynchronously."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                                Button { text: "REVIEW MISSILE LAUNCH"; enabled: missileManny.count > 0 && missileItem.count > 0 && missileTarget.count > 0; onClicked: { root.pendingMissileAction = {"mannyId":String(missileManny.currentValue), "missileItemId":String(missileItem.currentValue), "targetId":String(missileTarget.currentValue), "targetLabel":String(missileTarget.currentText)}; missileConfirmation.open(); } }
+                            }
+                        }
+                        GroupBox {
+                            title: "OPT-IN EMERGENCY MISSILE ESCAPE"
+                            Layout.fillWidth: true
+                            ColumnLayout {
+                                anchors.fill: parent; spacing: 8
+                                CheckBox { id: emergencyEscape; text: "AUTO-JUMP TO A RANDOM ELIGIBLE NEAREST SECTOR WHEN THIS PROBE IS TARGETED"; checked: Boolean((root.dashboardData.combatSafety || {}).emergencyMissileEscapeEnabled); onToggled: root.emergencyMissileEscapeChanged(checked) }
+                                Label { Layout.fillWidth: true; text: "Explicit opt-in. A detected missile targeting this probe may trigger one immediate nearest-sector jump if the probe is idle, has at least 10% integrity, and has enough fuel. This may leave deployed Mannys behind and accepts ordinary travel risk in order to evade impact."; color: emergencyEscape.checked ? Constants.criticalColor : Constants.mutedTextColor; wrapMode: Text.Wrap }
+                            }
+                        }
+                        GroupBox {
+                            title: "DETECTED PROJECTILES"
+                            Layout.fillWidth: true
+                            ColumnLayout {
+                                anchors.fill: parent
+                                Label { visible: ((root.dashboardData.inventoryManagement || {}).movingMissiles || []).length === 0; text: "No moving missiles are visible in the current sector scan."; color: Constants.mutedTextColor }
+                                Repeater {
+                                    model: (root.dashboardData.inventoryManagement || {}).movingMissiles || []
+                                    delegate: Label { required property var modelData; Layout.fillWidth: true; text: (modelData.targetsCurrentProbe ? "⚠ TARGETING THIS PROBE · " : "") + String(modelData.name || modelData.id) + " · TARGET " + String(modelData.targetKind || "unknown").toUpperCase() + " " + String(modelData.targetId || "") + " · IMPACT " + String(modelData.impactAt || "UNKNOWN"); color: modelData.targetsCurrentProbe ? Constants.criticalColor : Constants.textColor; font.bold: Boolean(modelData.targetsCurrentProbe); wrapMode: Text.Wrap }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
+    Dialog {
+        id: missileConfirmation; anchors.centerIn: parent; modal: true
+        title: "TYPE CONFIRM TO LAUNCH MISSILE"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onOpened: missileConfirmText.text = ""
+        onAccepted: if (missileConfirmText.text.trim() === "Confirm") root.missileLaunchRequested(String(root.pendingMissileAction.mannyId), String(root.pendingMissileAction.missileItemId), String(root.pendingMissileAction.targetId)); else root.pendingMissileAction = ({})
+        ColumnLayout {
+            width: 660
+            Label { Layout.fillWidth: true; text: "DESTRUCTIVE ORDER · Target: " + String(root.pendingMissileAction.targetLabel || "UNKNOWN") + ". Confirm the public target identity immediately before dispatch."; color: Constants.criticalColor; font.bold: true; wrapMode: Text.Wrap }
+            TextField { id: missileConfirmText; Layout.fillWidth: true; placeholderText: "Type Confirm exactly" }
+        }
+    }
     Dialog {
         id: assemblyConfirmation; anchors.centerIn: parent; modal: true
         title: "CONFIRM PROBE ASSEMBLY"; standardButtons: Dialog.Ok | Dialog.Cancel

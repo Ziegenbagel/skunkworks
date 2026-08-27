@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v115, verified
-against the live contract on 2026-08-20.
+Skunkworks supports deployed API v103 through upstream API v122, verified
+against the live contract on 2026-08-27.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -26,6 +26,26 @@ window, with `Retry-After` supplied on `429`.
 
 General probe telemetry contains lightweight Manny inventory entries. The
 Manny endpoints provide authoritative task state.
+
+API v117 makes the scheduler worker the only authority that finalizes timed
+Manny work. Reads return the last persisted state, so a passed client ETA is
+shown as `AWAITING SERVER COMPLETION` and never treated as completion.
+
+API v119–v122 add probe missile preparation and live projectile observation.
+`POST /api/probe/{probeId}/missiles` accepts `actorMannyId`, `missileItemId`,
+and an opaque public `targetId`. Sector scans expose moving `missile` objects,
+including `targetKind`, `targetId`, `impactAt`, and `targetsCurrentProbe`.
+`weapon_targeted` is critical for the selected probe; ordinary `weapon`
+detections remain visible without becoming a targeted-probe alarm.
+
+API v121 rejects movement preparation when integrity is strictly below 10%
+with `probe_integrity_too_low`; exactly 10% is allowed. Zero integrity sets the
+probe to `dead` immediately.
+
+API v122 exposes authoritative `resourceAmounts` for mineable planets and
+asteroids. Planetary resources remain ordinary Manny mining targets when
+`mannyMineable` is true. Artificial or abandoned structures require explicit
+local approval before Skunkworks automation may select them.
 
 API v105 adds `DELETE /api/probe/{probeId}/move`. It succeeds only during
 movement preparation, cancels the scheduled movement and container-damage

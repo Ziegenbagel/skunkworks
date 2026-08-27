@@ -57,7 +57,7 @@ space for SQLite to rebuild the file.
 
 ## Live-service acceptance gate
 
-- [ ] Confirm reviewed API v115 behavior for every capability in the matrix.
+- [ ] Confirm reviewed API v122 behavior for every capability in the matrix.
 - [ ] Run observe-only, approval, and automatic modes with each allowlist group.
 - [ ] Confirm returning Mannys dispatch, priority inversions, assembly component
   reservations, background mining, and accepted-order syncing.

@@ -41,6 +41,7 @@ class ResourceAnalyzer:
                         "resourceComposition",
                         {},
                     ),
+                    "harvestedByOthers": bool(obj.get("harvestedByOthers", False)),
                 }
             )
 

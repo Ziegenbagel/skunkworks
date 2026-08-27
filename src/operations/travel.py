@@ -28,10 +28,15 @@ class TravelService:
         return fuel.get("deuterium", 0) / maximum * 100
 
     def travel_ready(self):
+        integrity = float(
+            (self.world.probe.get("systems") or {}).get("integrityPercent", 100)
+            or 0
+        )
         return (
             self.world.probe["telemetry_available"]
             and self.world.probe["status"] == "idle"
             and self.fuel_available() >= self.fuel_cost()
+            and integrity >= 10
         )
 
     def current_sector(self):
@@ -106,5 +111,12 @@ class TravelService:
             and self.fuel_available() < self.fuel_cost()
         ):
             blockers.append("insufficient_fuel")
+
+        integrity = float(
+            (self.world.probe.get("systems") or {}).get("integrityPercent", 100)
+            or 0
+        )
+        if current != target and integrity < 10:
+            blockers.append("probe_integrity_too_low")
 
         return tuple(blockers)

@@ -1,5 +1,14 @@
 # Operator Manual Revision History
 
+## 1.0 — 2026-08-27
+
+- Added API v122 Combat Control Systems, the targeted-missile takeover warning,
+  typed launch confirmation, and opt-in emergency escape.
+- Added planetary inspection, mining, resource totals, and selectable Live
+  Sector detail panels.
+- Documented direct decimal Deuterium transfers and scheduler-owned completion
+  wording.
+
 ## 0.9 — 2026-08-24
 
 - Documented the Galaxy Map **Fit Map** control for framing every sector
