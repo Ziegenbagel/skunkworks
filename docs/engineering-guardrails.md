@@ -68,6 +68,15 @@ A large desired quantity is a long-term target, not an immediate claim on all ra
 resources. Reserve the next unit, re-read live inventory, then replan. Otherwise
 one goal such as 100 Mannys monopolizes mining and starves every other goal.
 
+### A deuterium reserve tanker replenishes its transferable surplus
+
+Assigning `deuterium_reserve` is an operational commitment, not only a transfer
+label. While that role is assigned to a deuterium tanker, planning adds an
+effective refill-to-100% fuel goal at high priority so the tanker mines back to
+full after preserving its protected reserve and supplying the next probe in its
+configured chain. The operator's ordinary saved fuel target remains unchanged
+and becomes effective again if the role is removed.
+
 Relevant code/tests:
 
 - `src/planner/rules/manufacturing.py`
@@ -162,6 +171,13 @@ Fleet automation processes probes serially. Publish each focused-probe result as
 soon as it completes; do not wait for the rest of the fleet. Until authoritative
 task telemetry arrives, show `ORDER ACCEPTED · SYNCING` and remove accepted
 Mannys from the displayed idle pool.
+
+Manual mining bursts follow the same local-claim rule. Send each requested
+order through background live preflight, immediately mark its Manny as
+`ORDER ACCEPTED · SYNC QUEUED`, and remove that Manny from the visible idle
+pool. Do not start a full dashboard refresh after every accepted mining order;
+the next scheduler-owned authoritative refresh reconciles the batch. A rejected
+order is never locally claimed.
 
 Relevant code/tests:
 

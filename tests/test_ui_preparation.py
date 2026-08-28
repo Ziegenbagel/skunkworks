@@ -768,6 +768,55 @@ class UiPreparationTests(unittest.TestCase):
         started[0].run()
         self.assertEqual(calls, [("manny-a", 75)])
 
+    def test_manual_mining_batches_sync_until_scheduled_refresh(self):
+        calls = []
+
+        class Service:
+            @staticmethod
+            def inventory_manny_action(action, manny_id, payload):
+                calls.append((action, manny_id, payload))
+                return {"accepted": True}
+
+        controller = MissionControlController(
+            service=Service(), thread_pool=ImmediatePool(),
+        )
+        controller._focused_probe_id = 7
+        controller._dashboard = {
+            "automationRuntime": {"mode": ExecutionMode.APPROVE.value},
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"}, {"id": "manny-b"}),
+            },
+            "production": (
+                {"id": "manny-a", "asset": "Miner A", "taskType": "idle"},
+                {"id": "manny-b", "asset": "Miner B", "taskType": "idle"},
+            ),
+        }
+        refreshes = []
+        controller._start_refresh = lambda *args, **kwargs: refreshes.append(
+            (args, kwargs),
+        )
+
+        controller.runInventoryMannyAction(
+            "mine", "manny-a", {"targetId": "asteroid-1"},
+        )
+
+        self.assertEqual(
+            calls,
+            [("mine", "manny-a", {"targetId": "asteroid-1"})],
+        )
+        self.assertEqual(refreshes, [])
+        self.assertEqual(
+            [item["id"] for item in controller.dashboard[
+                "inventoryManagement"
+            ]["idleMannies"]],
+            ["manny-b"],
+        )
+        self.assertEqual(
+            controller.dashboard["production"][0]["taskType"],
+            "dispatch_pending",
+        )
+        self.assertIn("SCHEDULED REFRESH", controller.operationNotice)
+
     def test_manual_craft_override_can_be_cancelled_without_dispatch(self):
         controller = MissionControlController()
         controller._manual_craft_override = {

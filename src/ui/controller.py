@@ -710,6 +710,9 @@ class MissionControlDataService:
             tasks = ()
         else:
             desired = DesiredStateStore(self.data_engine).load(probe_id)
+            desired = self._apply_probe_role_goals(
+                desired, operations, probe_id,
+            )
             desired = self._reconcile_completed_autonomous_travel(
                 operations,
                 probe_id,
@@ -774,6 +777,35 @@ class MissionControlDataService:
             } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
         }
+
+    def _apply_probe_role_goals(self, desired, operations, probe_id):
+        """Add operational goals implied by a probe's assigned fleet role."""
+        if not hasattr(self.data_engine, "fleet_roles"):
+            return desired
+        role = next((
+            row["role"] for row in FleetRoleService(self.data_engine).all("probe")
+            if int(row["asset_id"]) == int(probe_id)
+        ), None)
+        if (
+            role != "deuterium_reserve"
+            or str(
+                getattr(getattr(operations, "world", None), "probe", {}).get(
+                    "model", "",
+                )
+            ) != "deuterium_tanker"
+        ):
+            return desired
+        # A reserve tanker needs surplus before it can refill the next probe in
+        # its chain. Its saved fuel target remains the operator's baseline, but
+        # this role adds an effective refill-to-full goal while assigned.
+        return replace(
+            desired,
+            fuel=replace(
+                desired.fuel,
+                minimum_percent=100,
+                priority=min(desired.fuel.priority, 2),
+            ),
+        )
 
     @staticmethod
     def _dispatch_order(task):
@@ -3481,10 +3513,13 @@ class MissionControlController(QObject):
         self._set_error(message)
         self._set_operation_notice("")
 
-    def _command_accepted(self, _result=None, success_message="ORDER ACCEPTED · SYNCING"):
+    def _command_accepted(
+        self, _result=None, success_message="ORDER ACCEPTED · SYNCING",
+        *, refresh=True,
+    ):
         self._set_error("")
         self._set_operation_notice(success_message)
-        if not self._refreshing:
+        if refresh and not self._refreshing:
             self._start_refresh(
                 self._focused_probe_id,
                 prefer_cached_fleet=True,
@@ -4703,7 +4738,10 @@ class MissionControlController(QObject):
         self._set_error("")
         self.dashboardChanged.emit()
 
-    def _inventory_mutation(self, callback, success_message=""):
+    def _inventory_mutation(
+        self, callback, success_message="", *, defer_refresh=False,
+        claimed_manny_id=None,
+    ):
         if not self._require_manual_control():
             return
         if self.service is None or self._focused_probe_id < 0:
@@ -4711,12 +4749,56 @@ class MissionControlController(QObject):
             return
         self._run_background_call(
             "command", callback,
-            lambda result: self._command_accepted(
-                result, success_message or "ORDER ACCEPTED · SYNCING",
+            lambda result: self._accept_inventory_mutation(
+                result,
+                success_message or "ORDER ACCEPTED · SYNCING",
+                defer_refresh=defer_refresh,
+                claimed_manny_id=claimed_manny_id,
             ),
             pending_message="SENDING MANUAL ORDER",
             error_formatter=self._inventory_error_message,
         )
+
+    def _accept_inventory_mutation(
+        self, result, success_message, *, defer_refresh=False,
+        claimed_manny_id=None,
+    ):
+        if claimed_manny_id not in {None, ""}:
+            self._mark_manual_manny_pending(str(claimed_manny_id))
+        self._command_accepted(
+            result,
+            (
+                "ORDER ACCEPTED · SYNC QUEUED FOR SCHEDULED REFRESH"
+                if defer_refresh else success_message
+            ),
+            refresh=not defer_refresh,
+        )
+
+    def _mark_manual_manny_pending(self, manny_id):
+        inventory = dict(self._dashboard.get("inventoryManagement", {}))
+        inventory["idleMannies"] = tuple(
+            item for item in inventory.get("idleMannies", ())
+            if str(item.get("id")) != manny_id
+        )
+        self._dashboard["inventoryManagement"] = inventory
+        production = []
+        for row in self._dashboard.get("production", ()):
+            if str(row.get("id")) != manny_id:
+                production.append(row)
+                continue
+            asset = row.get("asset", "Manny")
+            production.append({
+                **row,
+                "taskType": "dispatch_pending",
+                "name": "Manual order accepted · sync queued",
+                "displayText": f"{asset} · ORDER ACCEPTED · SYNC QUEUED",
+                "detailText": (
+                    f"Asset: {asset}\nStatus: Manual order accepted\n"
+                    "Authoritative task details will appear at the next scheduled refresh."
+                ),
+            })
+        self._dashboard["production"] = tuple(production)
+        self.dashboardChanged.emit()
 
     def _require_manual_control(self):
         """Observe Only is a hard read-only boundary for operator commands."""
@@ -4876,9 +4958,14 @@ class MissionControlController(QObject):
 
     @Slot(str, str, "QVariantMap")
     def runInventoryMannyAction(self, action, manny_id, payload):
-        self._inventory_mutation(lambda: self.service.inventory_manny_action(
-            action, manny_id, self._qt_safe(payload),
-        ))
+        defer_refresh = str(action) == "mine"
+        self._inventory_mutation(
+            lambda: self.service.inventory_manny_action(
+                action, manny_id, self._qt_safe(payload),
+            ),
+            defer_refresh=defer_refresh,
+            claimed_manny_id=manny_id if defer_refresh else None,
+        )
 
     @Slot(str, "QVariantMap")
     def launchAsteroidTrajectory(self, asteroid_id, payload):
