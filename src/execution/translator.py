@@ -203,6 +203,10 @@ class TaskCommandTranslator:
 
     def _preferred_mining_container(self, asteroid_id, resource_type):
         """Prefer a resource-routed detached depot, then an unassigned empty one."""
+        # Deuterium mining refills the probe's tank. A detached storage object
+        # is not a valid destination for that API operation.
+        if resource_type == "deuterium":
+            return None
         candidates = []
         for container in self.operations.containers.detached():
             if self.operations.containers.free_capacity(container) <= 0:

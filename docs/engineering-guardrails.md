@@ -172,12 +172,19 @@ soon as it completes; do not wait for the rest of the fleet. Until authoritative
 task telemetry arrives, show `ORDER ACCEPTED · SYNCING` and remove accepted
 Mannys from the displayed idle pool.
 
-Manual mining bursts follow the same local-claim rule. Send each requested
-order through background live preflight, immediately mark its Manny as
-`ORDER ACCEPTED · SYNC QUEUED`, and remove that Manny from the visible idle
-pool. Do not start a full dashboard refresh after every accepted mining order;
-the next scheduler-owned authoritative refresh reconciles the batch. A rejected
-order is never locally claimed.
+Manual mining bursts follow the same local-claim rule. Immediately append each
+reviewed order to a controller-owned FIFO, mark its Manny as `MINING ORDER
+QUEUED`, and remove that Manny from the visible idle pool before the preceding
+network request finishes. One background worker drains the FIFO serially, so a
+slow API response never disables selection of another idle Manny and concurrent
+orders cannot race the same live state. Accepted orders remain locally claimed;
+rejected orders restore their Manny. Do not start a full dashboard refresh after
+every order—the next scheduler-owned authoritative refresh reconciles the batch.
+
+Deuterium mining refills the probe tank and must not include a detached storage
+`targetContainerId`. Resource-routing rules may select detached destinations for
+ordinary cargo, but applying them to deuterium produces an API rejection and
+leaves an otherwise valid reserve tanker visibly idle.
 
 Relevant code/tests:
 

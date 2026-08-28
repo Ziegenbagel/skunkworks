@@ -2166,7 +2166,7 @@ class MissionControlDataService:
             self._selected_probe_id, item_id, amount, container_id,
         )
 
-    def inventory_manny_action(self, action, manny_id, payload):
+    def inventory_manny_action(self, action, manny_id, payload, probe_id=None):
         allowed = {
             "detach-storage-container",
             "drop-storage-container",
@@ -2198,7 +2198,8 @@ class MissionControlDataService:
                 raise ValueError("Select a valid same-sector target probe.")
             payload["targetProbeId"] = target_probe_id
         return self.capabilities.mannies.start_task(
-            self._selected_probe_id, manny_id, action, payload,
+            int(probe_id) if probe_id is not None else self._selected_probe_id,
+            manny_id, action, payload,
         )
 
     def manual_craft(self, recipe_id, manny_id, override_reservations=False):
@@ -3111,6 +3112,8 @@ class MissionControlController(QObject):
         self._error = ""
         self._error_context = ""
         self._manual_craft_override = {}
+        self._manual_mining_queue = []
+        self._manual_mining_worker = None
         self._operation_notice = ""
         self._emergency_stop = False
         self._worker = None
@@ -4774,7 +4777,11 @@ class MissionControlController(QObject):
             refresh=not defer_refresh,
         )
 
-    def _mark_manual_manny_pending(self, manny_id):
+    def _mark_manual_manny_pending(
+        self, manny_id, *, name="Manual order accepted · sync queued",
+        display_suffix="ORDER ACCEPTED · SYNC QUEUED",
+        detail_status="Manual order accepted",
+    ):
         inventory = dict(self._dashboard.get("inventoryManagement", {}))
         inventory["idleMannies"] = tuple(
             item for item in inventory.get("idleMannies", ())
@@ -4790,14 +4797,121 @@ class MissionControlController(QObject):
             production.append({
                 **row,
                 "taskType": "dispatch_pending",
-                "name": "Manual order accepted · sync queued",
-                "displayText": f"{asset} · ORDER ACCEPTED · SYNC QUEUED",
+                "name": name,
+                "displayText": f"{asset} · {display_suffix}",
                 "detailText": (
-                    f"Asset: {asset}\nStatus: Manual order accepted\n"
+                    f"Asset: {asset}\nStatus: {detail_status}\n"
                     "Authoritative task details will appear at the next scheduled refresh."
                 ),
             })
         self._dashboard["production"] = tuple(production)
+        self.dashboardChanged.emit()
+
+    def _queue_manual_mining_order(self, manny_id, payload):
+        if not self._require_manual_control():
+            return
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Refresh a focused probe before queuing mining.")
+            return
+        manny_id = str(manny_id or "")
+        idle = next((
+            dict(item)
+            for item in self._dashboard.get("inventoryManagement", {}).get(
+                "idleMannies", (),
+            )
+            if str(item.get("id")) == manny_id
+        ), None)
+        if idle is None:
+            self._set_error("Select an idle Manny that is not already queued.")
+            return
+        production_row = next((
+            dict(item) for item in self._dashboard.get("production", ())
+            if str(item.get("id")) == manny_id
+        ), None)
+        self._manual_mining_queue.append({
+            "probeId": self._focused_probe_id,
+            "mannyId": manny_id,
+            "payload": self._qt_safe(payload),
+            "idleManny": idle,
+            "productionRow": production_row,
+        })
+        self._mark_manual_manny_pending(
+            manny_id,
+            name="Manual mining order queued · awaiting send",
+            display_suffix="MINING ORDER QUEUED",
+            detail_status="Manual mining order queued for background dispatch",
+        )
+        self._set_error("")
+        self._set_operation_notice(
+            f"MINING ORDER QUEUED · {len(self._manual_mining_queue)} AWAITING SEND"
+        )
+        self._start_next_manual_mining_order()
+
+    def _start_next_manual_mining_order(self):
+        if self._manual_mining_worker is not None or not self._manual_mining_queue:
+            return
+        order = self._manual_mining_queue[0]
+        worker = _BackgroundCallWorker(
+            lambda: self.service.inventory_manny_action(
+                "mine", order["mannyId"], order["payload"],
+                probe_id=order["probeId"],
+            )
+        )
+        worker.signals.succeeded.connect(
+            lambda result, worker=worker: self._accept_queued_mining_order(
+                worker, result,
+            )
+        )
+        worker.signals.call_failed.connect(
+            lambda error, worker=worker: self._reject_queued_mining_order(
+                worker, error,
+            )
+        )
+        self._manual_mining_worker = worker
+        self._set_operation_notice(
+            f"SENDING MINING ORDER · {max(0, len(self._manual_mining_queue) - 1)} QUEUED"
+        )
+        self.thread_pool.start(worker)
+
+    def _accept_queued_mining_order(self, worker, _result):
+        if self._manual_mining_worker is not worker:
+            return
+        order = self._manual_mining_queue.pop(0)
+        self._manual_mining_worker = None
+        if int(order["probeId"]) == int(self._focused_probe_id):
+            self._mark_manual_manny_pending(order["mannyId"])
+        self._set_operation_notice(
+            f"MINING ORDER ACCEPTED · {len(self._manual_mining_queue)} QUEUED · "
+            "SYNC AT SCHEDULED REFRESH"
+        )
+        self._start_next_manual_mining_order()
+
+    def _reject_queued_mining_order(self, worker, error):
+        if self._manual_mining_worker is not worker:
+            return
+        order = self._manual_mining_queue.pop(0)
+        self._manual_mining_worker = None
+        if int(order["probeId"]) == int(self._focused_probe_id):
+            self._restore_rejected_manual_manny(order)
+        self._set_error(self._inventory_error_message(error), context="command")
+        self._set_operation_notice(
+            f"MINING ORDER REJECTED · {len(self._manual_mining_queue)} STILL QUEUED"
+        )
+        self._start_next_manual_mining_order()
+
+    def _restore_rejected_manual_manny(self, order):
+        inventory = dict(self._dashboard.get("inventoryManagement", {}))
+        idle = list(inventory.get("idleMannies", ()))
+        if not any(str(item.get("id")) == order["mannyId"] for item in idle):
+            idle.append(order["idleManny"])
+        inventory["idleMannies"] = tuple(idle)
+        self._dashboard["inventoryManagement"] = inventory
+        if order.get("productionRow") is not None:
+            self._dashboard["production"] = tuple(
+                order["productionRow"]
+                if str(item.get("id")) == order["mannyId"] else item
+                for item in self._dashboard.get("production", ())
+            )
         self.dashboardChanged.emit()
 
     def _require_manual_control(self):
@@ -4958,13 +5072,13 @@ class MissionControlController(QObject):
 
     @Slot(str, str, "QVariantMap")
     def runInventoryMannyAction(self, action, manny_id, payload):
-        defer_refresh = str(action) == "mine"
+        if str(action) == "mine":
+            self._queue_manual_mining_order(manny_id, payload)
+            return
         self._inventory_mutation(
             lambda: self.service.inventory_manny_action(
                 action, manny_id, self._qt_safe(payload),
             ),
-            defer_refresh=defer_refresh,
-            claimed_manny_id=manny_id if defer_refresh else None,
         )
 
     @Slot(str, "QVariantMap")

@@ -773,7 +773,7 @@ class UiPreparationTests(unittest.TestCase):
 
         class Service:
             @staticmethod
-            def inventory_manny_action(action, manny_id, payload):
+            def inventory_manny_action(action, manny_id, payload, probe_id=None):
                 calls.append((action, manny_id, payload))
                 return {"accepted": True}
 
@@ -816,6 +816,56 @@ class UiPreparationTests(unittest.TestCase):
             "dispatch_pending",
         )
         self.assertIn("SCHEDULED REFRESH", controller.operationNotice)
+
+    def test_multiple_manual_mining_orders_can_queue_while_first_is_sending(self):
+        workers = []
+        calls = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                workers.append(worker)
+
+        class Service:
+            @staticmethod
+            def inventory_manny_action(action, manny_id, payload, probe_id=None):
+                calls.append((action, manny_id, payload))
+                return {"accepted": True}
+
+        controller = MissionControlController(Service(), DeferredPool())
+        controller._focused_probe_id = 7
+        controller._dashboard = {
+            "automationRuntime": {"mode": ExecutionMode.APPROVE.value},
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"}, {"id": "manny-b"}),
+            },
+            "production": (
+                {"id": "manny-a", "asset": "Miner A", "taskType": "idle"},
+                {"id": "manny-b", "asset": "Miner B", "taskType": "idle"},
+            ),
+        }
+        controller._start_refresh = lambda *_args, **_kwargs: self.fail(
+            "manual mining must wait for the scheduled refresh",
+        )
+
+        controller.runInventoryMannyAction(
+            "mine", "manny-a", {"objectId": "asteroid-1"},
+        )
+        controller.runInventoryMannyAction(
+            "mine", "manny-b", {"objectId": "asteroid-1"},
+        )
+
+        self.assertEqual(len(workers), 1)
+        self.assertEqual(len(controller._manual_mining_queue), 2)
+        self.assertEqual(
+            controller.dashboard["inventoryManagement"]["idleMannies"], (),
+        )
+        workers[0].run()
+        self.assertEqual(len(workers), 2)
+        self.assertEqual(calls[0][1], "manny-a")
+        workers[1].run()
+        self.assertEqual([item[1] for item in calls], ["manny-a", "manny-b"])
+        self.assertEqual(controller._manual_mining_queue, [])
 
     def test_manual_craft_override_can_be_cancelled_without_dispatch(self):
         controller = MissionControlController()

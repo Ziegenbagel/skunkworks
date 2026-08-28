@@ -377,6 +377,21 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual(command.payload["targetContainerId"], "metals-depot")
 
+    def test_deuterium_mining_never_routes_to_detached_storage(self):
+        self.operations.world.sector["snapshot"] = {"sector": {"objects": [{
+            "id": "fuel-depot", "type": "detached_container",
+            "capacity": 1, "usedCapacity": 0,
+            "rules": {"priority": ["deuterium"]},
+        }]}}
+        from src.planner.task import Task
+        command = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Mine Deuterium", reason="Refill reserve tanker",
+            target="asteroid-1", quantity=25,
+            resource_type="deuterium", priority=1,
+        ))
+
+        self.assertNotIn("targetContainerId", command.payload)
+
     def test_station_refill_claims_idle_manny_and_uses_station_command(self):
         from src.planner.task import Task
 
