@@ -93,6 +93,34 @@ class CredentialTests(unittest.TestCase):
             self.assertTrue(controller.credentialConfigured)
             self.assertNotIn("secret-api-key", controller.credentialMessage)
 
+    def test_onboarding_persistence_does_not_run_in_initiating_slot(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            workers = []
+
+            class DeferredPool:
+                @staticmethod
+                def start(worker):
+                    workers.append(worker)
+
+            engine = DataEngine(Path(temporary) / "onboarding-background.sqlite3")
+            credentials = MemoryCredentialStore()
+            credentials.save("secret-api-key")
+            controller = MissionControlController(
+                settings_engine=engine,
+                credential_store=credentials,
+                thread_pool=DeferredPool(),
+            )
+            controller.refresh = lambda: None
+
+            controller.completeOnboarding()
+
+            self.assertTrue(controller.onboardingRequired)
+            self.assertIsNone(engine.get_preference("onboarding_complete"))
+            self.assertEqual(len(workers), 1)
+            workers[0].run()
+            self.assertFalse(controller.onboardingRequired)
+            self.assertEqual(engine.get_preference("onboarding_complete"), "true")
+
 
 if __name__ == "__main__":
     unittest.main()

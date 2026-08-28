@@ -62,3 +62,27 @@ def test_test_notification_requires_saved_policy_and_supported_delivery():
         )
     ]
     assert "REQUESTED" in controller.operationNotice
+
+
+def test_dashboard_notification_deduplication_is_deferred_off_ui_thread():
+    workers = []
+
+    class DeferredPool:
+        @staticmethod
+        def start(worker):
+            workers.append(worker)
+
+    preferences = Preferences()
+    controller = MissionControlController(
+        settings_engine=preferences, thread_pool=DeferredPool(),
+    )
+
+    controller._queue_notification_processing(
+        {"alerts": [{"id": "a1", "summary": "Hull breach"}]},
+        prime=True,
+    )
+
+    assert "desktop_notification_seen" not in preferences.values
+    assert len(workers) == 1
+    workers[0].run()
+    assert "desktop_notification_seen" in preferences.values

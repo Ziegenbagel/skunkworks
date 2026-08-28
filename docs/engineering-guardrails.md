@@ -182,6 +182,21 @@ immediately, exposes a visible sending/saving state, and applies results on the
 Qt thread. Accepted commands use a focused lightweight sync; they do not force
 unrelated archival work before the interface becomes usable again.
 
+This boundary applies to every feature added for 1.1 and later, including small
+preference toggles and apparently local safety bookkeeping. Qt properties and
+dashboard-acceptance callbacks must consume in-memory or worker-prepared values;
+they must not open SQLite or policy files during QML reevaluation or refresh
+application. Fleet eligibility scans, travel-consent persistence, onboarding,
+combat-safety settings, unusual mining approvals, and handled-missile history
+all belong off-thread. A completion callback may update in-memory presentation
+state, emit signals, and schedule the next worker, but must not perform the
+durable read or write itself.
+
+Notification candidate extraction may use the accepted in-memory dashboard,
+but restart-safe `seen` persistence is also background work. Coalesce a newer
+dashboard while that worker is active rather than writing from the dashboard
+acceptance callback or starting overlapping SQLite writers.
+
 Production scrolling and Galaxy Map camera interaction are interaction
 boundaries. Dashboard updates may be coalesced until a production flick settles,
 and camera LOD may hide expensive geometry, but neither path may destroy and
@@ -194,6 +209,8 @@ Relevant code/tests:
 - `src/ui/qml/components/GalaxyMap3D.qml`
 - `tests/test_ui_preparation.py`
 - `tests/test_ui_assets.py`
+- `tests/test_credentials.py`
+- `tests/test_fleet_naming.py`
 
 ### Focused-probe safety telemetry is not default-probe archival history
 

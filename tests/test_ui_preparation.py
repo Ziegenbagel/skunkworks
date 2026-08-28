@@ -478,10 +478,12 @@ class UiPreparationTests(unittest.TestCase):
             "src.ui.controller._FleetAutomationWorker", Worker
         ):
             controller._dispatch_fleet_automation()
+            self.assertEqual(started[0].probe_ids, (9, 7, 11))
+            controller._accept_fleet_eligibility((9, 7, 11))
 
-        self.assertEqual(len(started), 1)
-        self.assertEqual(started[0].probe_ids, (7, 9, 11))
-        self.assertIs(controller._fleet_automation_worker, started[0])
+        self.assertEqual(len(started), 2)
+        self.assertEqual(started[1].probe_ids, (7, 9, 11))
+        self.assertIs(controller._fleet_automation_worker, started[1])
 
     def test_fleet_worker_reuses_one_service_and_recent_fleet_index(self):
         instances = []
@@ -545,11 +547,13 @@ class UiPreparationTests(unittest.TestCase):
             "src.ui.controller._FleetAutomationWorker", Worker,
         ):
             controller._dispatch_fleet_automation()
+            controller._accept_fleet_eligibility(range(1, 9))
             controller._fleet_automation_worker = None
             controller._dispatch_fleet_automation()
+            controller._accept_fleet_eligibility(range(1, 9))
 
-        assert started[0].probe_ids == (1, 2, 3, 4)
-        assert started[1].probe_ids == (1, 5, 6, 7)
+        assert started[1].probe_ids == (1, 2, 3, 4)
+        assert started[3].probe_ids == (1, 5, 6, 7)
 
     def test_focused_fleet_result_marks_accepted_manny_as_syncing(self):
         controller = MissionControlController()
@@ -709,9 +713,10 @@ class UiPreparationTests(unittest.TestCase):
         controller = MissionControlController()
         controller._focused_probe_id = 7
         for mode in (ExecutionMode.APPROVE, ExecutionMode.AUTOMATIC):
-            policy = type("Policy", (), {"mode": mode})()
-            with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=policy):
-                self.assertTrue(controller._require_manual_control())
+            controller._dashboard = {
+                "automationRuntime": {"mode": mode.value},
+            }
+            self.assertTrue(controller._require_manual_control())
 
     def test_manual_craft_conflict_waits_for_explicit_one_order_override(self):
         calls = []
@@ -1316,6 +1321,97 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(
                 DesiredStateStore(engine).load(1).fuel.minimum_percent, 42,
             )
+
+    def test_new_safety_and_resource_settings_return_before_sqlite_runs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            started = []
+
+            class DeferredPool:
+                @staticmethod
+                def start(worker):
+                    started.append(worker)
+
+            engine = DataEngine(Path(temporary) / "responsive-settings.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            service._selected_probe_id = 7
+            controller = MissionControlController(
+                service, DeferredPool(), settings_engine=engine,
+            )
+            controller._focused_probe_id = 7
+            controller._dashboard = {
+                "combatSafety": {"emergencyMissileEscapeEnabled": False},
+                "resourceLedger": {"rows": ({"objectId": "wreck-1"},)},
+            }
+
+            controller.setEmergencyMissileEscapeEnabled(True)
+
+            self.assertEqual(
+                engine.get_preference("emergency_missile_escape:7", "false"),
+                "false",
+            )
+            self.assertFalse(
+                controller.dashboard["combatSafety"]["emergencyMissileEscapeEnabled"]
+            )
+            started.pop(0).run()
+            self.assertEqual(
+                engine.get_preference("emergency_missile_escape:7"), "true",
+            )
+
+            controller.setUnusualMiningTargetApproval("wreck-1", True)
+
+            self.assertEqual(
+                engine.get_preference(
+                    "approved_unusual_mining_targets:7", "[]",
+                ),
+                "[]",
+            )
+            self.assertNotIn(
+                "automationApproved",
+                controller.dashboard["resourceLedger"]["rows"][0],
+            )
+            started.pop(0).run()
+            self.assertEqual(
+                json.loads(engine.get_preference(
+                    "approved_unusual_mining_targets:7",
+                )),
+                ["wreck-1"],
+            )
+            self.assertTrue(
+                controller.dashboard["resourceLedger"]["rows"][0]["automationApproved"]
+            )
+
+    def test_travel_approval_persistence_returns_before_worker_runs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            started = []
+            cycles = []
+
+            class DeferredPool:
+                @staticmethod
+                def start(worker):
+                    started.append(worker)
+
+            engine = DataEngine(Path(temporary) / "approval-background.sqlite3")
+            service = type("Service", (), {"data_engine": engine})()
+            controller = MissionControlController(service, DeferredPool())
+            controller._focused_probe_id = 3
+            controller._dashboard = {
+                "automation": {},
+                "automationRuntime": {
+                    "queue": ({"fingerprint": "move-1", "type": "move_probe"},),
+                },
+            }
+            controller._start_automation_cycle = (
+                lambda fingerprint, acknowledged: cycles.append(
+                    (fingerprint, acknowledged),
+                )
+            )
+
+            controller.approveAutomationCommand("move-1", True)
+
+            self.assertEqual(cycles, [])
+            self.assertEqual(len(started), 1)
+            started[0].run()
+            self.assertEqual(cycles, [("move-1", True)])
 
     def test_resource_summary_uses_current_probe_fuel_and_inventory_amounts(self):
         resources = MissionControlViewModelBuilder._resources({
