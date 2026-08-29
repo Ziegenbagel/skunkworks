@@ -15,8 +15,9 @@ def plan(operations, desired_state) -> list[Task]:
     movement_phase = str(
         movement.get("phase") or movement.get("status") or ""
     ).casefold()
-    manny_departure_blockers = (
-        operations.travel.automatic_manny_departure_blockers()
+    movement_target = operations.travel.active_movement_target()
+    manny_departure_blockers = operations.travel.automatic_manny_departure_blockers(
+        movement_target or target,
     )
     if movement_phase == "preparing" and manny_departure_blockers:
         return [Task(
@@ -66,7 +67,7 @@ def plan(operations, desired_state) -> list[Task]:
         integrity <= repair.trigger_percent or repair_active
     ) and integrity < repair.target_percent:
         blockers.append("repair_required_before_travel")
-    blockers.extend(manny_departure_blockers)
+    blockers.extend(operations.travel.automatic_manny_departure_blockers(target))
     if blockers == ["already_at_destination"]:
         return []
 

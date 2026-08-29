@@ -130,6 +130,38 @@ class DesiredStateTests(unittest.TestCase):
         self.assertTrue(travel.workflow_authorized)
         self.assertEqual(travel.constraints, ())
 
+    def test_auto_travel_allows_recovery_trip_to_missing_manny_sector(self):
+        destination = SectorCoordinates(1, 1, 0)
+        state = DesiredState(travel=TravelGoal(destination))
+        operations = build_operations()
+        operations.world.mannies["mannies"][0].update({
+            "currentTask": None,
+            "canReceiveOrders": False,
+            "location": {
+                "type": "sector",
+                "sector": {"relative": {"x": 1, "y": 1, "z": 0}},
+            },
+        })
+
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+
+        self.assertEqual(travel.action, "Move Probe")
+        self.assertNotIn("mannies_not_aboard", travel.constraints)
+        self.assertNotIn("mannies_unavailable_for_travel", travel.constraints)
+
+        operations.world.probe["status"] = "preparing"
+        operations.world.probe["movement"] = {
+            "status": "preparing", "target": {"x": 1, "y": 1, "z": 0},
+        }
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+        self.assertNotEqual(travel.action, "Cancel Automatic Travel")
+
     def test_auto_travel_waits_before_leaving_scut_coverage(self):
         destination = SectorCoordinates(2, 2, 0)
         state = DesiredState(travel=TravelGoal(destination))

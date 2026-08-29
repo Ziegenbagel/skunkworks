@@ -187,7 +187,8 @@ ordinary cargo, but applying them to deuterium produces an API rejection and
 leaves an otherwise valid reserve tanker visibly idle.
 
 Automatic travel requires every owned Manny to be aboard and available at both
-planning and last-mile preflight. A Manny command accepted earlier in the same
+planning and last-mile preflight, except for an explicit recovery hop whose
+target is the exact reported sector of an already off-probe Manny. A Manny command accepted earlier in the same
 dispatch burst immediately invalidates a previously prepared movement command;
 the probe must wait for authoritative task completion and return telemetry
 before continuing its durable route.
@@ -196,7 +197,8 @@ During the API movement-preparation grace period, automatic planning checks the
 same invariant again. If any owned Manny is still working, unavailable, or off
 probe, dispatch the canonical movement cancellation after live preflight and
 retain the durable destination; cancellation must not erase the route that will
-resume after every Manny is aboard.
+resume after every Manny is aboard. Never cancel a preparing recovery hop whose
+live target is the reported sector of the missing Manny.
 
 Relevant code/tests:
 

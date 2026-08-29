@@ -1193,7 +1193,11 @@ class UiPreparationTests(unittest.TestCase):
             {"inventory": {"items": []}},
             {"mannies": [
                 {"id": "ready", "name": "Manny Ready", "currentTask": None, "canReceiveOrders": True},
-                {"id": "busy", "name": "Manny Offline", "currentTask": None, "canReceiveOrders": False},
+                {
+                    "id": "busy", "name": "Manny Offline", "currentTask": None,
+                    "canReceiveOrders": False,
+                    "location": {"type": "sector", "sector": {"relative": {"x": 2, "y": 2, "z": -4}}},
+                },
             ]},
         )
 
@@ -1201,6 +1205,7 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(work[0]["taskType"], "idle")
         self.assertIn("IDLE · READY", work[0]["displayText"])
         self.assertIn("Can receive automation order: No", work[1]["detailText"])
+        self.assertIn("Location: FCC 2 / 2 / -4", work[1]["detailText"])
 
     def test_overdue_mining_exposes_storage_return_deadlock(self):
         work = MissionControlViewModelBuilder._production(

@@ -1347,6 +1347,14 @@ class MissionControlViewModelBuilder:
             task_type = manny.get("currentTask")
             if not task_type:
                 ready = bool(manny.get("canReceiveOrders", False))
+                location = manny.get("location") or {}
+                relative = (location.get("sector") or {}).get("relative") or {}
+                location_text = (
+                    f"FCC {relative['x']} / {relative['y']} / {relative['z']}"
+                    if all(axis in relative for axis in ("x", "y", "z"))
+                    else "Aboard probe" if location.get("type") == "probe"
+                    else "Coordinates unavailable"
+                )
                 work.append({
                     "id": str(manny.get("id", manny.get("name", len(work)))),
                     "asset": manny.get("name", "Manny"),
@@ -1357,7 +1365,8 @@ class MissionControlViewModelBuilder:
                     "displayText": f"{manny.get('name', 'MANNY')} · IDLE · {'READY' if ready else 'UNAVAILABLE'}",
                     "detailText": (
                         f"Asset: {manny.get('name', 'Manny')}\n"
-                        f"Status: Idle\nCan receive automation order: {'Yes' if ready else 'No'}"
+                        f"Status: Idle\nLocation: {location_text}\n"
+                        f"Can receive automation order: {'Yes' if ready else 'No'}"
                     ),
                 })
                 continue

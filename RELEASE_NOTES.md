@@ -16,8 +16,11 @@ immediately before dispatch, so work accepted earlier in the same cycle pauses
 the route until the Manny returns. During the cancellable jump-preparation grace
 period it checks again and cancels an automatic movement if a Manny is still
 outside or unavailable, while retaining the destination for later resumption.
+A destination-aware recovery exception permits travel to the exact sector of a
+missing Manny and prevents the grace-period fallback from cancelling that trip.
 Galaxy Map can also display owned Mannys left
-outside the focused probe and lists their names on the corresponding sector.
+outside the focused probe and lists their names on the corresponding sector;
+unavailable Production cards show their reported FCC coordinates directly.
 
 The development line also includes every change released through Skunkworks
 1.0.7, including reviewed game API compatibility through v125.

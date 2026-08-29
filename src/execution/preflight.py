@@ -126,7 +126,7 @@ class PreflightValidator:
         )
         if command.metadata.get("workflowAuthorized", False):
             blockers.extend(
-                self.operations.travel.automatic_manny_departure_blockers()
+                self.operations.travel.automatic_manny_departure_blockers(coordinates)
             )
         if command.metadata.get("requireScutCoverage"):
             origin = self.operations.travel.current_sector()
@@ -147,6 +147,7 @@ class PreflightValidator:
         blockers = []
         if phase != "preparing":
             blockers.append("movement_not_cancellable")
-        if not self.operations.travel.automatic_manny_departure_blockers():
+        target = self.operations.travel.active_movement_target()
+        if not self.operations.travel.automatic_manny_departure_blockers(target):
             blockers.append("all_mannies_aboard")
         return tuple(blockers)

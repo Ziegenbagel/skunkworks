@@ -1428,6 +1428,14 @@ class ExecutionBoundaryTests(unittest.TestCase):
         blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
         self.assertIn("mannies_not_aboard", blockers)
 
+        manny["location"] = {
+            "type": "sector",
+            "sector": {"relative": {"x": 1, "y": 1, "z": 0}},
+        }
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertNotIn("mannies_not_aboard", blockers)
+        self.assertNotIn("mannies_unavailable_for_travel", blockers)
+
     def test_auto_travel_cancellation_rechecks_grace_period_and_manny_state(self):
         command = Command(
             type=CommandType.CANCEL_PROBE_MOVE,
