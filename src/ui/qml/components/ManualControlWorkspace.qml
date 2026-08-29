@@ -394,7 +394,7 @@ Item {
                     ColumnLayout {
                         width: Math.max(1, combatControls.availableWidth - 12)
                         spacing: 14
-                        Label { Layout.fillWidth: true; text: "COMBAT CONTROL SYSTEMS · API v122"; color: Constants.criticalColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                        Label { Layout.fillWidth: true; text: "COMBAT CONTROL SYSTEMS · API v125"; color: Constants.criticalColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
                         Label { Layout.fillWidth: true; text: "Combat orders remain manual. Skunkworks will never choose or launch at a target without your explicit confirmation."; color: Constants.warningColor; wrapMode: Text.Wrap }
                         GroupBox {
                             title: "MISSILE LAUNCH"

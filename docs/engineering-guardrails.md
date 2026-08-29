@@ -396,6 +396,11 @@ an operating-system desktop notification in 1.0.6. Missile launches remain
 manual, require the operator to type `Confirm`, and revalidate the selected
 Manny, inventory missile, and public target identifier at dispatch.
 
+Missile dispatch uses the canonical API v125 Manny-scoped
+`/mannies/{mannyId}/ignite_missile` route. Do not restore the deprecated
+probe-level `/missiles` mutator: actor identity belongs in the route, while the
+payload contains only the selected missile and opaque target identifiers.
+
 Emergency missile escape is a separate per-probe opt-in. It may issue at most
 one random nearest-sector jump for a newly observed missile identifier, only
 after fresh live revalidation confirms the probe is idle, sufficiently fueled,
