@@ -192,6 +192,12 @@ dispatch burst immediately invalidates a previously prepared movement command;
 the probe must wait for authoritative task completion and return telemetry
 before continuing its durable route.
 
+During the API movement-preparation grace period, automatic planning checks the
+same invariant again. If any owned Manny is still working, unavailable, or off
+probe, dispatch the canonical movement cancellation after live preflight and
+retain the durable destination; cancellation must not erase the route that will
+resume after every Manny is aboard.
+
 Relevant code/tests:
 
 - `src/ui/controller.py::_run_replanning_automatic_cycle`

@@ -15,6 +15,7 @@ class CommandType(StrEnum):
     MANNY_ASSEMBLE_PROBE = "manny_assemble_probe"
     MANNY_REPAIR = "manny_repair"
     MOVE_PROBE = "move_probe"
+    CANCEL_PROBE_MOVE = "cancel_probe_move"
 
 
 @dataclass(frozen=True)

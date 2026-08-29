@@ -109,6 +109,27 @@ class DesiredStateTests(unittest.TestCase):
         self.assertEqual(travel.constraints, ())
         self.assertTrue(travel.workflow_authorized)
 
+    def test_auto_travel_cancels_preparing_jump_when_manny_is_not_aboard(self):
+        state = DesiredState(
+            travel=TravelGoal(SectorCoordinates(1, 1, 0)),
+        )
+        operations = build_operations()
+        operations.world.probe["movement"] = {"status": "preparing"}
+        operations.world.mannies["mannies"][0].update({
+            "currentTask": {"type": "mining"},
+            "canReceiveOrders": False,
+            "location": {"type": "sector"},
+        })
+
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+
+        self.assertEqual(travel.action, "Cancel Automatic Travel")
+        self.assertTrue(travel.workflow_authorized)
+        self.assertEqual(travel.constraints, ())
+
     def test_auto_travel_waits_before_leaving_scut_coverage(self):
         destination = SectorCoordinates(2, 2, 0)
         state = DesiredState(travel=TravelGoal(destination))

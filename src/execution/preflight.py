@@ -37,6 +37,8 @@ class PreflightValidator:
             blockers.extend(
                 self._move_blockers(command)
             )
+        if command.type == CommandType.CANCEL_PROBE_MOVE:
+            blockers.extend(self._cancel_move_blockers())
 
         if command.type in {
             CommandType.MANNY_CRAFT,
@@ -136,3 +138,15 @@ class PreflightValidator:
             ):
                 blockers.append("route_leaves_scut_coverage")
         return tuple(dict.fromkeys(blockers))
+
+    def _cancel_move_blockers(self):
+        movement = self.operations.world.probe.get("movement") or {}
+        phase = str(
+            movement.get("phase") or movement.get("status") or ""
+        ).casefold()
+        blockers = []
+        if phase != "preparing":
+            blockers.append("movement_not_cancellable")
+        if not self.operations.travel.automatic_manny_departure_blockers():
+            blockers.append("all_mannies_aboard")
+        return tuple(blockers)

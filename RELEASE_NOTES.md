@@ -13,7 +13,10 @@ recreating the mesh after every drag or wheel event.
 
 Automatic travel now revalidates that every owned Manny is aboard and available
 immediately before dispatch, so work accepted earlier in the same cycle pauses
-the route until the Manny returns. Galaxy Map can also display owned Mannys left
+the route until the Manny returns. During the cancellable jump-preparation grace
+period it checks again and cancels an automatic movement if a Manny is still
+outside or unavailable, while retaining the destination for later resumption.
+Galaxy Map can also display owned Mannys left
 outside the focused probe and lists their names on the corresponding sector.
 
 The development line also includes every change released through Skunkworks

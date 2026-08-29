@@ -1428,6 +1428,32 @@ class ExecutionBoundaryTests(unittest.TestCase):
         blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
         self.assertIn("mannies_not_aboard", blockers)
 
+    def test_auto_travel_cancellation_rechecks_grace_period_and_manny_state(self):
+        command = Command(
+            type=CommandType.CANCEL_PROBE_MOVE,
+            probe_id=1,
+            payload={},
+            reason="Keep deployed Manny safe",
+            priority=1,
+            source_action="Cancel Automatic Travel",
+            metadata={"workflowAuthorized": True},
+        )
+        self.operations.world.probe["movement"] = {"status": "preparing"}
+        manny = self.operations.world.mannies["mannies"][0]
+        manny["canReceiveOrders"] = False
+
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertEqual(blockers, ())
+
+        manny["canReceiveOrders"] = True
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertIn("all_mannies_aboard", blockers)
+
+        manny["canReceiveOrders"] = False
+        self.operations.world.probe["movement"] = {"status": "accelerating"}
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertIn("movement_not_cancellable", blockers)
+
     def test_operator_approved_scut_exit_is_not_reblocked_by_preflight(self):
         self.operations.world.hazard_context = {
             "scutNetworks": [{"network": {"id": "home", "relays": [{

@@ -20,6 +20,7 @@ class TaskCommandTranslator:
             "Mine Resource": self._mine,
             "Mine Deuterium": self._mine,
             "Move Probe": self._move,
+            "Cancel Automatic Travel": self._cancel_move,
             "Assemble Probe": self._assemble_probe,
             "Repair Probe": self._repair,
             "Transfer Deuterium": self._transfer_deuterium,
@@ -27,6 +28,17 @@ class TaskCommandTranslator:
         }.get(task.action)
 
         return handler(task) if handler is not None else None
+
+    def _cancel_move(self, task):
+        return Command(
+            type=CommandType.CANCEL_PROBE_MOVE,
+            probe_id=self.probe_id,
+            payload={},
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+            metadata={"workflowAuthorized": bool(task.workflow_authorized)},
+        )
 
     def _refill_deuterium_tank(self, task):
         manny = self._claim_idle_manny()

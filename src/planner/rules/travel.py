@@ -11,6 +11,26 @@ def plan(operations, desired_state) -> list[Task]:
     requested_target = desired_state.travel.target
     target = requested_target
     redirected = False
+    movement = operations.world.probe.get("movement") or {}
+    movement_phase = str(
+        movement.get("phase") or movement.get("status") or ""
+    ).casefold()
+    manny_departure_blockers = (
+        operations.travel.automatic_manny_departure_blockers()
+    )
+    if movement_phase == "preparing" and manny_departure_blockers:
+        return [Task(
+            action="Cancel Automatic Travel",
+            reason=(
+                "Automatic movement is still preparing while one or more "
+                "owned Mannys are working, unavailable, or outside the probe. "
+                "Cancel the jump and retain the destination until all Mannys return."
+            ),
+            category="travel",
+            target=f"{target.x}:{target.y}:{target.z}",
+            priority=NORMAL,
+            workflow_authorized=True,
+        )]
     if operations.travel_safety.is_black_hole_sector(requested_target):
         safe_target = operations.travel_safety.nearest_safe_scut_sector(requested_target)
         if safe_target is None:
@@ -46,7 +66,7 @@ def plan(operations, desired_state) -> list[Task]:
         integrity <= repair.trigger_percent or repair_active
     ) and integrity < repair.target_percent:
         blockers.append("repair_required_before_travel")
-    blockers.extend(operations.travel.automatic_manny_departure_blockers())
+    blockers.extend(manny_departure_blockers)
     if blockers == ["already_at_destination"]:
         return []
 
