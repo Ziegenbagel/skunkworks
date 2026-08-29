@@ -120,3 +120,26 @@ class TravelService:
             blockers.append("probe_integrity_too_low")
 
         return tuple(blockers)
+
+    def automatic_manny_departure_blockers(self):
+        """Block automatic departure until every owned Manny is safely aboard."""
+
+        mannies = tuple(self.world.mannies.get("mannies", ()))
+        blockers = []
+        if any(manny.get("currentTask") is not None for manny in mannies):
+            blockers.append("manny_tasks_in_progress")
+        if any(
+            (manny.get("location") or {}).get("type") != "probe"
+            for manny in mannies
+        ):
+            blockers.append("mannies_not_aboard")
+        # Accepted work may not yet have authoritative task telemetry. The
+        # dispatch burst marks its Manny unavailable immediately; treat that
+        # local claim as enough to invalidate a previously planned auto-jump.
+        if any(
+            manny.get("currentTask") is None
+            and not manny.get("canReceiveOrders", False)
+            for manny in mannies
+        ):
+            blockers.append("mannies_unavailable_for_travel")
+        return tuple(blockers)

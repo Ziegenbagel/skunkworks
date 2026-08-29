@@ -1669,6 +1669,27 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(view["nodes"][0]["mapState"], "current")
         self.assertEqual(view["nodes"][1]["mapState"], "visited")
 
+    def test_galaxy_view_exposes_owned_mannies_left_in_known_sectors(self):
+        from src.models.galaxy import GalaxyMap
+
+        base = build_operations()
+        galaxy = GalaxyMap()
+        galaxy.record_visit({"relativeCoordinates": {"x": 1, "y": 1, "z": 0}, "visitCount": 1})
+        base.world.galaxy = galaxy
+        base.world.mannies["mannies"][0].update({
+            "name": "Explorer Manny",
+            "location": {"type": "sector", "sector": {"relative": {"x": 1, "y": 1, "z": 0}}},
+            "canReceiveOrders": False,
+        })
+
+        view = MissionControlViewModelBuilder(base)._galaxy_view(
+            base.world, {"x": 0, "y": 0, "z": 0},
+        )
+
+        self.assertEqual(view["ownedMannyLocations"][0]["name"], "Explorer Manny")
+        self.assertEqual(view["nodes"][0]["ownedMannyCount"], 1)
+        self.assertEqual(view["nodes"][0]["ownedMannies"][0]["x"], 1)
+
     def test_all_nonvisited_scan_records_use_the_scanned_filter(self):
         from src.models.galaxy import GalaxyMap
 

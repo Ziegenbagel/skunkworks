@@ -46,10 +46,7 @@ def plan(operations, desired_state) -> list[Task]:
         integrity <= repair.trigger_percent or repair_active
     ) and integrity < repair.target_percent:
         blockers.append("repair_required_before_travel")
-    if any(manny.get("currentTask") is not None for manny in mannies):
-        blockers.append("manny_tasks_in_progress")
-    if operations.mannies.deployed():
-        blockers.append("mannies_not_aboard")
+    blockers.extend(operations.travel.automatic_manny_departure_blockers())
     if blockers == ["already_at_destination"]:
         return []
 

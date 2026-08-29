@@ -524,6 +524,28 @@ class MissionControlViewModelBuilder:
     def _galaxy_view(self, world, focus_coordinates):
         galaxy = getattr(world, "galaxy", None)
         records = galaxy.sectors() if galaxy is not None else ()
+        owned_manny_locations = []
+        mannies_by_sector = {}
+        for manny in (world.mannies or {}).get("mannies", ()):
+            location = manny.get("location") or {}
+            relative = (location.get("sector") or {}).get("relative")
+            if location.get("type") == "probe" or not isinstance(relative, dict):
+                continue
+            if not all(axis in relative for axis in ("x", "y", "z")):
+                continue
+            row = {
+                "id": str(manny.get("id", "")),
+                "name": manny.get("name", "Manny"),
+                "x": int(relative["x"]),
+                "y": int(relative["y"]),
+                "z": int(relative["z"]),
+                "locationType": str(location.get("type", "sector")),
+                "currentTask": manny.get("currentTask"),
+                "canReceiveOrders": bool(manny.get("canReceiveOrders", False)),
+            }
+            owned_manny_locations.append(row)
+            key = f"{row['x']}:{row['y']}:{row['z']}"
+            mannies_by_sector.setdefault(key, []).append(row)
         nodes = []
         for record in records:
             coordinate = record.coordinates
@@ -552,8 +574,9 @@ class MissionControlViewModelBuilder:
                 # GalaxyMap records without either a visit or observation do
                 # not represent discovered sectors and are not rendered.
                 continue
+            node_id = f"{coordinate.x}:{coordinate.y}:{coordinate.z}"
             nodes.append({
-                "id": f"{coordinate.x}:{coordinate.y}:{coordinate.z}",
+                "id": node_id,
                 "x": coordinate.x,
                 "y": coordinate.y,
                 "z": coordinate.z,
@@ -569,6 +592,8 @@ class MissionControlViewModelBuilder:
                 "hasHazard": bool(hazard_types),
                 "hazardTypes": hazard_types,
                 "hasDetachedContainers": has_detached_containers,
+                "ownedMannies": tuple(mannies_by_sector.get(node_id, ())),
+                "ownedMannyCount": len(mannies_by_sector.get(node_id, ())),
                 "knowledgeLevel": knowledge,
                 "confidence": float(sector.get("confidence", 0) or 0),
                 "isFocused": is_focused,
@@ -659,6 +684,7 @@ class MissionControlViewModelBuilder:
             "scutRanges": tuple(scut_ranges),
             "scutCoverageCells": tuple(scut_coverage_cells.values()),
             "scutCoverageBoundary": scut_coverage_boundary,
+            "ownedMannyLocations": tuple(owned_manny_locations),
         }
 
     def _communications(self, probe):

@@ -394,6 +394,15 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "renderedEdges" in galaxy
     assert "readonly property var renderedEdges: visibleEdges" in galaxy
     assert "visible: !root.cameraMoving" in galaxy
+
+
+def test_galaxy_map_renders_owned_manny_locations():
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
+
+    assert "ownedMannyLocations" in galaxy
+    assert 'objectName: "manny-location:"' in galaxy
+    assert "SHOW OWNED MANNY LOCATIONS" in galaxy
+    assert "OWNED MANNYS · " in galaxy
     assert "cameraMoving || distantOverview ? [] : visibleEdges" not in galaxy
     assert "id: cameraSettle" in galaxy
     assert "function fitVisibleMap()" in galaxy

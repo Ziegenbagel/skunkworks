@@ -122,6 +122,10 @@ class PreflightValidator:
             )
             if blocker != "already_at_destination"
         )
+        if command.metadata.get("workflowAuthorized", False):
+            blockers.extend(
+                self.operations.travel.automatic_manny_departure_blockers()
+            )
         if command.metadata.get("requireScutCoverage"):
             origin = self.operations.travel.current_sector()
             if origin is not None and (

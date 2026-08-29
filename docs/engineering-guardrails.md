@@ -186,6 +186,12 @@ Deuterium mining refills the probe tank and must not include a detached storage
 ordinary cargo, but applying them to deuterium produces an API rejection and
 leaves an otherwise valid reserve tanker visibly idle.
 
+Automatic travel requires every owned Manny to be aboard and available at both
+planning and last-mile preflight. A Manny command accepted earlier in the same
+dispatch burst immediately invalidates a previously prepared movement command;
+the probe must wait for authoritative task completion and return telemetry
+before continuing its durable route.
+
 Relevant code/tests:
 
 - `src/ui/controller.py::_run_replanning_automatic_cycle`

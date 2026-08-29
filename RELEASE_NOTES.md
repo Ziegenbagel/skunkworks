@@ -11,6 +11,11 @@ and reuses viewport delegates. Galaxy Map camera interaction retains its scene
 allocation and temporarily hides expensive links instead of destroying and
 recreating the mesh after every drag or wheel event.
 
+Automatic travel now revalidates that every owned Manny is aboard and available
+immediately before dispatch, so work accepted earlier in the same cycle pauses
+the route until the Manny returns. Galaxy Map can also display owned Mannys left
+outside the focused probe and lists their names on the corresponding sector.
+
 The development line also includes every change released through Skunkworks
 1.0.7, including reviewed game API compatibility through v125.
 

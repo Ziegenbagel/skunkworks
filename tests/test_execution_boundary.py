@@ -1407,6 +1407,27 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertIn("route_leaves_scut_coverage", blockers)
 
+    def test_auto_travel_preflight_rechecks_locally_claimed_and_deployed_mannies(self):
+        command = Command(
+            type=CommandType.MOVE_PROBE,
+            probe_id=1,
+            payload={"target": {"x": 1, "y": 1, "z": 0}},
+            reason="Automatic route",
+            priority=1,
+            source_action="Move Probe",
+            metadata={"workflowAuthorized": True},
+        )
+        manny = self.operations.world.mannies["mannies"][0]
+        manny["canReceiveOrders"] = False
+
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+
+        self.assertIn("mannies_unavailable_for_travel", blockers)
+
+        manny["location"] = {"type": "sector", "sector": {"relative": {"x": 0, "y": 0, "z": 0}}}
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertIn("mannies_not_aboard", blockers)
+
     def test_operator_approved_scut_exit_is_not_reblocked_by_preflight(self):
         self.operations.world.hazard_context = {
             "scutNetworks": [{"network": {"id": "home", "relays": [{

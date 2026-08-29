@@ -40,6 +40,7 @@ Item {
     property bool showRecentTrail: true
     property bool showScutCoverage: false
     property bool showAxisLabels: true
+    property bool showOwnedMannies: true
     property bool filtersExpanded: true
     property bool cameraMoving: false
     property string detailProfile: "normal"
@@ -331,13 +332,37 @@ Item {
                         || (root.selectedNode && String(root.selectedNode.id) === String(modelData.id))
                     ? "#Sphere" : "#Cube"
                 pickable: true
-                position: root.positionFor(modelData)
+                position: {
+                    const sectorPosition = root.positionFor(modelData);
+                    return Qt.vector3d(sectorPosition.x, sectorPosition.y + 28, sectorPosition.z);
+                }
                 scale: modelData.isFocused ? Qt.vector3d(0.34, 0.34, 0.34)
                      : root.detailProfile === "reduced" && root.distantOverview
                      ? Qt.vector3d(0.19, 0.19, 0.19) : Qt.vector3d(0.24, 0.24, 0.24)
                 materials: DefaultMaterial {
                     lighting: DefaultMaterial.NoLighting
                     diffuseColor: root.colorFor(sectorModel.modelData)
+                }
+            }
+        }
+
+        // Owned Mannys outside the focused probe remain operationally
+        // important even when the sector's ordinary discovery filter is off.
+        Repeater3D {
+            model: root.showOwnedMannies ? (root.galaxyData.ownedMannyLocations || []) : []
+            delegate: Model {
+                id: ownedMannyMarker
+                required property var modelData
+                objectName: "manny-location:" + String(modelData.id)
+                source: "#Sphere"
+                pickable: true
+                visible: !root.cameraMoving
+                position: root.positionFor(modelData)
+                scale: Qt.vector3d(0.13, 0.13, 0.13)
+                materials: DefaultMaterial {
+                    lighting: DefaultMaterial.NoLighting
+                    diffuseColor: Constants.warningColor
+                    opacity: 0.98
                 }
             }
         }
@@ -468,6 +493,18 @@ Item {
                 }
                 return;
             }
+            if (identifier.indexOf("manny-location:") === 0) {
+                const locations = root.galaxyData.ownedMannyLocations || [];
+                const mannyId = identifier.slice(15);
+                for (let i = 0; i < locations.length; ++i) {
+                    if (String(locations[i].id) === mannyId) {
+                        const nodeId = String(locations[i].x) + ":" + String(locations[i].y) + ":" + String(locations[i].z);
+                        root.selectedNode = root.nodeById(nodeId);
+                        root.selectedCoveragePoint = null;
+                        return;
+                    }
+                }
+            }
             root.selectedCoveragePoint = null;
             root.selectedNode = root.nodeById(identifier);
         }
@@ -578,6 +615,11 @@ Item {
                     text: "SHOW X / Y / Z AXIS LABELS"
                     checked: root.showAxisLabels; onToggled: root.showAxisLabels = checked
                 }
+                CheckBox {
+                    Layout.columnSpan: 2
+                    text: "SHOW OWNED MANNY LOCATIONS"
+                    checked: root.showOwnedMannies; onToggled: root.showOwnedMannies = checked
+                }
             }
             Label {
                 visible: root.filtersExpanded; Layout.fillWidth: true
@@ -622,6 +664,12 @@ Item {
             Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? (root.isGodSector(root.selectedNode) ? "GOD SECTOR · ALL FOUR RESOURCES    " : "") + "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode && root.isGodSector(root.selectedNode) ? "#ffd34d" : root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
+            Label {
+                visible: root.selectedNode && Number(root.selectedNode.ownedMannyCount || 0) > 0
+                Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20
+                text: "OWNED MANNYS · " + (root.selectedNode.ownedMannies || []).map(function(manny) { return String(manny.name || manny.id); }).join(", ")
+                color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true; wrapMode: Text.Wrap
+            }
             ScrollView {
                 id: sectorObjectsScroll
                 visible: root.selectedNode && (root.selectedNode.objects || []).length > 0
