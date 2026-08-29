@@ -1,5 +1,10 @@
 # Operator Manual Revision History
 
+## 1.1 — 2026-08-29
+
+- Updated Combat Control to the canonical API v125 Manny-scoped missile launch
+  route and documented API v123–v124 waiting-state and impact-alert behavior.
+
 ## 1.0 — 2026-08-27
 
 - Added API v122 Combat Control Systems, the targeted-missile takeover warning,

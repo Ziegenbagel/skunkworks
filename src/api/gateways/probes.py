@@ -46,13 +46,12 @@ class ProbeGateway:
         )
 
     def launch_missile(self, probe_id, actor_manny_id, missile_item_id, target_id):
-        """Start the API v122 one-minute Manny missile preparation."""
+        """Start the API v125 one-minute Manny missile preparation."""
 
         return self.client.request(
             "POST",
-            f"/api/probe/{probe_id}/missiles",
+            f"/api/probe/{probe_id}/mannies/{actor_manny_id}/ignite_missile",
             json={
-                "actorMannyId": str(actor_manny_id),
                 "missileItemId": str(missile_item_id),
                 "targetId": str(target_id),
             },

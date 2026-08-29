@@ -18,7 +18,7 @@ the Operator Manual, architecture, API notes, planner, and safety references.
 | Communications | Yes | Messages and logbook editing | Optional daily role reports | Explicit recipient/page and API validation |
 | Safety and policy | Yes | Configure and acknowledge | Preflight, leases, allowlists, emergency stop | Policy never replaces live validation |
 
-Reviewed compatibility is API v103 through v122. A newer unreviewed server
+Reviewed compatibility is API v103 through v125. A newer unreviewed server
 version is visibly identified and continues only under the forward-compatible
 contract boundary. Endpoint-level
 evidence and unresolved upstream behavior are maintained in `docs/api-notes.md`.

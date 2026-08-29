@@ -11,7 +11,22 @@ and reuses viewport delegates. Galaxy Map camera interaction retains its scene
 allocation and temporarily hides expensive links instead of destroying and
 recreating the mesh after every drag or wheel event.
 
-The development line also includes every change released in Skunkworks 1.0.6.
+The development line also includes every change released through Skunkworks
+1.0.7, including reviewed game API compatibility through v125.
+
+## Skunkworks 1.0.7
+
+Skunkworks 1.0.7 reviews and integrates Von Neumann Game API v123–v125. Probe
+missile launches now use the canonical Manny-scoped `ignite_missile` command
+introduced in API v125 instead of the deprecated probe-level launch route,
+while preserving typed confirmation, live inventory/Manny/target validation,
+and the existing opt-in emergency escape boundary.
+
+The reviewed contract also recognizes the server-authoritative seven-day Manny
+`waiting_for_space` timestamp and API v124 asteroid-impact alert delivery. The
+game now sends launcher results only when the launcher remains in the impact
+sector and sends a separate critical damage alert to an impacted probe or
+Others ship.
 
 ## Skunkworks 1.0.6
 

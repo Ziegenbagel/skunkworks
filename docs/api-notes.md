@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v122, verified
-against the live contract on 2026-08-27.
+Skunkworks supports deployed API v103 through upstream API v125, verified
+against the live contract on 2026-08-29.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -31,9 +31,10 @@ API v117 makes the scheduler worker the only authority that finalizes timed
 Manny work. Reads return the last persisted state, so a passed client ETA is
 shown as `AWAITING SERVER COMPLETION` and never treated as completion.
 
-API v119–v122 add probe missile preparation and live projectile observation.
-`POST /api/probe/{probeId}/missiles` accepts `actorMannyId`, `missileItemId`,
-and an opaque public `targetId`. Sector scans expose moving `missile` objects,
+API v119–v125 add probe missile preparation and live projectile observation.
+API v125 deprecates `POST /api/probe/{probeId}/missiles`; Skunkworks uses the
+canonical `POST /api/probe/{probeId}/mannies/{mannyId}/ignite_missile` route
+with `missileItemId` and an opaque public `targetId`. Sector scans expose moving `missile` objects,
 including `targetKind`, `targetId`, `impactAt`, and `targetsCurrentProbe`.
 `weapon_targeted` is critical for the selected probe; ordinary `weapon`
 detections remain visible without becoming a targeted-probe alarm.
@@ -46,6 +47,15 @@ API v122 exposes authoritative `resourceAmounts` for mineable planets and
 asteroids. Planetary resources remain ordinary Manny mining targets when
 `mannyMineable` is true. Artificial or abandoned structures require explicit
 local approval before Skunkworks automation may select them.
+
+API v123 adds `task.waitingForSpaceSince` to Manny `waiting_for_space` state.
+The timestamp is server-authoritative; after seven continuous days the game
+abandons the cargo and retries docking, potentially leaving the Manny as an
+`abandoned` sector object when its own storage slot remains unavailable.
+
+API v124 changes motorized-asteroid impact alerts. The launcher receives the
+result only while still physically present in the impact sector; an impacted
+probe or Others ship receives its own critical damage alert.
 
 API v105 adds `DELETE /api/probe/{probeId}/move`. It succeeds only during
 movement preparation, cancels the scheduled movement and container-damage
