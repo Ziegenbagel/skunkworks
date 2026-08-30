@@ -66,8 +66,11 @@ class AutomationRuntime:
         # Crafting and mining are repeatable goals. Once the previous task has
         # completed, an identical order from the same stable inventory state is
         # legitimate; the authoritative refresh and preflight below still stop
-        # a duplicate while its Manny/printer is busy. Keep durable fingerprint
-        # idempotency for one-time mutations such as movement and assembly.
+        # a duplicate while its Manny/printer is busy. Movement also uses live
+        # idempotency: accepting preparation is journalled as success, but a
+        # later safety cancellation means that identical hop must be allowed to
+        # resume. Keep durable fingerprint idempotency for truly one-time
+        # mutations such as assembly.
         repeatable = command.type in {
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
@@ -75,6 +78,7 @@ class AutomationRuntime:
             CommandType.MANNY_TRANSFER_DEUTERIUM,
             CommandType.MANNY_REFILL_DEUTERIUM_TANK,
             CommandType.CANCEL_PROBE_MOVE,
+            CommandType.MOVE_PROBE,
         }
         if not repeatable and self.data_engine.action_was_successful(command.fingerprint):
             return self._finish(command, "cancelled", ("already_completed",))

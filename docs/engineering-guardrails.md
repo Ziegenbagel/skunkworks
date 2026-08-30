@@ -209,6 +209,13 @@ retain the durable destination; cancellation must not erase the route that will
 resume after every Manny is aboard. Never cancel a preparing recovery hop whose
 live target is the reported sector of the missing Manny.
 
+Movement idempotency is authoritative-state based. The action journal records a
+move as succeeded when preparation is accepted, but that does not prove the hop
+completed: a subsequent safety cancellation may leave the probe at its origin.
+A ready move with the same fingerprint must therefore pass through fresh live
+preflight and dispatch again. Historical fingerprints remain hard idempotency
+guards for genuinely one-time mutations such as probe assembly.
+
 A secondary travel-risk acknowledgement is never generic. The queued command
 must display every live warning code and its human-readable reason—including
 the concrete expected and worst-case values supplied by the safety assessment—

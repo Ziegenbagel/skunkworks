@@ -1377,6 +1377,28 @@ class ExecutionBoundaryTests(unittest.TestCase):
             0,
         )
 
+    def test_cancelled_preparation_can_retry_the_same_move_fingerprint(self):
+        desired = DesiredState(
+            fuel=FuelGoal(0),
+            inventory=InventoryGoal(0),
+            travel=TravelGoal(SectorCoordinates(2, 0, 0)),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            journal = ActionJournal(
+                DataEngine(Path(temporary) / "cancelled-move.sqlite3"),
+            )
+            first = self.prepare(desired, journal)[0]
+            journal.data_engine.record_action(
+                first.command.fingerprint,
+                first.command.to_dict(),
+                "succeeded",
+            )
+
+            resumed = self.prepare(desired, journal)[0]
+
+        self.assertEqual(resumed.command.fingerprint, first.command.fingerprint)
+        self.assertNotIn("already_completed", resumed.blockers)
+
     def test_auto_travel_preflight_rechecks_scut_coverage(self):
         self.operations.world.hazard_context = {
             "scutNetworks": [{
