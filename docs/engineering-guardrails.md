@@ -164,6 +164,11 @@ Sector/inventory refresh can reconcile a completed Manny before the Manny list
 does. Fetch sector first, then Mannys. When a refresh changes a previously busy
 Manny to idle-and-ready, queue the normal policy-controlled automation cycle
 without waiting for another one-minute heartbeat.
+Planner reconciliation is an equivalent readiness boundary: when a durable
+move fingerprint changes from blocked to ready after Manny work completes,
+queue one immediate policy-controlled cycle even if the Manny was already in
+the prior visible idle pool. An unchanged ready fingerprint must not create a
+post-refresh dispatch loop.
 
 ### Accepted work must be reflected immediately in the UI
 

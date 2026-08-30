@@ -3124,6 +3124,7 @@ class MissionControlController(QObject):
         self._refresh_target_id = None
         self._active_section = "MISSION CONTROL"
         self._refresh_previous_idle_manny_ids = set()
+        self._refresh_previous_ready_move_fingerprints = set()
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
         self._selected_operating_profile = load_operating_profile(self.settings_engine)
         self._operating_profile_idle_minutes = load_operating_profile_idle_minutes(
@@ -5376,6 +5377,15 @@ class MissionControlController(QObject):
             )
             if item.get("id") is not None
         }
+        self._refresh_previous_ready_move_fingerprints = {
+            str(item.get("fingerprint"))
+            for item in self._dashboard.get("automationRuntime", {}).get(
+                "queue", (),
+            )
+            if item.get("type") == CommandType.MOVE_PROBE.value
+            and item.get("disposition") == "ready"
+            and item.get("fingerprint") not in {None, ""}
+        }
         self._set_refreshing(True)
         self._set_error("")
         self._refresh_target_id = probe_id
@@ -5491,15 +5501,26 @@ class MissionControlController(QObject):
         newly_actionable_mannies = (
             current_idle_manny_ids - self._refresh_previous_idle_manny_ids
         )
+        current_ready_move_fingerprints = {
+            str(item.get("fingerprint"))
+            for item in focused_runtime.get("queue", ())
+            if item.get("type") == CommandType.MOVE_PROBE.value
+            and item.get("disposition") == "ready"
+            and item.get("fingerprint") not in {None, ""}
+        }
+        newly_ready_moves = (
+            current_ready_move_fingerprints
+            - self._refresh_previous_ready_move_fingerprints
+        )
         if (
-            newly_actionable_mannies
+            (newly_actionable_mannies or newly_ready_moves)
             and focused_runtime.get("mode") == ExecutionMode.AUTOMATIC.value
             and focused_runtime.get("liveExecutionEnabled")
         ):
             # Sector refresh may be what causes the game to reconcile an
-            # overdue return to idle. Do not leave that newly-ready Manny
-            # waiting for the next one-minute heartbeat: run the same bounded,
-            # allowlisted and safety-reviewed fleet cycle immediately.
+            # overdue return to idle, while planner reconciliation may be the
+            # first place a durable move visibly changes from blocked to ready.
+            # Do not leave either transition waiting for another heartbeat.
             self._automation_after_refresh = True
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
         accepted_focus = dict(payload.get("focus", {}))

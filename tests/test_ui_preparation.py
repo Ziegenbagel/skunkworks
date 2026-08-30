@@ -345,6 +345,62 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertFalse(controller._automation_after_refresh)
 
+    def test_refresh_reconciliation_immediately_resumes_newly_ready_travel(self):
+        controller = MissionControlController()
+        controller._refresh_previous_idle_manny_ids = {"manny-a"}
+        controller._refresh_previous_ready_move_fingerprints = set()
+        controller._initial_automation_cycle_pending = False
+        controller._refresh_target_id = 9
+        payload = {
+            "focus": {"probeId": 9},
+            "probeOptions": ({"id": 9, "name": "Explorer"},),
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"},),
+            },
+            "automationRuntime": {
+                "mode": "automatic",
+                "liveExecutionEnabled": True,
+                "queue": ({
+                    "fingerprint": "resume-trip-9",
+                    "type": "move_probe",
+                    "disposition": "ready",
+                },),
+            },
+        }
+        controller._finish_refresh = lambda: None
+
+        controller._accept_dashboard(payload)
+
+        self.assertTrue(controller._automation_after_refresh)
+
+    def test_refresh_does_not_redispatch_an_unchanged_ready_move(self):
+        controller = MissionControlController()
+        controller._refresh_previous_idle_manny_ids = {"manny-a"}
+        controller._refresh_previous_ready_move_fingerprints = {"resume-trip-9"}
+        controller._initial_automation_cycle_pending = False
+        controller._refresh_target_id = 9
+        payload = {
+            "focus": {"probeId": 9},
+            "probeOptions": ({"id": 9, "name": "Explorer"},),
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"},),
+            },
+            "automationRuntime": {
+                "mode": "automatic",
+                "liveExecutionEnabled": True,
+                "queue": ({
+                    "fingerprint": "resume-trip-9",
+                    "type": "move_probe",
+                    "disposition": "ready",
+                },),
+            },
+        }
+        controller._finish_refresh = lambda: None
+
+        controller._accept_dashboard(payload)
+
+        self.assertFalse(controller._automation_after_refresh)
+
     def test_probe_switch_restarts_automation_heartbeat(self):
         controller = MissionControlController()
         controller._focused_probe_id = 7
