@@ -3999,12 +3999,12 @@ class MissionControlController(QObject):
                         ),
                     })
                 production.append(updated)
-            self._dashboard["production"] = tuple(production)
+            self._dashboard["production"] = production
             inventory = dict(self._dashboard.get("inventoryManagement", {}))
-            inventory["idleMannies"] = tuple(
+            inventory["idleMannies"] = [
                 row for row in inventory.get("idleMannies", ())
                 if str(row.get("id")) not in claimed
-            )
+            ]
             self._dashboard["inventoryManagement"] = inventory
         self.dashboardChanged.emit()
 
@@ -4818,10 +4818,10 @@ class MissionControlController(QObject):
         detail_status="Manual order accepted",
     ):
         inventory = dict(self._dashboard.get("inventoryManagement", {}))
-        inventory["idleMannies"] = tuple(
+        inventory["idleMannies"] = [
             item for item in inventory.get("idleMannies", ())
             if str(item.get("id")) != manny_id
-        )
+        ]
         self._dashboard["inventoryManagement"] = inventory
         production = []
         for row in self._dashboard.get("production", ()):
@@ -4839,7 +4839,7 @@ class MissionControlController(QObject):
                     "Authoritative task details will appear at the next scheduled refresh."
                 ),
             })
-        self._dashboard["production"] = tuple(production)
+        self._dashboard["production"] = production
         self.dashboardChanged.emit()
 
     def _queue_manual_mining_order(self, manny_id, payload):
@@ -4946,14 +4946,14 @@ class MissionControlController(QObject):
         idle = list(inventory.get("idleMannies", ()))
         if not any(str(item.get("id")) == order["mannyId"] for item in idle):
             idle.append(order["idleManny"])
-        inventory["idleMannies"] = tuple(idle)
+        inventory["idleMannies"] = idle
         self._dashboard["inventoryManagement"] = inventory
         if order.get("productionRow") is not None:
-            self._dashboard["production"] = tuple(
+            self._dashboard["production"] = [
                 order["productionRow"]
                 if str(item.get("id")) == order["mannyId"] else item
                 for item in self._dashboard.get("production", ())
-            )
+            ]
         self.dashboardChanged.emit()
 
     def _require_manual_control(self):
@@ -5207,11 +5207,11 @@ class MissionControlController(QObject):
         if probe_id != self._focused_probe_id:
             return
         ledger = dict(self._dashboard.get("resourceLedger", {}))
-        ledger["rows"] = tuple(
+        ledger["rows"] = [
             {**row, "automationApproved": approved}
             if str(row.get("objectId")) == target_id else row
             for row in ledger.get("rows", ())
-        )
+        ]
         self._dashboard["resourceLedger"] = ledger
         self.dashboardChanged.emit()
         self._set_error("")

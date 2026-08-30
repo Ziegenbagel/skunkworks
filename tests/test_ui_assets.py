@@ -386,6 +386,16 @@ def test_dashboard_density_controls_scale_summaries_and_bound_sector_labels():
     assert "readonly property bool above" in sector
 
 
+def test_planet_details_dialog_has_a_non_circular_explicit_width():
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
+    start = sector.index("id: planetDetails")
+    dialog = sector[start:sector.index("Repeater {", start)]
+
+    assert "width: Math.min(620, parent.width - 48)" in dialog
+    assert "width: planetDetails.availableWidth" in dialog
+    assert "width: 560" not in dialog
+
+
 def test_hull_panel_uses_release_thresholds_without_duplicate_reading():
     screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
     telemetry = Path("src/ui/qml/components/TelemetryBar.qml").read_text(encoding="utf-8")

@@ -346,11 +346,12 @@ Rectangle {
         id: planetDetails
         z: 1300
         anchors.centerIn: parent
+        width: Math.min(620, parent.width - 48)
         modal: true
         title: String(root.selectedPlanet.name || "PLANET DETAILS").toUpperCase()
         standardButtons: Dialog.Close
         contentItem: Column {
-            width: 560
+            width: planetDetails.availableWidth
             spacing: 9
             Label { width: parent.width; text: "TYPE · " + String(root.selectedPlanet.category || root.selectedPlanet.type || "unknown").replace(/_/g, " ").toUpperCase(); color: Constants.cyanColor; font.bold: true; wrapMode: Text.Wrap }
             Label { width: parent.width; text: "MASS · " + (root.selectedPlanet.mass === undefined ? "UNKNOWN" : Number(root.selectedPlanet.mass).toFixed(2) + " EARTH MASSES") + "    RADIUS · " + (root.selectedPlanet.radius === undefined ? "UNKNOWN" : Number(root.selectedPlanet.radius).toFixed(2) + " EARTH RADII"); color: Constants.textColor; wrapMode: Text.Wrap }

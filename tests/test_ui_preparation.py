@@ -323,6 +323,31 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertTrue(controller._automation_after_refresh)
 
+    def test_incremental_dashboard_mutations_keep_qml_safe_array_models(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 9
+        controller._dashboard = {
+            "production": ({"id": "manny-a", "taskType": "idle"},),
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"},),
+            },
+            "automationRuntime": {},
+        }
+
+        controller._accept_fleet_automation_probe({
+            "probeId": 9,
+            "result": {
+                "results": ({
+                    "status": "succeeded", "targetId": "manny-a",
+                },),
+            },
+        })
+
+        self.assertIsInstance(controller.dashboard["production"], list)
+        self.assertIsInstance(
+            controller.dashboard["inventoryManagement"]["idleMannies"], list,
+        )
+
     def test_refresh_does_not_replan_for_manny_already_idle(self):
         controller = MissionControlController()
         controller._refresh_previous_idle_manny_ids = {"already-idle"}
@@ -631,7 +656,7 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(controller._dashboard["production"][0]["taskType"], "dispatch_pending")
         self.assertIn("ORDER ACCEPTED", controller._dashboard["production"][0]["displayText"])
-        self.assertEqual(controller._dashboard["inventoryManagement"]["idleMannies"], ())
+        self.assertEqual(controller._dashboard["inventoryManagement"]["idleMannies"], [])
 
     def test_busy_periodic_tick_is_queued_instead_of_discarded(self):
         controller = MissionControlController()
@@ -921,7 +946,7 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("1 SENDING", controller.operationNotice)
         self.assertIn("1 WAITING", controller.operationNotice)
         self.assertEqual(
-            controller.dashboard["inventoryManagement"]["idleMannies"], (),
+            controller.dashboard["inventoryManagement"]["idleMannies"], [],
         )
         workers[0].run()
         self.assertEqual(len(workers), 2)

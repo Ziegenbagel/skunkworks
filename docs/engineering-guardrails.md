@@ -257,6 +257,12 @@ countdown ticks may not call functions absent from their component, and controls
 must not assign negative model indices while asynchronously loaded models are
 temporarily empty. Repeated QML warnings are a responsiveness regression even
 when the interface remains visually usable.
+The background refresh converts Python containers to QML-safe lists and maps;
+every controller-side incremental dashboard mutation must preserve those same
+shapes. Reintroducing tuples after conversion makes JavaScript array methods
+fail and causes Qt controls to report invalid model sizes on every refresh.
+Dialogs must have a non-circular width owner rather than deriving implicit width
+from content whose width depends on the dialog's available width.
 
 Relevant code/tests:
 
