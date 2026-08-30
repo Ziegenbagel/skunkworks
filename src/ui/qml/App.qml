@@ -473,6 +473,12 @@ ApplicationWindow {
                 window.backend.setEmergencyMissileEscapeEnabled(enabled);
         }
 
+        function onTargetedMannyRecallChanged(enabled) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.setTargetedMannyRecallEnabled(enabled);
+        }
+
         function onUnusualMiningTargetApprovalRequested(targetId, approved) {
             AudioManager.play("save");
             if (window.backend)

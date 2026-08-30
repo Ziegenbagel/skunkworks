@@ -27,7 +27,16 @@ hazard code and explanation beside the acceptance control, so integrity,
 collision, container, or route risks are explained before consent is recorded.
 
 The development line also includes every change released through Skunkworks
-1.0.7, including reviewed game API compatibility through v125.
+1.0.8, including reviewed game API compatibility through v128. Live Sector uses
+the v128 autonomous-unit observation endpoint to show locally deployed Mannys
+and Others auxiliaries with their carrier and spatial state.
+
+Remote laser targeting of an owned Manny is presented as a critical Safety
+alert with its ten-minute destruction countdown, relative FCC sector, and a
+direct route to Galaxy Map. Combat Control adds a per-probe opt-in that
+revalidates the live alert and owned Manny identity before issuing exactly one
+recall. It never moves the carrier probe, chooses a target, or acts on an
+ambiguous alert, and the emergency stop disables it.
 
 ## Skunkworks 1.0.7
 

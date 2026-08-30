@@ -30,6 +30,18 @@ class ProbeGateway:
             f"/api/probe/{probe_id}/sector",
         )
 
+    def autonomous_units(self, probe_id, *, limit=500, cursor=None):
+        """Observe deployed Manny and Others auxiliary units (API v128)."""
+
+        params = {"limit": int(limit)}
+        if cursor:
+            params["cursor"] = str(cursor)
+        return self.client.request(
+            "GET",
+            f"/api/probe/{probe_id}/sector/autonomous-units",
+            params=params,
+        )
+
     def move(self, probe_id, target):
         return self.client.request(
             "POST",

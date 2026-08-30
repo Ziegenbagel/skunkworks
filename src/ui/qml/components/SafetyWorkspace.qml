@@ -9,8 +9,24 @@ Item {
     property var alerts: []
     property var recovery: ({})
     property var pendingAlert: ({})
+    property double currentEpochMs: Date.now()
     signal mindSnapshotReassignRequested()
     signal alertDeleteRequested(string alertId, string domain)
+    signal galaxyMapRequested()
+
+    function countdown(epochMs) {
+        const seconds = Math.max(0, Math.floor((Number(epochMs || 0) - currentEpochMs) / 1000));
+        const minutes = Math.floor(seconds / 60);
+        return String(minutes).padStart(2, "0") + ":" + String(seconds % 60).padStart(2, "0");
+    }
+
+    Timer {
+        interval: 1000
+        running: root.visible && root.alerts.some(item => Boolean(item.remoteMannyLaserTargeted))
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.currentEpochMs = Date.now()
+    }
 
     ListView {
         id: safetyAlertList
@@ -51,6 +67,18 @@ Item {
                             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         }
                         Label {
+                            visible: Boolean(alertCard.modelData.remoteMannyLaserTargeted)
+                            Layout.fillWidth: true
+                            text: "REMOTE MANNY LASER LOCK · DESTRUCTION "
+                                  + root.countdown(alertCard.modelData.destructionEpochMs)
+                                  + " · " + String(alertCard.modelData.sectorLabel || "SECTOR UNKNOWN")
+                            color: Constants.criticalColor
+                            font.family: Constants.technicalFont
+                            font.bold: true
+                            font.pixelSize: 18
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        }
+                        Label {
                             Layout.fillWidth: true
                             text: alertCard.modelData.summary || ""
                             color: Constants.mutedTextColor
@@ -67,6 +95,11 @@ Item {
                             source: alertCard.modelData.illustrationImageUrl || ""
                             fillMode: Image.PreserveAspectFit
                             asynchronous: true
+                        }
+                        Button {
+                            visible: Boolean(alertCard.modelData.remoteMannyLaserTargeted)
+                            text: "SHOW SECTOR ON GALAXY MAP"
+                            onClicked: root.galaxyMapRequested()
                         }
                         Button {
                             visible: Boolean(alertCard.modelData.deletable)

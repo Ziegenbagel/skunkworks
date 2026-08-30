@@ -623,6 +623,7 @@ Rectangle {
                 notificationPolicy: root.dashboardData.notificationPolicy || ({"enabled": false, "categories": []})
                 notificationDelivery: root.dashboardData.notificationDelivery || ({"available": false, "supportsMessages": false, "detail": ""})
                 onWorkspaceActivity: (section, activity) => root.uiActivityReported(section, activity)
+                onGalaxyMapRequested: root.currentNavigation = "GALAXY MAP"
             }
 
             RowLayout {

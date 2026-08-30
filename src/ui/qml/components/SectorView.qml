@@ -15,6 +15,7 @@ Rectangle {
     readonly property var relayObjects: objectModel.filter(item => String(item.type).toLowerCase() === "scut_relay")
     readonly property var freeObjects: objectModel.filter(item => item.type !== "star" && String(item.type).toLowerCase() !== "scut_relay" && !(item.layoutRole === "orbital_body" && (String(item.type).toLowerCase() === "planet" || String(item.type).toLowerCase().endsWith("_planet"))))
     readonly property var mannyClusters: buildMannyClusters(sectorData.activeMannies || [])
+    readonly property var autonomousUnits: sectorData.autonomousUnits || []
     readonly property int maximumMannyAreas: 12
     readonly property int maximumFreeObjects: 8
     readonly property real centerX: width * 0.50
@@ -205,6 +206,52 @@ Rectangle {
             running: blackHoleAlert.visible; loops: Animation.Infinite
             NumberAnimation { to: 0.42; duration: 1300; easing.type: Easing.InOutSine }
             NumberAnimation { to: 1.0; duration: 1300; easing.type: Easing.InOutSine }
+        }
+    }
+
+    Rectangle {
+        visible: root.autonomousUnits.length > 0 && !root.probeInTransit
+        z: 800
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.margins: 18
+        width: Math.min(parent.width - 36, 520)
+        height: autonomousUnitColumn.implicitHeight + 24
+        color: Qt.rgba(0.02, 0.07, 0.10, 0.94)
+        border.color: Constants.cyanColor
+        radius: 4
+        Column {
+            id: autonomousUnitColumn
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 5
+            Label {
+                text: "LOCAL AUTONOMOUS UNITS · API v128 · " + root.autonomousUnits.length
+                color: Constants.cyanColor
+                font.family: Constants.technicalFont
+                font.bold: true
+            }
+            Repeater {
+                model: root.autonomousUnits.slice(0, 6)
+                delegate: Label {
+                    required property var modelData
+                    width: autonomousUnitColumn.width
+                    text: String(modelData.kindLabel) + " · "
+                          + String(modelData.spatialStateLabel) + " · CARRIER "
+                          + String(modelData.carrierKind).toUpperCase() + " "
+                          + String(modelData.carrierId)
+                    color: modelData.kind === "others_auxiliary"
+                        ? Constants.warningColor : Constants.textColor
+                    font.family: Constants.technicalFont
+                    elide: Text.ElideRight
+                }
+            }
+            Label {
+                visible: root.autonomousUnits.length > 6
+                text: "+" + (root.autonomousUnits.length - 6) + " MORE DETECTED"
+                color: Constants.mutedTextColor
+                font.family: Constants.technicalFont
+            }
         }
     }
 
