@@ -533,11 +533,29 @@ Item {
                                     Label { Layout.fillWidth: true; text: commandRow.modelData.reason || "Proposed automation action"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                                     Label { visible: String(commandRow.modelData.type) === "manny_mine"; Layout.fillWidth: true; text: "ORDER " + Number((commandRow.modelData.metadata || {}).orderAmount || 0).toFixed(3) + " ECE · " + Number((commandRow.modelData.metadata || {}).estimatedTrips || 0) + " AUTOMATIC MANNY TRIPS · " + Number((commandRow.modelData.metadata || {}).remainingAmount || 0).toFixed(3) + " ECE STILL NEEDED"; color: Constants.cyanColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                                     Label { visible: (commandRow.modelData.blockers || []).length > 0; Layout.fillWidth: true; text: "BLOCKED · " + (commandRow.modelData.blockers || []).join(", "); color: Constants.criticalColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                    Label {
+                                        visible: String(commandRow.modelData.disposition) === "awaiting_risk_acknowledgement"
+                                        Layout.fillWidth: true
+                                        text: "SECONDARY SAFETY ACKNOWLEDGEMENT REQUIRED · REVIEW THE LIVE REASONS BELOW"
+                                        color: Constants.criticalColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                                    }
+                                    Repeater {
+                                        model: commandRow.modelData.warnings || []
+                                        delegate: Label {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            text: "RISK · " + String(modelData.code || "travel_hazard").replace(/_/g, " ").toUpperCase()
+                                                + " · " + String(modelData.message || "No additional hazard detail was supplied.")
+                                            color: String(modelData.severity || "").toLowerCase() === "danger"
+                                                ? Constants.criticalColor : Constants.warningColor
+                                            font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                                        }
+                                    }
                                 }
                                 CheckBox {
                                     id: riskAcknowledgement
                                     visible: (commandRow.modelData.warnings || []).length > 0
-                                    text: "ACKNOWLEDGE RISK"
+                                    text: "I UNDERSTAND AND ACCEPT THESE DISPLAYED RISKS"
                                     onClicked: {
                                         if (checked
                                                 && String(root.runtimeData.mode) === "automatic"

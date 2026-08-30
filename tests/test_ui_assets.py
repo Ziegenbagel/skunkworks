@@ -403,6 +403,16 @@ def test_galaxy_map_renders_owned_manny_locations():
     assert 'objectName: "manny-location:"' in galaxy
     assert "SHOW OWNED MANNY LOCATIONS" in galaxy
     assert "OWNED MANNYS · " in galaxy
+
+
+def test_secondary_risk_acknowledgement_displays_live_hazard_reasons():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
+
+    assert "SECONDARY SAFETY ACKNOWLEDGEMENT REQUIRED" in settings
+    assert 'String(modelData.code || "travel_hazard")' in settings
+    assert 'String(modelData.message || "No additional hazard detail was supplied.")' in settings
+    assert "I UNDERSTAND AND ACCEPT THESE DISPLAYED RISKS" in settings
     assert "cameraMoving || distantOverview ? [] : visibleEdges" not in galaxy
     assert "id: cameraSettle" in galaxy
     assert "function fitVisibleMap()" in galaxy

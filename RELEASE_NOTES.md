@@ -22,6 +22,10 @@ Galaxy Map can also display owned Mannys left
 outside the focused probe and lists their names on the corresponding sector;
 unavailable Production cards show their reported FCC coordinates directly.
 
+Secondary automatic-travel safety acknowledgements now display every live
+hazard code and explanation beside the acceptance control, so integrity,
+collision, container, or route risks are explained before consent is recorded.
+
 The development line also includes every change released through Skunkworks
 1.0.7, including reviewed game API compatibility through v125.
 

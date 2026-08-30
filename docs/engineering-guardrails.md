@@ -200,6 +200,11 @@ retain the durable destination; cancellation must not erase the route that will
 resume after every Manny is aboard. Never cancel a preparing recovery hop whose
 live target is the reported sector of the missing Manny.
 
+A secondary travel-risk acknowledgement is never generic. The queued command
+must display every live warning code and its human-readable reason—including
+the concrete expected and worst-case values supplied by the safety assessment—
+beside the acknowledgement control before the operator can accept it.
+
 Relevant code/tests:
 
 - `src/ui/controller.py::_run_replanning_automatic_cycle`
