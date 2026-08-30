@@ -892,7 +892,7 @@ def test_api_v128_remote_manny_safety_and_autonomous_units_are_visible():
     assert "setTargetedMannyRecallEnabled" in controller
     assert '"targeted-manny-safety-settings"' in controller
     assert '"targeted-manny-recall-state"' in controller
-    assert "LOCAL AUTONOMOUS UNITS · API v128" in sector
+    assert "LOCAL AUTONOMOUS UNITS · API v128" not in sector
 
 
 def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
