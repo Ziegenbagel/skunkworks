@@ -278,6 +278,17 @@ do not retain an expensive workspace whose hidden bindings still consume every
 global dashboard replacement. A lightweight GUI timer records interactive
 event-loop stalls separately from API and worker timing; recording a stall must
 not itself emit a dashboard replacement.
+Stall diagnostics must retain enough bounded, privacy-safe attribution to be
+actionable: active section, latest UI activity, activity/dashboard age, refresh
+state, and dashboard generation. Dashboard notification-to-next-event-loop
+settle time is distinct from worker refresh time. Heavy workspace loaders report
+loading and ready boundaries, and stalls of at least 500 ms enter the rotating
+diagnostic log. Attribution history remains bounded and contains no API payload,
+credentials, messages, coordinates, or resource inventory.
+Navigation audio is part of the interaction boundary. Keep its common effect
+preloaded and replay the existing source; repeatedly assigning the same media
+URL can synchronously rebuild the macOS AVFoundation player and make every tab
+change appear to be a rendering stall.
 Recurring presentation bindings must be self-contained and exception-free:
 countdown ticks may not call functions absent from their component, and controls
 must not assign negative model indices while asynchronously loaded models are

@@ -916,6 +916,22 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.eventLoopDiagnostics["stallCount"], 1)
         self.assertEqual(controller.eventLoopDiagnostics["lastStallMs"], 350)
         self.assertEqual(controller.eventLoopDiagnostics["maximumStallMs"], 350)
+        self.assertEqual(
+            controller.eventLoopDiagnostics["recentStalls"][-1]["durationMs"],
+            350,
+        )
+        self.assertIn("MISSION CONTROL", controller.eventLoopDiagnostics["lastAttribution"])
+
+    def test_dashboard_settle_diagnostic_measures_gui_application_time(self):
+        controller = MissionControlController()
+        controller._dashboard_signal_at = 100.0
+        controller._dashboard_generation = 4
+
+        with patch("src.ui.controller.time.monotonic", return_value=100.75):
+            controller.reportUiActivity("PRODUCTION", "dashboard-settled")
+
+        self.assertEqual(controller.eventLoopDiagnostics["lastDashboardSettleMs"], 750)
+        self.assertEqual(controller._ui_activity["section"], "PRODUCTION")
 
     def test_multiple_manual_mining_orders_can_queue_while_first_is_sending(self):
         workers = []

@@ -36,6 +36,10 @@ ApplicationWindow {
         emergencyStopActive: window.backend ? window.backend.emergencyStopActive : false
         visible: !startupOverlay.visible
         onCombatControlsRequested: if (window.backend) window.backend.setActiveSection("MANUAL CONTROL")
+        onUiActivityReported: (section, activity) => {
+            if (window.backend)
+                window.backend.reportUiActivity(section, activity);
+        }
     }
 
     Rectangle {

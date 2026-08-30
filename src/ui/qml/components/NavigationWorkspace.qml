@@ -89,6 +89,7 @@ PanelFrame {
     signal operatingProfileSaveRequested(string name, int idleMinutes, var schedule)
     signal notificationPolicySaveRequested(var policy)
     signal testNotificationRequested()
+    signal workspaceActivity(string section, string activity)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -260,7 +261,10 @@ PanelFrame {
     }
     onAvailableProbesChanged: scheduleRenderedRowsRefresh()
     onFocusedProbeIdChanged: scheduleRenderedRowsRefresh()
-    onSectionChanged: scheduleRenderedRowsRefresh()
+    onSectionChanged: {
+        root.scheduleRenderedRowsRefresh();
+        root.workspaceActivity(root.section, "section-selected");
+    }
     onProductionSortChanged: scheduleRenderedRowsRefresh()
     Component.onCompleted: {
         root.syncHighChurnSections();
@@ -278,6 +282,7 @@ PanelFrame {
             visible: root.section === "GALAXY MAP"
             asynchronous: true
             onLoaded: retainedAfterFirstLoad = true
+            onStatusChanged: root.workspaceActivity("GALAXY MAP", status === Loader.Loading ? "workspace-loading" : status === Loader.Ready ? "workspace-ready" : "workspace-inactive")
             sourceComponent: Component {
                 GalaxyMap3D {
                     galaxyData: root.dashboardData.galaxy || ({})
@@ -292,6 +297,7 @@ PanelFrame {
             anchors.fill: parent
             active: root.section === "SETTINGS"
             asynchronous: true
+            onStatusChanged: root.workspaceActivity("SETTINGS", status === Loader.Loading ? "workspace-loading" : status === Loader.Ready ? "workspace-ready" : "workspace-inactive")
             sourceComponent: Component {
                 AutomationSettings {
                     settingsData: root.dashboardData.automation || ({})
@@ -402,6 +408,7 @@ PanelFrame {
             visible: root.section === "MANUAL CONTROL"
             asynchronous: true
             onLoaded: retainedAfterFirstLoad = true
+            onStatusChanged: root.workspaceActivity("MANUAL CONTROL", status === Loader.Loading ? "workspace-loading" : status === Loader.Ready ? "workspace-ready" : "workspace-inactive")
             sourceComponent: Component {
                 ManualControlWorkspace {
                     dashboardData: root.cachedManualDashboardData

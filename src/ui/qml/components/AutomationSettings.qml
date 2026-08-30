@@ -116,6 +116,18 @@ Item {
         }
         return summaries.join("  ·  ");
     }
+
+    function recentStallSummary() {
+        const stalls = (root.eventLoopDiagnostics || {}).recentStalls || [];
+        return stalls.slice(Math.max(0, stalls.length - 5)).reverse().map(function(item) {
+            return Number(item.durationMs || 0) + " MS · "
+                    + String(item.section || "UNKNOWN") + " · "
+                    + String(item.activity || "UNKNOWN") + " · ACTIVITY +"
+                    + Number(item.activityAgeMs || 0) + " MS · DASHBOARD +"
+                    + Number(item.dashboardAgeMs || 0) + " MS"
+                    + (Boolean(item.refreshing) ? " · REFRESHING" : "");
+        }).join("\n");
+    }
     function waitingPlans() {
         return runtimeData.planning || [];
     }
@@ -815,8 +827,26 @@ Item {
                               + Number((root.eventLoopDiagnostics || {}).stallCount || 0)
                               + " · LAST " + Number((root.eventLoopDiagnostics || {}).lastStallMs || 0)
                               + " MS · MAX " + Number((root.eventLoopDiagnostics || {}).maximumStallMs || 0) + " MS"
+                              + " · THIS REFRESH " + Number((root.eventLoopDiagnostics || {}).stallsSinceRefresh || 0)
                         color: Number((root.eventLoopDiagnostics || {}).maximumStallMs || 0) >= 500
                                ? Constants.warningColor : Constants.mutedTextColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "LAST DASHBOARD UI SETTLE · "
+                              + Number((root.eventLoopDiagnostics || {}).lastDashboardSettleMs || 0)
+                              + " MS · LAST ATTRIBUTION · "
+                              + String((root.eventLoopDiagnostics || {}).lastAttribution || "NONE")
+                        color: Number((root.eventLoopDiagnostics || {}).lastDashboardSettleMs || 0) >= 500
+                               ? Constants.warningColor : Constants.mutedTextColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.recentStallSummary().length > 0
+                        text: "RECENT ATTRIBUTED STALLS\n" + root.recentStallSummary()
+                        color: Constants.mutedTextColor
                         font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     Label {

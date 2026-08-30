@@ -5,6 +5,7 @@ from __future__ import annotations
 import traceback
 import hashlib
 import json
+import logging
 import random
 import re
 import sys
@@ -3151,12 +3152,22 @@ class MissionControlController(QObject):
         self._operation_notice = ""
         self._event_loop_diagnostics = {
             "stallCount": 0, "lastStallMs": 0, "maximumStallMs": 0,
+            "stallsSinceRefresh": 0, "lastDashboardSettleMs": 0,
+            "lastAttribution": "STARTUP", "recentStalls": [],
         }
+        self._event_loop_refresh_baseline = 0
         self._event_loop_last_sample = time.monotonic()
+        self._ui_activity = {
+            "section": "MISSION CONTROL", "activity": "startup",
+            "at": self._event_loop_last_sample,
+        }
+        self._dashboard_signal_at = 0.0
+        self._dashboard_generation = 0
         self._event_loop_timer = QTimer(self)
         self._event_loop_timer.setInterval(100)
         self._event_loop_timer.timeout.connect(self._sample_event_loop)
         self._event_loop_timer.start()
+        self.dashboardChanged.connect(self._note_dashboard_changed)
         self._emergency_stop = False
         self._worker = None
         self._pending_probe_id = None
@@ -3281,13 +3292,85 @@ class MissionControlController(QObject):
         if stall < 0.1 or elapsed > 5.0:
             return
         stall_ms = int(round(stall * 1000))
+        activity_age_ms = max(0, int(round(
+            (now - float(self._ui_activity.get("at", now))) * 1000
+        )))
+        dashboard_age_ms = (
+            max(0, int(round((now - self._dashboard_signal_at) * 1000)))
+            if self._dashboard_signal_at else -1
+        )
+        attribution = (
+            f"{self._ui_activity.get('section', self._active_section)} · "
+            f"{self._ui_activity.get('activity', 'unknown')} · "
+            f"ACTIVITY +{activity_age_ms} MS"
+        )
+        event = {
+            "durationMs": stall_ms,
+            "section": str(self._ui_activity.get("section", self._active_section)),
+            "activity": str(self._ui_activity.get("activity", "unknown")),
+            "activityAgeMs": activity_age_ms,
+            "dashboardAgeMs": dashboard_age_ms,
+            "dashboardGeneration": self._dashboard_generation,
+            "refreshing": bool(self._refreshing),
+        }
+        recent = list(self._event_loop_diagnostics.get("recentStalls", ()))
+        recent.append(event)
+        recent = recent[-12:]
         self._event_loop_diagnostics = {
             "stallCount": int(self._event_loop_diagnostics["stallCount"]) + 1,
             "lastStallMs": stall_ms,
             "maximumStallMs": max(
                 int(self._event_loop_diagnostics["maximumStallMs"]), stall_ms,
             ),
+            "stallsSinceRefresh": (
+                int(self._event_loop_diagnostics["stallCount"]) + 1
+                - self._event_loop_refresh_baseline
+            ),
+            "lastDashboardSettleMs": int(
+                self._event_loop_diagnostics.get("lastDashboardSettleMs", 0)
+            ),
+            "lastAttribution": attribution,
+            "recentStalls": recent,
         }
+        if stall_ms >= 500:
+            logging.getLogger("skunkworks").warning(
+                "UI event-loop stall | duration_ms=%s | section=%s | activity=%s "
+                "| activity_age_ms=%s | dashboard_age_ms=%s | generation=%s "
+                "| refreshing=%s",
+                stall_ms, event["section"], event["activity"], activity_age_ms,
+                dashboard_age_ms, self._dashboard_generation, self._refreshing,
+            )
+        self.eventLoopDiagnosticsChanged.emit()
+
+    def _note_dashboard_changed(self):
+        self._dashboard_generation += 1
+        self._dashboard_signal_at = time.monotonic()
+        self._ui_activity = {
+            "section": self._active_section,
+            "activity": "dashboard-signal",
+            "at": self._dashboard_signal_at,
+        }
+
+    @Slot(str, str)
+    def reportUiActivity(self, section, activity):
+        now = time.monotonic()
+        section = str(section or self._active_section).upper()
+        activity = str(activity or "unknown")
+        self._ui_activity = {"section": section, "activity": activity, "at": now}
+        if activity != "dashboard-settled" or not self._dashboard_signal_at:
+            return
+        settle_ms = max(0, int(round((now - self._dashboard_signal_at) * 1000)))
+        if settle_ms == int(self._event_loop_diagnostics.get("lastDashboardSettleMs", 0)):
+            return
+        self._event_loop_diagnostics = {
+            **self._event_loop_diagnostics,
+            "lastDashboardSettleMs": settle_ms,
+        }
+        if settle_ms >= 500:
+            logging.getLogger("skunkworks").warning(
+                "Dashboard UI settle | duration_ms=%s | section=%s | generation=%s",
+                settle_ms, section, self._dashboard_generation,
+            )
         self.eventLoopDiagnosticsChanged.emit()
 
     @Property("QVariantList", notify=availableProbesChanged)
@@ -5442,6 +5525,19 @@ class MissionControlController(QObject):
     ):
         if self._refreshing:
             return
+        self._event_loop_refresh_baseline = int(
+            self._event_loop_diagnostics.get("stallCount", 0)
+        )
+        self._event_loop_diagnostics = {
+            **self._event_loop_diagnostics,
+            "stallsSinceRefresh": 0,
+        }
+        self._ui_activity = {
+            "section": self._active_section,
+            "activity": "refresh-started",
+            "at": time.monotonic(),
+        }
+        self.eventLoopDiagnosticsChanged.emit()
         # Preserve the pre-refresh actionable set before an early selected-tab
         # payload replaces it. This lets the completed refresh distinguish a
         # real task completion from a Manny that was already idle.

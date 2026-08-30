@@ -144,6 +144,17 @@ def test_application_uses_dedicated_skunkworks_icon():
     assert 'f"--icon={application_icon()}"' in builder
 
 
+def test_navigation_audio_is_preloaded_without_reassigning_the_same_source():
+    audio = Path("src/ui/qml/components/AudioManager.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert "navigationEffectSource" in audio
+    assert "source: root.navigationEffectSource" in audio
+    assert "String(effectPlayer.source) !== String(nextSource)" in audio
+    assert "effectPlayer.position = 0" in audio
+
+
 def test_operating_profile_controls_follow_audio_and_precede_automation():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 
@@ -204,6 +215,10 @@ def test_heavy_workspaces_use_revisions_and_asynchronous_loading():
     assert workspace.count("asynchronous: true") >= 8
     assert workspace.count("retainedAfterFirstLoad") >= 6
     assert "UI EVENT-LOOP STALLS" in settings
+    assert "LAST DASHBOARD UI SETTLE" in settings
+    assert "RECENT ATTRIBUTED STALLS" in settings
+    assert "signal workspaceActivity" in workspace
+    assert "workspace-loading" in workspace
 
 
 def test_safety_navigation_pulses_for_unviewed_alerts():

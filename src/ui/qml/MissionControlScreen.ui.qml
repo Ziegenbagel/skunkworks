@@ -7,6 +7,7 @@ import "components"
 Rectangle {
     id: root
     signal combatControlsRequested()
+    signal uiActivityReported(string section, string activity)
     objectName: "missionControlScreen"
     property bool liveMode: false
     property bool refreshing: false
@@ -130,7 +131,13 @@ Rectangle {
         root.unviewedAlertCount = count;
     }
 
-    onDashboardDataChanged: updateUnviewedAlerts()
+    onDashboardDataChanged: {
+        updateUnviewedAlerts();
+        root.uiActivityReported(root.currentNavigation, "dashboard-data-changed");
+        Qt.callLater(function() {
+            root.uiActivityReported(root.currentNavigation, "dashboard-settled");
+        });
+    }
     onCurrentNavigationChanged: updateUnviewedAlerts()
 
     Item {
@@ -615,6 +622,7 @@ Rectangle {
                 operatingProfile: root.dashboardData.operatingProfile || ({"name": "normal", "map_detail": "normal"})
                 notificationPolicy: root.dashboardData.notificationPolicy || ({"enabled": false, "categories": []})
                 notificationDelivery: root.dashboardData.notificationDelivery || ({"available": false, "supportsMessages": false, "detail": ""})
+                onWorkspaceActivity: (section, activity) => root.uiActivityReported(section, activity)
             }
 
             RowLayout {
