@@ -4,7 +4,11 @@ from src.application.operating_profile import (
     resolve_effective_operating_profile,
     save_operating_profile,
     save_operating_profile_idle_minutes,
+    save_operating_profile_schedule,
+    load_operating_profile_schedule,
+    resolve_scheduled_operating_profile,
 )
+from datetime import datetime
 
 
 class Preferences:
@@ -42,3 +46,38 @@ def test_auto_profile_enters_low_power_only_at_the_idle_threshold():
     assert resolve_effective_operating_profile(selected, 599, 10).name == "normal"
     assert resolve_effective_operating_profile(selected, 600, 10).name == "low_usage"
     assert resolve_effective_operating_profile(selected, 0, 10).name == "normal"
+
+
+def test_daily_schedule_supports_an_overnight_low_power_window():
+    preferences = Preferences()
+    schedule = save_operating_profile_schedule(
+        preferences,
+        {"start_time": "22:00", "end_time": "07:00", "recurrence": "daily"},
+    )
+
+    assert load_operating_profile_schedule(preferences) == schedule
+    assert resolve_scheduled_operating_profile(
+        schedule, datetime.fromisoformat("2026-08-30T23:00:00-07:00"),
+    )[0].name == "low_usage"
+    assert resolve_scheduled_operating_profile(
+        schedule, datetime.fromisoformat("2026-08-30T12:00:00-07:00"),
+    )[0].name == "normal"
+
+
+def test_once_schedule_uses_the_next_start_and_then_completes():
+    preferences = Preferences()
+    now = datetime.fromisoformat("2026-08-30T20:00:00-07:00")
+    schedule = save_operating_profile_schedule(
+        preferences,
+        {"start_time": "22:00", "end_time": "23:00", "recurrence": "once"},
+        now=now,
+    )
+
+    active, status = resolve_scheduled_operating_profile(
+        schedule, datetime.fromisoformat("2026-08-30T22:30:00-07:00"),
+    )
+    completed, completed_status = resolve_scheduled_operating_profile(
+        schedule, datetime.fromisoformat("2026-08-30T23:30:00-07:00"),
+    )
+    assert (active.name, status) == ("low_usage", "active")
+    assert (completed.name, completed_status) == ("normal", "completed")

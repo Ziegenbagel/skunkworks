@@ -151,12 +151,15 @@ def test_operating_profile_controls_follow_audio_and_precede_automation():
     profile = settings.index('title: "OPERATING PROFILE AND LOCAL NOTIFICATIONS"')
     automation = settings.index('title: "AUTOMATION EXECUTION"')
     assert audio < profile < automation
-    assert 'model: ["NORMAL", "LOW POWER", "AUTO"]' in settings
+    assert 'model: ["NORMAL", "LOW POWER", "AUTO", "SCHEDULED"]' in settings
     assert 'root.activeOperatingProfileName === "auto" ? "AUTO → "' in settings
     assert 'id: autoIdleMinutes' in settings
     assert 'Layout.preferredWidth: 150' in settings
     assert 'text: "MINUTES · RANGE 1–120"' in settings
     assert 'text: "SAVE PROFILE"' in settings
+    assert 'id: scheduleStart' in settings
+    assert 'id: scheduleEnd' in settings
+    assert 'model: ["DAILY", "ONCE"]' in settings
     assert '"ACTIVE MODE · "' in settings
     assert '"SELECTION NOT ACTIVE UNTIL SAVED"' in settings
     assert '"OVERNIGHT CHECK · AUTOMATION STILL EVALUATES ABOUT ONCE PER MINUTE' in settings
@@ -193,7 +196,8 @@ def test_safety_navigation_pulses_for_unviewed_alerts():
     assert "SequentialAnimation on opacity" in navigation
     assert 'navigationItem.modelData === "SAFETY"' in navigation
     assert "viewedAlertKeys" in screen
-    assert "alertBaselineEstablished" in screen
+    assert "alertBaselinesByProbe" in screen
+    assert "payloadProbeId !== root.focusedProbeId" in screen
     assert "updateUnviewedAlerts" in screen
 
 

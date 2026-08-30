@@ -81,7 +81,7 @@ PanelFrame {
     signal mannyCancelRequested(string mannyId)
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
-    signal operatingProfileSaveRequested(string name, int idleMinutes)
+    signal operatingProfileSaveRequested(string name, int idleMinutes, var schedule)
     signal notificationPolicySaveRequested(var policy)
     signal testNotificationRequested()
 
@@ -259,7 +259,7 @@ PanelFrame {
                     operatingProfile: root.operatingProfile
                     notificationPolicy: root.notificationPolicy
                     notificationDelivery: root.notificationDelivery
-                    onOperatingProfileSaveRequested: (name, idleMinutes) => root.operatingProfileSaveRequested(name, idleMinutes)
+                    onOperatingProfileSaveRequested: (name, idleMinutes, schedule) => root.operatingProfileSaveRequested(name, idleMinutes, schedule)
                     onNotificationPolicySaveRequested: policy => root.notificationPolicySaveRequested(policy)
                     onTestNotificationRequested: root.testNotificationRequested()
                     onSaveRequested: settings => root.automationSettingsSaved(settings)

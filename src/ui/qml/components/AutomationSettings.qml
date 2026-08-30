@@ -21,7 +21,8 @@ Item {
     readonly property string activeOperatingProfileName: String(operatingProfile.name || "normal")
     readonly property string effectiveOperatingProfileName: String(operatingProfile.effective_name || activeOperatingProfileName)
     readonly property int savedOperatingProfileIdleMinutes: Number(operatingProfile.idle_minutes || 10)
-    readonly property string selectedOperatingProfileName: operatingProfileControl.currentIndex === 2 ? "auto"
+    readonly property string selectedOperatingProfileName: operatingProfileControl.currentIndex === 3 ? "scheduled"
+                                                           : operatingProfileControl.currentIndex === 2 ? "auto"
                                                            : operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal"
     readonly property bool operatingProfileSelectionDirty: operatingProfileControl.currentIndex >= 0
                                                            && (selectedOperatingProfileName !== activeOperatingProfileName
@@ -48,7 +49,7 @@ Item {
     signal diagnosticLogsRequested()
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
-    signal operatingProfileSaveRequested(string name, int idleMinutes)
+    signal operatingProfileSaveRequested(string name, int idleMinutes, var schedule)
     signal notificationPolicySaveRequested(var policy)
     signal testNotificationRequested()
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
@@ -200,9 +201,18 @@ Item {
     Component.onCompleted: {
         syncExecutionControls();
         syncDesiredStateControls();
-        operatingProfileControl.currentIndex = String(operatingProfile.name || "normal") === "auto" ? 2
+        syncOperatingProfileControls();
+    }
+    onOperatingProfileChanged: syncOperatingProfileControls()
+    function syncOperatingProfileControls() {
+        operatingProfileControl.currentIndex = String(operatingProfile.name || "normal") === "scheduled" ? 3
+                                             : String(operatingProfile.name || "normal") === "auto" ? 2
                                              : String(operatingProfile.name || "normal") === "low_usage" ? 1 : 0;
         autoIdleMinutes.value = Number(operatingProfile.idle_minutes || 10);
+        const schedule = operatingProfile.schedule || {};
+        scheduleStart.text = String(schedule.start_time || "22:00");
+        scheduleEnd.text = String(schedule.end_time || "07:00");
+        scheduleRecurrence.currentIndex = String(schedule.recurrence || "daily") === "once" ? 1 : 0;
         notificationEnabled.checked = Boolean(notificationPolicy.enabled);
         notificationSeverity.currentIndex = String(notificationPolicy.minimumSeverity || "warning") === "critical" ? 2
                                           : String(notificationPolicy.minimumSeverity || "warning") === "info" ? 0 : 1;
@@ -321,7 +331,7 @@ Item {
                             Label {
                                 anchors.centerIn: parent
                                 text: "ACTIVE MODE · "
-                                      + (root.activeOperatingProfileName === "auto" ? "AUTO → " : "")
+                                      + (root.activeOperatingProfileName === "auto" ? "AUTO → " : root.activeOperatingProfileName === "scheduled" ? "SCHEDULED → " : "")
                                       + (root.effectiveOperatingProfileName === "low_usage" ? "LOW POWER" : "NORMAL")
                                 color: "#07131b"; font.family: Constants.technicalFont; font.bold: true
                             }
@@ -329,7 +339,7 @@ Item {
                         Label { text: "SELECT MODE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                         ComboBox {
                             id: operatingProfileControl
-                            model: ["NORMAL", "LOW POWER", "AUTO"]
+                            model: ["NORMAL", "LOW POWER", "AUTO", "SCHEDULED"]
                             Layout.preferredWidth: 220
                         }
                         Label {
@@ -354,7 +364,12 @@ Item {
                         Button {
                             text: "SAVE PROFILE"
                             enabled: root.operatingProfileSelectionDirty
-                            onClicked: root.operatingProfileSaveRequested(root.selectedOperatingProfileName, autoIdleMinutes.value)
+                            onClicked: root.operatingProfileSaveRequested(
+                                root.selectedOperatingProfileName,
+                                autoIdleMinutes.value,
+                                {"start_time": scheduleStart.text,
+                                 "end_time": scheduleEnd.text,
+                                 "recurrence": scheduleRecurrence.currentIndex === 1 ? "once" : "daily"})
                         }
                         Label {
                             visible: root.operatingProfileSelectionDirty
@@ -363,12 +378,32 @@ Item {
                         }
                         Item { Layout.fillWidth: true }
                     }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: operatingProfileControl.currentIndex === 3
+                        Label { text: "LOW POWER FROM"; color: Constants.cyanColor; font.bold: true }
+                        TextField { id: scheduleStart; text: "22:00"; placeholderText: "HH:MM"; Layout.preferredWidth: 110 }
+                        Label { text: "TO"; color: Constants.cyanColor; font.bold: true }
+                        TextField { id: scheduleEnd; text: "07:00"; placeholderText: "HH:MM"; Layout.preferredWidth: 110 }
+                        ComboBox { id: scheduleRecurrence; model: ["DAILY", "ONCE"]; Layout.preferredWidth: 130 }
+                        Label { text: "LOCAL TIME · OVERNIGHT WINDOWS SUPPORTED"; color: Constants.mutedTextColor }
+                        Item { Layout.fillWidth: true }
+                    }
                     Label {
                         Layout.fillWidth: true
                         text: root.effectiveOperatingProfileName === "low_usage"
                               ? "ACTIVE LOW POWER BEHAVIOR · SAFETY, STOP, FOCUSED TELEMETRY, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL SYNCHRONIZATION CHANGES FROM 5 TO 30 MINUTES, BACKGROUND FLEET CHECKS DROP FROM FOUR PROBES TO ONE PER CYCLE, DISTANT MAP DETAIL IS REDUCED, AND COSMETIC COUNTDOWNS UPDATE EVERY 10 SECONDS."
                               : "ACTIVE NORMAL BEHAVIOR · BACKGROUND FLEET CHECKS USE THE NORMAL BREADTH, ARCHIVAL SYNCHRONIZATION MAY RUN EVERY 5 MINUTES, AND THE SETTLED GALAXY MAP USES FULL DETAIL."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.activeOperatingProfileName === "scheduled"
+                        text: "SCHEDULED MODE · " + String(root.operatingProfile.schedule_status || "waiting").toUpperCase()
+                              + " · LOW POWER " + String((root.operatingProfile.schedule || {}).start_time || "22:00")
+                              + "–" + String((root.operatingProfile.schedule || {}).end_time || "07:00")
+                              + " · " + String((root.operatingProfile.schedule || {}).recurrence || "daily").toUpperCase()
+                        color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
                     }
                     Label {
                         Layout.fillWidth: true

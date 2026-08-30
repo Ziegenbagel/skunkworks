@@ -294,6 +294,9 @@ as cached/refreshing; early live data must be labeled as finishing refresh.
 Alerts present in the first live dashboard payload establish the session
 baseline. Only alerts first observed after that baseline may pulse the Safety
 navigation item; reopening Skunkworks must not relabel unchanged history as new.
+That baseline is probe-scoped. Switching probes or returning to one must not
+compare its cached alert history against another probe's viewed keys and flash
+the Safety tab; only alerts arriving after that probe's baseline may pulse it.
 
 ### Hidden heavy workspaces remain lazy
 
@@ -368,6 +371,13 @@ not restart or lengthen the one-minute automation heartbeat, trigger a second
 full refresh, or alter Stop, focused safety, and active-operation semantics.
 The configured and effective profile names must both be exposed to the UI so
 the operator can distinguish `AUTO → NORMAL` from `AUTO → LOW POWER`.
+
+Scheduled operating profiles use local wall-clock `HH:MM` boundaries. Daily
+windows repeat and must support crossing midnight. A once-only window resolves
+to the next selected start, returns to Normal after its end, and remains visibly
+completed rather than silently scheduling itself again. Scheduling changes only
+stale-tolerant Low Power behavior; operational safety and dispatch invariants
+remain immediate.
 
 Relevant code/tests:
 

@@ -56,9 +56,12 @@ from src.application.operating_profile import (
     PROFILES,
     load_operating_profile,
     load_operating_profile_idle_minutes,
+    load_operating_profile_schedule,
     resolve_effective_operating_profile,
+    resolve_scheduled_operating_profile,
     save_operating_profile,
     save_operating_profile_idle_minutes,
+    save_operating_profile_schedule,
 )
 from src.application.notifications import NotificationCoordinator, load_policy, save_policy
 
@@ -3126,12 +3129,16 @@ class MissionControlController(QObject):
         self._operating_profile_idle_minutes = load_operating_profile_idle_minutes(
             self.settings_engine
         )
-        self._last_operator_activity = time.monotonic()
-        self._operating_profile = (
-            PROFILES["normal"]
-            if self._selected_operating_profile.name == "auto"
-            else self._selected_operating_profile
+        self._operating_profile_schedule = load_operating_profile_schedule(
+            self.settings_engine
         )
+        self._last_operator_activity = time.monotonic()
+        self._operating_profile = PROFILES["normal"] if self._selected_operating_profile.name in {"auto", "scheduled"} else self._selected_operating_profile
+        self._operating_profile_schedule_status = "waiting"
+        if self._selected_operating_profile.name == "scheduled":
+            self._operating_profile, self._operating_profile_schedule_status = (
+                resolve_scheduled_operating_profile(self._operating_profile_schedule)
+            )
         self._notification_policy = load_policy(self.settings_engine)
         self._notification_delivery = {
             "available": False,
@@ -3343,8 +3350,8 @@ class MissionControlController(QObject):
         )
         self._set_operation_notice("TEST NOTIFICATION REQUESTED · CHECK NOTIFICATION CENTER")
 
-    @Slot(str, int)
-    def saveOperatingProfile(self, name, idle_minutes=10):
+    @Slot(str, int, "QVariantMap")
+    def saveOperatingProfile(self, name, idle_minutes=10, schedule=None):
         self._run_background_call(
             "settings",
             lambda: (
@@ -3352,19 +3359,27 @@ class MissionControlController(QObject):
                 save_operating_profile_idle_minutes(
                     self.settings_engine, idle_minutes,
                 ),
+                save_operating_profile_schedule(
+                    self.settings_engine, self._qt_safe(schedule or {}),
+                ),
             ),
             self._accept_operating_profile_save,
             pending_message="SAVING OPERATING PROFILE",
         )
 
     def _accept_operating_profile_save(self, result):
-        self._selected_operating_profile, self._operating_profile_idle_minutes = result
+        (
+            self._selected_operating_profile,
+            self._operating_profile_idle_minutes,
+            self._operating_profile_schedule,
+        ) = result
         self._last_operator_activity = time.monotonic()
-        effective = (
-            PROFILES["normal"]
-            if self._selected_operating_profile.name == "auto"
-            else self._selected_operating_profile
-        )
+        if self._selected_operating_profile.name == "scheduled":
+            effective, self._operating_profile_schedule_status = (
+                resolve_scheduled_operating_profile(self._operating_profile_schedule)
+            )
+        else:
+            effective = PROFILES["normal"] if self._selected_operating_profile.name == "auto" else self._selected_operating_profile
         effective_changed = self._set_effective_operating_profile(effective)
         if not effective_changed:
             self.operatingProfileChanged.emit()
@@ -3376,6 +3391,8 @@ class MissionControlController(QObject):
         payload["name"] = self._selected_operating_profile.name
         payload["effective_name"] = self._operating_profile.name
         payload["idle_minutes"] = self._operating_profile_idle_minutes
+        payload["schedule"] = dict(self._operating_profile_schedule)
+        payload["schedule_status"] = self._operating_profile_schedule_status
         payload["cosmetic_tick_ms"] = (
             10_000 if self._operating_profile.name == "low_usage" else 1_000
         )
@@ -3391,6 +3408,23 @@ class MissionControlController(QObject):
         return True
 
     def _evaluate_auto_operating_profile(self):
+        if self._selected_operating_profile.name == "scheduled":
+            target, status = resolve_scheduled_operating_profile(
+                self._operating_profile_schedule,
+            )
+            status_changed = status != self._operating_profile_schedule_status
+            self._operating_profile_schedule_status = status
+            effective_changed = self._set_effective_operating_profile(target)
+            if effective_changed or status_changed:
+                self._set_operation_notice(
+                    "SCHEDULED PROFILE · LOW POWER"
+                    if target.name == "low_usage"
+                    else f"SCHEDULED PROFILE · NORMAL · {status.upper()}"
+                )
+                if status_changed and not effective_changed:
+                    self.operatingProfileChanged.emit()
+                    self._apply_local_policy_to_dashboard()
+            return
         if self._selected_operating_profile.name != "auto":
             return
         idle_seconds = max(0.0, time.monotonic() - self._last_operator_activity)

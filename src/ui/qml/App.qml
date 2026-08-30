@@ -382,10 +382,10 @@ ApplicationWindow {
                 window.backend.saveAutomationSettings(settings);
         }
 
-        function onOperatingProfileSaveRequested(name, idleMinutes) {
+        function onOperatingProfileSaveRequested(name, idleMinutes, schedule) {
             AudioManager.play("save");
             if (window.backend)
-                window.backend.saveOperatingProfile(name, idleMinutes);
+                window.backend.saveOperatingProfile(name, idleMinutes, schedule);
         }
 
         function onNotificationPolicySaveRequested(policy) {
