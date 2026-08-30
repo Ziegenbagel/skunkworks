@@ -768,7 +768,7 @@ def test_api_v128_remote_manny_safety_and_autonomous_units_are_visible():
     assert "SHOW SECTOR ON GALAXY MAP" in safety
     assert "OPT-IN REMOTE MANNY LASER RESPONSE" in manual
     assert "setTargetedMannyRecallEnabled" in controller
-    assert "LOCAL AUTONOMOUS UNITS · API v128" in sector
+    assert "LOCAL AUTONOMOUS UNITS · API v128" not in sector
 
 
 def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():

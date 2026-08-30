@@ -417,6 +417,10 @@ The API v128 autonomous-unit observation is local sector telemetry. It may
 identify a deployed unit and carrier but exposes no absolute coordinates;
 Skunkworks must not infer coordinates from opaque IDs.
 
+Autonomous-unit telemetry must not be rendered as a floating overlay over Live
+Sector. Operational map space remains unobstructed unless the operator opens a
+dedicated detail surface or a critical safety takeover is required.
+
 ### API impossibility is not an overridable safety preference
 
 API v121 requires at least 10% probe integrity to prepare movement. Skunkworks
