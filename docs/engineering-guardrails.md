@@ -247,6 +247,11 @@ Production scrolling and Galaxy Map camera interaction are interaction
 boundaries. Dashboard updates may be coalesced until a production flick settles,
 and camera LOD may hide expensive geometry, but neither path may destroy and
 recreate its full delegate/model population for every wheel or drag event.
+Recurring presentation bindings must be self-contained and exception-free:
+countdown ticks may not call functions absent from their component, and controls
+must not assign negative model indices while asynchronously loaded models are
+temporarily empty. Repeated QML warnings are a responsiveness regression even
+when the interface remains visually usable.
 
 Relevant code/tests:
 

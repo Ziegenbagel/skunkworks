@@ -12,6 +12,26 @@ PanelFrame {
     property int previewLimit: 3
     property int previewFontSize: 9
     property int summaryFontSize: 8
+    property double currentEpochMs: Date.now()
+
+    function countdown(epochMs) {
+        const seconds = Math.max(0, Math.floor(
+            (Number(epochMs || 0) - root.currentEpochMs) / 1000));
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainder = seconds % 60;
+        const pad = value => String(value).padStart(2, "0");
+        return pad(hours) + ":" + pad(minutes) + ":" + pad(remainder);
+    }
+
+    Timer {
+        interval: 1000
+        running: details.visible
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.currentEpochMs = Date.now()
+    }
+
     contentItem: Item {
         anchors.fill: parent
 

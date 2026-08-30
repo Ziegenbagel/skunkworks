@@ -32,7 +32,14 @@ Item {
     property var pendingAsteroidAction: ({})
     property var pendingMissileAction: ({})
 
-    onRequestedTabIndexChanged: tabs.currentIndex = Math.max(0, Math.min(tabs.count - 1, requestedTabIndex))
+    function applyRequestedTabIndex() {
+        if (tabs.count <= 0)
+            return;
+        tabs.currentIndex = Math.max(
+            0, Math.min(tabs.count - 1, requestedTabIndex));
+    }
+
+    onRequestedTabIndexChanged: applyRequestedTabIndex()
 
     function readableDuration(secondsValue) {
         const seconds = Math.max(0, Math.round(Number(secondsValue || 0)));
@@ -74,6 +81,7 @@ Item {
             id: tabs
             objectName: "manualControlTabs"
             Layout.fillWidth: true
+            onCountChanged: root.applyRequestedTabIndex()
             TabButton { text: "PRODUCTION AND ASSEMBLY" }
             TabButton { text: "MANNY FIELD OPERATIONS" }
             TabButton { text: "CARGO AND TRANSFERS" }

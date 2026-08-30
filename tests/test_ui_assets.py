@@ -103,8 +103,20 @@ def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
     assert "onClicked: details.open()" in panel
     assert "Dialog {" in panel
     assert "ScrollView" in panel
+    assert "function countdown(epochMs)" in panel
+    assert "running: details.visible" in panel
     assert "previewFontSize: 13" in screen
     assert "summaryFontSize: 11" in screen
+
+
+def test_manual_control_never_assigns_a_negative_tab_index_while_loading():
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert "function applyRequestedTabIndex()" in manual
+    assert "if (tabs.count <= 0)" in manual
+    assert "onCountChanged: root.applyRequestedTabIndex()" in manual
 
 
 def test_dashboard_branding_and_footer_use_readable_current_product_labels():
