@@ -166,6 +166,11 @@ class MissionControlDataService:
         report(42, "Loading sector and inventory")
         world = self._build_world(player, probe_data, probe, selected, None)
         if selected.get("isReachable", True):
+            if int(self.api_version or 0) >= 128:
+                world.sector["autonomousUnits"] = timed(
+                    "autonomousUnits",
+                    lambda: self._autonomous_units(selected["id"]),
+                )
             report(52, "Loading Manny tasks")
             world.mannies = timed(
                 "mannies", lambda: self.client.get_mannies(selected["id"]),
@@ -569,6 +574,32 @@ class MissionControlDataService:
         }
         report(100, "Mission control ready")
         return dashboard
+
+    def _autonomous_units(self, probe_id):
+        """Read every v128 page without allowing a broken cursor to loop."""
+
+        units = []
+        cursor = None
+        seen_cursors = set()
+        for _page in range(10):
+            try:
+                response = self.capabilities.probes.autonomous_units(
+                    probe_id, limit=500, cursor=cursor,
+                )
+            except requests.HTTPError as error:
+                # OpenAPI explicitly permits a transient 503 for this optional
+                # observation. Core probe/sector telemetry remains valid, so
+                # do not turn that auxiliary outage into a frozen dashboard.
+                if error.response is None or error.response.status_code != 503:
+                    raise
+                break
+            units.extend(response.get("autonomousUnits", ()) or ())
+            next_cursor = response.get("nextCursor")
+            if not next_cursor or next_cursor in seen_cursors:
+                break
+            seen_cursors.add(next_cursor)
+            cursor = next_cursor
+        return tuple(units)
 
     @staticmethod
     def _app_version():
@@ -2955,6 +2986,62 @@ class _EmergencyMissileEscapeWorker(QRunnable):
             _safe_emit(self.signals.failed, str(error) or type(error).__name__)
 
 
+class _TargetedMannyRecallWorker(QRunnable):
+    """Revalidate one remote laser alert and recall only its owned Manny."""
+
+    def __init__(self, probe_id, alert_ids, service_factory=MissionControlDataService):
+        super().__init__()
+        self.probe_id = int(probe_id)
+        self.alert_ids = tuple(str(value) for value in alert_ids)
+        self.service_factory = service_factory
+        self.signals = _WorkerSignals()
+
+    def run(self):
+        try:
+            service = self.service_factory()
+            payload = service.load(self.probe_id, include_archival=False)
+            live_alerts = [
+                item for item in payload.get("alerts", ())
+                if item.get("remoteMannyLaserTargeted")
+                and str(item.get("id")) in self.alert_ids
+            ]
+            if not live_alerts:
+                _safe_emit(self.signals.succeeded, {
+                    "status": "threat_cleared", "alertIds": self.alert_ids,
+                })
+                return
+            mannies = payload.get("inventoryManagement", {}).get("mannies", ())
+            matches = []
+            for alert in live_alerts:
+                message = str(alert.get("summary") or "").casefold()
+                for manny in mannies:
+                    manny_id = str(manny.get("id") or "")
+                    name = str(manny.get("name") or "")
+                    if (manny_id and manny_id.casefold() in message) or (
+                        name and name.casefold() in message
+                    ):
+                        matches.append((alert, manny))
+            unique = {
+                str(manny.get("id")): (alert, manny)
+                for alert, manny in matches if manny.get("id")
+            }
+            if len(unique) != 1:
+                raise RuntimeError(
+                    "the live alert does not identify exactly one owned Manny"
+                )
+            manny_id, (alert, manny) = next(iter(unique.items()))
+            service.inventory_manny_action("recall", manny_id, {})
+            _safe_emit(self.signals.succeeded, {
+                "status": "recalled",
+                "alertIds": [str(alert.get("id"))],
+                "mannyId": manny_id,
+                "mannyName": manny.get("name") or manny_id,
+            })
+        except Exception as error:
+            traceback.print_exc()
+            _safe_emit(self.signals.failed, str(error) or type(error).__name__)
+
+
 class MissionControlController(QObject):
     """Asynchronous QObject consumed by App.qml."""
 
@@ -3029,6 +3116,7 @@ class MissionControlController(QObject):
         self._maximum_probes_per_fleet_cycle = 4
         self._automation_cycle_worker = None
         self._emergency_escape_worker = None
+        self._targeted_manny_recall_worker = None
         self._compatibility_timer = QTimer(self)
         self._compatibility_timer.setInterval(6 * 60 * 60 * 1000)
         self._compatibility_timer.timeout.connect(self._start_compatibility_check)
@@ -4434,6 +4522,25 @@ class MissionControlController(QObject):
         if enabled:
             self._arm_emergency_missile_escape()
 
+    @Slot(bool)
+    def setTargetedMannyRecallEnabled(self, enabled):
+        if self._focused_probe_id < 0:
+            self._set_error("Select a focused probe before changing Manny safety.")
+            return
+        self.settings_engine.set_preference(
+            f"targeted_manny_recall:{self._focused_probe_id}",
+            "true" if enabled else "false",
+        )
+        combat = dict(self._dashboard.get("combatSafety", {}))
+        combat["targetedMannyRecallEnabled"] = bool(enabled)
+        self._dashboard["combatSafety"] = combat
+        self.dashboardChanged.emit()
+        self._set_operation_notice(
+            "TARGETED MANNY AUTO-RECALL " + ("ARMED" if enabled else "DISARMED")
+        )
+        if enabled:
+            self._arm_targeted_manny_recall()
+
     @Slot(str, bool)
     def setUnusualMiningTargetApproval(self, target_id, approved):
         target_id = str(target_id or "")
@@ -4687,6 +4794,9 @@ class MissionControlController(QObject):
             "emergencyMissileEscapeEnabled": self.settings_engine.get_preference(
                 f"emergency_missile_escape:{focus_probe_id}", "false",
             ) == "true",
+            "targetedMannyRecallEnabled": self.settings_engine.get_preference(
+                f"targeted_manny_recall:{focus_probe_id}", "false",
+            ) == "true",
         }
         self._dashboard = payload
         if previous_last_result is not None:
@@ -4872,6 +4982,7 @@ class MissionControlController(QObject):
         }
         self.dashboardChanged.emit()
         self._arm_emergency_missile_escape()
+        self._arm_targeted_manny_recall()
         self._finish_refresh()
 
     def _arm_emergency_missile_escape(self):
@@ -4917,6 +5028,55 @@ class MissionControlController(QObject):
     def _reject_emergency_missile_escape(self, message):
         self._emergency_escape_worker = None
         self._set_error("EMERGENCY MISSILE ESCAPE NOT SENT · " + message)
+
+    def _arm_targeted_manny_recall(self):
+        if self._emergency_stop or self._targeted_manny_recall_worker is not None:
+            return
+        if not self._dashboard.get("combatSafety", {}).get("targetedMannyRecallEnabled"):
+            return
+        alerts = [
+            item for item in self._dashboard.get("alerts", ())
+            if item.get("remoteMannyLaserTargeted")
+        ]
+        key = f"targeted_manny_recall_handled:{self._focused_probe_id}"
+        try:
+            handled = set(json.loads(self.settings_engine.get_preference(key, "[]") or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            handled = set()
+        pending = [
+            str(item.get("id")) for item in alerts
+            if str(item.get("id")) not in handled
+        ]
+        if not pending:
+            return
+        worker = _TargetedMannyRecallWorker(self._focused_probe_id, pending)
+        worker.signals.succeeded.connect(self._accept_targeted_manny_recall)
+        worker.signals.failed.connect(self._reject_targeted_manny_recall)
+        self._targeted_manny_recall_worker = worker
+        self._set_operation_notice("REMOTE MANNY TARGET LOCK · RECALL REVALIDATING")
+        self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_targeted_manny_recall(self, result):
+        self._targeted_manny_recall_worker = None
+        if result.get("status") != "recalled":
+            return
+        key = f"targeted_manny_recall_handled:{self._focused_probe_id}"
+        try:
+            handled = set(json.loads(self.settings_engine.get_preference(key, "[]") or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            handled = set()
+        handled.update(str(value) for value in result.get("alertIds", ()))
+        self.settings_engine.set_preference(key, json.dumps(sorted(handled)[-100:]))
+        self._set_operation_notice(
+            f"{result.get('mannyName', 'MANNY')} RECALL ACCEPTED · SYNCING"
+        )
+        self._start_refresh(self._focused_probe_id)
+
+    @Slot(str)
+    def _reject_targeted_manny_recall(self, message):
+        self._targeted_manny_recall_worker = None
+        self._set_error("TARGETED MANNY RECALL NOT SENT · " + message)
 
     def _unseen_manny_ids(self, payload):
         """Return focused-probe Mannys absent from its persisted naming history."""

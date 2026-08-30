@@ -1,7 +1,7 @@
 """Compatibility boundary for the Von Neumann Game API."""
 
 MINIMUM_API_VERSION = 103
-MAXIMUM_API_VERSION = 125
+MAXIMUM_API_VERSION = 128
 
 
 def api_is_compatible(version):

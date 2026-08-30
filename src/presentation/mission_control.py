@@ -980,6 +980,15 @@ class MissionControlViewModelBuilder:
         destruction_epoch_ms = self._black_hole_destruction_epoch_ms(
             sector, snapshot, black_holes
         ) if black_holes else 0
+        autonomous_units = tuple({
+            "id": str(item.get("id", "")),
+            "kind": str(item.get("kind", "unknown")),
+            "kindLabel": str(item.get("kind", "unknown")).replace("_", " ").upper(),
+            "carrierId": str((item.get("carrier") or {}).get("id", "")),
+            "carrierKind": str((item.get("carrier") or {}).get("kind", "unknown")),
+            "spatialState": str(item.get("spatialState", "unknown")),
+            "spatialStateLabel": str(item.get("spatialState", "unknown")).replace("_", " ").upper(),
+        } for item in (world.sector or {}).get("autonomousUnits", ()))
         return {
             "label": self._sector_label(coordinates),
             "knowledgeLevel": sector.get("knowledgeLevel", "unknown"),
@@ -992,6 +1001,7 @@ class MissionControlViewModelBuilder:
             ),
             "system": system or {},
             "activeMannies": tuple(active_mannies),
+            "autonomousUnits": autonomous_units,
             "blackHoleDanger": bool(black_holes),
             "destructionEpochMs": destruction_epoch_ms,
             "emptyReason": (
@@ -1252,6 +1262,16 @@ class MissionControlViewModelBuilder:
                 continue
             payload = event.get("payload", {})
             phase = str(payload.get("phase") or payload.get("code") or "")
+            summary = payload.get("title") or payload.get("message") or payload.get("summary") or event["domain"].replace("_", " ").title()
+            destruction_epoch_ms = self._iso_epoch_ms(payload.get("scheduledAt"))
+            remote_manny_targeted = (
+                phase == "weapon_targeted"
+                and "manny" in str(summary).casefold()
+                and not payload.get("resolvedAt")
+                and destruction_epoch_ms > datetime.now().timestamp() * 1000
+            )
+            sector = payload.get("sector") or {}
+            relative_sector = sector.get("relative") or sector.get("relativeCoordinates") or {}
             alerts.append({
                 "id": str(event.get("id", "event")),
                 "domain": event["domain"],
@@ -1259,9 +1279,13 @@ class MissionControlViewModelBuilder:
                 "code": str(payload.get("code") or phase or event.get("id", "event")),
                 "phase": phase,
                 "severity": "critical" if phase == "weapon_targeted" else payload.get("severity", event.get("priority", "warning")),
-                "summary": payload.get("title") or payload.get("message") or payload.get("summary") or event["domain"].replace("_", " ").title(),
+                "summary": summary,
                 "illustrationImageUrl": payload.get("illustrationImageUrl"),
                 "entity_id": payload.get("probeId"),
+                "remoteMannyLaserTargeted": remote_manny_targeted,
+                "sector": relative_sector,
+                "sectorLabel": self._sector_label(relative_sector),
+                "destructionEpochMs": destruction_epoch_ms,
                 "observedAt": (
                     payload.get("createdAt")
                     or payload.get("updatedAt")

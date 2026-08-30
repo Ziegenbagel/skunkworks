@@ -758,6 +758,19 @@ def test_api_v114_alert_images_and_v115_anatiform_sculpt_are_visible():
     assert '"sculpt-duck-asteroid"' in controller
 
 
+def test_api_v128_remote_manny_safety_and_autonomous_units_are_visible():
+    safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text(encoding="utf-8")
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
+    controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
+
+    assert "REMOTE MANNY LASER LOCK" in safety
+    assert "SHOW SECTOR ON GALAXY MAP" in safety
+    assert "OPT-IN REMOTE MANNY LASER RESPONSE" in manual
+    assert "setTargetedMannyRecallEnabled" in controller
+    assert "LOCAL AUTONOMOUS UNITS · API v128" in sector
+
+
 def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
     safety = Path("src/ui/qml/components/SafetyWorkspace.qml").read_text(encoding="utf-8")
     navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")

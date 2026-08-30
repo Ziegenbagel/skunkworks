@@ -600,6 +600,7 @@ Rectangle {
                 dashboardData: root.dashboardData
                 availableProbes: root.availableProbes
                 focusedProbeId: root.focusedProbeId
+                onGalaxyMapRequested: root.currentNavigation = "GALAXY MAP"
             }
 
             RowLayout {

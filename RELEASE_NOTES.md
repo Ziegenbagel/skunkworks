@@ -1,4 +1,17 @@
-# Skunkworks 1.0.7
+# Skunkworks 1.0.8
+
+Skunkworks 1.0.8 reviews Von Neumann Game API v126–v128. Live Sector now uses
+the v128 autonomous-unit observation endpoint to show locally deployed Mannys
+and Others auxiliaries with their carrier and spatial state.
+
+Remote laser targeting of an owned Manny is presented as a critical Safety
+alert with its ten-minute destruction countdown, relative FCC sector, and a
+direct route to Galaxy Map. Combat Control adds a per-probe opt-in that
+revalidates the live alert and owned Manny identity before issuing exactly one
+recall. It never moves the carrier probe, chooses a target, or acts on an
+ambiguous alert, and the emergency stop disables it.
+
+## Skunkworks 1.0.7
 
 Skunkworks 1.0.7 reviews and integrates Von Neumann Game API v123–v125. Probe
 missile launches now use the canonical Manny-scoped `ignite_missile` command

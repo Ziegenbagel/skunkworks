@@ -70,6 +70,8 @@ PanelFrame {
     signal improvementBlueprintShareRequested(int networkId, string improvementId, int recipientProbeId)
     signal missileLaunchRequested(string mannyId, string missileItemId, string targetId)
     signal emergencyMissileEscapeChanged(bool enabled)
+    signal targetedMannyRecallChanged(bool enabled)
+    signal galaxyMapRequested()
     signal unusualMiningTargetApprovalRequested(string targetId, bool approved)
     signal makeDefaultProbeRequested()
     signal mindSnapshotReassignRequested()
@@ -336,6 +338,7 @@ PanelFrame {
                     onImprovementBlueprintShareRequested: (networkId, improvementId, recipientProbeId) => root.improvementBlueprintShareRequested(networkId, improvementId, recipientProbeId)
                     onMissileLaunchRequested: (mannyId, missileItemId, targetId) => root.missileLaunchRequested(mannyId, missileItemId, targetId)
                     onEmergencyMissileEscapeChanged: enabled => root.emergencyMissileEscapeChanged(enabled)
+                    onTargetedMannyRecallChanged: enabled => root.targetedMannyRecallChanged(enabled)
                 }
             }
         }
@@ -349,6 +352,7 @@ PanelFrame {
                     recovery: root.dashboardData.terminalRecovery || ({})
                     onMindSnapshotReassignRequested: root.mindSnapshotReassignRequested()
                     onAlertDeleteRequested: (alertId, domain) => root.alertDeleteRequested(alertId, domain)
+                    onGalaxyMapRequested: root.galaxyMapRequested()
                 }
             }
         }

@@ -29,6 +29,7 @@ Item {
     signal improvementBlueprintShareRequested(int networkId, string improvementId, int recipientProbeId)
     signal missileLaunchRequested(string mannyId, string missileItemId, string targetId)
     signal emergencyMissileEscapeChanged(bool enabled)
+    signal targetedMannyRecallChanged(bool enabled)
     property var pendingAsteroidAction: ({})
     property var pendingMissileAction: ({})
 
@@ -394,7 +395,7 @@ Item {
                     ColumnLayout {
                         width: Math.max(1, combatControls.availableWidth - 12)
                         spacing: 14
-                        Label { Layout.fillWidth: true; text: "COMBAT CONTROL SYSTEMS · API v125"; color: Constants.criticalColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                        Label { Layout.fillWidth: true; text: "COMBAT CONTROL SYSTEMS · API v128"; color: Constants.criticalColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
                         Label { Layout.fillWidth: true; text: "Combat orders remain manual. Skunkworks will never choose or launch at a target without your explicit confirmation."; color: Constants.warningColor; wrapMode: Text.Wrap }
                         GroupBox {
                             title: "MISSILE LAUNCH"
@@ -418,6 +419,25 @@ Item {
                                 anchors.fill: parent; spacing: 8
                                 CheckBox { id: emergencyEscape; text: "AUTO-JUMP TO A RANDOM ELIGIBLE NEAREST SECTOR WHEN THIS PROBE IS TARGETED"; checked: Boolean((root.dashboardData.combatSafety || {}).emergencyMissileEscapeEnabled); onToggled: root.emergencyMissileEscapeChanged(checked) }
                                 Label { Layout.fillWidth: true; text: "Explicit opt-in. A detected missile targeting this probe may trigger one immediate nearest-sector jump if the probe is idle, has at least 10% integrity, and has enough fuel. This may leave deployed Mannys behind and accepts ordinary travel risk in order to evade impact."; color: emergencyEscape.checked ? Constants.criticalColor : Constants.mutedTextColor; wrapMode: Text.Wrap }
+                            }
+                        }
+                        GroupBox {
+                            title: "OPT-IN REMOTE MANNY LASER RESPONSE"
+                            Layout.fillWidth: true
+                            ColumnLayout {
+                                anchors.fill: parent; spacing: 8
+                                CheckBox {
+                                    id: targetedMannyRecall
+                                    text: "AUTO-RECALL AN OWNED MANNY IDENTIFIED BY A REMOTE LASER-TARGETING ALERT"
+                                    checked: Boolean((root.dashboardData.combatSafety || {}).targetedMannyRecallEnabled)
+                                    onToggled: root.targetedMannyRecallChanged(checked)
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: "Explicit opt-in. Skunkworks re-reads the live alert and owned Manny list, then issues only the Manny recall command. It does not move the carrier probe or choose a combat target. Ambiguous alerts are left for manual action."
+                                    color: targetedMannyRecall.checked ? Constants.criticalColor : Constants.mutedTextColor
+                                    wrapMode: Text.Wrap
+                                }
                             }
                         }
                         GroupBox {

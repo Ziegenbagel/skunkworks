@@ -86,6 +86,15 @@ class ApiGatewayTests(unittest.TestCase):
             }},
         ))
 
+    def test_v128_autonomous_units_are_probe_scoped_and_paginated(self):
+        self.api.probes.autonomous_units(42, limit=500, cursor="next-page")
+
+        self.assertEqual(self.client.calls[-1], (
+            "GET",
+            "/api/probe/42/sector/autonomous-units",
+            {"params": {"limit": 500, "cursor": "next-page"}},
+        ))
+
     def test_v111_asteroid_operations_use_documented_routes(self):
         self.api.mannies.start_task(
             42, "mny_1", "motorize-asteroid", {"objectId": "asteroid-1"},

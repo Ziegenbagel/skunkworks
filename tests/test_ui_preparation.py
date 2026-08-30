@@ -16,12 +16,53 @@ from src.ui.controller import (
     MissionControlController,
     MissionControlDataService,
     _EmergencyMissileEscapeWorker,
+    _TargetedMannyRecallWorker,
     _FleetAutomationWorker,
 )
 from tests.test_planner_missions import build_operations
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_optional_autonomous_unit_503_does_not_fail_core_refresh(self):
+        response = requests.Response()
+        response.status_code = 503
+        error = requests.HTTPError(response=response)
+        service = object.__new__(MissionControlDataService)
+        service.capabilities = type("Capabilities", (), {
+            "probes": type("Probes", (), {
+                "autonomous_units": staticmethod(lambda *_args, **_kwargs: (_ for _ in ()).throw(error)),
+            })(),
+        })()
+
+        self.assertEqual(service._autonomous_units(7), ())
+
+    def test_targeted_manny_recall_revalidates_and_recalls_exactly_one_owned_manny(self):
+        calls = []
+
+        class Service:
+            def load(self, probe_id, include_archival=False):
+                return {
+                    "alerts": ({
+                        "id": "88", "remoteMannyLaserTargeted": True,
+                        "summary": "Owned Manny Scout Seven is targeted by a laser.",
+                    },),
+                    "inventoryManagement": {"mannies": (
+                        {"id": "mny_7", "name": "Scout Seven"},
+                        {"id": "mny_8", "name": "Miner Eight"},
+                    )},
+                }
+
+            def inventory_manny_action(self, action, manny_id, payload):
+                calls.append((action, manny_id, payload))
+
+        results = []
+        worker = _TargetedMannyRecallWorker(7, ["88"], service_factory=Service)
+        worker.signals.succeeded.connect(results.append)
+        worker.run()
+
+        self.assertEqual(calls, [("recall", "mny_7", {})])
+        self.assertEqual(results[0]["status"], "recalled")
+
     def test_emergency_missile_escape_revalidates_and_dispatches_exactly_once(self):
         calls = []
 
@@ -926,11 +967,11 @@ class UiPreparationTests(unittest.TestCase):
         notices = []
         controller._set_operation_notice = notices.append
 
-        controller._notify_unreviewed_api_version(126)
-        controller._notify_unreviewed_api_version(126)
+        controller._notify_unreviewed_api_version(129)
+        controller._notify_unreviewed_api_version(129)
 
         self.assertEqual(notices, [
-            "NEW GAME API v126 DETECTED · CONTINUING IN COMPATIBILITY MODE",
+            "NEW GAME API v129 DETECTED · CONTINUING IN COMPATIBILITY MODE",
         ])
 
     def test_production_includes_active_manny_crafting_and_mining(self):

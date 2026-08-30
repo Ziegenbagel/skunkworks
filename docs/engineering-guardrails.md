@@ -406,6 +406,17 @@ one random nearest-sector jump for a newly observed missile identifier, only
 after fresh live revalidation confirms the probe is idle, sufficiently fueled,
 and at least 10% intact. The ordinary emergency stop disables it.
 
+Remote Manny laser response is also a separate per-probe opt-in. A persistent
+historical alert is not authority to recall: the background worker must reload
+the live alert and owned Manny list, require one unambiguous Manny identity,
+and issue only that Manny's canonical recall command. Successful alert IDs are
+remembered across restarts, and the ordinary emergency stop disables the
+response. It never moves the carrier probe or selects a combat target.
+
+The API v128 autonomous-unit observation is local sector telemetry. It may
+identify a deployed unit and carrier but exposes no absolute coordinates;
+Skunkworks must not infer coordinates from opaque IDs.
+
 ### API impossibility is not an overridable safety preference
 
 API v121 requires at least 10% probe integrity to prepare movement. Skunkworks

@@ -1,5 +1,10 @@
 # Operator Manual Revision History
 
+## 1.2 — 2026-08-30
+
+- Added API v128 local autonomous-unit visibility and remote owned-Manny laser
+  warnings with countdown, Galaxy Map routing, and an explicit opt-in recall.
+
 ## 1.1 — 2026-08-29
 
 - Updated Combat Control to the canonical API v125 Manny-scoped missile launch

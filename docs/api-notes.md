@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v125, verified
-against the live contract on 2026-08-29.
+Skunkworks supports deployed API v103 through upstream API v128, verified
+against the live contract on 2026-08-30.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -38,6 +38,14 @@ with `missileItemId` and an opaque public `targetId`. Sector scans expose moving
 including `targetKind`, `targetId`, `impactAt`, and `targetsCurrentProbe`.
 `weapon_targeted` is critical for the selected probe; ordinary `weapon`
 detections remain visible without becoming a targeted-probe alarm.
+
+API v128 adds the paginated
+`GET /api/probe/{probeId}/sector/autonomous-units` observation. Each local unit
+has an opaque ID, `manny` or `others_auxiliary` kind, carrier identity and kind,
+and one documented spatial state. It deliberately exposes no absolute sector
+coordinates. A `weapon_targeted` alert may now identify a remotely deployed
+owned Manny through shared SCUT coverage; `scheduledAt` is its ten-minute
+destruction deadline and `sector.relative` is safe for Galaxy Map routing.
 
 API v121 rejects movement preparation when integrity is strictly below 10%
 with `probe_integrity_too_low`; exactly 10% is allowed. Zero integrity sets the
