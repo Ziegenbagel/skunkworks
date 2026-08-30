@@ -760,6 +760,8 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert "MINING_MAINTENANCE" not in manual
     assert "TRANSFERS_CONTAINERS" not in manual
     assert "manualMiningRequested" in navigation
+    assert "onCountChanged" in fleet
+    assert "if (count > 0 && currentIndex < 0)" in fleet
     assert "inventoryManagement || {}).miningTargets" in manual
     assert 'runInventoryMannyAction("mine", mannyId, payload)' in app
 

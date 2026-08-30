@@ -4842,10 +4842,19 @@ class MissionControlController(QObject):
             detail_status="Manual mining order queued for background dispatch",
         )
         self._set_error("")
+        if self._manual_mining_worker is None:
+            self._start_next_manual_mining_order()
+        else:
+            self._set_manual_mining_queue_notice()
+
+    def _set_manual_mining_queue_notice(self):
+        total = len(self._manual_mining_queue)
+        sending = 1 if self._manual_mining_worker is not None else 0
+        waiting = max(0, total - sending)
         self._set_operation_notice(
-            f"MINING ORDER QUEUED · {len(self._manual_mining_queue)} AWAITING SEND"
+            f"MINING ORDERS PENDING · {total} TOTAL · "
+            f"{sending} SENDING · {waiting} WAITING"
         )
-        self._start_next_manual_mining_order()
 
     def _start_next_manual_mining_order(self):
         if self._manual_mining_worker is not None or not self._manual_mining_queue:
@@ -4868,9 +4877,7 @@ class MissionControlController(QObject):
             )
         )
         self._manual_mining_worker = worker
-        self._set_operation_notice(
-            f"SENDING MINING ORDER · {max(0, len(self._manual_mining_queue) - 1)} QUEUED"
-        )
+        self._set_manual_mining_queue_notice()
         self.thread_pool.start(worker)
 
     def _accept_queued_mining_order(self, worker, _result):

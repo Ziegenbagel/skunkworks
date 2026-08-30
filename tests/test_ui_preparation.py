@@ -851,12 +851,19 @@ class UiPreparationTests(unittest.TestCase):
         controller.runInventoryMannyAction(
             "mine", "manny-a", {"objectId": "asteroid-1"},
         )
+
+        self.assertIn("1 TOTAL", controller.operationNotice)
+        self.assertIn("1 SENDING", controller.operationNotice)
+        self.assertIn("0 WAITING", controller.operationNotice)
         controller.runInventoryMannyAction(
             "mine", "manny-b", {"objectId": "asteroid-1"},
         )
 
         self.assertEqual(len(workers), 1)
         self.assertEqual(len(controller._manual_mining_queue), 2)
+        self.assertIn("2 TOTAL", controller.operationNotice)
+        self.assertIn("1 SENDING", controller.operationNotice)
+        self.assertIn("1 WAITING", controller.operationNotice)
         self.assertEqual(
             controller.dashboard["inventoryManagement"]["idleMannies"], (),
         )

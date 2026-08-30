@@ -276,7 +276,17 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true; spacing: 12
                     Label { text: "MANNY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
-                    ComboBox { id: miningManny; Layout.preferredWidth: 220; model: root.idleMannies; textRole: "name"; valueRole: "id" }
+                    ComboBox {
+                        id: miningManny
+                        Layout.preferredWidth: 220
+                        model: root.idleMannies
+                        textRole: "name"
+                        valueRole: "id"
+                        onCountChanged: {
+                            if (count > 0 && currentIndex < 0)
+                                currentIndex = 0;
+                        }
+                    }
                     Label { text: "MINEABLE OBJECT"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     ComboBox { id: miningTarget; Layout.fillWidth: true; model: root.miningTargets; textRole: "name"; valueRole: "id" }
                     Label { text: "RESOURCE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }

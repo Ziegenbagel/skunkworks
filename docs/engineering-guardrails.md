@@ -180,6 +180,10 @@ slow API response never disables selection of another idle Manny and concurrent
 orders cannot race the same live state. Accepted orders remain locally claimed;
 rejected orders restore their Manny. Do not start a full dashboard refresh after
 every order—the next scheduler-owned authoritative refresh reconciles the batch.
+The pending total includes the order currently being sent as well as the waiting
+tail; popping or dispatching the FIFO head must never make the UI report zero
+while work is in flight. Removing one claimed Manny must preserve a valid
+selection whenever another idle Manny remains.
 
 Deuterium mining refills the probe tank and must not include a detached storage
 `targetContainerId`. Resource-routing rules may select detached destinations for
