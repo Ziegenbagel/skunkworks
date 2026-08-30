@@ -3149,6 +3149,9 @@ class MissionControlController(QObject):
         self._manual_mining_queue = []
         self._manual_mining_worker = None
         self._manual_mining_accepted_orders = []
+        self._manual_craft_queue = []
+        self._manual_craft_worker = None
+        self._manual_craft_accepted_orders = []
         self._operation_notice = ""
         self._event_loop_diagnostics = {
             "stallCount": 0, "lastStallMs": 0, "maximumStallMs": 0,
@@ -4419,26 +4422,101 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before queuing a manual build.")
             return
-        def failed(error):
-            if not isinstance(error, ManualCraftReservationConflict):
-                self._set_error(str(error) or type(error).__name__)
-                self._set_operation_notice("")
-                return
+        manny_id = str(manny_id or "")
+        idle = next((
+            dict(item) for item in self._dashboard.get("crafting", {}).get(
+                "idleMannies", (),
+            )
+            if str(item.get("id")) == manny_id
+        ), None)
+        if idle is None:
+            self._set_error("Select an idle Manny that is not already queued.")
+            return
+        production_row = next((
+            dict(item) for item in self._dashboard.get("production", ())
+            if str(item.get("id")) == manny_id
+        ), None)
+        self._manual_craft_queue.append({
+            "probeId": self._focused_probe_id,
+            "recipeId": str(recipe_id),
+            "mannyId": manny_id,
+            "idleManny": idle,
+            "productionRow": production_row,
+        })
+        self._mark_manual_manny_pending(
+            manny_id,
+            name="Manual build queued · awaiting send",
+            display_suffix="BUILD ORDER QUEUED",
+            detail_status="Manual build queued for background dispatch",
+        )
+        self._set_error("")
+        if self._manual_craft_worker is None:
+            self._start_next_manual_craft_order()
+        else:
+            self._set_manual_craft_queue_notice()
+
+    def _set_manual_craft_queue_notice(self):
+        accepted = len(self._manual_craft_accepted_orders)
+        total = len(self._manual_craft_queue) + accepted
+        sending = 1 if self._manual_craft_worker is not None else 0
+        waiting = max(0, len(self._manual_craft_queue) - sending)
+        self._set_operation_notice(
+            f"MANUAL CRAFTING · {total} PENDING SYNC · {accepted} ACCEPTED · "
+            f"{sending} SENDING · {waiting} WAITING"
+        )
+
+    def _start_next_manual_craft_order(self):
+        if self._manual_craft_worker is not None or not self._manual_craft_queue:
+            return
+        order = self._manual_craft_queue[0]
+        worker = _BackgroundCallWorker(
+            lambda: self.service.manual_craft(
+                order["recipeId"], order["mannyId"],
+            )
+        )
+        worker.signals.succeeded.connect(
+            lambda result, worker=worker: self._accept_queued_craft_order(
+                worker, result,
+            )
+        )
+        worker.signals.call_failed.connect(
+            lambda error, worker=worker: self._reject_queued_craft_order(
+                worker, error,
+            )
+        )
+        self._manual_craft_worker = worker
+        self._set_manual_craft_queue_notice()
+        self.thread_pool.start(worker)
+
+    def _accept_queued_craft_order(self, worker, _result):
+        if self._manual_craft_worker is not worker:
+            return
+        order = self._manual_craft_queue.pop(0)
+        self._manual_craft_worker = None
+        self._manual_craft_accepted_orders.append(order)
+        self._set_manual_craft_queue_notice()
+        self._start_next_manual_craft_order()
+
+    def _reject_queued_craft_order(self, worker, error):
+        if self._manual_craft_worker is not worker:
+            return
+        order = self._manual_craft_queue.pop(0)
+        self._manual_craft_worker = None
+        if int(order["probeId"]) == int(self._focused_probe_id):
+            self._restore_rejected_manual_manny(order)
+        if isinstance(error, ManualCraftReservationConflict):
             self._manual_craft_override = {
-                "probeId": self._focused_probe_id,
-                "recipeId": recipe_id,
-                "mannyId": manny_id,
+                "probeId": order["probeId"],
+                "recipeId": order["recipeId"],
+                "mannyId": order["mannyId"],
                 "message": str(error),
             }
             self.manualCraftOverrideChanged.emit()
             self._set_error("")
-            self._set_operation_notice("")
-
-        self._run_background_call(
-            "command", lambda: self.service.manual_craft(recipe_id, manny_id),
-            self._command_accepted, on_failure=failed,
-            pending_message="SENDING MANUAL BUILD ORDER",
-        )
+        else:
+            self._set_error(str(error) or type(error).__name__)
+        self._set_manual_craft_queue_notice()
+        self._start_next_manual_craft_order()
 
     @Slot()
     def overrideManualCraft(self):
@@ -4460,8 +4538,22 @@ class MissionControlController(QObject):
         )
 
     def _accept_manual_craft_override(self, result):
+        pending = dict(self._manual_craft_override)
         self._clear_manual_craft_override()
-        self._command_accepted(result)
+        manny_id = str(pending.get("mannyId", ""))
+        if manny_id:
+            self._mark_manual_manny_pending(
+                manny_id,
+                name="Manual override build accepted · sync queued",
+                display_suffix="BUILD ACCEPTED · SYNC QUEUED",
+                detail_status="Manual override build accepted",
+            )
+            self._manual_craft_accepted_orders.append(pending)
+        self._command_accepted(
+            result, "BUILD ACCEPTED · SYNC QUEUED FOR SCHEDULED REFRESH",
+            refresh=False,
+        )
+        self._set_manual_craft_queue_notice()
 
     def _reject_manual_craft_override(self, error):
         self._clear_manual_craft_override()
@@ -4982,6 +5074,12 @@ class MissionControlController(QObject):
             if str(item.get("id")) != manny_id
         ]
         self._dashboard["inventoryManagement"] = inventory
+        crafting = dict(self._dashboard.get("crafting", {}))
+        crafting["idleMannies"] = [
+            item for item in crafting.get("idleMannies", ())
+            if str(item.get("id")) != manny_id
+        ]
+        self._dashboard["crafting"] = crafting
         production = []
         for row in self._dashboard.get("production", ()):
             if str(row.get("id")) != manny_id:
@@ -5105,6 +5203,12 @@ class MissionControlController(QObject):
             idle.append(order["idleManny"])
         inventory["idleMannies"] = idle
         self._dashboard["inventoryManagement"] = inventory
+        crafting = dict(self._dashboard.get("crafting", {}))
+        crafting_idle = list(crafting.get("idleMannies", ()))
+        if not any(str(item.get("id")) == order["mannyId"] for item in crafting_idle):
+            crafting_idle.append(order["idleManny"])
+        crafting["idleMannies"] = crafting_idle
+        self._dashboard["crafting"] = crafting
         if order.get("productionRow") is not None:
             self._dashboard["production"] = [
                 order["productionRow"]
@@ -5699,6 +5803,10 @@ class MissionControlController(QObject):
         if accepted_probe_id >= 0:
             self._manual_mining_accepted_orders = [
                 order for order in self._manual_mining_accepted_orders
+                if int(order["probeId"]) != accepted_probe_id
+            ]
+            self._manual_craft_accepted_orders = [
+                order for order in self._manual_craft_accepted_orders
                 if int(order["probeId"]) != accepted_probe_id
             ]
         unseen_mannies = tuple(payload.get("unseenMannyIds", ()))

@@ -193,6 +193,12 @@ Accepted manual mining orders remain in the visible pending-sync total until an
 authoritative refresh for their probe arrives. Network acceptance must not emit
 a second full dashboard replacement: the enqueue mutation already claimed and
 marked that Manny, so only the lightweight queue notice changes on completion.
+Manual crafting uses the same optimistic-claim and serial-FIFO boundary. Each
+selected Manny disappears from both crafting and inventory idle models before
+the preceding request completes; accepted builds remain pending-sync until the
+scheduled authoritative refresh, and a reservation conflict restores that Manny
+before presenting the one-order override. Never refresh between accepted builds
+in a user-entered batch.
 
 Deuterium mining refills the probe tank and must not include a detached storage
 `targetContainerId`. Resource-routing rules may select detached destinations for
@@ -336,6 +342,10 @@ Probe selection and active-tab telemetry must not wait for galaxy reconstruction
 archival synchronization, logbooks, planner explanations, or hidden workspaces.
 Production and Navigation use two-stage live updates. Cached data must be labeled
 as cached/refreshing; early live data must be labeled as finishing refresh.
+The focused-probe selector remains interactive during refresh because the
+controller already coalesces a requested probe change and runs it after the
+active worker. A background refresh may mark data as syncing, but must not make
+unrelated navigation controls appear globally disabled.
 
 ### Existing safety history is not a new-session notification
 

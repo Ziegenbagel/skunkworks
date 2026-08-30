@@ -812,7 +812,14 @@ class UiPreparationTests(unittest.TestCase):
         controller = MissionControlController(service=Service(), thread_pool=ImmediatePool())
         controller._focused_probe_id = 7
         controller._require_manual_control = lambda: True
-        controller._start_refresh = lambda probe_id, **_kwargs: calls.append(("refresh", probe_id))
+        controller._dashboard = {
+            "crafting": {"idleMannies": [{"id": "manny-a"}]},
+            "inventoryManagement": {"idleMannies": [{"id": "manny-a"}]},
+            "production": [{"id": "manny-a", "asset": "Manny A", "taskType": "idle"}],
+        }
+        controller._start_refresh = lambda *_args, **_kwargs: self.fail(
+            "manual crafting must wait for scheduled authoritative refresh",
+        )
 
         controller.queueManualCraft("container", "manny-a")
 
@@ -820,8 +827,60 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.manualCraftOverride["recipeId"], "container")
         controller.overrideManualCraft()
         self.assertEqual(calls[1], ("container", "manny-a", True))
-        self.assertEqual(calls[2], ("refresh", 7))
         self.assertEqual(controller.manualCraftOverride, {})
+        self.assertEqual(len(controller._manual_craft_accepted_orders), 1)
+
+    def test_multiple_manual_crafts_queue_without_refreshing_between_orders(self):
+        workers = []
+        calls = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                workers.append(worker)
+
+        class Service:
+            @staticmethod
+            def manual_craft(recipe_id, manny_id, override_reservations=False):
+                calls.append((recipe_id, manny_id, override_reservations))
+                return {"accepted": True}
+
+        controller = MissionControlController(Service(), DeferredPool())
+        controller._focused_probe_id = 7
+        controller._require_manual_control = lambda: True
+        idle = [{"id": "manny-a"}, {"id": "manny-b"}]
+        controller._dashboard = {
+            "crafting": {"idleMannies": list(idle)},
+            "inventoryManagement": {"idleMannies": list(idle)},
+            "production": [
+                {"id": "manny-a", "asset": "Manny A", "taskType": "idle"},
+                {"id": "manny-b", "asset": "Manny B", "taskType": "idle"},
+            ],
+        }
+        controller._start_refresh = lambda *_args, **_kwargs: self.fail(
+            "craft batch must not refresh between orders",
+        )
+
+        controller.queueManualCraft("container", "manny-a")
+        controller.queueManualCraft("integrated_circuit", "manny-b")
+
+        self.assertEqual(len(workers), 1)
+        self.assertEqual(len(controller._manual_craft_queue), 2)
+        self.assertEqual(controller.dashboard["crafting"]["idleMannies"], [])
+        self.assertIn("2 PENDING SYNC", controller.operationNotice)
+        workers[0].run()
+        self.assertEqual(len(workers), 2)
+        workers[1].run()
+        self.assertEqual(
+            calls,
+            [
+                ("container", "manny-a", False),
+                ("integrated_circuit", "manny-b", False),
+            ],
+        )
+        self.assertEqual(controller._manual_craft_queue, [])
+        self.assertEqual(len(controller._manual_craft_accepted_orders), 2)
+        self.assertIn("2 ACCEPTED", controller.operationNotice)
 
     def test_manual_command_returns_before_background_dispatch_runs(self):
         started = []

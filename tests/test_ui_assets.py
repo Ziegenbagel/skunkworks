@@ -92,6 +92,8 @@ def test_dashboard_keeps_persistent_probe_selector_binding_seam():
     assert "signal probeSelected(int probeId)" in selector
     assert "signal refreshRequested" in selector
     assert '"deuterium_tanker"' in screen
+    assert "enabled: count > 0" in selector
+    assert "enabled: count > 0 && !root.refreshing" not in selector
 
 
 def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
