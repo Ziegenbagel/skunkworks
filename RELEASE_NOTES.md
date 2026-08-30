@@ -1,4 +1,17 @@
-# Skunkworks 1.0.8
+# Skunkworks 1.0.9
+
+Skunkworks 1.0.9 contains the API v128 integration introduced in 1.0.8,
+including remote owned-Manny laser warnings, destruction countdowns, Galaxy
+Map routing, the explicit opt-in recall response, and internal local
+autonomous-unit telemetry.
+
+This corrective patch removes the unapproved floating autonomous-unit panel
+from Live Sector. Autonomous-unit telemetry no longer obscures the asteroid,
+Manny, planet, or system map. Live Sector remains unobstructed unless the
+operator opens a dedicated detail surface or a critical safety takeover is
+required.
+
+## Skunkworks 1.0.8
 
 Skunkworks 1.0.8 reviews Von Neumann Game API v126–v128. Live Sector now uses
 the v128 autonomous-unit observation endpoint to show locally deployed Mannys

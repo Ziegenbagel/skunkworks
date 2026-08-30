@@ -1,5 +1,10 @@
 # Operator Manual Revision History
 
+## 1.3 — 2026-08-30
+
+- Removed the floating autonomous-unit overlay from Live Sector while retaining
+  API v128 telemetry and remote targeted-Manny safety behavior.
+
 ## 1.2 — 2026-08-30
 
 - Added API v128 local autonomous-unit visibility and remote owned-Manny laser
