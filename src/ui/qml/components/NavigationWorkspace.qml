@@ -9,6 +9,11 @@ PanelFrame {
 
     property string section: "FLEET"
     property var dashboardData: ({})
+    property var eventLoopDiagnostics: ({})
+    property var cachedProductionRows: []
+    property var cachedManualDashboardData: ({})
+    property string cachedProductionRevision: ""
+    property string cachedManualRevision: ""
     property var availableProbes: []
     property int focusedProbeId: -1
     property double currentEpochMs: Date.now()
@@ -136,7 +141,7 @@ PanelFrame {
                         "detail": item.detailText
                     }));
         if (section === "PRODUCTION") {
-            const rows = (dashboardData.production || []).map(item => ({
+            const rows = (root.cachedProductionRows || []).map(item => ({
                         "title": item.displayText,
                         "detail": item.detailText,
                         "asset": item.asset || "",
@@ -203,6 +208,34 @@ PanelFrame {
         }
     }
 
+    function syncHighChurnSections() {
+        const revisions = root.dashboardData.sectionRevisions || {};
+        const productionRevision = String(revisions.production || "");
+        const manualRevision = String(revisions.manualControl || "");
+        let productionChanged = false;
+        if (root.cachedProductionRevision !== productionRevision
+                || root.cachedProductionRows.length === 0) {
+            root.cachedProductionRows = root.dashboardData.production || [];
+            root.cachedProductionRevision = productionRevision;
+            productionChanged = true;
+        }
+        if (root.cachedManualRevision !== manualRevision
+                || Object.keys(root.cachedManualDashboardData).length === 0) {
+            root.cachedManualDashboardData = {
+                "automation": root.dashboardData.automation || {},
+                "automationRuntime": root.dashboardData.automationRuntime || {},
+                "blueprintSharing": root.dashboardData.blueprintSharing || {},
+                "combatSafety": root.dashboardData.combatSafety || {},
+                "crafting": root.dashboardData.crafting || {},
+                "inventoryManagement": root.dashboardData.inventoryManagement || {},
+                "probe": root.dashboardData.probe || {},
+                "probeImprovements": root.dashboardData.probeImprovements || []
+            };
+            root.cachedManualRevision = manualRevision;
+        }
+        return productionChanged;
+    }
+
     function scheduleRenderedRowsRefresh() {
         renderedRowsRefreshPending = true;
         if (root.section === "PRODUCTION" && sectionGrid.moving)
@@ -220,19 +253,31 @@ PanelFrame {
         }
     }
 
-    onDashboardDataChanged: scheduleRenderedRowsRefresh()
+    onDashboardDataChanged: {
+        const productionChanged = root.syncHighChurnSections();
+        if (root.section !== "PRODUCTION" || productionChanged)
+            root.scheduleRenderedRowsRefresh();
+    }
     onAvailableProbesChanged: scheduleRenderedRowsRefresh()
     onFocusedProbeIdChanged: scheduleRenderedRowsRefresh()
     onSectionChanged: scheduleRenderedRowsRefresh()
     onProductionSortChanged: scheduleRenderedRowsRefresh()
-    Component.onCompleted: refreshRenderedRows()
+    Component.onCompleted: {
+        root.syncHighChurnSections();
+        root.refreshRenderedRows();
+    }
 
     contentItem: Item {
         anchors.fill: parent
 
         Loader {
+            id: galaxyWorkspaceLoader
+            property bool retainedAfterFirstLoad: false
             anchors.fill: parent
-            active: root.section === "GALAXY MAP"
+            active: root.section === "GALAXY MAP" || retainedAfterFirstLoad
+            visible: root.section === "GALAXY MAP"
+            asynchronous: true
+            onLoaded: retainedAfterFirstLoad = true
             sourceComponent: Component {
                 GalaxyMap3D {
                     galaxyData: root.dashboardData.galaxy || ({})
@@ -246,11 +291,13 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "SETTINGS"
+            asynchronous: true
             sourceComponent: Component {
                 AutomationSettings {
                     settingsData: root.dashboardData.automation || ({})
                     runtimeData: root.dashboardData.automationRuntime || ({})
                     refreshDiagnostics: root.dashboardData.refreshDiagnostics || ({})
+                    eventLoopDiagnostics: root.eventLoopDiagnostics
                     credentialData: root.dashboardData.credentials || ({})
                     availableProbes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
@@ -290,6 +337,7 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "NAVIGATION"
+            asynchronous: true
             sourceComponent: Component {
                 NavigationControl {
                     navigationData: root.dashboardData.navigation || ({})
@@ -316,6 +364,7 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "RESOURCES"
+            asynchronous: true
             sourceComponent: Component {
                 ResourceWorkspace {
                     ledgerData: root.dashboardData.resourceLedger || ({})
@@ -327,6 +376,7 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "FLEET"
+            asynchronous: true
             sourceComponent: Component {
                 FleetWorkspace {
                     operatingProfile: root.operatingProfile
@@ -345,11 +395,16 @@ PanelFrame {
         }
 
         Loader {
+            id: manualWorkspaceLoader
+            property bool retainedAfterFirstLoad: false
             anchors.fill: parent
-            active: root.section === "MANUAL CONTROL"
+            active: root.section === "MANUAL CONTROL" || retainedAfterFirstLoad
+            visible: root.section === "MANUAL CONTROL"
+            asynchronous: true
+            onLoaded: retainedAfterFirstLoad = true
             sourceComponent: Component {
                 ManualControlWorkspace {
-                    dashboardData: root.dashboardData
+                    dashboardData: root.cachedManualDashboardData
                     requestedTabIndex: root.manualControlTabIndex
                     probes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
@@ -375,6 +430,7 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "SAFETY"
+            asynchronous: true
             sourceComponent: Component {
                 SafetyWorkspace {
                     alerts: root.dashboardData.alerts || []
@@ -388,6 +444,7 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "COMMUNICATIONS"
+            asynchronous: true
             sourceComponent: Component {
                 CommunicationsWorkspace {
                     communicationsData: root.dashboardData.communications || ({})

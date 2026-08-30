@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import traceback
+import hashlib
 import json
 import random
 import re
@@ -596,6 +597,33 @@ class MissionControlDataService:
                 else "not_requested"
             ),
             "archivalSyncSeconds": max(60, int(archival_sync_seconds)),
+        }
+        # Stable worker-computed revisions let QML keep large section models
+        # when an unrelated part of the dashboard changes.  Hashing belongs
+        # here, not in a GUI-thread property handler.
+        revision_groups = {
+            "production": ("production",),
+            "manualControl": (
+                "automationRuntime", "blueprintSharing", "combatSafety",
+                "crafting", "inventoryManagement", "probe",
+                "probeImprovements", "automation",
+            ),
+            "settings": (
+                "automation", "automationRuntime", "credentials",
+                "focus", "refreshDiagnostics",
+            ),
+            "navigation": ("navigation", "travelPreview", "automation", "focus"),
+            "resources": ("resourceLedger",),
+            "fleet": ("probe", "inventoryManagement", "automation"),
+            "safety": ("alerts", "terminalRecovery"),
+            "communications": ("communications", "logbook"),
+        }
+        dashboard["sectionRevisions"] = {
+            name: hashlib.sha1(json.dumps(
+                {key: dashboard.get(key) for key in keys},
+                sort_keys=True, default=str,
+            ).encode("utf-8")).hexdigest()
+            for name, keys in revision_groups.items()
         }
         report(100, "Mission control ready")
         return dashboard
@@ -3100,6 +3128,7 @@ class MissionControlController(QObject):
     operatingProfileChanged = Signal()
     notificationPolicyChanged = Signal()
     notificationDeliveryChanged = Signal()
+    eventLoopDiagnosticsChanged = Signal()
     desktopNotificationRequested = Signal(str, str)
 
     def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
@@ -3107,6 +3136,7 @@ class MissionControlController(QObject):
         self.service = service
         self.thread_pool = thread_pool or QThreadPool.globalInstance()
         self._dashboard = {}
+        self._section_revision_counter = 0
         self._available_probes = []
         self._probe_snapshot_cache = {}
         self._dashboard_cache = {}
@@ -3117,7 +3147,16 @@ class MissionControlController(QObject):
         self._manual_craft_override = {}
         self._manual_mining_queue = []
         self._manual_mining_worker = None
+        self._manual_mining_accepted_orders = []
         self._operation_notice = ""
+        self._event_loop_diagnostics = {
+            "stallCount": 0, "lastStallMs": 0, "maximumStallMs": 0,
+        }
+        self._event_loop_last_sample = time.monotonic()
+        self._event_loop_timer = QTimer(self)
+        self._event_loop_timer.setInterval(100)
+        self._event_loop_timer.timeout.connect(self._sample_event_loop)
+        self._event_loop_timer.start()
         self._emergency_stop = False
         self._worker = None
         self._pending_probe_id = None
@@ -3218,6 +3257,39 @@ class MissionControlController(QObject):
     def dashboard(self):
         return self._dashboard
 
+    def _touch_section_revisions(self, *names):
+        """Invalidate only presentation sections changed on the GUI thread."""
+        if not self._dashboard:
+            return
+        revisions = dict(self._dashboard.get("sectionRevisions", {}))
+        for name in names:
+            self._section_revision_counter += 1
+            revisions[str(name)] = f"local-{self._section_revision_counter}"
+        self._dashboard["sectionRevisions"] = revisions
+
+    @Property("QVariantMap", notify=eventLoopDiagnosticsChanged)
+    def eventLoopDiagnostics(self):
+        return self._event_loop_diagnostics
+
+    def _sample_event_loop(self):
+        now = time.monotonic()
+        elapsed = now - self._event_loop_last_sample
+        self._event_loop_last_sample = now
+        stall = elapsed - 0.1
+        # Ignore ordinary timer jitter and machine sleep. The latter is not a
+        # Skunkworks render stall and would make the diagnostic misleading.
+        if stall < 0.1 or elapsed > 5.0:
+            return
+        stall_ms = int(round(stall * 1000))
+        self._event_loop_diagnostics = {
+            "stallCount": int(self._event_loop_diagnostics["stallCount"]) + 1,
+            "lastStallMs": stall_ms,
+            "maximumStallMs": max(
+                int(self._event_loop_diagnostics["maximumStallMs"]), stall_ms,
+            ),
+        }
+        self.eventLoopDiagnosticsChanged.emit()
+
     @Property("QVariantList", notify=availableProbesChanged)
     def availableProbes(self):
         return self._available_probes
@@ -3234,6 +3306,7 @@ class MissionControlController(QObject):
         self.shuttingDownChanged.emit()
         self._automation_timer.stop()
         self._auto_profile_timer.stop()
+        self._event_loop_timer.stop()
         application = QCoreApplication.instance()
         if application is not None:
             application.removeEventFilter(self)
@@ -3721,6 +3794,7 @@ class MissionControlController(QObject):
 
     def _accept_execution_policy_save(self, runtime):
         self._dashboard["automationRuntime"] = self._qt_safe(runtime)
+        self._touch_section_revisions("manualControl", "settings")
         self._configure_automation_timer(runtime)
         self._set_error("")
         self._set_operation_notice("EXECUTION POLICY SAVED")
@@ -4006,6 +4080,7 @@ class MissionControlController(QObject):
                 if str(row.get("id")) not in claimed
             ]
             self._dashboard["inventoryManagement"] = inventory
+        self._touch_section_revisions("production", "manualControl")
         self.dashboardChanged.emit()
 
     def _ensure_automation_heartbeat(self):
@@ -4033,6 +4108,7 @@ class MissionControlController(QObject):
         if focused_result is not None:
             runtime["lastResult"] = self._qt_safe(focused_result)
         self._dashboard["automationRuntime"] = runtime
+        self._touch_section_revisions("manualControl", "settings")
         self.dashboardChanged.emit()
         # Every scheduled cycle is followed by an authoritative focused-probe
         # refresh, including idle cycles, so queue/readiness changes appear in
@@ -4840,6 +4916,7 @@ class MissionControlController(QObject):
                 ),
             })
         self._dashboard["production"] = production
+        self._touch_section_revisions("production", "manualControl")
         self.dashboardChanged.emit()
 
     def _queue_manual_mining_order(self, manny_id, payload):
@@ -4883,11 +4960,12 @@ class MissionControlController(QObject):
             self._set_manual_mining_queue_notice()
 
     def _set_manual_mining_queue_notice(self):
-        total = len(self._manual_mining_queue)
+        accepted = len(self._manual_mining_accepted_orders)
+        total = len(self._manual_mining_queue) + accepted
         sending = 1 if self._manual_mining_worker is not None else 0
-        waiting = max(0, total - sending)
+        waiting = max(0, len(self._manual_mining_queue) - sending)
         self._set_operation_notice(
-            f"MINING ORDERS PENDING · {total} TOTAL · "
+            f"MANUAL MINING · {total} PENDING SYNC · {accepted} ACCEPTED · "
             f"{sending} SENDING · {waiting} WAITING"
         )
 
@@ -4920,12 +4998,8 @@ class MissionControlController(QObject):
             return
         order = self._manual_mining_queue.pop(0)
         self._manual_mining_worker = None
-        if int(order["probeId"]) == int(self._focused_probe_id):
-            self._mark_manual_manny_pending(order["mannyId"])
-        self._set_operation_notice(
-            f"MINING ORDER ACCEPTED · {len(self._manual_mining_queue)} QUEUED · "
-            "SYNC AT SCHEDULED REFRESH"
-        )
+        self._manual_mining_accepted_orders.append(order)
+        self._set_manual_mining_queue_notice()
         self._start_next_manual_mining_order()
 
     def _reject_queued_mining_order(self, worker, error):
@@ -4954,6 +5028,7 @@ class MissionControlController(QObject):
                 if str(item.get("id")) == order["mannyId"] else item
                 for item in self._dashboard.get("production", ())
             ]
+        self._touch_section_revisions("production", "manualControl")
         self.dashboardChanged.emit()
 
     def _require_manual_control(self):
@@ -5525,6 +5600,11 @@ class MissionControlController(QObject):
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
         accepted_focus = dict(payload.get("focus", {}))
         accepted_probe_id = int(accepted_focus.get("probeId", -1))
+        if accepted_probe_id >= 0:
+            self._manual_mining_accepted_orders = [
+                order for order in self._manual_mining_accepted_orders
+                if int(order["probeId"]) != accepted_probe_id
+            ]
         unseen_mannies = tuple(payload.get("unseenMannyIds", ()))
         if (
             naming_policy.get("enabled")

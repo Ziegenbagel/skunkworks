@@ -28,6 +28,7 @@ ApplicationWindow {
         anchors.fill: parent
         liveMode: window.backend !== null
         dashboardData: window.backend ? window.backend.dashboard : ({})
+        eventLoopDiagnostics: window.backend ? window.backend.eventLoopDiagnostics : ({})
         availableProbes: window.backend ? window.backend.availableProbes : previewProbes
         focusedProbeId: window.backend ? window.backend.focusedProbeId : availableProbes[0].id
         refreshing: window.backend ? window.backend.refreshing : false

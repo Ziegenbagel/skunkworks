@@ -896,7 +896,26 @@ class UiPreparationTests(unittest.TestCase):
             controller.dashboard["production"][0]["taskType"],
             "dispatch_pending",
         )
-        self.assertIn("SCHEDULED REFRESH", controller.operationNotice)
+        self.assertIn("1 PENDING SYNC", controller.operationNotice)
+        self.assertIn("1 ACCEPTED", controller.operationNotice)
+        self.assertEqual(len(controller._manual_mining_accepted_orders), 1)
+        self.assertTrue(
+            controller.dashboard["sectionRevisions"]["production"].startswith("local-")
+        )
+        self.assertTrue(
+            controller.dashboard["sectionRevisions"]["manualControl"].startswith("local-")
+        )
+
+    def test_event_loop_monitor_records_only_interactive_stalls(self):
+        controller = MissionControlController()
+        controller._event_loop_last_sample = 100.0
+
+        with patch("src.ui.controller.time.monotonic", return_value=100.45):
+            controller._sample_event_loop()
+
+        self.assertEqual(controller.eventLoopDiagnostics["stallCount"], 1)
+        self.assertEqual(controller.eventLoopDiagnostics["lastStallMs"], 350)
+        self.assertEqual(controller.eventLoopDiagnostics["maximumStallMs"], 350)
 
     def test_multiple_manual_mining_orders_can_queue_while_first_is_sending(self):
         workers = []
@@ -928,12 +947,14 @@ class UiPreparationTests(unittest.TestCase):
         controller._start_refresh = lambda *_args, **_kwargs: self.fail(
             "manual mining must wait for the scheduled refresh",
         )
+        dashboard_changes = []
+        controller.dashboardChanged.connect(lambda: dashboard_changes.append(True))
 
         controller.runInventoryMannyAction(
             "mine", "manny-a", {"objectId": "asteroid-1"},
         )
 
-        self.assertIn("1 TOTAL", controller.operationNotice)
+        self.assertIn("1 PENDING SYNC", controller.operationNotice)
         self.assertIn("1 SENDING", controller.operationNotice)
         self.assertIn("0 WAITING", controller.operationNotice)
         controller.runInventoryMannyAction(
@@ -942,7 +963,7 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(len(workers), 1)
         self.assertEqual(len(controller._manual_mining_queue), 2)
-        self.assertIn("2 TOTAL", controller.operationNotice)
+        self.assertIn("2 PENDING SYNC", controller.operationNotice)
         self.assertIn("1 SENDING", controller.operationNotice)
         self.assertIn("1 WAITING", controller.operationNotice)
         self.assertEqual(
@@ -954,6 +975,10 @@ class UiPreparationTests(unittest.TestCase):
         workers[1].run()
         self.assertEqual([item[1] for item in calls], ["manny-a", "manny-b"])
         self.assertEqual(controller._manual_mining_queue, [])
+        self.assertEqual(len(controller._manual_mining_accepted_orders), 2)
+        self.assertIn("2 PENDING SYNC", controller.operationNotice)
+        self.assertIn("2 ACCEPTED", controller.operationNotice)
+        self.assertEqual(len(dashboard_changes), 2)
 
     def test_manual_craft_override_can_be_cancelled_without_dispatch(self):
         controller = MissionControlController()
@@ -1396,6 +1421,13 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(navigation["current"]["objectCount"], 1)
         self.assertIn("1 planets", navigation["current"]["scanSummary"])
         self.assertIn("composition/category: Oceanic", navigation["current"]["detailText"])
+
+    def test_galaxy_view_has_a_stable_content_revision(self):
+        first = MissionControlViewModelBuilder(build_operations()).build()["galaxy"]
+        second = MissionControlViewModelBuilder(build_operations()).build()["galaxy"]
+
+        self.assertTrue(first["revision"])
+        self.assertEqual(first["revision"], second["revision"])
 
     def test_controller_persists_probe_role_and_updates_live_settings(self):
         with tempfile.TemporaryDirectory() as temporary:

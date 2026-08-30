@@ -189,6 +189,10 @@ The pending total includes the order currently being sent as well as the waiting
 tail; popping or dispatching the FIFO head must never make the UI report zero
 while work is in flight. Removing one claimed Manny must preserve a valid
 selection whenever another idle Manny remains.
+Accepted manual mining orders remain in the visible pending-sync total until an
+authoritative refresh for their probe arrives. Network acceptance must not emit
+a second full dashboard replacement: the enqueue mutation already claimed and
+marked that Manny, so only the lightweight queue notice changes on completion.
 
 Deuterium mining refills the probe tank and must not include a detached storage
 `targetContainerId`. Resource-routing rules may select detached destinations for
@@ -259,6 +263,21 @@ Production scrolling and Galaxy Map camera interaction are interaction
 boundaries. Dashboard updates may be coalesced until a production flick settles,
 and camera LOD may hide expensive geometry, but neither path may destroy and
 recreate its full delegate/model population for every wheel or drag event.
+Galaxy payloads carry a worker-computed content revision. Equivalent global
+refreshes retain the existing 3D model, updates arriving during camera movement
+are applied only after settling, and expensive overlays are hidden through one
+parent scene node rather than toggling every delegate binding individually.
+The same revision boundary applies to high-churn workspaces. Full refresh
+payloads compute section revisions in the worker. Production and Manual Control
+retain their accepted models when only an unrelated section changes, while
+controller-side optimistic mutations explicitly invalidate only the sections
+they changed. Heavy workspace construction is asynchronous so switching tabs
+cannot monopolize the event loop. Galaxy and Manual Control may remain retained
+after their first construction because their large inputs are revision-gated;
+do not retain an expensive workspace whose hidden bindings still consume every
+global dashboard replacement. A lightweight GUI timer records interactive
+event-loop stalls separately from API and worker timing; recording a stall must
+not itself emit a dashboard replacement.
 Recurring presentation bindings must be self-contained and exception-free:
 countdown ticks may not call functions absent from their component, and controls
 must not assign negative model indices while asynchronously loaded models are

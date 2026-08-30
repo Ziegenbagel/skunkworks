@@ -9,6 +9,7 @@ Item {
     property var settingsData: ({})
     property var runtimeData: ({})
     property var refreshDiagnostics: ({})
+    property var eventLoopDiagnostics: ({})
     property var availableProbes: []
     property var credentialData: ({})
     property int focusedProbeId: -1
@@ -807,6 +808,16 @@ Item {
                         visible: root.refreshTimingSummary().length > 0
                         text: "SLOWEST STAGES · " + root.refreshTimingSummary()
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "UI EVENT-LOOP STALLS · "
+                              + Number((root.eventLoopDiagnostics || {}).stallCount || 0)
+                              + " · LAST " + Number((root.eventLoopDiagnostics || {}).lastStallMs || 0)
+                              + " MS · MAX " + Number((root.eventLoopDiagnostics || {}).maximumStallMs || 0) + " MS"
+                        color: Number((root.eventLoopDiagnostics || {}).maximumStallMs || 0) >= 500
+                               ? Constants.warningColor : Constants.mutedTextColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     Label {
                         Layout.fillWidth: true

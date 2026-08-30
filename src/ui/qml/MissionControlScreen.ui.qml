@@ -13,6 +13,7 @@ Rectangle {
     property string connectionError: ""
     property bool emergencyStopActive: false
     property var dashboardData: ({})
+    property var eventLoopDiagnostics: ({})
     readonly property var focusData: dashboardData.focus || ({})
     readonly property var fleetData: dashboardData.fleet || ({})
     readonly property var probeData: dashboardData.probe || ({})
@@ -608,6 +609,7 @@ Rectangle {
                 Layout.fillHeight: true
                 section: root.currentNavigation
                 dashboardData: root.dashboardData
+                eventLoopDiagnostics: root.eventLoopDiagnostics
                 availableProbes: root.availableProbes
                 focusedProbeId: root.focusedProbeId
                 operatingProfile: root.dashboardData.operatingProfile || ({"name": "normal", "map_detail": "normal"})

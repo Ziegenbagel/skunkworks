@@ -2,6 +2,7 @@
 
 from dataclasses import asdict
 from datetime import datetime
+import hashlib
 import json
 import re
 from src.models.galaxy import SectorCoordinates
@@ -340,7 +341,7 @@ class MissionControlViewModelBuilder:
         missile_items = tuple(
             item for item in items if str(item.get("type", "")).casefold() == "missile"
         )
-        return {
+        result = {
             "probeId": world.probe.get("id"),
             "probeName": world.probe.get("name", "Probe"),
             "containers": containers,
@@ -400,6 +401,7 @@ class MissionControlViewModelBuilder:
             "deuterium": float((world.probe.get("fuel") or {}).get("deuterium", world.probe.get("deuterium", 0)) or 0),
             "maxDeuterium": float((world.probe.get("fuel") or {}).get("maxDeuterium", 100) or 100),
         }
+        return result
 
     @staticmethod
     def _container_label(container, probe_name):
@@ -662,7 +664,7 @@ class MissionControlViewModelBuilder:
                 ).neighbors()
             )
         )
-        return {
+        result = {
             "nodes": tuple(nodes),
             # Camera centering must not depend on the focused sector already
             # existing in the persisted discovery graph. A newly arrived or
@@ -686,6 +688,14 @@ class MissionControlViewModelBuilder:
             "scutCoverageBoundary": scut_coverage_boundary,
             "ownedMannyLocations": tuple(owned_manny_locations),
         }
+        # The controller refreshes global dashboard objects frequently even
+        # when durable galaxy knowledge is unchanged. Compute the revision in
+        # the worker-built presentation layer so QML can retain its expensive
+        # 3D delegate population across equivalent refreshes.
+        result["revision"] = hashlib.sha1(
+            json.dumps(result, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+        return result
 
     def _communications(self, probe):
         if not self.operations.messaging:

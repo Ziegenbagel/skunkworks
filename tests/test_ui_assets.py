@@ -188,6 +188,24 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
     assert "Math.min(18, Math.max(13, root.width / 125))" in navigation
 
 
+def test_heavy_workspaces_use_revisions_and_asynchronous_loading():
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(
+        encoding="utf-8",
+    )
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert "eventLoopDiagnostics: window.backend ? window.backend.eventLoopDiagnostics" in app
+    assert "function syncHighChurnSections()" in workspace
+    assert "cachedProductionRevision" in workspace
+    assert "cachedManualDashboardData" in workspace
+    assert workspace.count("asynchronous: true") >= 8
+    assert workspace.count("retainedAfterFirstLoad") >= 6
+    assert "UI EVENT-LOOP STALLS" in settings
+
+
 def test_safety_navigation_pulses_for_unviewed_alerts():
     navigation = Path("src/ui/qml/components/TopNavigationBar.qml").read_text(encoding="utf-8")
     screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
@@ -394,6 +412,9 @@ def test_planet_details_dialog_has_a_non_circular_explicit_width():
     assert "width: Math.min(620, parent.width - 48)" in dialog
     assert "width: planetDetails.availableWidth" in dialog
     assert "width: 560" not in dialog
+    assert 'text: "HABITABILITY SCORE · "' in dialog
+    assert "habitabilityScore).toFixed(6)" in dialog
+    assert "habitabilityScore) * 100" not in dialog
 
 
 def test_hull_panel_uses_release_thresholds_without_duplicate_reading():
@@ -420,6 +441,10 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "renderedEdges" in galaxy
     assert "readonly property var renderedEdges: visibleEdges" in galaxy
     assert "visible: !root.cameraMoving" in galaxy
+    assert "property var renderedGalaxyData" in galaxy
+    assert "property var deferredGalaxyData" in galaxy
+    assert "function applyGalaxyData(value)" in galaxy
+    assert "root.applyGalaxyData(root.deferredGalaxyData)" in galaxy
 
 
 def test_galaxy_map_renders_owned_manny_locations():
@@ -443,7 +468,8 @@ def test_secondary_risk_acknowledgement_displays_live_hazard_reasons():
     assert "id: cameraSettle" in galaxy
     assert "function fitVisibleMap()" in galaxy
     assert 'text: "FIT MAP"' in galaxy
-    assert "automaticClipping: true" in galaxy
+    assert "automaticClipping: false" in galaxy
+    assert "clipNear: 1; clipFar: 100000" in galaxy
     assert "RIGHT/MIDDLE DRAG · PAN" in galaxy
     assert "import QtQuick3D" in galaxy
     assert "View3D" in galaxy

@@ -9,11 +9,13 @@ import ".."
 Item {
     id: root
     property var galaxyData: ({})
+    property var renderedGalaxyData: ({})
+    property var deferredGalaxyData: null
     property int focusedProbeId: -1
     property var selectedNode: null
     property var selectedCoveragePoint: null
     property bool hasCenteredOnProbe: false
-    readonly property var nodes: galaxyData.nodes || []
+    readonly property var nodes: renderedGalaxyData.nodes || []
     readonly property var nodeIndex: {
         const result = {};
         for (let i = 0; i < nodes.length; ++i)
@@ -22,10 +24,10 @@ Item {
     }
     readonly property var recentTrailNodes: {
         const result = {};
-        const nodeIds = galaxyData.recentTrailNodes || [];
+        const nodeIds = renderedGalaxyData.recentTrailNodes || [];
         for (let i = 0; i < nodeIds.length; ++i)
             result[String(nodeIds[i])] = true;
-        const trail = galaxyData.recentTrail || [];
+        const trail = renderedGalaxyData.recentTrail || [];
         for (let i = 0; i < trail.length; ++i) {
             result[String(trail[i].from)] = true;
             result[String(trail[i].to)] = true;
@@ -57,7 +59,7 @@ Item {
     readonly property var visibleEdges: {
         const visible = {};
         for (let i = 0; i < visibleNodes.length; ++i) visible[visibleNodes[i].id] = true;
-        return (galaxyData.edges || []).filter(function(edge) { return visible[edge.from] && visible[edge.to]; });
+        return (renderedGalaxyData.edges || []).filter(function(edge) { return visible[edge.from] && visible[edge.to]; });
     }
     // Neighbor links dominate scene cost as explored space grows. Suspend them
     // only while the camera moves, then restore the complete topology after a
@@ -130,7 +132,7 @@ Item {
         return Qt.vector3d(Number(node.x) * spacing3D, Number(node.y) * spacing3D, Number(node.z) * spacing3D);
     }
     function focusedNode() {
-        const coordinates = galaxyData.focusCoordinates;
+        const coordinates = renderedGalaxyData.focusCoordinates;
         const coordinateId = coordinates && coordinates.x !== undefined
             && coordinates.y !== undefined && coordinates.z !== undefined
             ? String(coordinates.x) + ":" + String(coordinates.y) + ":" + String(coordinates.z)
@@ -143,10 +145,10 @@ Item {
         return null;
     }
     function centerOnFocusedProbe() {
-        if (galaxyData.focusProbeId !== undefined
-                && Number(galaxyData.focusProbeId) !== focusedProbeId)
+        if (renderedGalaxyData.focusProbeId !== undefined
+                && Number(renderedGalaxyData.focusProbeId) !== focusedProbeId)
             return false;
-        const coordinates = galaxyData.focusCoordinates;
+        const coordinates = renderedGalaxyData.focusCoordinates;
         const target = focusedNode();
         // The live focused-probe position is authoritative. `probeIds` on a
         // galaxy node means "has observed this sector" and is historical; it
@@ -212,6 +214,14 @@ Item {
         cameraMoving = true;
         cameraSettle.restart();
     }
+    function applyGalaxyData(value) {
+        const incoming = value || {};
+        if (String(incoming.revision || "") !== ""
+                && String(incoming.revision) === String(root.renderedGalaxyData.revision || ""))
+            return false;
+        root.renderedGalaxyData = incoming;
+        return true;
+    }
     function colorFor(node) {
         // Operational state must remain legible regardless of resource and
         // trail overlays. Hazards and the live focused sector take priority.
@@ -254,7 +264,7 @@ Item {
             id: cameraOrigin
             objectName: "galaxyCameraOrigin"
             eulerRotation: Qt.vector3d(-25, 35, 0)
-            PerspectiveCamera { id: camera; z: 950; fieldOfView: 45 }
+            PerspectiveCamera { id: camera; z: 950; fieldOfView: 45; clipNear: 1; clipFar: 100000 }
         }
         camera: camera
 
@@ -266,24 +276,27 @@ Item {
             scale: Qt.vector3d(0.12, 0.12, 0.12)
         }
 
-        Repeater3D {
-            model: root.showScutCoverage ? (root.galaxyData.scutCoverageBoundary || []) : []
-            delegate: CoverageCell {
-                required property var modelData
-                visible: !root.cameraMoving
-                objectName: "scut:" + String(modelData.id)
-                coverageSelected: root.selectedCoveragePoint !== null
-                    && String(root.selectedCoveragePoint.id) === String(modelData.id)
-                position: root.positionFor(modelData)
+        Node {
+            visible: !root.cameraMoving
+            Repeater3D {
+                model: root.showScutCoverage ? (root.renderedGalaxyData.scutCoverageBoundary || []) : []
+                delegate: CoverageCell {
+                    required property var modelData
+                    objectName: "scut:" + String(modelData.id)
+                    coverageSelected: root.selectedCoveragePoint !== null
+                        && String(root.selectedCoveragePoint.id) === String(modelData.id)
+                    position: root.positionFor(modelData)
+                }
             }
         }
 
-        Repeater3D {
-            model: root.renderedEdges
-            delegate: Model {
+        Node {
+            visible: !root.cameraMoving
+            Repeater3D {
+                model: root.renderedEdges
+                delegate: Model {
                 id: linkModel
                 required property var modelData
-                visible: !root.cameraMoving
                 property var fromNode: root.nodeById(modelData.from)
                 property var toNode: root.nodeById(modelData.to)
                 property vector3d fromPosition: fromNode ? root.positionFor(fromNode) : Qt.vector3d(0, 0, 0)
@@ -297,12 +310,15 @@ Item {
                 scale: Qt.vector3d(linkLength / 100, 0.018, 0.018)
                 eulerRotation: Qt.vector3d(0, -Math.atan2(dz, dx) * 180 / Math.PI, Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * 180 / Math.PI)
                 materials: DefaultMaterial { lighting: DefaultMaterial.NoLighting; diffuseColor: Constants.cyanColor; opacity: 0.82 }
+                }
             }
         }
 
-        Repeater3D {
-            model: root.showRecentTrail ? (root.galaxyData.recentTrail || []) : []
-            delegate: Model {
+        Node {
+            visible: !root.cameraMoving
+            Repeater3D {
+                model: root.showRecentTrail ? (root.renderedGalaxyData.recentTrail || []) : []
+                delegate: Model {
                 id: trailModel
                 required property var modelData
                 property var fromNode: root.nodeById(modelData.from)
@@ -313,12 +329,13 @@ Item {
                 property real dy: toPosition.y - fromPosition.y
                 property real dz: toPosition.z - fromPosition.z
                 property real linkLength: Math.sqrt(dx * dx + dy * dy + dz * dz)
-                visible: !root.cameraMoving && fromNode !== null && toNode !== null
+                visible: fromNode !== null && toNode !== null
                 source: "#Cube"
                 position: Qt.vector3d((fromPosition.x + toPosition.x) / 2, (fromPosition.y + toPosition.y) / 2, (fromPosition.z + toPosition.z) / 2)
                 scale: Qt.vector3d(linkLength / 100, 0.045, 0.045)
                 eulerRotation: Qt.vector3d(0, -Math.atan2(dz, dx) * 180 / Math.PI, Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * 180 / Math.PI)
                 materials: DefaultMaterial { lighting: DefaultMaterial.NoLighting; diffuseColor: Constants.warningColor; opacity: 0.96 }
+                }
             }
         }
 
@@ -348,21 +365,23 @@ Item {
 
         // Owned Mannys outside the focused probe remain operationally
         // important even when the sector's ordinary discovery filter is off.
-        Repeater3D {
-            model: root.showOwnedMannies ? (root.galaxyData.ownedMannyLocations || []) : []
-            delegate: Model {
+        Node {
+            visible: !root.cameraMoving
+            Repeater3D {
+                model: root.showOwnedMannies ? (root.renderedGalaxyData.ownedMannyLocations || []) : []
+                delegate: Model {
                 id: ownedMannyMarker
                 required property var modelData
                 objectName: "manny-location:" + String(modelData.id)
                 source: "#Sphere"
                 pickable: true
-                visible: !root.cameraMoving
                 position: root.positionFor(modelData)
                 scale: Qt.vector3d(0.13, 0.13, 0.13)
                 materials: DefaultMaterial {
                     lighting: DefaultMaterial.NoLighting
                     diffuseColor: Constants.warningColor
                     opacity: 0.98
+                }
                 }
             }
         }
@@ -395,7 +414,7 @@ Item {
     OrbitCameraController {
         anchors.fill: parent
         origin: cameraOrigin; camera: camera; panEnabled: true
-        automaticClipping: true
+        automaticClipping: false
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     }
 
@@ -403,7 +422,13 @@ Item {
         id: cameraSettle
         interval: 140
         repeat: false
-        onTriggered: root.cameraMoving = false
+        onTriggered: {
+            if (root.deferredGalaxyData !== null) {
+                root.applyGalaxyData(root.deferredGalaxyData);
+                root.deferredGalaxyData = null;
+            }
+            root.cameraMoving = false;
+        }
     }
     Connections {
         target: cameraOrigin
@@ -460,18 +485,26 @@ Item {
         }
     }
 
-    Component.onCompleted: Qt.callLater(root.resetCamera)
+    Component.onCompleted: {
+        root.applyGalaxyData(root.galaxyData);
+        Qt.callLater(root.resetCamera);
+    }
     onFocusedProbeIdChanged: {
         root.hasCenteredOnProbe = false;
-        if (root.galaxyData.focusProbeId !== undefined
-                && Number(root.galaxyData.focusProbeId) === root.focusedProbeId)
+        if (root.renderedGalaxyData.focusProbeId !== undefined
+                && Number(root.renderedGalaxyData.focusProbeId) === root.focusedProbeId)
             Qt.callLater(root.resetCamera);
     }
     onGalaxyDataChanged: {
+        if (root.cameraMoving) {
+            root.deferredGalaxyData = root.galaxyData;
+            return;
+        }
+        const changed = root.applyGalaxyData(root.galaxyData);
         // Initial data commonly arrives after the QML component is created.
         // Center once when it becomes available, but preserve operator pan and
         // orbit choices across ordinary background refreshes.
-        if (!root.hasCenteredOnProbe)
+        if (changed && !root.hasCenteredOnProbe)
             Qt.callLater(root.resetCamera);
     }
 
@@ -484,7 +517,7 @@ Item {
             const identifier = String(hit.objectHit.objectName);
             if (identifier.indexOf("scut:") === 0) {
                 const coverageId = identifier.slice(5);
-                const boundary = root.galaxyData.scutCoverageBoundary || [];
+                const boundary = root.renderedGalaxyData.scutCoverageBoundary || [];
                 for (let i = 0; i < boundary.length; ++i) {
                     if (String(boundary[i].id) === coverageId) {
                         root.selectedCoveragePoint = boundary[i];
@@ -494,7 +527,7 @@ Item {
                 return;
             }
             if (identifier.indexOf("manny-location:") === 0) {
-                const locations = root.galaxyData.ownedMannyLocations || [];
+                const locations = root.renderedGalaxyData.ownedMannyLocations || [];
                 const mannyId = identifier.slice(15);
                 for (let i = 0; i < locations.length; ++i) {
                     if (String(locations[i].id) === mannyId) {
@@ -521,7 +554,7 @@ Item {
                 text: root.selectedCoveragePoint
                     ? "SCUT BOUNDARY · FCC " + root.selectedCoveragePoint.x + " / " + root.selectedCoveragePoint.y + " / " + root.selectedCoveragePoint.z
                         + " · " + (root.selectedCoveragePoint.networkNames || []).join(", ").toUpperCase()
-                    : root.nodes.length + " SECTORS · " + (root.galaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"
+                    : root.nodes.length + " SECTORS · " + (root.renderedGalaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"
                 color: root.selectedCoveragePoint ? Constants.warningColor : Constants.mutedTextColor
                 font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: root.selectedCoveragePoint !== null
             }
@@ -624,7 +657,7 @@ Item {
             Label {
                 visible: root.filtersExpanded; Layout.fillWidth: true
                 text: root.visibleNodes.length + " OF " + root.nodes.length + " SECTORS VISIBLE · "
-                    + Number(root.galaxyData.recentTrailCount || 0) + " RECENT ROUTE SEGMENTS"
+                    + Number(root.renderedGalaxyData.recentTrailCount || 0) + " RECENT ROUTE SEGMENTS"
                 color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12
             }
             }
