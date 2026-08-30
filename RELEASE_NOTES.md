@@ -27,9 +27,9 @@ hazard code and explanation beside the acceptance control, so integrity,
 collision, container, or route risks are explained before consent is recorded.
 
 The development line also includes every change released through Skunkworks
-1.0.8, including reviewed game API compatibility through v128. Live Sector uses
-the v128 autonomous-unit observation endpoint to show locally deployed Mannys
-and Others auxiliaries with their carrier and spatial state.
+1.0.9, including reviewed game API compatibility through v128 and internal
+local autonomous-unit telemetry. The unapproved floating autonomous-unit panel
+from 1.0.8 is removed so Live Sector remains unobstructed.
 
 Remote laser targeting of an owned Manny is presented as a critical Safety
 alert with its ten-minute destruction countdown, relative FCC sector, and a
