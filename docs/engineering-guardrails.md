@@ -463,6 +463,11 @@ Desktop notifications are opt-in. Refreshes and restarts must not replay the
 same alert or operation result, and delivery must never mark a game alert
 viewed or prove that a command succeeded. Notifications are available only
 while Skunkworks is running; background continuation is outside 1.1 scope.
+Candidate extraction may run in a worker, but its completion returns through a
+declared controller slot and desktop delivery uses a GUI-thread-owned QObject;
+an unscoped callback must not invoke the tray icon from a worker thread. A new
+authoritative operation result must not be overwritten by the previous
+dashboard result before notification extraction.
 Settings must expose the platform capability and a test action. A successful
 test request must be labeled as requested, never as confirmed OS delivery,
 because desktop policy can suppress a banner after Qt accepts it.

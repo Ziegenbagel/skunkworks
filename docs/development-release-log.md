@@ -18,6 +18,8 @@ remains the record for internal implementation work.
   one-time start and end times.
 - Added opt-in desktop notifications with platform availability and test status
   shown in Settings.
+- Fixed live desktop alerts, approvals, failures, and operation notifications
+  so they use the same reliable macOS delivery path as the test notification.
 - Made manual orders, scans, communications, logbook actions, credential
   operations, and settings saves run without holding the interface until their
   network or persistence work finishes.

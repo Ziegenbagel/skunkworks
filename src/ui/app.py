@@ -4,7 +4,10 @@ import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QLibraryInfo, QLockFile, QTimer, QUrl, qVersion
+from PySide6.QtCore import (
+    QCoreApplication, QLibraryInfo, QLockFile, QObject, Slot, QTimer, QUrl,
+    qVersion,
+)
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 from PySide6.QtQml import QQmlApplicationEngine
@@ -79,6 +82,20 @@ def notification_delivery_capabilities():
     return available, supports_messages, detail
 
 
+class DesktopNotificationBridge(QObject):
+    """Deliver controller requests through a GUI-thread-owned Qt receiver."""
+
+    def __init__(self, tray_icon, parent=None):
+        super().__init__(parent)
+        self.tray_icon = tray_icon
+
+    @Slot(str, str)
+    def deliver(self, title, message):
+        self.tray_icon.showMessage(
+            title, message, QSystemTrayIcon.Information, 8000,
+        )
+
+
 def run(controller=None):
     application_paths().migrate_legacy(Path(__file__).resolve().parents[2])
     configure_diagnostics()
@@ -122,11 +139,13 @@ def run(controller=None):
             )
         )
         if notification_messages:
-            controller.desktopNotificationRequested.connect(
-                lambda title, message: notification_icon.showMessage(
-                    title, message, QSystemTrayIcon.Information, 8000,
-                )
+            notification_bridge = DesktopNotificationBridge(
+                notification_icon, application,
             )
+            controller.desktopNotificationRequested.connect(
+                notification_bridge.deliver,
+            )
+            application._skunkworks_notification_bridge = notification_bridge
     application._skunkworks_notification_icon = notification_icon
     engine.rootObjects()[0].setProperty("backend", controller)
     QTimer.singleShot(0, controller.start)

@@ -1,4 +1,5 @@
 from src.application.notifications import NotificationCoordinator, save_policy
+from src.ui.app import DesktopNotificationBridge
 from src.ui.controller import MissionControlController
 
 
@@ -86,3 +87,59 @@ def test_dashboard_notification_deduplication_is_deferred_off_ui_thread():
     assert len(workers) == 1
     workers[0].run()
     assert "desktop_notification_seen" in preferences.values
+
+
+def test_live_notification_result_reaches_controller_delivery_signal():
+    preferences = Preferences()
+    save_policy(preferences, {
+        "enabled": True,
+        "categories": ["operations"],
+        "minimumSeverity": "info",
+    })
+    controller = MissionControlController(
+        settings_engine=preferences, thread_pool=ImmediatePool(),
+    )
+    requested = []
+    controller.desktopNotificationRequested.connect(
+        lambda title, message: requested.append((title, message))
+    )
+    base = {
+        "apiVersion": 128,
+        "alerts": [],
+        "focus": {"probeId": 7, "name": "Hub"},
+        "probeOptions": [{"id": 7, "name": "Hub"}],
+        "automationRuntime": {},
+    }
+    controller._accept_dashboard(dict(base))
+    updated = dict(base)
+    updated["automationRuntime"] = {
+        "lastResult": {
+            "accepted": True,
+            "commandId": "command-1",
+            "message": "Mining order accepted",
+        },
+    }
+
+    controller._accept_dashboard(updated)
+
+    assert requested == [
+        ("Skunkworks operation completed", "Mining order accepted")
+    ]
+    assert controller.dashboard["automationRuntime"]["lastResult"][
+        "commandId"
+    ] == "command-1"
+
+
+def test_desktop_notification_bridge_owns_tray_delivery_slot():
+    calls = []
+
+    class TrayIcon:
+        @staticmethod
+        def showMessage(title, message, icon, timeout):
+            calls.append((title, message, icon, timeout))
+
+    bridge = DesktopNotificationBridge(TrayIcon())
+    bridge.deliver("Safety alert", "Hull breach")
+
+    assert calls[0][0:2] == ("Safety alert", "Hull breach")
+    assert calls[0][3] == 8000

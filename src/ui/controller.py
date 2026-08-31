@@ -5916,7 +5916,10 @@ class MissionControlController(QObject):
         self._dashboard["operatingProfile"] = self._operating_profile_payload()
         self._dashboard["notificationPolicy"] = dict(self._notification_policy)
         self._dashboard["notificationDelivery"] = dict(self._notification_delivery)
-        if previous_last_result is not None:
+        if (
+            previous_last_result is not None
+            and not self._dashboard.get("automationRuntime", {}).get("lastResult")
+        ):
             runtime = dict(self._dashboard.get("automationRuntime", {}))
             runtime["lastResult"] = previous_last_result
             self._dashboard["automationRuntime"] = runtime
@@ -6142,9 +6145,14 @@ class MissionControlController(QObject):
         self._notification_worker = worker
         self.thread_pool.start(worker)
 
+    @Slot(object)
     def _accept_notification_processing(self, fresh_notifications):
         self._notification_worker = None
         for notification in fresh_notifications:
+            logging.getLogger("skunkworks").info(
+                "Desktop notification requested | category=%s | severity=%s",
+                notification.category, notification.severity,
+            )
             self.desktopNotificationRequested.emit(
                 notification.title, notification.message,
             )
