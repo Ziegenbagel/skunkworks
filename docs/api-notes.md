@@ -46,6 +46,11 @@ and one documented spatial state. It deliberately exposes no absolute sector
 coordinates. A `weapon_targeted` alert may now identify a remotely deployed
 owned Manny through shared SCUT coverage; `scheduledAt` is its ten-minute
 destruction deadline and `sector.relative` is safe for Galaxy Map routing.
+The local autonomous-unit route has been observed returning 404 for a probe in
+an active travel phase because no settled local sector is available. Skunkworks
+skips that optional observation while traveling and treats 404 or the documented
+transient 503 as unavailable auxiliary telemetry rather than a failed probe
+refresh.
 
 API v121 rejects movement preparation when integrity is strictly below 10%
 with `probe_integrity_too_low`; exactly 10% is allowed. Zero integrity sets the

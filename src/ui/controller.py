@@ -180,7 +180,10 @@ class MissionControlDataService:
         report(42, "Loading sector and inventory")
         world = self._build_world(player, probe_data, probe, selected, None)
         if selected.get("isReachable", True):
-            if int(self.api_version or 0) >= 128:
+            if (
+                int(self.api_version or 0) >= 128
+                and not self._probe_is_in_active_travel(world.probe)
+            ):
                 world.sector["autonomousUnits"] = timed(
                     "autonomousUnits",
                     lambda: self._autonomous_units(selected["id"]),
@@ -667,10 +670,14 @@ class MissionControlDataService:
                     probe_id, limit=500, cursor=cursor,
                 )
             except requests.HTTPError as error:
-                # OpenAPI explicitly permits a transient 503 for this optional
-                # observation. Core probe/sector telemetry remains valid, so
-                # do not turn that auxiliary outage into a frozen dashboard.
-                if error.response is None or error.response.status_code != 503:
+                # The observation is optional local-sector telemetry. The API
+                # returns 404 while some probes are traveling and explicitly
+                # permits transient 503 responses. Neither invalidates core
+                # probe telemetry or the operator's probe selection.
+                if (
+                    error.response is None
+                    or error.response.status_code not in {404, 503}
+                ):
                     raise
                 break
             units.extend(response.get("autonomousUnits", ()) or ())
@@ -680,6 +687,18 @@ class MissionControlDataService:
             seen_cursors.add(next_cursor)
             cursor = next_cursor
         return tuple(units)
+
+    @staticmethod
+    def _probe_is_in_active_travel(probe):
+        movement = probe.get("movement") or probe.get("travel") or {}
+        status = str(
+            movement.get("phase") or movement.get("status")
+            or probe.get("status", "")
+        ).strip().casefold()
+        return status in {
+            "preparing", "accelerating", "cruising", "decelerating",
+            "traveling", "moving", "in_transit",
+        }
 
     @staticmethod
     def _app_version():

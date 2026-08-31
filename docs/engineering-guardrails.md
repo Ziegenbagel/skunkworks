@@ -686,6 +686,10 @@ response. It never moves the carrier probe or selects a combat target.
 The API v128 autonomous-unit observation is local sector telemetry. It may
 identify a deployed unit and carrier but exposes no absolute coordinates;
 Skunkworks must not infer coordinates from opaque IDs.
+Do not request that local-sector observation while the focused probe is in an
+active travel phase. A 404 absence or documented transient 503 from this
+optional route must not reject otherwise valid focused-probe telemetry or leave
+the selector on the previous probe.
 
 Autonomous-unit telemetry must not be rendered as a floating overlay over Live
 Sector. Operational map space remains unobstructed unless the operator opens a

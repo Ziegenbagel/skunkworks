@@ -42,6 +42,8 @@ remains the record for internal implementation work.
   replenish transferable Deuterium.
 - Changed a completed, indefinitely retained `arrived` fleet phase to display
   as `idle` while preserving active movement states.
+- Fixed switching to a traveling probe when optional local-sector autonomous
+  unit telemetry is unavailable.
 
 ### Internal release support
 

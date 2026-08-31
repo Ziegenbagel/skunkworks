@@ -50,18 +50,34 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(option["status"], "decelerating")
 
-    def test_optional_autonomous_unit_503_does_not_fail_core_refresh(self):
-        response = requests.Response()
-        response.status_code = 503
-        error = requests.HTTPError(response=response)
-        service = object.__new__(MissionControlDataService)
-        service.capabilities = type("Capabilities", (), {
-            "probes": type("Probes", (), {
-                "autonomous_units": staticmethod(lambda *_args, **_kwargs: (_ for _ in ()).throw(error)),
-            })(),
-        })()
+    def test_optional_autonomous_unit_absence_does_not_fail_core_refresh(self):
+        for status_code in (404, 503):
+            with self.subTest(status_code=status_code):
+                response = requests.Response()
+                response.status_code = status_code
+                error = requests.HTTPError(response=response)
+                service = object.__new__(MissionControlDataService)
+                service.capabilities = type("Capabilities", (), {
+                    "probes": type("Probes", (), {
+                        "autonomous_units": staticmethod(
+                            lambda *_args, **_kwargs: (
+                                _ for _ in ()
+                            ).throw(error)
+                        ),
+                    })(),
+                })()
 
-        self.assertEqual(service._autonomous_units(7), ())
+                self.assertEqual(service._autonomous_units(7), ())
+
+    def test_active_travel_skips_local_autonomous_unit_observation(self):
+        self.assertTrue(MissionControlDataService._probe_is_in_active_travel({
+            "status": "idle",
+            "movement": {"phase": "decelerating"},
+        }))
+        self.assertFalse(MissionControlDataService._probe_is_in_active_travel({
+            "status": "arrived",
+            "movement": {"phase": "arrived"},
+        }))
 
     def test_targeted_manny_recall_revalidates_and_recalls_exactly_one_owned_manny(self):
         calls = []
