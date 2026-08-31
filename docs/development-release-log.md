@@ -44,6 +44,8 @@ remains the record for internal implementation work.
   as `idle` while preserving active movement states.
 - Fixed switching to a traveling probe when optional local-sector autonomous
   unit telemetry is unavailable.
+- Added a Galaxy Map action that opens Navigation with the selected sector's
+  coordinates prefilled for operator review.
 
 ### Internal release support
 

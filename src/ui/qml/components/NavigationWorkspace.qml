@@ -14,6 +14,7 @@ PanelFrame {
     property var cachedManualDashboardData: ({})
     property string cachedProductionRevision: ""
     property string cachedManualRevision: ""
+    property var requestedTravelSector: ({})
     property var availableProbes: []
     property int focusedProbeId: -1
     property double currentEpochMs: Date.now()
@@ -81,6 +82,7 @@ PanelFrame {
     signal emergencyMissileEscapeChanged(bool enabled)
     signal targetedMannyRecallChanged(bool enabled)
     signal galaxyMapRequested()
+    signal navigationSectionRequested(string section)
     signal unusualMiningTargetApprovalRequested(string targetId, bool approved)
     signal makeDefaultProbeRequested()
     signal mindSnapshotReassignRequested()
@@ -297,6 +299,10 @@ PanelFrame {
                     focusedProbeId: root.focusedProbeId
                     detailProfile: String(root.operatingProfile.map_detail || "normal")
                     onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
+                    onTravelRequested: (x, y, z) => {
+                        root.requestedTravelSector = ({"x": x, "y": y, "z": z});
+                        root.navigationSectionRequested("NAVIGATION");
+                    }
                 }
             }
         }
@@ -359,6 +365,7 @@ PanelFrame {
                     automationData: root.dashboardData.automation || ({})
                     focusedProbe: root.dashboardData.focus || ({})
                     availableProbes: root.availableProbes
+                    requestedTravelSector: root.requestedTravelSector
                     onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
                     onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
                     onCancelMovementRequested: root.travelCancelRequested()

@@ -71,6 +71,7 @@ Item {
     readonly property var renderedEdges: visibleEdges
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
+    signal travelRequested(int x, int y, int z)
 
     component CoverageCell: Model {
         id: coverageCell
@@ -737,6 +738,7 @@ Item {
             Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? "OBSERVED BY PROBES · " + ((root.selectedNode.probeIds || []).join(", ") || "NONE") + (root.selectedNode.lastVisitedAt ? "    LAST VISIT · " + root.selectedNode.lastVisitedAt : "") : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {
                 Label { Layout.fillWidth: true; text: root.selectedNode ? "KNOWLEDGE " + String(root.selectedNode.knowledgeLevel).toUpperCase() + " · " + Math.round(root.selectedNode.confidence * 100) + "% CONFIDENCE" : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+                Button { text: "USE FOR TRAVEL"; enabled: root.selectedNode !== null; onClicked: if (root.selectedNode) root.travelRequested(root.selectedNode.x, root.selectedNode.y, root.selectedNode.z) }
                 Button { text: "SCAN / REFRESH"; enabled: root.selectedNode !== null; onClicked: if (root.selectedNode) root.scanRequested(root.selectedNode.x, root.selectedNode.y, root.selectedNode.z) }
             }
         }

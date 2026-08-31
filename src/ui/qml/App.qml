@@ -373,6 +373,13 @@ ApplicationWindow {
     Connections {
         target: missionControl.navigationWorkspaceControl
 
+        function onNavigationSectionRequested(section) {
+            AudioManager.play("navigate");
+            missionControl.currentNavigation = section;
+            if (window.backend)
+                window.backend.setActiveSection(section);
+        }
+
         function onProbeSelected(probeId) {
             AudioManager.play("select");
             if (window.backend)

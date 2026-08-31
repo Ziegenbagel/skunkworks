@@ -538,6 +538,23 @@ def test_production_defers_model_replacement_during_active_scrolling():
     assert "reuseItems: true" in workspace
 
 
+def test_galaxy_sector_can_prefill_navigation_without_sending_travel():
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+
+    assert "signal travelRequested(int x, int y, int z)" in galaxy
+    assert 'text: "USE FOR TRAVEL"' in galaxy
+    assert "root.travelRequested(root.selectedNode.x" in galaxy
+    assert 'root.navigationSectionRequested("NAVIGATION")' in workspace
+    assert 'root.requestedTravelSector = ({"x": x, "y": y, "z": z})' in workspace
+    assert "requestedTravelSector: root.requestedTravelSector" in workspace
+    assert "chooseSector(requestedTravelSector)" in navigation
+    assert "onNavigationSectionRequested(section)" in app
+    assert "travelPreviewRequested" not in galaxy
+
+
 def test_probe_selector_display_is_keyed_to_authoritative_focus_id():
     selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text(encoding="utf-8")
 

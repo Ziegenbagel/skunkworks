@@ -112,6 +112,22 @@ Relevant code/tests:
 - `src/execution/translator.py::release_claim`
 - `tests/test_execution_boundary.py`
 
+## Navigation Interface Invariants
+
+### Map selections create drafts, not commands
+
+Passing a selected Galaxy Map sector to Navigation is a local interface action.
+It may open Navigation and prefill the manual destination, but it must not
+preview, approve, dispatch, or refresh by itself. The operator remains in
+control of route review and every command boundary.
+
+Relevant code/tests:
+
+- `src/ui/qml/components/GalaxyMap3D.qml`
+- `src/ui/qml/components/NavigationWorkspace.qml`
+- `src/ui/qml/components/NavigationControl.qml`
+- `tests/test_ui_assets.py`
+
 ## Crafting and Assembly Invariants
 
 ### The server chooses component consumption

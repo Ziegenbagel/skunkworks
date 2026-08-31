@@ -17,6 +17,7 @@ Item {
     property var automationData: ({})
     property var focusedProbe: ({})
     property var availableProbes: []
+    property var requestedTravelSector: ({})
     signal previewRequested(int x, int y, int z, string routeMode)
     signal executeRequested(bool riskAcknowledged)
     signal cancelMovementRequested()
@@ -51,6 +52,15 @@ Item {
         manualX.value = Number(sector.x); manualY.value = Number(sector.y); manualZ.value = Number(sector.z);
         navigationTabs.currentIndex = 0;
     }
+    function applyRequestedTravelSector() {
+        if (requestedTravelSector.x === undefined
+                || requestedTravelSector.y === undefined
+                || requestedTravelSector.z === undefined)
+            return;
+        chooseSector(requestedTravelSector);
+    }
+    onRequestedTravelSectorChanged: applyRequestedTravelSector()
+    Component.onCompleted: applyRequestedTravelSector()
     function transportPayload() {
         return {
             "probeId": Number(focusedProbe.probeId),
