@@ -298,7 +298,7 @@ class MissionControlDataService:
         for option in options:
             if option["id"] == selected["id"]:
                 option["sectorLabel"] = dashboard["focus"]["sectorLabel"]
-                option["status"] = dashboard["focus"]["status"]
+                option["status"] = self._probe_display_status(dashboard["focus"])
                 option["model"] = dashboard["focus"]["model"]
         dashboard["probeOptions"] = options
         default_probe = next(
@@ -2582,6 +2582,19 @@ class MissionControlDataService:
         }
 
     @staticmethod
+    def _probe_display_status(probe):
+        """Normalize stationary arrival telemetry for operator-facing lists."""
+        movement = probe.get("movement") or probe.get("travel") or {}
+        status = (
+            movement.get("phase") or movement.get("status")
+            or probe.get("status", "unknown")
+        )
+        normalized = str(status or "unknown").strip().casefold()
+        # The fleet API may retain ARRIVED as the final phase for weeks. It is
+        # a completed transition, not a continuing operational state.
+        return "idle" if normalized == "arrived" else normalized
+
+    @staticmethod
     def _probe_option(probe):
         sector = probe.get("sector") or {}
         coordinates = sector.get("relative") or sector.get("relativeCoordinates") or {}
@@ -2596,7 +2609,7 @@ class MissionControlDataService:
             "id": int(probe["id"]),
             "name": probe.get("name", f"Probe {probe['id']}"),
             "model": probe.get("model", "generic"),
-            "status": (probe.get("movement") or probe.get("travel") or {}).get("phase") or (probe.get("movement") or probe.get("travel") or {}).get("status") or probe.get("status", "unknown"),
+            "status": MissionControlDataService._probe_display_status(probe),
             "sectorLabel": label,
             "isReachable": probe.get("isReachable", True),
             "isDefault": probe.get("isDefault", False),
@@ -3207,6 +3220,7 @@ class MissionControlController(QObject):
 
     shuttingDownChanged = Signal()
     dashboardChanged = Signal()
+    presentationDashboardChanged = Signal()
     availableProbesChanged = Signal()
     focusedProbeIdChanged = Signal()
     refreshingChanged = Signal()
@@ -3264,6 +3278,7 @@ class MissionControlController(QObject):
         self._event_loop_timer.timeout.connect(self._sample_event_loop)
         self._event_loop_timer.start()
         self.dashboardChanged.connect(self._note_dashboard_changed)
+        self.dashboardChanged.connect(self.presentationDashboardChanged.emit)
         self._emergency_stop = False
         self._worker = None
         self._pending_probe_id = None
@@ -3364,6 +3379,42 @@ class MissionControlController(QObject):
     @Property("QVariantMap", notify=dashboardChanged)
     def dashboard(self):
         return self._dashboard
+
+    @Property("QVariantMap", notify=presentationDashboardChanged)
+    def presentationDashboard(self):
+        """Return only accepted data used by the currently visible workspace."""
+        if not self._dashboard:
+            return {}
+        common_keys = {
+            "alerts", "apiVersion", "appVersion", "compatibility",
+            "connection", "connectionLabel", "focus", "notificationDelivery",
+            "notificationPolicy", "operatingProfile", "sectionRevisions",
+        }
+        section_keys = {
+            "MISSION CONTROL": {
+                "fleet", "health", "logbook", "planetaryResources", "probe",
+                "production", "resources", "sector", "sectorResources",
+            },
+            "FLEET": {"automation", "inventoryManagement", "probe"},
+            "GALAXY MAP": {"galaxy"},
+            "NAVIGATION": {"automation", "navigation", "travelPreview"},
+            "RESOURCES": {"resourceLedger"},
+            "MISSIONS": {"missions"},
+            "PRODUCTION": {"production"},
+            "SAFETY": {"terminalRecovery"},
+            "COMMUNICATIONS": {"communications", "logbook"},
+            "MANUAL CONTROL": {
+                "automation", "automationRuntime", "blueprintSharing",
+                "combatSafety", "crafting", "inventoryManagement", "probe",
+                "probeImprovements",
+            },
+            "SETTINGS": {
+                "automation", "automationRuntime", "credentials",
+                "defaultProbeId", "refreshDiagnostics",
+            },
+        }
+        keys = common_keys | section_keys.get(self._active_section, set())
+        return {key: self._dashboard[key] for key in keys if key in self._dashboard}
 
     def _touch_section_revisions(self, *names):
         """Invalidate only presentation sections changed on the GUI thread."""
@@ -4413,7 +4464,11 @@ class MissionControlController(QObject):
     @Slot(str)
     def setActiveSection(self, section):
         """Tell refresh workers which visible screen should become live first."""
-        self._active_section = str(section or "MISSION CONTROL").upper()
+        active_section = str(section or "MISSION CONTROL").upper()
+        if active_section == self._active_section:
+            return
+        self._active_section = active_section
+        self.presentationDashboardChanged.emit()
 
     @Slot(int)
     def selectProbe(self, probe_id):
@@ -6003,6 +6058,7 @@ class MissionControlController(QObject):
                 ):
                     if telemetry_key in focus:
                         item[telemetry_key] = focus[telemetry_key]
+            item["status"] = MissionControlDataService._probe_display_status(item)
             self._probe_snapshot_cache[probe_id] = dict(item)
         # The account fleet endpoint may omit coordinates for non-focused
         # probes. Reconstruct same-sector transfer choices from the last

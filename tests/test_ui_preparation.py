@@ -30,6 +30,26 @@ class ImmediatePool:
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_probe_option_displays_completed_arrival_as_idle(self):
+        option = MissionControlDataService._probe_option({
+            "id": 7,
+            "name": "Hub",
+            "status": "arrived",
+            "movement": {"phase": "arrived"},
+        })
+
+        self.assertEqual(option["status"], "idle")
+
+    def test_probe_option_preserves_active_movement_phase(self):
+        option = MissionControlDataService._probe_option({
+            "id": 8,
+            "name": "Explorer",
+            "status": "idle",
+            "movement": {"phase": "decelerating"},
+        })
+
+        self.assertEqual(option["status"], "decelerating")
+
     def test_optional_autonomous_unit_503_does_not_fail_core_refresh(self):
         response = requests.Response()
         response.status_code = 503
@@ -1032,6 +1052,48 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(controller.eventLoopDiagnostics["lastDashboardSettleMs"], 750)
         self.assertEqual(controller._ui_activity["section"], "PRODUCTION")
+
+    def test_presentation_dashboard_excludes_hidden_heavy_sections(self):
+        controller = MissionControlController()
+        controller._dashboard = {
+            "focus": {"probeId": 7},
+            "alerts": [],
+            "sectionRevisions": {},
+            "automation": {"enabled": True},
+            "refreshDiagnostics": {"totalSeconds": 4.5},
+            "galaxy": {"systems": [{"id": "system-a"}]},
+            "communications": {"messages": [{"id": "message-a"}]},
+            "production": [{"id": "manny-a"}],
+        }
+
+        controller.setActiveSection("SETTINGS")
+
+        self.assertIn("automation", controller.presentationDashboard)
+        self.assertIn("refreshDiagnostics", controller.presentationDashboard)
+        self.assertNotIn("galaxy", controller.presentationDashboard)
+        self.assertNotIn("communications", controller.presentationDashboard)
+        self.assertNotIn("production", controller.presentationDashboard)
+
+    def test_changing_visible_section_reprojects_without_changing_snapshot(self):
+        controller = MissionControlController()
+        controller._dashboard = {
+            "focus": {"probeId": 7},
+            "alerts": [],
+            "sectionRevisions": {},
+            "galaxy": {"systems": [{"id": "system-a"}]},
+        }
+        changes = []
+        controller.presentationDashboardChanged.connect(
+            lambda: changes.append(True)
+        )
+
+        controller.setActiveSection("GALAXY MAP")
+
+        self.assertEqual(len(changes), 1)
+        self.assertIn("galaxy", controller.presentationDashboard)
+        self.assertIs(
+            controller.dashboard["galaxy"], controller._dashboard["galaxy"]
+        )
 
     def test_multiple_manual_mining_orders_can_queue_while_first_is_sending(self):
         workers = []

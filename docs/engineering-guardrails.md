@@ -281,7 +281,11 @@ they changed. Heavy workspace construction is asynchronous so switching tabs
 cannot monopolize the event loop. Galaxy and Manual Control may remain retained
 after their first construction because their large inputs are revision-gated;
 do not retain an expensive workspace whose hidden bindings still consume every
-global dashboard replacement. A lightweight GUI timer records interactive
+global dashboard replacement. The Qt/QML boundary receives a projection of the
+accepted dashboard sized for the visible workspace; hidden galaxy, history,
+communications, production, and manual-control graphs remain in the controller
+and must not cross that boundary during an unrelated workspace refresh. A
+lightweight GUI timer records interactive
 event-loop stalls separately from API and worker timing; recording a stall must
 not itself emit a dashboard replacement.
 Stall diagnostics must retain enough bounded, privacy-safe attribution to be
@@ -361,6 +365,14 @@ the Safety tab; only alerts arriving after that probe's baseline may pulse it.
 Do not restore a design in which every QML workspace is instantiated and rebuilds
 on every global dashboard replacement. Preserve lazy loaders, bounded models,
 and viewport virtualization.
+
+### Completed arrival is stationary in operator-facing fleet status
+
+The game fleet API may retain `arrived` as a probe's movement phase long after
+travel completed. Fleet selectors and cards present that terminal phase as
+`idle`; active phases such as preparing, accelerating, cruising, traveling, and
+decelerating remain visible. This is presentation normalization only and must
+not rewrite the authoritative movement telemetry used by planning or safety.
 
 ### Do not overlap full fleet planning and a second full refresh
 

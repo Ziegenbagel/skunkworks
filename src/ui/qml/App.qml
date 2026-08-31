@@ -6,7 +6,7 @@ ApplicationWindow {
     id: window
     property var backend: null
     readonly property bool hasLiveSnapshot: window.backend !== null
-        && Object.keys(window.backend.dashboard || ({})).length > 0
+        && Object.keys(window.backend.presentationDashboard || ({})).length > 0
     width: Constants.width
     height: Constants.height
     minimumWidth: Constants.minimumWidth
@@ -27,7 +27,7 @@ ApplicationWindow {
         id: missionControl
         anchors.fill: parent
         liveMode: window.backend !== null
-        dashboardData: window.backend ? window.backend.dashboard : ({})
+        dashboardData: window.backend ? window.backend.presentationDashboard : ({})
         eventLoopDiagnostics: window.backend ? window.backend.eventLoopDiagnostics : ({})
         availableProbes: window.backend ? window.backend.availableProbes : previewProbes
         focusedProbeId: window.backend ? window.backend.focusedProbeId : availableProbes[0].id
