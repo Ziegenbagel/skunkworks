@@ -23,6 +23,8 @@ followed by the documents below.
 - `engineering-guide.md` — coding, testing, review, and documentation rules.
 - `development-workflow.md` — stable, integration, feature, hotfix, test-data,
   and public-package branch boundaries.
+- `development-release-log.md` — next-release user-visible candidates kept
+  separate from published release notes until promotion.
 - `roadmap.md` — remaining work to 1.0 and the post-1.0 backlog.
 - `release-checklist.md` — repository, data, live-service, and packaging gates.
 - `capability-matrix.md` — release-level map of observed, manual, and automated controls.

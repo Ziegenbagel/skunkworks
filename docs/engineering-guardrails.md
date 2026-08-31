@@ -474,6 +474,23 @@ Relevant code/tests:
 
 ## Release Packaging Invariants
 
+### Published release notes are operator-facing bullet lists
+
+Every tagged and publicly packaged Skunkworks version has its own heading in
+`RELEASE_NOTES.md`, followed only by concise bullet points describing changes
+and fixes an operator can see, use, or reasonably care about. Do not publish
+development chronology, branch or merge details, API-analysis activity, test
+counts, implementation-layer terminology, or statements about work that did
+not change the released application. When numerous small internal corrections
+are not individually useful to operators, summarize them with a final
+`Other various fixes.` bullet.
+
+Development release drafts stay outside `RELEASE_NOTES.md`. Before tagging, add
+the final version section, confirm it includes every user-visible change since
+the previous public version, and audit every bullet for accidental future or
+development-only content. Historical release sections retain bullet formatting
+so the packaged file remains easy to scan.
+
 ### Release patches finish by staging new packages
 
 When work is explicitly a patch for the currently published release, completion

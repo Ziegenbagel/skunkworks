@@ -72,6 +72,13 @@ space for SQLite to rebuild the file.
 - [ ] Classify the change before packaging: a current-release patch must update
   version/release notes and push its release tag; future-release work stays
   untagged until explicitly promoted.
+- [ ] Confirm every released version in `RELEASE_NOTES.md` is a concise bullet
+  list of operator-visible changes, with no development chronology, branch
+  details, API-analysis activity, test counts, or future-version content.
+- [ ] Reconcile every user-visible candidate in
+  `docs/development-release-log.md` against the finished release, transfer the
+  approved changes into the new public version bullets, and clear the promoted
+  candidate section.
 - [ ] Build macOS, Windows, and Linux packages from a clean tagged checkout.
 - [ ] Store mutable data in platform user-data locations, never package resources.
 - [ ] Bundle exact runtime licenses and notices.

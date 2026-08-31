@@ -21,6 +21,13 @@ Release flow:
 codex/<feature> -> develop -> main -> vX.Y.Z tag -> public packages
 ```
 
+Each user-visible change merged to `develop` also adds a concise candidate to
+`docs/development-release-log.md`. During promotion, validate those candidates
+against the finished application and rewrite the approved items as
+operator-facing bullets in `RELEASE_NOTES.md`. Never pass the development log
+directly to the public release workflow, and do not copy its internal-support
+notes into public notes as implementation detail.
+
 Urgent patch flow:
 
 ```text
