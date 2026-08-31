@@ -835,6 +835,18 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert 'runInventoryMannyAction("mine", mannyId, payload)' in app
 
 
+def test_hidden_workspace_projection_cannot_replace_manual_cache_with_empty_data():
+    workspace = Path(
+        "src/ui/qml/components/NavigationWorkspace.qml"
+    ).read_text(encoding="utf-8")
+
+    assert "const hasManualPayload = root.dashboardData.crafting !== undefined" in workspace
+    assert "root.dashboardData.inventoryManagement !== undefined" in workspace
+    assert "root.dashboardData.automationRuntime !== undefined" in workspace
+    assert "if (hasManualPayload" in workspace
+    assert "if (hasProductionPayload" in workspace
+
+
 def test_manual_control_exposes_v112_motorized_asteroid_workflows():
     manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(encoding="utf-8")
     navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")

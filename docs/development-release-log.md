@@ -26,6 +26,8 @@ remains the record for internal implementation work.
 - Added interactive queues for consecutive manual mining and crafting orders.
 - Reduced refresh, Production scrolling, and Galaxy Map interaction freezes by
   deferring hidden or unchanged interface models.
+- Fixed Manual Control recipes, inventory choices, Manny controls, and other
+  reference data disappearing after viewing or refreshing another tab.
 - Added refresh and event-loop diagnostics that distinguish game-data loading
   time from interface stalls.
 - Made automatic travel wait for deployed Mannys and recheck their presence

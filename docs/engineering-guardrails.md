@@ -285,6 +285,9 @@ global dashboard replacement. The Qt/QML boundary receives a projection of the
 accepted dashboard sized for the visible workspace; hidden galaxy, history,
 communications, production, and manual-control graphs remain in the controller
 and must not cross that boundary during an unrelated workspace refresh. A
+revision-gated cache may accept a revision only when that section's projected
+payload is present; an unrelated projection carrying the same global revision
+must never replace a retained workspace with empty fallback models. A
 lightweight GUI timer records interactive
 event-loop stalls separately from API and worker timing; recording a stall must
 not itself emit a dashboard replacement.

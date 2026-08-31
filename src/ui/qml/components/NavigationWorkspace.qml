@@ -215,15 +215,21 @@ PanelFrame {
         const revisions = root.dashboardData.sectionRevisions || {};
         const productionRevision = String(revisions.production || "");
         const manualRevision = String(revisions.manualControl || "");
+        const hasProductionPayload = root.dashboardData.production !== undefined;
+        const hasManualPayload = root.dashboardData.crafting !== undefined
+            && root.dashboardData.inventoryManagement !== undefined
+            && root.dashboardData.automationRuntime !== undefined;
         let productionChanged = false;
-        if (root.cachedProductionRevision !== productionRevision
-                || root.cachedProductionRows.length === 0) {
+        if (hasProductionPayload
+                && (root.cachedProductionRevision !== productionRevision
+                    || root.cachedProductionRows.length === 0)) {
             root.cachedProductionRows = root.dashboardData.production || [];
             root.cachedProductionRevision = productionRevision;
             productionChanged = true;
         }
-        if (root.cachedManualRevision !== manualRevision
-                || Object.keys(root.cachedManualDashboardData).length === 0) {
+        if (hasManualPayload
+                && (root.cachedManualRevision !== manualRevision
+                    || Object.keys(root.cachedManualDashboardData).length === 0)) {
             root.cachedManualDashboardData = {
                 "automation": root.dashboardData.automation || {},
                 "automationRuntime": root.dashboardData.automationRuntime || {},
