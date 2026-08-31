@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import tomllib
 
 from tools.release_readiness import audit
@@ -19,6 +20,28 @@ def test_release_readiness_has_expected_non_packaging_gates():
         check["ok"] for name, check in checks.items()
         if name.startswith("file:")
     )
+
+
+def test_published_release_notes_are_operator_facing_bullet_lists():
+    notes = Path("RELEASE_NOTES.md").read_text(encoding="utf-8")
+    sections = notes.split("\n## Skunkworks ")[1:]
+    versions = set(re.findall(r"^## Skunkworks (\d+\.\d+\.\d+)$", notes, re.MULTILINE))
+
+    assert sections
+    assert versions == {f"1.0.{patch}" for patch in range(11)}
+    assert ".dev" not in notes.casefold()
+    assert "development branch" not in notes.casefold()
+    assert "tests pass" not in notes.casefold()
+    assert "reviews and integrates" not in notes.casefold()
+    assert "analyzed api" not in notes.casefold()
+    for section in sections:
+        lines = section.splitlines()
+        body = [line for line in lines[1:] if line.strip()]
+        assert body
+        assert body[0].startswith("- ")
+        assert all(
+            line.startswith("- ") or line.startswith("  ") for line in body
+        )
 
 
 def test_pep_639_license_expression_is_not_combined_with_legacy_classifier():

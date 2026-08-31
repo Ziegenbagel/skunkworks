@@ -8,6 +8,7 @@ from src.api.client import GameClient
 from src.api.contract import (
     ApiCompatibilityError,
     ApiRateLimitError,
+    MAXIMUM_API_VERSION,
 )
 
 
@@ -53,13 +54,14 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_accepts_current_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 125})]
+            [FakeResponse({"apiVersion": 129})]
         )
 
         self.assertEqual(
             client.ensure_compatible_api(),
-            125,
+            129,
         )
+        self.assertEqual(MAXIMUM_API_VERSION, 129)
 
     def test_rejects_older_api(self):
         client = self.client(

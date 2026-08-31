@@ -257,6 +257,14 @@ Relevant code/tests:
 
 ## Release Packaging Invariants
 
+### Published release notes are operator-facing bullet lists
+
+Every tagged and publicly packaged Skunkworks version has its own heading in
+`RELEASE_NOTES.md`, followed only by concise bullet points describing changes
+and fixes an operator can see, use, or reasonably care about. Do not publish
+development chronology, branch or merge details, API-analysis activity, test
+counts, implementation-layer terminology, or future-version content.
+
 ### Release patches finish by staging new packages
 
 When work is explicitly a patch for the currently published release, completion
@@ -416,6 +424,12 @@ response. It never moves the carrier probe or selects a combat target.
 The API v128 autonomous-unit observation is local sector telemetry. It may
 identify a deployed unit and carrier but exposes no absolute coordinates;
 Skunkworks must not infer coordinates from opaque IDs.
+
+API v129 separates probe and Others sector scans. Probe Galaxy observations
+remain on `GET /api/sector` with only relative `x`, `y`, and `z` parameters.
+Never attach an Others `shipId` to that route or silently substitute
+`GET /api/others/sector`; Others fleet control is outside the probe-control
+surface.
 
 Autonomous-unit telemetry must not be rendered as a floating overlay over Live
 Sector. Operational map space remains unobstructed unless the operator opens a

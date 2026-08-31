@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v128, verified
-against the live contract on 2026-08-30.
+Skunkworks supports deployed API v103 through upstream API v129, verified
+against the live contract on 2026-08-31.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -46,6 +46,12 @@ and one documented spatial state. It deliberately exposes no absolute sector
 coordinates. A `weapon_targeted` alert may now identify a remotely deployed
 owned Manny through shared SCUT coverage; `scheduledAt` is its ten-minute
 destruction deadline and `sector.relative` is safe for Galaxy Map routing.
+
+API v129 restores `GET /api/sector` as a probe-only scan using relative `x`,
+`y`, and `z` coordinates and rejects the Others-only `shipId` parameter. Others
+fleet scans moved to `GET /api/others/sector`, which is outside Skunkworks'
+probe-control surface. Probe Galaxy scans must never add `shipId` or switch to
+the Others route.
 
 API v121 rejects movement preparation when integrity is strictly below 10%
 with `probe_integrity_too_low`; exactly 10% is allowed. Zero integrity sets the

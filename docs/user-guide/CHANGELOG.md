@@ -1,5 +1,10 @@
 # Operator Manual Revision History
 
+## 1.4 — 2026-08-31
+
+- Added reviewed API v129 compatibility while retaining the probe-only Galaxy
+  sector scan route.
+
 ## 1.3 — 2026-08-30
 
 - Removed the floating autonomous-unit overlay from Live Sector while retaining
