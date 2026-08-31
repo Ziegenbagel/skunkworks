@@ -707,6 +707,12 @@ active travel phase. A 404 absence or documented transient 503 from this
 optional route must not reject otherwise valid focused-probe telemetry or leave
 the selector on the previous probe.
 
+API v129 separates probe and Others sector scans. Probe Galaxy observations
+remain on `GET /api/sector` with only relative `x`, `y`, and `z` parameters.
+Never attach an Others `shipId` to that route or silently substitute
+`GET /api/others/sector`; Others fleet control is outside the probe-control
+surface.
+
 Autonomous-unit telemetry must not be rendered as a floating overlay over Live
 Sector. Operational map space remains unobstructed unless the operator opens a
 dedicated detail surface or a critical safety takeover is required.

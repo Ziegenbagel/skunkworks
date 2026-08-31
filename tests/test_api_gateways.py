@@ -157,7 +157,7 @@ class ApiGatewayTests(unittest.TestCase):
             "/api/probe/42/messages",
         )
 
-    def test_galaxy_observation_uses_relative_coordinates(self):
+    def test_v129_probe_galaxy_observation_uses_probe_only_sector_route(self):
         self.api.galaxy.observe_sector(2, 0, 0)
 
         self.assertEqual(
@@ -168,6 +168,7 @@ class ApiGatewayTests(unittest.TestCase):
                 {"params": {"x": 2, "y": 0, "z": 0}},
             ),
         )
+        self.assertNotIn("shipId", self.client.calls[-1][2]["params"])
 
     def test_storage_and_logbook_are_probe_scoped(self):
         self.api.storage.containers(42)

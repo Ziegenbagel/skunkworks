@@ -1,7 +1,12 @@
 # Skunkworks Release Notes
 
-## Skunkworks 1.0.9
+## Skunkworks 1.0.10
 
+- Added reviewed compatibility with Von Neumann Game API v129.
+- Kept probe sector scans on their dedicated route after the game separated
+  Others-fleet scans into a new endpoint.
+
+## Skunkworks 1.0.9
 - Removed the floating autonomous-unit panel that obscured the Live Sector map.
 - Retained remote owned-Manny targeting warnings, destruction countdowns,
   Galaxy Map routing, and the opt-in emergency recall response.

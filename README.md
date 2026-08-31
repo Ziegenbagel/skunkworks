@@ -25,7 +25,7 @@ policies.
   logistics safeguards that warn without unnecessarily removing operator choice.
 - Persistent SQLite history for the galaxy, sectors, probes, resources,
   operations, actions, messages, alerts, missions, and settings.
-- Von Neumann Game API v103–v115 reviewed compatibility with forward-tolerant six-hour
+- Von Neumann Game API v103–v129 reviewed compatibility with forward-tolerant six-hour
   compatibility monitoring and safe pause on an unreviewed version.
 - Native Qt/PySide desktop UI designed for macOS, Windows, and Linux, scaling
   from 1080p through 4K.
