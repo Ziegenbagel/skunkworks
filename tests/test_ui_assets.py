@@ -516,6 +516,8 @@ def test_secondary_risk_acknowledgement_displays_live_hazard_reasons():
     assert "id: godSectorHalo" in galaxy
     assert "pickable: false" in galaxy
     assert "DROPPED CONTAINERS" in galaxy
+    assert 'text: "PLANET HABITABILITY ≥ 0.5"' in galaxy
+    assert "habitablePlanetOnly && !node.hasHabitablePlanet" in galaxy
     assert "FOCUSED PROBE · RECENT 10 TRAIL" in galaxy
     assert "recentTrail" in galaxy
     assert "filtersExpanded" in galaxy

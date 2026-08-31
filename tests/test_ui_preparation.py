@@ -2123,6 +2123,44 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(view["recentTrailNodes"], ("1:1:0", "0:0:0"))
         self.assertEqual(history.probe_id, base.world.probe["id"])
 
+    def test_galaxy_view_exposes_planets_at_exact_habitability_threshold(self):
+        from src.models.galaxy import GalaxyMap
+
+        base = build_operations()
+        galaxy = GalaxyMap()
+        galaxy.record_observation({"sector": {
+            "relativeCoordinates": {"x": 2, "y": 0, "z": 0},
+            "knowledgeLevel": "detailed", "confidence": 1,
+            "objects": [{
+                "id": "system", "type": "solar_system",
+                "bookmarkTargets": [
+                    {"id": "low", "type": "planet", "habitabilityScore": 0.499999},
+                    {"id": "match", "type": "planet", "habitabilityScore": 0.5},
+                ],
+            }],
+        }}, probe_id=base.world.probe["id"])
+        base.world.galaxy = galaxy
+
+        node = MissionControlViewModelBuilder(base)._galaxy_view(
+            base.world, {"x": 0, "y": 0, "z": 0},
+        )["nodes"][0]
+
+        self.assertEqual(node["maxPlanetHabitability"], 0.5)
+        self.assertTrue(node["hasHabitablePlanet"])
+
+    def test_galaxy_view_does_not_promote_planets_below_habitability_threshold(self):
+        objects = [{
+            "type": "solar_system",
+            "bookmarkTargets": [
+                {"type": "planet", "habitabilityScore": "0.499999"},
+                {"type": "planet", "habitabilityScore": None},
+            ],
+        }]
+
+        score = MissionControlViewModelBuilder._galaxy_max_planet_habitability(objects)
+
+        self.assertEqual(score, 0.499999)
+
     def test_galaxy_view_exposes_active_scut_coverage_volumes(self):
         base = build_operations()
         base.world.hazard_context = {"scutNetworks": [{"network": {

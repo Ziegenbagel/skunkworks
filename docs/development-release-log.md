@@ -46,6 +46,8 @@ remains the record for internal implementation work.
   unit telemetry is unavailable.
 - Added a Galaxy Map action that opens Navigation with the selected sector's
   coordinates prefilled for operator review.
+- Added a Galaxy Map filter for sectors containing a known planet with a
+  habitability score of 0.5 or higher.
 
 ### Internal release support
 

@@ -557,6 +557,7 @@ class MissionControlViewModelBuilder:
             object_types = [str(item.get("type", "unknown")) for item in objects]
             resource_types = self._galaxy_resource_types(sector, objects)
             hazard_types = self._galaxy_hazard_types(sector, objects)
+            max_planet_habitability = self._galaxy_max_planet_habitability(objects)
             has_detached_containers = any(
                 "container" in str(item.get("type") or item.get("kind") or "").casefold()
                 for item in objects
@@ -594,6 +595,11 @@ class MissionControlViewModelBuilder:
                 "hasHazard": bool(hazard_types),
                 "hazardTypes": hazard_types,
                 "hasDetachedContainers": has_detached_containers,
+                "maxPlanetHabitability": max_planet_habitability,
+                "hasHabitablePlanet": (
+                    max_planet_habitability is not None
+                    and max_planet_habitability >= 0.5
+                ),
                 "ownedMannies": tuple(mannies_by_sector.get(node_id, ())),
                 "ownedMannyCount": len(mannies_by_sector.get(node_id, ())),
                 "knowledgeLevel": knowledge,
@@ -831,6 +837,29 @@ class MissionControlViewModelBuilder:
             ):
                 collect(candidate.get(key))
         return sorted(item for item in found if item)
+
+    @staticmethod
+    def _galaxy_max_planet_habitability(objects):
+        """Return the best exact known planet score in a sector observation."""
+        scores = []
+        pending = list(objects or ())
+        while pending:
+            item = pending.pop()
+            if not isinstance(item, dict):
+                continue
+            type_ = str(item.get("type") or item.get("kind") or "").casefold()
+            if type_ == "planet" or type_.endswith("_planet"):
+                score = item.get("habitabilityScore")
+                try:
+                    if score is not None:
+                        scores.append(float(score))
+                except (TypeError, ValueError):
+                    pass
+            for key in ("objects", "bookmarkTargets", "minableTargets"):
+                nested = item.get(key) or ()
+                if isinstance(nested, (list, tuple)):
+                    pending.extend(nested)
+        return max(scores) if scores else None
 
     @staticmethod
     def _galaxy_hazard_types(sector, objects):

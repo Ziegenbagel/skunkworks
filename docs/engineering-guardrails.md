@@ -437,6 +437,11 @@ Relevant code/tests:
 - `src/ui/qml/components/GalaxyMap3D.qml`
 - `tests/test_ui_assets.py`
 
+Galaxy filters consume worker-normalized node fields rather than recursively
+walking persisted sector payloads in QML. Planet habitability uses the exact
+game score: a known score of 0.5 is included, lower and unknown scores are not,
+and the value is never converted to a percentage for comparison.
+
 ### Low Power mode never delays operational safety or dispatch
 
 The Low Power profile may reduce stale-tolerant archival imports, background

@@ -39,6 +39,7 @@ Item {
     property bool showVisited: true
     property bool hazardsOnly: false
     property bool salvageOnly: false
+    property bool habitablePlanetOnly: false
     property bool showRecentTrail: true
     property bool showScutCoverage: false
     property bool showAxisLabels: true
@@ -52,7 +53,8 @@ Item {
     property bool showCarbonCompounds: false
     readonly property var visibleNodes: {
         const dependency = [showCurrent, showScanned, showVisited,
-                            hazardsOnly, salvageOnly, showDeuterium, showMetals,
+                            hazardsOnly, salvageOnly, habitablePlanetOnly,
+                            showDeuterium, showMetals,
                             showIce, showCarbonCompounds];
         return nodes.filter(function(node) { return root.matchesFilters(node); });
     }
@@ -95,6 +97,7 @@ Item {
         if (!stateEnabled(String(node.mapState || "unknown"))) return false;
         if (hazardsOnly && !node.hasHazard) return false;
         if (salvageOnly && !node.hasDetachedContainers) return false;
+        if (habitablePlanetOnly && !node.hasHabitablePlanet) return false;
         const selected = selectedResources();
         if (selected.length > 0) {
             const types = node.resourceTypes || [];
@@ -634,6 +637,12 @@ Item {
                 columns: 2; columnSpacing: 5; rowSpacing: 2
                 CheckBox { text: "HAZARDS ONLY"; checked: root.hazardsOnly; onToggled: root.hazardsOnly = checked }
                 CheckBox { text: "DROPPED CONTAINERS"; checked: root.salvageOnly; onToggled: root.salvageOnly = checked }
+                CheckBox {
+                    Layout.columnSpan: 2
+                    text: "PLANET HABITABILITY ≥ 0.5"
+                    checked: root.habitablePlanetOnly
+                    onToggled: root.habitablePlanetOnly = checked
+                }
                 CheckBox {
                     Layout.columnSpan: 2
                     text: "FOCUSED PROBE · RECENT 10 TRAIL"
