@@ -991,7 +991,7 @@ def test_automation_target_panels_share_quantity_and_priority_columns():
     assert "targetQuantityColumnWidth" not in settings
 
 
-def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
+def test_logbook_workspace_uses_editable_game_pages_and_reports_are_local():
     logbook = Path("src/ui/qml/components/LogbookWorkspace.qml").read_text(encoding="utf-8")
     app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
 
@@ -999,15 +999,25 @@ def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     assert "+ NEW PAGE" in logbook
     assert "SAVE CHANGES" in logbook
     assert "DELETE LOGBOOK PAGE?" in logbook
-    assert "AUTO-LOG DAILY ROLE REPORTS AND MAJOR DISCOVERIES" in logbook
+    assert "AUTO-LOG DAILY ROLE REPORTS AND MAJOR DISCOVERIES" not in logbook
     assert "id: contentScroller" in logbook
     assert "ScrollBar.vertical.policy: ScrollBar.AsNeeded" in logbook
-    assert "newDailyReportCount" in Path("src/ui/qml/components/CommunicationsWorkspace.qml").read_text(encoding="utf-8")
-    assert "newDailyReportCount" in Path("src/ui/qml/components/TopNavigationBar.qml").read_text(encoding="utf-8")
+    reports = Path("src/ui/qml/components/ReportsWorkspace.qml").read_text(encoding="utf-8")
+    assert "DAILY REPORTS" in reports
+    assert "INDUSTRIAL ANALYSIS" in reports
+    assert "OPERATIONAL ARCHIVE" in reports
+    assert "Reports no longer consume game Logbook pages" in reports
     assert "loadLogbookPage" in app
     controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
     mutation = controller.split("def _logbook_mutation", 1)[1].split("@Slot(bool)", 1)[0]
     assert "_start_refresh" not in mutation
+
+
+def test_focused_window_uses_in_app_notification_banner():
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    assert "onDesktopNotificationRequested" in app
+    assert "foregroundNotificationBanner" in app
+    assert "window.active" in app
 
 
 def test_settings_exposes_operator_manual_and_change_log_links():

@@ -5,6 +5,7 @@ from datetime import datetime
 import hashlib
 import json
 import re
+from collections import Counter, defaultdict
 from src.models.galaxy import SectorCoordinates
 
 
@@ -86,6 +87,9 @@ class MissionControlViewModelBuilder:
             "archive": self._archive_records(),
             "communications": self._communications(probe),
         }
+        result["reports"] = self._reports(
+            result["archive"], result["actions"], result["operations"],
+        )
         result["navigation"] = self.navigation_view()
         result["sectorResources"] = self._sector_resource_totals(
             result["resourceLedger"], source_type="asteroid",
@@ -1745,3 +1749,64 @@ class MissionControlViewModelBuilder:
         if not self.data_engine:
             return ()
         return tuple(dict(row) for row in self.data_engine.archive_reports())
+
+    def _reports(self, report_records=None, action_records=None, operation_records=None):
+        if not self.data_engine:
+            return {"daily": (), "archive": (), "industrial": {}}
+        reports = [dict(row) for row in (report_records if report_records is not None else self.data_engine.archive_reports())]
+        actions = [dict(row) for row in (action_records if action_records is not None else self.data_engine.action_history())]
+        operations = [dict(row) for row in (operation_records if operation_records is not None else self.data_engine.operation_records())]
+        probe_names = {
+            str(item.get("id")): item.get("name") or f"Probe {item.get('id')}"
+            for item in (getattr(self.operations.world, "fleet", {}) or {}).get("probes", ())
+        }
+        categories = Counter()
+        by_probe = defaultdict(Counter)
+        archive = []
+        for row in reversed(actions):
+            command_type = str(row.get("command_type") or "unknown")
+            category = (
+                "Mining" if command_type == "manny_mine" else
+                "Production" if command_type in {"manny_craft", "atomic_printer_craft", "manny_assemble_probe"} else
+                "Travel" if command_type == "move_probe" else
+                "Maintenance" if command_type == "manny_repair" else "Operations"
+            )
+            status = str(row.get("status") or "unknown")
+            probe_id = str(row.get("probe_id"))
+            categories[(category, status)] += 1
+            by_probe[probe_id][category] += 1
+            archive.append({
+                "kind": "COMMAND", "domain": category, "status": status.upper(),
+                "probeId": probe_id, "probeName": probe_names.get(probe_id, f"Probe {probe_id}"),
+                "title": command_type.replace("_", " ").title(),
+                "detail": f"{status.upper()} · {row.get('observed_at', '')}",
+                "timestamp": row.get("observed_at", ""),
+            })
+        for row in reversed(operations):
+            archive.append({
+                "kind": "OPERATION", "domain": "Operations", "status": str(row.get("state", "")).upper(),
+                "probeId": str(row.get("probe_id") or ""),
+                "probeName": probe_names.get(str(row.get("probe_id")), "Fleet"),
+                "title": row.get("name") or row.get("objective") or "Operation",
+                "detail": row.get("objective") or "", "timestamp": row.get("updated_at", ""),
+            })
+        for row in reports:
+            archive.append({
+                "kind": "REPORT", "domain": "Reports", "status": "RECORDED",
+                "probeId": "", "probeName": "Fleet", "title": row.get("title", "Report"),
+                "detail": row.get("content", ""), "timestamp": row.get("created_at", ""),
+            })
+        archive.sort(key=lambda item: str(item.get("timestamp", "")), reverse=True)
+        measured = tuple({
+            "category": category, "status": status.upper(), "count": count,
+        } for (category, status), count in sorted(categories.items()))
+        utilization = tuple({
+            "probeId": probe_id, "probeName": probe_names.get(probe_id, f"Probe {probe_id}"),
+            "orders": sum(counts.values()),
+            "breakdown": " · ".join(f"{name.upper()} {count}" for name, count in sorted(counts.items())),
+        } for probe_id, counts in sorted(by_probe.items()))
+        return {
+            "daily": tuple(row for row in reports if row.get("kind") == "daily_probe_report"),
+            "archive": tuple(archive[:2000]),
+            "industrial": {"measuredTotals": measured, "probeActivity": utilization},
+        }

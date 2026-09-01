@@ -495,6 +495,11 @@ dashboard result before notification extraction.
 Settings must expose the platform capability and a test action. A successful
 test request must be labeled as requested, never as confirmed OS delivery,
 because desktop policy can suppress a banner after Qt accepts it.
+When the Skunkworks window is focused, the same deduplicated notification must
+also appear as a dismissible in-application banner. Operating systems such as
+macOS may suppress a desktop banner for the foreground application; this must
+not make an opted-in event invisible to the active operator. The foreground
+banner is advisory and must not alter game alert read state.
 
 Relevant code/tests:
 

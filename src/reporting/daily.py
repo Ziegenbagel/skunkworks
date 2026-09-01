@@ -57,6 +57,39 @@ class DailyProbeReportService:
             created.append({"probeId": probe_id, "pageId": page_id, "title": title})
         return {"created": created, "failures": failures}
 
+    def generate_local_due(self, probes, roles):
+        """Store missing daily reports locally without consuming game Logbook pages."""
+        cutoff = self._latest_cutoff(self._now())
+        start = cutoff - timedelta(days=1)
+        role_map = {str(key): value for key, value in dict(roles or {}).items()}
+        self._probe_names = {
+            str(item["id"]): item.get("name") or f"Probe {item['id']}"
+            for item in probes
+        }
+        created = []
+        failures = []
+        for probe in probes:
+            probe_id = int(probe["id"])
+            report_date = cutoff.date().isoformat()
+            report_id = f"daily:{probe_id}:{report_date}"
+            marker = self.marker_key(probe_id, report_date)
+            existing = any(str(row["id"]) == report_id for row in self.data_engine.archive_reports())
+            if existing:
+                continue
+            try:
+                title = f"{TITLE_PREFIX} · {probe.get('name') or f'Probe {probe_id}'} · {report_date}"
+                content = self.build(
+                    probe, role_map.get(str(probe_id), "unassigned"), start, cutoff,
+                )
+                self.data_engine.save_archive_report(
+                    report_id, title, content, kind="daily_probe_report",
+                )
+                self.data_engine.set_preference(marker, "local")
+                created.append({"probeId": probe_id, "reportId": report_id, "title": title})
+            except Exception as error:
+                failures.append({"probeId": probe_id, "message": str(error)})
+        return {"created": created, "failures": failures}
+
     def build(self, probe, role, start, end, probe_names=None):
         probe_id = int(probe["id"])
         actions = self._actions(probe_id, start, end)

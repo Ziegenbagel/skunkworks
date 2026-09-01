@@ -1,0 +1,84 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import ".."
+
+Item {
+    id: root
+    property var reportsData: ({})
+    property bool autoReportsEnabled: false
+    signal autoReportsChanged(bool enabled)
+
+    function matchingArchive() {
+        const needle = archiveSearch.text.trim().toLowerCase();
+        const domain = archiveDomain.currentText;
+        return (reportsData.archive || []).filter(row => {
+            if (domain !== "ALL DOMAINS" && String(row.domain || "").toUpperCase() !== domain) return false;
+            if (!needle.length) return true;
+            return (String(row.title || "") + " " + String(row.detail || "") + " "
+                    + String(row.probeName || "") + " " + String(row.status || "")).toLowerCase().indexOf(needle) >= 0;
+        });
+    }
+
+    TabBar {
+        id: reportTabs
+        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+        TabButton { text: "DAILY REPORTS" }
+        TabButton { text: "INDUSTRIAL ANALYSIS" }
+        TabButton { text: "OPERATIONAL ARCHIVE" }
+    }
+    StackLayout {
+        anchors.left: parent.left; anchors.right: parent.right; anchors.top: reportTabs.bottom; anchors.bottom: parent.bottom
+        anchors.topMargin: 12; currentIndex: reportTabs.currentIndex
+        Item {
+            ColumnLayout {
+                anchors.fill: parent; spacing: 10
+                RowLayout {
+                    Layout.fillWidth: true
+                    Label { text: "LOCAL DAILY OPERATIONS REPORTS"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                    Item { Layout.fillWidth: true }
+                    CheckBox { text: "GENERATE DAILY REPORTS"; checked: root.autoReportsEnabled; onToggled: root.autoReportsChanged(checked) }
+                }
+                Label { Layout.fillWidth: true; text: "Generated locally after 17:00 using retained telemetry and accepted game commands. Reports no longer consume game Logbook pages."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                ListView {
+                    id: dailyList; Layout.preferredWidth: Math.max(360, root.width * 0.32); Layout.fillHeight: true; clip: true; spacing: 8
+                    model: root.reportsData.daily || []
+                    delegate: Rectangle {
+                        id: dailyCard; required property var modelData
+                        width: dailyList.width; height: 72; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
+                        Label { anchors.fill: parent; anchors.margins: 12; text: String(dailyCard.modelData.title || "Daily report"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dailyContent.text = String(dailyCard.modelData.content || "") }
+                    }
+                }
+                ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; TextArea { id: dailyContent; readOnly: true; wrapMode: TextEdit.Wrap; placeholderText: "Select a daily report"; padding: 16; background: Rectangle { color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4 } } }
+            }
+        }
+        Item {
+            ColumnLayout {
+                anchors.fill: parent; spacing: 12
+                Label { text: "INDUSTRIAL ANALYSIS · RETAINED HISTORY"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                Label { Layout.fillWidth: true; text: "MEASURED values count retained Skunkworks command records. Throughput, depletion, bottleneck and return-on-investment estimates will appear only when sufficient observations exist."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                GroupBox {
+                    title: "MEASURED COMMAND TOTALS"; Layout.fillWidth: true
+                    Flow { width: parent.width; spacing: 10; Repeater { model: (root.reportsData.industrial || {}).measuredTotals || []; delegate: Label { required property var modelData; text: modelData.category.toUpperCase() + " · " + modelData.status + " · " + modelData.count; color: Constants.textColor; font.family: Constants.technicalFont; padding: 10; background: Rectangle { color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4 } } } }
+                }
+                GroupBox {
+                    title: "PROBE ACTIVITY"; Layout.fillWidth: true; Layout.fillHeight: true
+                    ListView { anchors.fill: parent; clip: true; spacing: 8; model: (root.reportsData.industrial || {}).probeActivity || []; delegate: Rectangle { id: activityCard; required property var modelData; width: ListView.view.width; height: 64; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4; Label { anchors.fill: parent; anchors.margins: 10; text: String(activityCard.modelData.probeName).toUpperCase() + " · " + activityCard.modelData.orders + " RECORDED ORDERS\n" + activityCard.modelData.breakdown; color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap } } }
+                }
+            }
+        }
+        Item {
+            ColumnLayout {
+                anchors.fill: parent; spacing: 10
+                Label { text: "OPERATIONAL ARCHIVE"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                RowLayout { Layout.fillWidth: true; TextField { id: archiveSearch; Layout.fillWidth: true; placeholderText: "Search commands, operations, probes, status, or reports" } ComboBox { id: archiveDomain; model: ["ALL DOMAINS", "MINING", "PRODUCTION", "TRAVEL", "MAINTENANCE", "OPERATIONS", "REPORTS"] } }
+                ListView {
+                    id: archiveList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.matchingArchive()
+                    delegate: Rectangle { id: archiveCard; required property var modelData; width: archiveList.width; height: 82; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4; Column { anchors.fill: parent; anchors.margins: 11; spacing: 4; Label { width: parent.width; text: archiveCard.modelData.kind + " · " + archiveCard.modelData.domain.toUpperCase() + " · " + archiveCard.modelData.status; color: Constants.cyanColor; font.family: Constants.technicalFont; elide: Text.ElideRight } Label { width: parent.width; text: archiveCard.modelData.title + " · " + archiveCard.modelData.probeName; color: Constants.textColor; font.bold: true; elide: Text.ElideRight } Label { width: parent.width; text: String(archiveCard.modelData.timestamp || "") + " · " + String(archiveCard.modelData.detail || "").replace(/\n/g, " "); color: Constants.mutedTextColor; elide: Text.ElideRight } } }
+                }
+            }
+        }
+    }
+}

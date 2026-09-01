@@ -75,6 +75,20 @@ class DailyProbeReportTests(unittest.TestCase):
         self.assertEqual(created[0][1]["title"], "Skunkworks Daily Report · 2026-08-09")
         self.assertEqual(len(self.engine.archive_reports()), 1)
 
+    def test_local_generation_archives_without_game_logbook_callback(self):
+        first = self.reporter.generate_local_due(
+            ({"id": 762, "name": "Explorer One"},), {"762": "explorer"},
+        )
+        second = self.reporter.generate_local_due(
+            ({"id": 762, "name": "Explorer One"},), {"762": "explorer"},
+        )
+
+        self.assertEqual(len(first["created"]), 1)
+        self.assertEqual(second["created"], [])
+        report = dict(self.engine.archive_reports()[0])
+        self.assertEqual(report["kind"], "daily_probe_report")
+        self.assertIn("Explorer One", report["title"])
+
     def test_transfer_targets_use_probe_names_instead_of_internal_ids(self):
         self.engine.record_action(
             "transfer-1",

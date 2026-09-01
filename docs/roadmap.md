@@ -537,17 +537,20 @@ after a configurable 1–120 minute idle interval, and returns to Normal on the
 first keyboard, mouse, click, touch, or wheel event. The UI always reports both
 the selected Auto policy and its current effective mode.
 
-#### Phase 4 — Away Summaries and Archive Search
+#### Phase 4 — Reports Workspace and Archive Search
 
-Suggested branch: `codex/away-summaries`.
+Suggested branch: `codex/reports-workspace`.
 
-- Summarize relevant activity since the operator last viewed Skunkworks.
-- Group repeated events and retain links to their authoritative detailed views.
+- Add a Reports tab under Communications with Daily Reports, Industrial
+  Analysis, and Operational Archive sub-tabs.
+- Generate opted-in daily reports into the local Skunkworks Archive instead of
+  consuming game Logbook pages; keep the Logbook for operator-authored pages.
 - Add scoped search and filters for operational history and reports.
-- Preserve the existing opt-in requirement for game-logbook daily reports.
+- Permit an explicit future publish-to-Logbook action without automatic game
+  Logbook publication.
 
-Acceptance: an operator can understand an unattended interval without reading
-raw event spam, and can find the underlying events by probe, operation, domain,
+Acceptance: daily reports remain available without filling the game Logbook,
+and an operator can find underlying records by probe, operation, domain,
 severity, and time.
 
 #### Phase 5 — Industrial Analytics
@@ -561,18 +564,6 @@ Suggested branch: `codex/industrial-analytics`.
 
 Acceptance: analytics reproduce from retained data, remain bounded in storage,
 and never present an estimate as a verified game rule.
-
-#### Phase 6 — Research Annotations
-
-Suggested branch: `codex/research-annotations`.
-
-- Attach user-authored notes to probes, sectors, objects, discoveries, and
-  operations using stable identifiers.
-- Add a searchable research archive with export and verified backup coverage.
-- Keep annotations separate from game-authored and player-authored logbook text.
-
-Acceptance: annotations survive restart, backup, restore, and upgrade without
-altering or duplicating game logbook pages.
 
 #### 1.1 Integration and Release Gate
 
@@ -605,6 +596,14 @@ synchronization. They remain Version 1.2 work.
 - Desktop notification controls.
 - Saved workspace layouts.
 - Operation synchronization between trusted devices.
+- Add a “While You Were Away” dashboard summary alongside background/tray
+  operation. Group unattended Skunkworks actions separately from game activity
+  discovered after wake or relaunch, and use the last successful synchronized
+  session as the reporting boundary.
+- Treat actual computer sleep explicitly: an ordinary desktop process cannot
+  continue network automation while macOS suspends it. Scheduled wake or remote
+  execution requires separate capability and must never be implied by the
+  summary.
 
 ### Version 1.3 — Localization and Accessibility
 

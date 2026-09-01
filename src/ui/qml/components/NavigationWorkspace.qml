@@ -473,6 +473,7 @@ PanelFrame {
                 CommunicationsWorkspace {
                     communicationsData: root.dashboardData.communications || ({})
                     logbookData: root.dashboardData.logbook || ({})
+                    reportsData: root.dashboardData.reports || ({})
                     probes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
                     onMessageSendRequested: payload => root.messageSendRequested(payload)

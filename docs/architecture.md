@@ -113,6 +113,22 @@ Live API responses remain authoritative. Persistence supports historical
 reasoning and never replaces live validation before a control action. See
 the Data Engine section below.
 
+## Reports Workspace
+
+Communications separates game-facing text from local operational reporting:
+
+- Messaging and Logbook remain game API capabilities.
+- Daily Reports are generated locally from retained telemetry and accepted
+  action-journal records; they do not automatically create game Logbook pages.
+- Industrial Analysis labels retained-history counts as measured and must label
+  derived trends or estimates as inferred. Missing evidence remains unavailable.
+- Operational Archive is a searchable presentation over retained reports,
+  operations, and action history. It is historical evidence and never replaces
+  live command preflight.
+
+Reports are assembled off the UI thread as part of the dashboard projection.
+QML filters an already bounded presentation model and does not query SQLite.
+
 ---
 
 ## SnapshotManager

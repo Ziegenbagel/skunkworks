@@ -14,6 +14,13 @@ remains the record for internal implementation work.
 
 ### User-visible changes and fixes
 
+- Added a Communications Reports workspace with Daily Reports, Industrial
+  Analysis, and a searchable Operational Archive.
+- Moved automatic daily reports into local Skunkworks storage so they no longer
+  consume game Logbook pages.
+- Added in-application notification banners when Skunkworks is focused and the
+  operating system suppresses its foreground desktop banner.
+
 - Added Normal, Low Power, and scheduled operating profiles, including daily or
   one-time start and end times.
 - Added opt-in desktop notifications with platform availability and test status

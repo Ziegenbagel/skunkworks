@@ -573,16 +573,17 @@ class MissionControlDataService:
         }
         if include_archival and bool(selected.get("isDefault")):
             daily_result = {"created": [], "failures": []}
-            if self.data_engine.get_preference("auto_game_logbook", "false") == "true":
-                daily_result = DailyProbeReportService(self.data_engine).generate_due(
-                    probe_data.get("probes", ()),
-                    automation["probeRoles"],
-                    lambda candidate_id, payload: self.capabilities.probes.create_logbook_page(
-                        candidate_id, payload
-                    ),
+            if self.data_engine.get_preference("auto_daily_reports", self.data_engine.get_preference("auto_game_logbook", "false")) == "true":
+                daily_result = DailyProbeReportService(self.data_engine).generate_local_due(
+                    probe_data.get("probes", ()), automation["probeRoles"],
                 )
                 if daily_result["created"]:
-                    self._logbook_cache.clear()
+                    dashboard["reports"] = MissionControlViewModelBuilder(
+                        self._operations, self.data_engine,
+                    )._reports(
+                        self.data_engine.archive_reports(),
+                        dashboard.get("actions", ()), dashboard.get("operations", ()),
+                    )
             cached_logbook = self._logbook_cache.get(selected_id)
             if cached_logbook is None or now - cached_logbook[0] >= 300:
                 cached_logbook = (
@@ -740,7 +741,7 @@ class MissionControlDataService:
             "pages": summaries,
             "focusedProbeId": probe_id,
             "failures": failures,
-            "autoLoggingEnabled": self.data_engine.get_preference("auto_game_logbook", "false") == "true",
+            "autoLoggingEnabled": self.data_engine.get_preference("auto_daily_reports", self.data_engine.get_preference("auto_game_logbook", "false")) == "true",
             "newDailyReportCount": sum(1 for item in summaries if item.get("isNewDailyReport")),
         }
 
@@ -5822,13 +5823,13 @@ class MissionControlController(QObject):
         value = "true" if enabled else "false"
 
         def persist():
-            self.settings_engine.set_preference("auto_game_logbook", value)
+            self.settings_engine.set_preference("auto_daily_reports", value)
             if self.service is not None:
-                self.service.data_engine.set_preference("auto_game_logbook", value)
+                self.service.data_engine.set_preference("auto_daily_reports", value)
 
         self._run_background_call(
             "settings", persist,
-            pending_message="SAVING LOGBOOK AUTOMATION SETTING",
+            pending_message="SAVING DAILY REPORT SETTING",
         )
 
     def _start_refresh(

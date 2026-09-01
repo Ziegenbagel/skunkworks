@@ -5,6 +5,8 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: window
     property var backend: null
+    property string foregroundNotificationTitle: ""
+    property string foregroundNotificationMessage: ""
     readonly property bool hasLiveSnapshot: window.backend !== null
         && Object.keys(window.backend.presentationDashboard || ({})).length > 0
     width: Constants.width
@@ -39,6 +41,35 @@ ApplicationWindow {
         onUiActivityReported: (section, activity) => {
             if (window.backend)
                 window.backend.reportUiActivity(section, activity);
+        }
+    }
+
+    Connections {
+        target: window.backend
+        function onDesktopNotificationRequested(title, message) {
+            if (window.active && window.visibility !== Window.Minimized) {
+                window.foregroundNotificationTitle = title;
+                window.foregroundNotificationMessage = message;
+                foregroundNotificationTimer.restart();
+            }
+        }
+    }
+    Timer { id: foregroundNotificationTimer; interval: 8000; onTriggered: { window.foregroundNotificationTitle = ""; window.foregroundNotificationMessage = ""; } }
+    Rectangle {
+        id: foregroundNotificationBanner
+        z: 870
+        visible: window.foregroundNotificationTitle.length > 0
+        anchors.top: parent.top; anchors.topMargin: 88; anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width - 48, 900); height: 78
+        color: Constants.raisedColor; border.color: Constants.cyanColor; border.width: 2; radius: 4
+        RowLayout {
+            anchors.fill: parent; anchors.margins: 12; spacing: 12
+            ColumnLayout {
+                Layout.fillWidth: true; spacing: 3
+                Label { Layout.fillWidth: true; text: window.foregroundNotificationTitle.toUpperCase(); color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; elide: Text.ElideRight }
+                Label { Layout.fillWidth: true; text: window.foregroundNotificationMessage; color: Constants.textColor; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
+            }
+            Button { text: "DISMISS"; onClicked: { foregroundNotificationTimer.stop(); window.foregroundNotificationTitle = ""; window.foregroundNotificationMessage = ""; } }
         }
     }
 

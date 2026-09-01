@@ -8,6 +8,7 @@ Item {
     id: root
     property var communicationsData: ({})
     property var logbookData: ({})
+    property var reportsData: ({})
     property var probes: []
     property int focusedProbeId: -1
     signal messageSendRequested(var payload)
@@ -23,12 +24,9 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         TabButton { text: "MESSAGING · " + Number(root.communicationsData.unreadCount || 0) + " UNREAD" }
         TabButton {
-            text: Number(root.logbookData.newDailyReportCount || 0) > 0
-                  ? "LOGBOOK · " + Number(root.logbookData.newDailyReportCount) + " NEW"
-                  : "LOGBOOK"
-            palette.buttonText: Number(root.logbookData.newDailyReportCount || 0) > 0
-                                ? Constants.cyanColor : Constants.textColor
+            text: "LOGBOOK"
         }
+        TabButton { text: "REPORTS" }
     }
     StackLayout {
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: tabs.bottom; anchors.bottom: parent.bottom
@@ -86,6 +84,11 @@ Item {
             onDeleteRequested: pageId => root.logbookDeleteRequested(pageId)
             onAutoLoggingChanged: enabled => root.autoLogbookChanged(enabled)
             onPageOpenRequested: pageId => root.logbookPageOpenRequested(pageId)
+        }
+        ReportsWorkspace {
+            reportsData: root.reportsData
+            autoReportsEnabled: Boolean(root.logbookData.autoLoggingEnabled)
+            onAutoReportsChanged: enabled => root.autoLogbookChanged(enabled)
         }
     }
 }
