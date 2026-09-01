@@ -171,6 +171,10 @@ Probe assembly quantities are cumulative builder targets instead. Count
 successful assembly orders originating from that probe; transferring an
 assembled probe away must never cause its builder to manufacture a replacement.
 An active assembly remains credited while game completion telemetry catches up.
+Changing how assembly progress is counted must not remove the live fleet
+collection still required by role, reserve-source, transport, or presentation
+logic later in dashboard construction. A complete service-level dashboard load,
+not only isolated planner tests, guards this shared input.
 
 ## Manny Dispatch Invariants
 

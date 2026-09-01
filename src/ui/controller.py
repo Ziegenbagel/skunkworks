@@ -473,6 +473,10 @@ class MissionControlDataService:
             except (TypeError, ValueError, json.JSONDecodeError):
                 role_settings = {}
             automation["probeRoleSettings"][str(row["asset_id"])] = role_settings
+        probes = (
+            world.fleet.get("probes", ())
+            if getattr(world, "fleet", None) else (probe,)
+        )
         reserve_sources = FleetRoleService(self.data_engine).deuterium_sources(probes)
         automation["deuteriumSources"] = reserve_sources
         automation["availableReserveDeuterium"] = sum(

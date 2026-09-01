@@ -1,5 +1,6 @@
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -180,6 +181,44 @@ class UiPreparationTests(unittest.TestCase):
                 service.load(7, include_archival=False)
 
         self.assertEqual(events, ["sector", "mannies"])
+
+    def test_dashboard_load_retains_fleet_for_reserve_source_preparation(self):
+        class DashboardPrepared(Exception):
+            pass
+
+        class Client:
+            @staticmethod
+            def get_player():
+                return {"player": {"id": 1}}
+
+            @staticmethod
+            def get_probes():
+                return {"probes": [{"id": 1, "name": "Probe 1", "isDefault": True}]}
+
+            @staticmethod
+            def get_probe(_probe_id):
+                return {"probe": {"id": 1, "name": "Probe 1", "status": "idle"}}
+
+            @staticmethod
+            def get_mannies(_probe_id):
+                return {"mannies": []}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            service = MissionControlDataService(
+                client=Client(),
+                data_engine=DataEngine(Path(temporary) / "complete-load.sqlite3"),
+            )
+            service._initialize = lambda: setattr(service, "api_version", 127)
+            world = build_operations().world
+            world.probe["name"] = "Probe 1"
+            service._build_world = lambda *_args: world
+            service._hazard_cache[1] = (time.monotonic(), {})
+            service._safety_sync_at[1] = time.monotonic()
+            service._auto_scan_explorer_arrival = lambda *_args: None
+            service.automation_view = lambda *_args: (_ for _ in ()).throw(DashboardPrepared)
+
+            with self.assertRaises(DashboardPrepared):
+                service.load(1, include_archival=False)
 
     def test_slow_startup_releases_splash_without_cancelling_refresh(self):
         controller = MissionControlController()
