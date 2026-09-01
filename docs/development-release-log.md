@@ -20,6 +20,9 @@ remains the record for internal implementation work.
   consume game Logbook pages.
 - Added in-application notification banners when Skunkworks is focused and the
   operating system suppresses its foreground desktop banner.
+- Changed probe assembly quantities to cumulative builder targets, so moving an
+  assembled probe elsewhere does not cause its original builder to replace it;
+  other production quantities continue to replenish consumed or transferred stock.
 
 - Added Normal, Low Power, and scheduled operating profiles, including daily or
   one-time start and end times.

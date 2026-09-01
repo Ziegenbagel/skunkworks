@@ -52,6 +52,7 @@ class Operations:
     ):
 
         self.world = world
+        self.data_engine = data_engine
 
         self.fleet = FleetService(
             world

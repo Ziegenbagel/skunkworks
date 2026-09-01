@@ -643,9 +643,44 @@ Item {
             }
 
             GroupBox {
-                title: "FLEET ASSEMBLY TARGETS"; Layout.fillWidth: true
-                GridLayout {
-                    anchors.fill: parent; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
+                title: "HOW TARGETS AND PRIORITIES WORK"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    Label {
+                        Layout.fillWidth: true
+                        text: "PROBE ASSEMBLY TARGETS ARE CUMULATIVE · A TARGET OF 5 MEANS THIS PROBE ASSEMBLES 5 TOTAL. TRANSFERRING A COMPLETED PROBE AWAY DOES NOT CREATE A REPLACEMENT ORDER."
+                        color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "ALL OTHER PRODUCTION TARGETS MAINTAIN CURRENT STOCK · ITEMS ALREADY STORED OR ACTIVELY BEING PRODUCED COUNT TOWARD THE TARGET. USING OR TRANSFERRING THEM REOPENS THE SHORTAGE."
+                        color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "PRIORITY 1 IS HIGHEST AND PRIORITY 10 IS LOWEST. SKUNKWORKS ALWAYS CONSIDERS THE NUMERIC PRIORITY FIRST; PROBE ASSEMBLY WINS ONLY WHEN PRIORITIES ARE EQUAL."
+                        color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "ASSEMBLY COMPONENTS ARE PROTECTED FROM OTHER CRAFTING WHEN THE ASSEMBLY TARGET HAS A HIGHER OR EQUAL PRIORITY. A HIGHER-PRIORITY ORDINARY CRAFT MAY USE COMPONENTS RESERVED FOR A LOWER-PRIORITY ASSEMBLY; SKUNKWORKS WILL THEN REBUILD THE ASSEMBLY SHORTAGE."
+                        color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "EXAMPLE · ASSEMBLY P2 IS PROTECTED FROM COMPONENT CRAFTING AT P2–P10. A P1 CRAFT MAY USE THOSE COMPONENTS. FOR THE STRONGEST ASSEMBLY PROTECTION, GIVE THE PROBE TARGET THE SAME OR A LOWER PRIORITY NUMBER THAN COMPETING PRODUCTION TARGETS."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                }
+            }
+
+            GroupBox {
+                title: "PRODUCTION AND PROBE ASSEMBLY TARGETS"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 10
+                    Label { Layout.fillWidth: true; text: "PROBES ARE CUMULATIVE ASSEMBLY TOTALS FOR THIS BUILDER. ALL OTHER ITEMS ARE MAINTAINED STOCK TARGETS AND ARE REPLENISHED AFTER USE OR TRANSFER."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                    GridLayout {
+                    Layout.fillWidth: true; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
                     Label { text: "AUTOMATION TARGET"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "DESIRED QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
@@ -673,6 +708,7 @@ Item {
                     Label { text: "MISSILES"; color: Constants.criticalColor; font.family: Constants.technicalFont; ToolTip.visible: missileHover.hovered; ToolTip.text: "Maintain completed missiles in inventory. Launching remains a separately confirmed manual combat action."; HoverHandler { id: missileHover } }
                     SpinBox { id: missileTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("missile") }
                     SpinBox { id: missilePriority; from: 1; to: 10; editable: true; value: root.productionPriority("missile") }
+                    }
                 }
             }
 

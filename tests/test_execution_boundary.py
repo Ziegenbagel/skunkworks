@@ -1132,6 +1132,52 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertIn("must not be rebuilt", tanker_tasks[0].reason)
         self.assertFalse(any(task.action == "Craft Item" for task in tasks))
 
+    def test_transferred_probe_does_not_reopen_cumulative_assembly_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            engine = DataEngine(Path(directory) / "history.sqlite3")
+            engine.record_action(
+                "assembled-tanker-1",
+                {
+                    "type": "manny_assemble_probe", "probeId": 1,
+                    "payload": {"model": "deuterium_tanker", "containerIds": ["a", "b"]},
+                    "metadata": {"model": "deuterium_tanker"},
+                },
+                "succeeded",
+            )
+            self.operations.data_engine = engine
+            # The assembled tanker has since been transferred away and is no
+            # longer present in this fleet snapshot.
+            self.operations.world.fleet = {"probes": [{"id": 1, "model": "generic"}]}
+
+            tasks = Planner(
+                self.operations,
+                DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+            ).tasks()
+
+        self.assertFalse(any(task.category == "fleet_assembly" for task in tasks))
+
+    def test_assembly_history_is_scoped_to_builder_probe_and_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            engine = DataEngine(Path(directory) / "history.sqlite3")
+            for fingerprint, probe_id, model in (
+                ("other-builder", 2, "deuterium_tanker"),
+                ("other-model", 1, "generic"),
+            ):
+                engine.record_action(
+                    fingerprint,
+                    {"type": "manny_assemble_probe", "probeId": probe_id,
+                     "payload": {"model": model}, "metadata": {"model": model}},
+                    "succeeded",
+                )
+            self.operations.data_engine = engine
+
+            tasks = Planner(
+                self.operations,
+                DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+            ).tasks()
+
+        self.assertTrue(any(task.category == "fleet_assembly" for task in tasks))
+
     def test_unlabelled_active_assembly_is_credited_to_supported_tanker_goal(self):
         self.operations.world.fleet = {"probes": [{"model": "generic"}]}
         self.operations.world.probe["inventory"]["items"] = []

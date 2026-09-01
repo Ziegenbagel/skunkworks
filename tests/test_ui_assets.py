@@ -989,6 +989,14 @@ def test_automation_target_panels_share_quantity_and_priority_columns():
     assert settings.count("columns: 3; uniformCellWidths: true") == 2
     assert "targetNameColumnWidth" not in settings
     assert "targetQuantityColumnWidth" not in settings
+    assert "PROBES ARE CUMULATIVE ASSEMBLY TOTALS FOR THIS BUILDER" in settings
+    assert "ALL OTHER ITEMS ARE MAINTAINED STOCK TARGETS" in settings
+    guide = settings.index('title: "HOW TARGETS AND PRIORITIES WORK"')
+    targets = settings.index('title: "PRODUCTION AND PROBE ASSEMBLY TARGETS"')
+    assert guide < targets
+    assert "ASSEMBLY COMPONENTS ARE PROTECTED FROM OTHER CRAFTING" in settings
+    assert "A HIGHER-PRIORITY ORDINARY CRAFT MAY USE COMPONENTS" in settings
+    assert "ASSEMBLY WINS ONLY WHEN PRIORITIES ARE EQUAL" in settings
 
 
 def test_logbook_workspace_uses_editable_game_pages_and_reports_are_local():

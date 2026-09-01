@@ -1,6 +1,7 @@
 """Authoritative special probe-assembly requirements."""
 
 from collections import Counter
+import json
 
 
 GENERIC_COMPONENTS = (
@@ -26,6 +27,33 @@ PROBE_ASSEMBLY_REQUIREMENTS = {
     "generic": GENERIC_COMPONENTS,
     "deuterium_tanker": TANKER_COMPONENTS,
 }
+
+
+def recorded_probe_assembly_count(operations, model):
+    """Count successful assembly orders originating from the focused probe.
+
+    Fleet assembly goals are cumulative production targets. A completed probe
+    leaving the fleet must not make its builder assemble a replacement.
+    """
+
+    data_engine = getattr(operations, "data_engine", None)
+    probe_id = (getattr(operations.world, "probe", {}) or {}).get("id")
+    if data_engine is None or probe_id is None:
+        return 0
+    count = 0
+    for row in data_engine.action_history(int(probe_id)):
+        if row["status"] != "succeeded" or row["command_type"] != "manny_assemble_probe":
+            continue
+        try:
+            command = json.loads(row["command_json"] or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        payload = command.get("payload") or {}
+        metadata = command.get("metadata") or {}
+        assembled_model = payload.get("model") or metadata.get("model")
+        if str(assembled_model or "").strip().lower().replace("-", "_") == model:
+            count += 1
+    return count
 
 
 def active_probe_assembly_count(operations, model):

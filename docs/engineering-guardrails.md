@@ -165,6 +165,13 @@ one JSON object as one item.
 Do not issue duplicate work for output already active. Do not treat stale Manny
 task detail on an idle/mining Manny as active crafting.
 
+Ordinary production quantities are replenishing stock targets: stored and
+active output counts, and consuming or transferring output reopens the shortage.
+Probe assembly quantities are cumulative builder targets instead. Count
+successful assembly orders originating from that probe; transferring an
+assembled probe away must never cause its builder to manufacture a replacement.
+An active assembly remains credited while game completion telemetry catches up.
+
 ## Manny Dispatch Invariants
 
 ### One cycle can use multiple distinct Mannys

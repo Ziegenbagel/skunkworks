@@ -365,24 +365,29 @@ class MissionControlDataService:
                 **{key: dashboard[key] for key in priority_keys if key in dashboard},
             })
         automation = desired_state.to_dict()
-        probes = world.fleet.get("probes", ()) if getattr(world, "fleet", None) else (probe,)
-        model_counts = {}
-        for fleet_probe in probes:
-            model = fleet_probe.get("model", "generic")
-            model_counts[model] = model_counts.get(model, 0) + 1
+        from src.planner.assembly import (
+            active_probe_assembly_count, recorded_probe_assembly_count,
+        )
+        assembly_counts = {
+            goal.model: max(
+                recorded_probe_assembly_count(operations, goal.model),
+                active_probe_assembly_count(operations, goal.model),
+            )
+            for goal in desired_state.fleet
+        }
         automation["fleetStatus"] = [
             {
                 "model": goal.model,
-                "current": model_counts.get(goal.model, 0),
+                "current": assembly_counts.get(goal.model, 0),
                 "target": goal.quantity,
-                "shortage": max(0, goal.quantity - model_counts.get(goal.model, 0)),
+                "shortage": max(0, goal.quantity - assembly_counts.get(goal.model, 0)),
                 "priority": goal.priority,
             }
             for goal in desired_state.fleet
         ]
         live_target_status = []
         for goal in desired_state.fleet:
-            current = model_counts.get(goal.model, 0)
+            current = assembly_counts.get(goal.model, 0)
             remaining = max(0, goal.quantity - current)
             live_target_status.append({
                 "category": "FLEET",
@@ -390,7 +395,7 @@ class MissionControlDataService:
                 "priority": goal.priority,
                 "met": remaining == 0,
                 "statusText": (
-                    f"{current} current / {goal.quantity} target · "
+                    f"{current} assembled by this probe / {goal.quantity} cumulative target · "
                     f"{remaining} remaining to assemble"
                 ),
             })

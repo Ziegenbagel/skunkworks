@@ -4,29 +4,25 @@ from src.planner.task import Task
 from src.planner.assembly import (
     active_probe_assembly_count,
     empty_assembly_containers,
+    recorded_probe_assembly_count,
     tanker_component_statuses,
 )
 
 
 def plan(operations, desired_state) -> list[Task]:
-    probes = (getattr(operations.world, "fleet", None) or {}).get("probes", ())
-    counts = {}
-    for probe in probes:
-        model = probe.get("model", "generic")
-        counts[model] = counts.get(model, 0) + 1
-
     tasks = []
     for goal in desired_state.fleet:
-        completed = counts.get(goal.model, 0)
+        completed = recorded_probe_assembly_count(operations, goal.model)
         active = active_probe_assembly_count(operations, goal.model)
-        shortage = max(0, goal.quantity - completed - active)
+        credited = max(completed, active)
+        shortage = max(0, goal.quantity - credited)
         if shortage == 0:
             if active and completed < goal.quantity:
                 tasks.append(Task(
                     action="Await Active Assembly",
                     reason=(
                         f"Desired {goal.model.replace('_', ' ')} fleet is "
-                        f"{goal.quantity}; {completed} complete and {active} assembly "
+                        f"{goal.quantity}; {completed} recorded and {active} assembly "
                         "in progress. Its committed components have already been "
                         "consumed by the game and must not be rebuilt."
                     ),
@@ -42,7 +38,8 @@ def plan(operations, desired_state) -> list[Task]:
                 action="Prepare Probe Assembly",
                 reason=(
                     f"Desired {goal.model.replace('_', ' ')} fleet is "
-                    f"{goal.quantity}; current fleet is {counts.get(goal.model, 0)}."
+                    f"{goal.quantity}; this probe has recorded {completed} successful "
+                    "assembly order(s). Transferred probes do not reopen this target."
                 ),
                 category="fleet_assembly",
                 target=goal.model,
