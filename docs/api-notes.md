@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v129, verified
-against the live contract on 2026-08-31.
+Skunkworks supports deployed API v103 through upstream API v130, verified
+against the live contract on 2026-09-01.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -52,6 +52,14 @@ API v129 restores `GET /api/sector` as a probe-only scan using relative `x`,
 fleet scans moved to `GET /api/others/sector`, which is outside Skunkworks'
 probe-control surface. Probe Galaxy scans must never add `shipId` or switch to
 the Others route.
+
+API v130 adds an optional `harvestable` boolean to planet representations from
+`GET /api/others/sector` only when an active Others fleet ship is physically
+present in the observed sector. It is true only while the planet contains
+strictly more than 5 ECE. The field remains absent from remote Others scans and
+all probe endpoints, so probe-side planet handling must remain valid without
+it. This additive Others observation does not change Skunkworks' probe-control
+routes.
 
 API v121 rejects movement preparation when integrity is strictly below 10%
 with `probe_integrity_too_low`; exactly 10% is allowed. Zero integrity sets the

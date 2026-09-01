@@ -1,5 +1,11 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.0.11
+
+- Added reviewed compatibility with Von Neumann Game API v130.
+- Kept existing probe planet controls backward compatible with the new
+  Others-only local planet harvestability field.
+
 ## Skunkworks 1.0.10
 
 - Added reviewed compatibility with Von Neumann Game API v129.

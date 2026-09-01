@@ -431,6 +431,12 @@ Never attach an Others `shipId` to that route or silently substitute
 `GET /api/others/sector`; Others fleet control is outside the probe-control
 surface.
 
+API v130 adds `harvestable` only to eligible local Others planet observations.
+Probe observations and remote Others observations legitimately omit it. Never
+require, synthesize, or infer this field in probe-side planet presentation or
+mining decisions; its absence is part of the reviewed backward-compatible
+contract.
+
 Autonomous-unit telemetry must not be rendered as a floating overlay over Live
 Sector. Operational map space remains unobstructed unless the operator opens a
 dedicated detail surface or a critical safety takeover is required.
