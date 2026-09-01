@@ -1,5 +1,10 @@
 # Operator Manual Revision History
 
+## 1.5 — 2026-09-01
+
+- Added reviewed API v130 compatibility and documented that its local planet
+  harvestability marker belongs only to eligible Others scans.
+
 ## 1.4 — 2026-08-31
 
 - Added reviewed API v129 compatibility while retaining the probe-only Galaxy

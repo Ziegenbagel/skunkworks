@@ -28,7 +28,7 @@ def test_published_release_notes_are_operator_facing_bullet_lists():
     versions = set(re.findall(r"^## Skunkworks (\d+\.\d+\.\d+)$", notes, re.MULTILINE))
 
     assert sections
-    assert versions == {f"1.0.{patch}" for patch in range(11)}
+    assert versions == {f"1.0.{patch}" for patch in range(12)}
     assert ".dev" not in notes.casefold()
     assert "development branch" not in notes.casefold()
     assert "tests pass" not in notes.casefold()
