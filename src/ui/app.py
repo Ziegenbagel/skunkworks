@@ -85,12 +85,15 @@ def notification_delivery_capabilities():
 class DesktopNotificationBridge(QObject):
     """Deliver controller requests through a GUI-thread-owned Qt receiver."""
 
-    def __init__(self, tray_icon, parent=None):
+    def __init__(self, tray_icon, should_deliver=None, parent=None):
         super().__init__(parent)
         self.tray_icon = tray_icon
+        self.should_deliver = should_deliver or (lambda: True)
 
     @Slot(str, str)
     def deliver(self, title, message):
+        if not self.should_deliver():
+            return
         self.tray_icon.showMessage(
             title, message, QSystemTrayIcon.Information, 8000,
         )
@@ -139,8 +142,11 @@ def run(controller=None):
             )
         )
         if notification_messages:
+            root_window = engine.rootObjects()[0]
             notification_bridge = DesktopNotificationBridge(
-                notification_icon, application,
+                notification_icon,
+                should_deliver=lambda: not root_window.isActive(),
+                parent=application,
             )
             controller.desktopNotificationRequested.connect(
                 notification_bridge.deliver,

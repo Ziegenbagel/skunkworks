@@ -506,16 +506,45 @@ dashboard result before notification extraction.
 Settings must expose the platform capability and a test action. A successful
 test request must be labeled as requested, never as confirmed OS delivery,
 because desktop policy can suppress a banner after Qt accepts it.
-When the Skunkworks window is focused, the same deduplicated notification must
-also appear as a dismissible in-application banner. Operating systems such as
-macOS may suppress a desktop banner for the foreground application; this must
-not make an opted-in event invisible to the active operator. The foreground
-banner is advisory and must not alter game alert read state.
+Each event uses exactly one presentation channel. When the Skunkworks window is
+focused, the deduplicated notification appears only as a dismissible
+in-application banner. When the window is inactive or minimized, it is eligible
+only for operating-system desktop delivery. The two channels must never appear
+for the same event at the same time. A terminal automation status such as
+`succeeded` is authoritative even when an additional `accepted` flag is absent.
+Success must not be labeled as needing attention, and a notification must name
+the focused probe and specific operation or retain an equally specific game
+message. A bare status such as `Succeeded` is not useful enough to interrupt the
+operator and must be suppressed when no operation can be identified. Both
+channels are advisory and must not alter game alert read state.
 
 Relevant code/tests:
 
 - `src/application/notifications.py`
+- `src/ui/app.py`
+- `src/ui/qml/App.qml`
 - `tests/test_notifications.py`
+
+### Major-release promotion refreshes operator documentation
+
+Before a new major version moves from `develop` to `main`, audit every
+user-visible workflow, control, label, state, layout, and behavior changed during
+that development cycle. Update every affected operator-manual explanation. If a
+manual screenshot contains a changed surface, recreate it from the real QML
+using the repository's fictional offline documentation profile; never capture
+an operator's live account, private database, credentials, probe names, sectors,
+or inventory. Recreate all affected screenshots rather than selectively
+retaining images that depict old controls or behavior, rebuild the generated
+manual, and visually inspect its rendered pages for stale text, mismatched
+captions, clipping, overlap, and pagination regressions. Major-release promotion
+is not documentation-complete merely because the application and tests pass.
+
+Relevant code/tests:
+
+- `docs/user-guide/build_manual.py`
+- `docs/user-guide/README.md`
+- `tools/capture_synthetic_manual.py`
+- `docs/user-guide/Skunkworks_Operator_Manual.docx`
 
 ## Release Packaging Invariants
 

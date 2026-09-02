@@ -123,7 +123,7 @@ def test_live_notification_result_reaches_controller_delivery_signal():
     controller._accept_dashboard(updated)
 
     assert requested == [
-        ("Skunkworks operation completed", "Mining order accepted")
+        ("Hub · Operation completed", "Mining order accepted")
     ]
     assert controller.dashboard["automationRuntime"]["lastResult"][
         "commandId"
@@ -143,3 +143,44 @@ def test_desktop_notification_bridge_owns_tray_delivery_slot():
 
     assert calls[0][0:2] == ("Safety alert", "Hull breach")
     assert calls[0][3] == 8000
+
+
+def test_desktop_notification_is_suppressed_while_window_is_active():
+    calls = []
+
+    class TrayIcon:
+        @staticmethod
+        def showMessage(*args):
+            calls.append(args)
+
+    bridge = DesktopNotificationBridge(TrayIcon(), should_deliver=lambda: False)
+    bridge.deliver("Hub · Manny craft completed", "Manny craft succeeded.")
+
+    assert calls == []
+
+
+def test_status_only_success_uses_operation_and_probe_instead_of_failure_copy():
+    dashboard = {
+        "focus": {"name": "Ziegenbagel Skunkworks Hub"},
+        "automationRuntime": {"lastResult": {
+            "status": "succeeded",
+            "commandType": "manny_craft",
+            "fingerprint": "craft-1",
+        }},
+    }
+
+    candidates = NotificationCoordinator(Preferences()).candidates(dashboard)
+
+    assert [(item.category, item.title, item.message) for item in candidates] == [
+        (
+            "operations",
+            "Ziegenbagel Skunkworks Hub · Manny Craft completed",
+            "Manny Craft succeeded.",
+        )
+    ]
+
+
+def test_unidentified_bare_status_does_not_create_vague_notification():
+    dashboard = {"automationRuntime": {"lastResult": {"status": "succeeded"}}}
+
+    assert NotificationCoordinator(Preferences()).candidates(dashboard) == []

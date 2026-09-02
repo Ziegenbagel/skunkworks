@@ -1034,7 +1034,7 @@ def test_focused_window_uses_in_app_notification_banner():
     app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
     assert "onDesktopNotificationRequested" in app
     assert "foregroundNotificationBanner" in app
-    assert "window.active" in app
+    assert "window.active && window.visibility !== Window.Minimized" in app
 
 
 def test_settings_exposes_operator_manual_and_change_log_links():

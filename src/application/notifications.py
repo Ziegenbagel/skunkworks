@@ -10,6 +10,8 @@ from dataclasses import dataclass
 POLICY_PREFERENCE = "desktop_notification_policy"
 SEEN_PREFERENCE = "desktop_notification_seen"
 DEFAULT_CATEGORIES = ("critical", "discoveries", "approvals", "operations", "failures")
+SUCCESS_STATUSES = {"accepted", "completed", "success", "succeeded"}
+FAILURE_STATUSES = {"cancelled", "failed", "rejected"}
 
 
 @dataclass(frozen=True)
@@ -61,6 +63,40 @@ class NotificationCoordinator:
         content = "|".join(str(part or "") for part in parts)
         return prefix + ":" + hashlib.sha256(content.encode("utf-8")).hexdigest()[:24]
 
+    @staticmethod
+    def _operation_label(result):
+        command_type = str(result.get("commandType") or "").strip()
+        if not command_type:
+            command_types = {
+                str(item.get("commandType") or "").strip()
+                for item in result.get("results", ())
+                if isinstance(item, dict) and item.get("commandType")
+            }
+            if len(command_types) == 1:
+                command_type = command_types.pop()
+            elif command_types:
+                return "Automation cycle"
+        return command_type.replace("_", " ").strip().title()
+
+    @staticmethod
+    def _probe_label(dashboard):
+        focus = dashboard.get("focus") or {}
+        return str(focus.get("name") or "").strip()
+
+    @staticmethod
+    def _specific_message(result, status, operation):
+        message = str(result.get("message") or result.get("summary") or "").strip()
+        generic = {
+            "accepted", "completed", "failed", "rejected", "success",
+            "succeeded", status.replace("_", " "),
+        }
+        if message and message.lower().rstrip(".") not in generic:
+            return message
+        if operation:
+            outcome = "succeeded" if status in SUCCESS_STATUSES else status.replace("_", " ")
+            return f"{operation} {outcome}."
+        return ""
+
     def candidates(self, dashboard):
         result = []
         for alert in dashboard.get("alerts", ()):
@@ -79,14 +115,28 @@ class NotificationCoordinator:
             ))
         last = dashboard.get("automationRuntime", {}).get("lastResult") or {}
         if last:
-            succeeded = bool(last.get("accepted") or last.get("success"))
-            category = "operations" if succeeded else "failures"
-            message = str(last.get("message") or last.get("summary") or last.get("status") or "Automation cycle updated")
-            result.append(NotificationCandidate(
-                self._key("operation", last.get("fingerprint"), last.get("commandId"), message),
-                category, "Skunkworks operation " + ("completed" if succeeded else "needs attention"), message,
-                "info" if succeeded else "critical",
-            ))
+            status = str(last.get("status") or "").strip().lower()
+            succeeded = bool(last.get("accepted") or last.get("success")) or status in SUCCESS_STATUSES
+            failed = status in FAILURE_STATUSES
+            operation = self._operation_label(last)
+            message = self._specific_message(last, status, operation)
+            # Idle/observe/approval states are represented elsewhere. A bare
+            # terminal status without an identifiable operation is not useful
+            # enough to interrupt the operator.
+            if (succeeded or failed) and message:
+                probe = self._probe_label(dashboard)
+                subject = operation or "Operation"
+                title = " · ".join(item for item in (probe, subject) if item)
+                title += " completed" if succeeded else " needs attention"
+                category = "operations" if succeeded else "failures"
+                result.append(NotificationCandidate(
+                    self._key(
+                        "operation", last.get("fingerprint"),
+                        last.get("commandId"), status, subject, message,
+                    ),
+                    category, title, message,
+                    "info" if succeeded else "critical",
+                ))
         for row in dashboard.get("automationRuntime", {}).get("queue", ()):
             disposition = str(row.get("disposition") or "").lower()
             if disposition in {"approval_required", "awaiting_approval", "ready_for_approval"}:
