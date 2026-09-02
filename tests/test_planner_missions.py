@@ -124,6 +124,39 @@ def build_operations(
 
 
 class PlannerMissionTests(unittest.TestCase):
+    def test_deuterium_engine_production_goal_maintains_stockpile(self):
+        operations = build_operations()
+        operations.manufacturing.recipes._recipes["deuterium_engine"] = {
+            "id": "deuterium_engine",
+            "name": "Deuterium Engine",
+            "craftableBy": ["manny"],
+            "durationSeconds": 60,
+            "ingredients": [
+                {"type": "metals", "quantity": 1, "kind": "resource"},
+            ],
+            "output": {"type": "deuterium_engine", "containerSpace": 0.1},
+        }
+        desired = DesiredState(production=(
+            ProductionGoal("deuterium_engine", 2, priority=2),
+        ))
+
+        tasks = Planner(operations, desired).tasks()
+
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0].target, "deuterium_engine")
+        self.assertEqual(tasks[0].quantity, 2)
+        self.assertEqual(tasks[0].priority, 2)
+
+        operations.world.probe["inventory"]["items"] = [
+            {"id": "engine-1", "type": "deuterium_engine", "quantity": 2},
+        ]
+
+        remaining_production = [
+            task for task in Planner(operations, desired).tasks()
+            if task.category == "manufacturing"
+        ]
+        self.assertEqual(remaining_production, [])
+
     def test_api_v121_blocks_movement_strictly_below_ten_percent_integrity(self):
         operations = build_operations()
         target = SectorCoordinates(1, 1, 0)

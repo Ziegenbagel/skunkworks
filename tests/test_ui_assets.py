@@ -246,6 +246,18 @@ def test_automation_targets_include_integrated_circuits():
     assert 'text: "INTEGRATED CIRCUITS"' in settings
 
 
+def test_automation_targets_include_deuterium_engine_stockpiles():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'productionQuantity("deuterium_engine")' in settings
+    assert 'productionPriority("deuterium_engine")' in settings
+    assert '"recipeId": "deuterium_engine"' in settings
+    assert 'text: "DEUTERIUM ENGINES"' in settings
+    assert "asteroid propulsion installation" in settings
+
+
 def test_automation_targets_include_missile_stockpiles_without_launch_automation():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 

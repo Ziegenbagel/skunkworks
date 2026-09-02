@@ -14,6 +14,8 @@ remains the record for internal implementation work.
 
 ### User-visible changes and fixes
 
+- Added Deuterium Engines as a maintained production target so probes can
+  stockpile propulsion components for motorizing asteroids.
 - Added a Communications Reports workspace with Daily Reports, Industrial
   Analysis, and a searchable Operational Archive.
 - Moved automatic daily reports into local Skunkworks storage so they no longer
