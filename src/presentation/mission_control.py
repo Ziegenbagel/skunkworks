@@ -1779,7 +1779,7 @@ class MissionControlViewModelBuilder:
                 "kind": "COMMAND", "domain": category, "status": status.upper(),
                 "probeId": probe_id, "probeName": probe_names.get(probe_id, f"Probe {probe_id}"),
                 "title": command_type.replace("_", " ").title(),
-                "detail": f"{status.upper()} · {row.get('observed_at', '')}",
+                "detail": "",
                 "timestamp": row.get("observed_at", ""),
             })
         for row in reversed(operations):

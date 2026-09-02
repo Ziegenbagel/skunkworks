@@ -835,6 +835,20 @@ requests merely to populate analysis or archive views.
 
 Relevant test: `tests/test_ui_assets.py::test_logbook_workspace_uses_editable_game_pages_and_reports_are_local`.
 
+### Reports remain readable and use operator-local time
+
+The Daily Reports selector and selected-report body share one explicit
+side-by-side layout. Neither may consume the other's height or collapse into a
+thin strip when the report list is empty. Operational Archive retains sortable
+UTC timestamps in its presentation model, but converts them to the operator's
+local timezone for display. A timestamp or status already shown in the archive
+card must not be repeated inside its detail text.
+
+Relevant tests:
+
+- `tests/test_ui_assets.py::test_reports_keep_daily_selector_visible_and_format_archive_time_locally`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_report_action_archive_does_not_duplicate_status_or_timestamp`
+
 ### Live account headers reserve capacity before a 429
 
 Rate-limit capacity is account-wide, so every `GameClient` instance for the

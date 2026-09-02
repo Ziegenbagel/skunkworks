@@ -312,6 +312,30 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(engine.archive_reports()[0]["title"], "Command Brief")
             self.assertEqual(engine.records("logbook_pages"), [])
 
+    def test_report_action_archive_does_not_duplicate_status_or_timestamp(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            base = build_operations()
+            operations = Operations(
+                base.world, base.manufacturing.recipes, data_engine=engine,
+            )
+            timestamp = "2026-09-02T01:51:17.539538+00:00"
+            reports = MissionControlViewModelBuilder(operations, engine)._reports(
+                report_records=(),
+                action_records=({
+                    "command_type": "manny_repair",
+                    "status": "failed",
+                    "probe_id": 1,
+                    "observed_at": timestamp,
+                },),
+                operation_records=(),
+            )
+
+            action = reports["archive"][0]
+            self.assertEqual(action["timestamp"], timestamp)
+            self.assertEqual(action["status"], "FAILED")
+            self.assertEqual(action["detail"], "")
+
     def test_qt_controller_refreshes_and_switches_probe_context(self):
         class Service:
             def __init__(self):

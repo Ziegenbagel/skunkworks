@@ -1030,6 +1030,18 @@ def test_logbook_workspace_uses_editable_game_pages_and_reports_are_local():
     assert "_start_refresh" not in mutation
 
 
+def test_reports_keep_daily_selector_visible_and_format_archive_time_locally():
+    reports = Path("src/ui/qml/components/ReportsWorkspace.qml").read_text(encoding="utf-8")
+
+    assert "RowLayout {\n                    Layout.fillWidth: true\n                    Layout.fillHeight: true" in reports
+    assert "Layout.preferredWidth: Math.max(360, root.width * 0.32)" in reports
+    assert "function localTimestamp(value)" in reports
+    assert "toLocaleString(Qt.locale(), Locale.ShortFormat)" in reports
+    assert 'text: "LOCAL · " + root.localTimestamp' in reports
+    assert "root.localTimestamp(archiveCard.modelData.timestamp)" in reports
+    assert 'String(archiveCard.modelData.timestamp || "")' not in reports
+
+
 def test_focused_window_uses_in_app_notification_banner():
     app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
     assert "onDesktopNotificationRequested" in app

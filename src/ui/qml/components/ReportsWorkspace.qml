@@ -21,6 +21,13 @@ Item {
         });
     }
 
+    function localTimestamp(value) {
+        if (!value) return "TIME UNAVAILABLE";
+        const parsed = new Date(String(value));
+        if (isNaN(parsed.getTime())) return String(value);
+        return parsed.toLocaleString(Qt.locale(), Locale.ShortFormat);
+    }
+
     TabBar {
         id: reportTabs
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
@@ -42,17 +49,33 @@ Item {
                 }
                 Label { Layout.fillWidth: true; text: "Generated locally after 17:00 using retained telemetry and accepted game commands. Reports no longer consume game Logbook pages."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
                 Label { Layout.fillWidth: true; visible: (root.reportsData.daily || []).length === 0; text: root.autoReportsEnabled ? "NO LOCAL DAILY REPORT IS STORED YET · THE NEXT ELIGIBLE DEFAULT-PROBE REFRESH WILL GENERATE THE LATEST REPORT DUE AFTER 17:00." : "DAILY REPORT GENERATION IS OFF · ENABLE IT ABOVE TO STORE FUTURE REPORTS LOCALLY."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                ListView {
-                    id: dailyList; Layout.preferredWidth: Math.max(360, root.width * 0.32); Layout.fillHeight: true; clip: true; spacing: 8
-                    model: root.reportsData.daily || []
-                    delegate: Rectangle {
-                        id: dailyCard; required property var modelData
-                        width: dailyList.width; height: 72; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
-                        Label { anchors.fill: parent; anchors.margins: 12; text: String(dailyCard.modelData.title || "Daily report"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dailyContent.text = String(dailyCard.modelData.content || "") }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: 12
+                    Rectangle {
+                        Layout.preferredWidth: Math.max(360, root.width * 0.32)
+                        Layout.fillHeight: true
+                        color: Constants.raisedColor
+                        border.color: Constants.lineColor
+                        radius: 4
+                        ListView {
+                            id: dailyList
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            clip: true
+                            spacing: 8
+                            model: root.reportsData.daily || []
+                            delegate: Rectangle {
+                                id: dailyCard; required property var modelData
+                                width: dailyList.width; height: 72; color: Constants.panelColor; border.color: Constants.lineColor; radius: 4
+                                Label { anchors.fill: parent; anchors.margins: 12; text: String(dailyCard.modelData.title || "Daily report"); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dailyContent.text = String(dailyCard.modelData.content || "") }
+                            }
+                        }
                     }
+                    ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; TextArea { id: dailyContent; readOnly: true; wrapMode: TextEdit.Wrap; placeholderText: "Select a daily report"; padding: 16; background: Rectangle { color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4 } } }
                 }
-                ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; TextArea { id: dailyContent; readOnly: true; wrapMode: TextEdit.Wrap; placeholderText: "Select a daily report"; padding: 16; background: Rectangle { color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4 } } }
             }
         }
         Item {
@@ -80,7 +103,7 @@ Item {
                 Label { Layout.fillWidth: true; visible: root.matchingArchive().length === 0; text: (root.reportsData.archive || []).length === 0 ? "NO LOCAL OPERATIONAL HISTORY IS AVAILABLE YET." : "NO ARCHIVE RECORDS MATCH THE CURRENT SEARCH AND DOMAIN FILTER."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 ListView {
                     id: archiveList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.matchingArchive()
-                    delegate: Rectangle { id: archiveCard; required property var modelData; width: archiveList.width; height: 82; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4; Column { anchors.fill: parent; anchors.margins: 11; spacing: 4; Label { width: parent.width; text: archiveCard.modelData.kind + " · " + archiveCard.modelData.domain.toUpperCase() + " · " + archiveCard.modelData.status; color: Constants.cyanColor; font.family: Constants.technicalFont; elide: Text.ElideRight } Label { width: parent.width; text: archiveCard.modelData.title + " · " + archiveCard.modelData.probeName; color: Constants.textColor; font.bold: true; elide: Text.ElideRight } Label { width: parent.width; text: String(archiveCard.modelData.timestamp || "") + " · " + String(archiveCard.modelData.detail || "").replace(/\n/g, " "); color: Constants.mutedTextColor; elide: Text.ElideRight } } }
+                    delegate: Rectangle { id: archiveCard; required property var modelData; width: archiveList.width; height: 82; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4; Column { anchors.fill: parent; anchors.margins: 11; spacing: 4; Label { width: parent.width; text: archiveCard.modelData.kind + " · " + archiveCard.modelData.domain.toUpperCase() + " · " + archiveCard.modelData.status; color: Constants.cyanColor; font.family: Constants.technicalFont; elide: Text.ElideRight } Label { width: parent.width; text: archiveCard.modelData.title + " · " + archiveCard.modelData.probeName; color: Constants.textColor; font.bold: true; elide: Text.ElideRight } Label { width: parent.width; text: "LOCAL · " + root.localTimestamp(archiveCard.modelData.timestamp) + (archiveCard.modelData.detail ? " · " + String(archiveCard.modelData.detail).replace(/\n/g, " ") : ""); color: Constants.mutedTextColor; elide: Text.ElideRight } } }
                 }
             }
         }
