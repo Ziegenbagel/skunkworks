@@ -778,6 +778,22 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "replaceAll(" not in inventory
 
 
+def test_stored_inventory_supports_local_multi_type_filters():
+    inventory = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "FILTER STORED ITEMS · SELECT ONE OR MORE TYPES" in inventory
+    assert "function itemTypeOptions()" in inventory
+    assert "function filteredItems()" in inventory
+    assert "function toggleItemType(type)" in inventory
+    assert "selectedItemTypes.slice()" in inventory
+    assert "SHOWING ITEMS THAT MATCH ANY SELECTED TYPE" in inventory
+    assert "model: root.filteredItems()" in inventory
+    assert "onClicked: root.selectedItemTypes = []" in inventory
+    assert "NO STORED ITEMS MATCH THE SELECTED TYPES" in inventory
+
+
 def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")

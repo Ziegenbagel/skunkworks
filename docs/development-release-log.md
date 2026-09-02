@@ -14,6 +14,8 @@ remains the record for internal implementation work.
 
 ### User-visible changes and fixes
 
+- Added multi-select item-type filters above Stored Items and Equipment so
+  large inventories can be narrowed to one or several component types locally.
 - Added Deuterium Engines as a maintained production target so probes can
   stockpile propulsion components for motorizing asteroids.
 - Added a Communications Reports workspace with Daily Reports, Industrial

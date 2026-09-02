@@ -9,6 +9,8 @@ Item {
     property var inventoryData: ({})
     property var pendingMove: ({})
     property var pendingOperation: ({})
+    property var selectedItemTypes: []
+    property string itemFilterProbeName: ""
     signal probeRenameRequested(string name)
     signal containerRenameRequested(string containerId, string label)
     signal storageRulesSaveRequested(string containerId, var rules)
@@ -55,6 +57,39 @@ Item {
             payload.itemId = String(inventoryItem.currentValue);
         }
         return payload;
+    }
+    function itemTypeOptions() {
+        const counts = {};
+        const items = inventoryData.items || [];
+        for (let i = 0; i < items.length; ++i) {
+            const type = String(items[i].type || "unknown");
+            counts[type] = Number(counts[type] || 0) + 1;
+        }
+        return Object.keys(counts).sort((left, right) => {
+            return left.localeCompare(right);
+        }).map(type => ({
+            "type": type,
+            "label": type.split("_").join(" ").toUpperCase(),
+            "count": counts[type]
+        }));
+    }
+    function filteredItems() {
+        const items = inventoryData.items || [];
+        if (selectedItemTypes.length === 0) return items;
+        return items.filter(item => selectedItemTypes.indexOf(String(item.type || "unknown")) >= 0);
+    }
+    function toggleItemType(type) {
+        const selected = selectedItemTypes.slice();
+        const index = selected.indexOf(type);
+        if (index >= 0) selected.splice(index, 1);
+        else selected.push(type);
+        selectedItemTypes = selected;
+    }
+    onInventoryDataChanged: {
+        const probeName = String(inventoryData.probeName || "");
+        if (itemFilterProbeName.length > 0 && itemFilterProbeName !== probeName)
+            selectedItemTypes = [];
+        itemFilterProbeName = probeName;
     }
 
     ScrollView {
@@ -217,11 +252,56 @@ Item {
                 }
             }
 
-            Label { text: "STORED ITEMS AND EQUIPMENT · " + (root.inventoryData.items || []).length; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true }
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    text: "STORED ITEMS AND EQUIPMENT · " + root.filteredItems().length
+                        + (root.selectedItemTypes.length > 0 ? " OF " + (root.inventoryData.items || []).length : "")
+                    color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
+                }
+                Item { Layout.fillWidth: true }
+                Button {
+                    visible: root.selectedItemTypes.length > 0
+                    text: "SHOW ALL"
+                    onClicked: root.selectedItemTypes = []
+                }
+            }
+            GroupBox {
+                title: "FILTER STORED ITEMS · SELECT ONE OR MORE TYPES"
+                Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 8
+                    Label {
+                        Layout.fillWidth: true
+                        text: root.selectedItemTypes.length === 0
+                            ? "SHOWING ALL ITEM TYPES"
+                            : "SHOWING ITEMS THAT MATCH ANY SELECTED TYPE"
+                        color: Constants.mutedTextColor
+                        font.family: Constants.technicalFont
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: childrenRect.height
+                        spacing: 8
+                        Repeater {
+                            model: root.itemTypeOptions()
+                            delegate: Button {
+                                id: itemTypeFilter
+                                required property var modelData
+                                text: itemTypeFilter.modelData.label + " · " + itemTypeFilter.modelData.count
+                                checkable: true
+                                checked: root.selectedItemTypes.indexOf(itemTypeFilter.modelData.type) >= 0
+                                onClicked: root.toggleItemType(itemTypeFilter.modelData.type)
+                            }
+                        }
+                    }
+                }
+            }
             GridLayout {
                 id: itemGrid; Layout.fillWidth: true; columns: root.width >= 1400 ? 3 : root.width >= 850 ? 2 : 1; columnSpacing: 12; rowSpacing: 12
                 Repeater {
-                    model: root.inventoryData.items || []
+                    model: root.filteredItems()
                     delegate: Rectangle {
                         id: itemCard; required property var modelData
                         Layout.preferredWidth: (root.width - (itemGrid.columns - 1) * itemGrid.columnSpacing) / itemGrid.columns
@@ -233,6 +313,14 @@ Item {
                         }
                     }
                 }
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: root.filteredItems().length === 0
+                text: "NO STORED ITEMS MATCH THE SELECTED TYPES"
+                color: Constants.warningColor
+                font.family: Constants.technicalFont
+                font.bold: true
             }
         }
     }
