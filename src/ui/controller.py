@@ -3315,6 +3315,11 @@ class MissionControlController(QObject):
         self._manual_craft_queue = []
         self._manual_craft_worker = None
         self._manual_craft_accepted_orders = []
+        # A refresh that started before a successful DELETE can finish after it
+        # and carry the old server listing (or a five-minute cached listing).
+        # Keep accepted deletions as controller-owned claims so that stale
+        # dashboard payloads cannot resurrect pages during this session.
+        self._accepted_logbook_deletions = set()
         self._operation_notice = ""
         self._event_loop_diagnostics = {
             "stallCount": 0, "lastStallMs": 0, "maximumStallMs": 0,
@@ -5821,6 +5826,7 @@ class MissionControlController(QObject):
         logbook = dict(self._dashboard.get("logbook", {}))
         pages = list(logbook.get("pages", ()))
         if action == "delete":
+            self._accepted_logbook_deletions.add(int(page_id))
             pages = [item for item in pages if int(item.get("id", -1)) != int(page_id)]
         elif action == "update":
             pages = [
@@ -5849,6 +5855,22 @@ class MissionControlController(QObject):
         elif action == "update":
             self._set_operation_notice("LOGBOOK CHANGES SAVED")
         self.dashboardChanged.emit()
+
+    def _suppress_accepted_logbook_deletions(self, dashboard):
+        """Prevent an older refresh payload from undoing an accepted delete."""
+
+        if not self._accepted_logbook_deletions or "logbook" not in dashboard:
+            return
+        logbook = dict(dashboard.get("logbook", {}))
+        pages = [
+            item for item in logbook.get("pages", ())
+            if int(item.get("id", -1)) not in self._accepted_logbook_deletions
+        ]
+        logbook["pages"] = pages
+        logbook["newDailyReportCount"] = sum(
+            1 for item in pages if item.get("isNewDailyReport")
+        )
+        dashboard["logbook"] = logbook
 
     @Slot(bool)
     def setAutoLogbookEnabled(self, enabled):
@@ -5931,6 +5953,7 @@ class MissionControlController(QObject):
     @Slot(object)
     def _accept_priority_dashboard(self, payload):
         """Expose selected-tab telemetry while the complete refresh continues."""
+        self._suppress_accepted_logbook_deletions(payload)
         focus = dict(payload.get("focus", {}))
         probe_id = int(focus.get("probeId", -1))
         requested = self._refresh_target_id
@@ -5959,6 +5982,7 @@ class MissionControlController(QObject):
 
     @Slot(object)
     def _accept_dashboard(self, payload):
+        self._suppress_accepted_logbook_deletions(payload)
         if self.service is None and self._worker is not None:
             self.service = self._worker.service
         if self._retry_timer.isActive():

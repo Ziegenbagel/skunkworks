@@ -835,6 +835,17 @@ requests merely to populate analysis or archive views.
 
 Relevant test: `tests/test_ui_assets.py::test_logbook_workspace_uses_editable_game_pages_and_reports_are_local`.
 
+### Accepted logbook deletions survive stale refreshes
+
+Game Logbook pages come from the live API, while dashboard construction may
+reuse a five-minute list cache and may finish concurrently with a user mutation.
+After the game accepts a page deletion, an older cached or in-flight dashboard
+must not make that page visible again. The controller retains the accepted
+deletion across subsequent payloads for the running session; local report and
+event archives remain separate and are not a source for the game Logbook list.
+
+Relevant test: `tests/test_ui_preparation.py::UiPreparationTests::test_accepted_logbook_delete_survives_stale_refresh_payload`.
+
 ### Reports remain readable and use operator-local time
 
 The Daily Reports selector and selected-report body share one explicit

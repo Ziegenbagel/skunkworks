@@ -401,6 +401,39 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(service.requests, [(7, False), (9, True)])
 
+    def test_accepted_logbook_delete_survives_stale_refresh_payload(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            controller = MissionControlController(
+                settings_engine=DataEngine(Path(temporary) / "settings.sqlite3")
+            )
+            controller._dashboard = {
+                "logbook": {
+                    "pages": [
+                        {"id": 41, "title": "Keep"},
+                        {"id": 42, "title": "Delete", "isNewDailyReport": True},
+                    ],
+                    "newDailyReportCount": 1,
+                },
+            }
+
+            controller._accept_logbook_mutation({}, "delete", 42, None)
+            stale_dashboard = {
+                "logbook": {
+                    "pages": [
+                        {"id": 41, "title": "Keep"},
+                        {"id": 42, "title": "Delete", "isNewDailyReport": True},
+                    ],
+                    "newDailyReportCount": 1,
+                },
+            }
+            controller._suppress_accepted_logbook_deletions(stale_dashboard)
+
+            self.assertEqual(
+                [page["id"] for page in stale_dashboard["logbook"]["pages"]],
+                [41],
+            )
+            self.assertEqual(stale_dashboard["logbook"]["newDailyReportCount"], 0)
+
     def test_selected_tab_priority_payload_is_shown_before_full_refresh(self):
         controller = MissionControlController()
         controller._refresh_target_id = 9
