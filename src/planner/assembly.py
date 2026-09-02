@@ -91,8 +91,8 @@ def active_probe_assembly_count(operations, model):
     return count
 
 
-def tanker_component_statuses(operations):
-    """Return every tanker component's stored, active, and outstanding state."""
+def probe_component_statuses(operations, model):
+    """Return stored, active, and outstanding state for a registered probe kit."""
 
     inventory = operations.world.probe.get("inventory", {})
     counts = Counter()
@@ -104,7 +104,7 @@ def tanker_component_statuses(operations):
             quantity = 1
         counts[item.get("type")] += quantity
     statuses = []
-    for component, required in TANKER_COMPONENTS:
+    for component, required in PROBE_ASSEMBLY_REQUIREMENTS.get(model, ()):
         completed = counts.get(component, 0)
         active = operations.manufacturing.active_production_count(component)
         credited_active = min(active, max(0, required - completed))
@@ -121,6 +121,12 @@ def tanker_component_statuses(operations):
             "missing": max(0, required - completed - credited_active),
         })
     return tuple(statuses)
+
+
+def tanker_component_statuses(operations):
+    """Return every tanker component's state for compatibility callers."""
+
+    return probe_component_statuses(operations, "deuterium_tanker")
 
 
 def tanker_shortage(operations):

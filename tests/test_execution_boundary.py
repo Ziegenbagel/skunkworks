@@ -1278,9 +1278,11 @@ class ExecutionBoundaryTests(unittest.TestCase):
             DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
         ).tasks()
 
-        self.assertEqual(tasks[0].action, "Await Active Production")
-        self.assertIn("no duplicate order", tasks[0].reason)
-        self.assertIn("1 active craft allocated", tasks[0].reason)
+        active_component = next(
+            task for task in tasks if task.action == "Await Active Production"
+        )
+        self.assertIn("no duplicate order", active_component.reason)
+        self.assertIn("1 active craft allocated", active_component.reason)
         self.assertEqual(CommandPreparer(self.operations, 1, self.policy).prepare(tasks), ())
 
     def test_tanker_builds_final_steel_plate_allotment_after_consuming_components(self):
@@ -1327,15 +1329,55 @@ class ExecutionBoundaryTests(unittest.TestCase):
         tanker_tasks = [task for task in tasks if task.category == "fleet_assembly"]
         targets = {task.target for task in tanker_tasks}
 
+        summary = next(
+            task for task in tanker_tasks if task.target == "deuterium_tanker"
+        )
+        self.assertEqual(summary.action, "Prepare Probe Assembly")
+        self.assertEqual(summary.constraints, ("assembly_components_incomplete",))
+        self.assertIn("Next assembly kit", summary.reason)
+        self.assertIn("deuterium engine: 1 stored / 1 required, covered", summary.reason)
+        self.assertIn("scut relay: 0 stored, 1 active / 1 required, covered", summary.reason)
         self.assertIn("scut_relay", targets)
         self.assertIn("electric_motor", targets)
         self.assertIn("integrated_circuit", targets)
         self.assertEqual(
             targets,
-            {component for component, _ in TANKER_COMPONENTS} - {"deuterium_engine"},
+            ({component for component, _ in TANKER_COMPONENTS} - {"deuterium_engine"})
+            | {"deuterium_tanker"},
         )
         self.assertTrue(all(task.priority == 1 for task in tanker_tasks))
-        self.assertIn("component 2/8", tanker_tasks[0].reason.lower())
+        self.assertTrue(any(
+            "component 2/8" in task.reason.lower() for task in tanker_tasks
+        ))
+
+    def test_generic_probe_target_shows_registered_component_progress(self):
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["items"] = [
+            {"id": "engine-1", "type": "deuterium_engine"},
+            {"id": "motor-1", "type": "electric_motor", "quantity": 2},
+        ]
+        self.operations.world.mannies["mannies"][0].update({
+            "currentTask": "crafting",
+            "task": {"recipe": "scut_relay", "recipeName": "SCUT relay"},
+        })
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("generic", 2, priority=4),)),
+        ).tasks()
+        summary = next(
+            task for task in tasks
+            if task.category == "fleet_assembly" and task.target == "generic"
+        )
+
+        self.assertEqual(summary.priority, 4)
+        self.assertEqual(summary.constraints, ("assembly_components_incomplete",))
+        self.assertIn("Next assembly kit", summary.reason)
+        self.assertIn("deuterium engine: 1 stored / 1 required, covered", summary.reason)
+        self.assertIn("scut relay: 0 stored, 1 active / 1 required, covered", summary.reason)
+        self.assertIn("electric motor: 2 stored / 5 required, 3 still required", summary.reason)
+        self.assertIn(("deuterium_engine", 1), summary.reserved_items)
+        self.assertIn(("electric_motor", 2), summary.reserved_items)
 
     def test_tanker_resource_mining_inherits_tanker_priority(self):
         from src.planner.assembly import TANKER_COMPONENTS

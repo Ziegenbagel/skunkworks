@@ -176,6 +176,19 @@ collection still required by role, reserve-source, transport, or presentation
 logic later in dashboard construction. A complete service-level dashboard load,
 not only isolated planner tests, guards this shared input.
 
+### Parent assembly goals remain visible during component work
+
+Every probe model registered in `PROBE_ASSEMBLY_REQUIREMENTS` uses the same
+component-progress calculation. While a target is waiting on its component kit,
+the complete planner status must retain a non-dispatching parent row and show
+every component's stored, active, required, and uncovered state. Actionable
+component rows remain separate where supported. A fleet goal that currently
+owns reservations must never disappear from the operator-facing planner list.
+
+Relevant test:
+`tests/test_execution_boundary.py::ExecutionBoundaryTests::test_active_tanker_component_does_not_hide_remaining_build_plan`.
+`tests/test_execution_boundary.py::ExecutionBoundaryTests::test_generic_probe_target_shows_registered_component_progress`.
+
 ## Manny Dispatch Invariants
 
 ### One cycle can use multiple distinct Mannys
