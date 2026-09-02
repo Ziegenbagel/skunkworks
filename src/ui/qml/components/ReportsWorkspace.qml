@@ -41,6 +41,7 @@ Item {
                     CheckBox { text: "GENERATE DAILY REPORTS"; checked: root.autoReportsEnabled; onToggled: root.autoReportsChanged(checked) }
                 }
                 Label { Layout.fillWidth: true; text: "Generated locally after 17:00 using retained telemetry and accepted game commands. Reports no longer consume game Logbook pages."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                Label { Layout.fillWidth: true; visible: (root.reportsData.daily || []).length === 0; text: root.autoReportsEnabled ? "NO LOCAL DAILY REPORT IS STORED YET · THE NEXT ELIGIBLE DEFAULT-PROBE REFRESH WILL GENERATE THE LATEST REPORT DUE AFTER 17:00." : "DAILY REPORT GENERATION IS OFF · ENABLE IT ABOVE TO STORE FUTURE REPORTS LOCALLY."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 ListView {
                     id: dailyList; Layout.preferredWidth: Math.max(360, root.width * 0.32); Layout.fillHeight: true; clip: true; spacing: 8
                     model: root.reportsData.daily || []
@@ -59,6 +60,7 @@ Item {
                 anchors.fill: parent; spacing: 12
                 Label { text: "INDUSTRIAL ANALYSIS · RETAINED HISTORY"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
                 Label { Layout.fillWidth: true; text: "MEASURED values count retained Skunkworks command records. Throughput, depletion, bottleneck and return-on-investment estimates will appear only when sufficient observations exist."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
+                Label { Layout.fillWidth: true; visible: ((root.reportsData.industrial || {}).measuredTotals || []).length === 0; text: "NO RETAINED COMMAND RESULTS ARE AVAILABLE YET · ANALYSIS POPULATES FROM SKUNKWORKS ACTION-JOURNAL RECORDS, NOT FROM EXTRA GAME API REQUESTS."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 GroupBox {
                     title: "MEASURED COMMAND TOTALS"; Layout.fillWidth: true
                     Flow { width: parent.width; spacing: 10; Repeater { model: (root.reportsData.industrial || {}).measuredTotals || []; delegate: Label { required property var modelData; text: modelData.category.toUpperCase() + " · " + modelData.status + " · " + modelData.count; color: Constants.textColor; font.family: Constants.technicalFont; padding: 10; background: Rectangle { color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4 } } } }
@@ -73,7 +75,9 @@ Item {
             ColumnLayout {
                 anchors.fill: parent; spacing: 10
                 Label { text: "OPERATIONAL ARCHIVE"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
+                Label { Layout.fillWidth: true; text: "Search one local timeline of recorded commands, long-running operations, and generated reports. This is historical evidence for review and troubleshooting; it never sends commands or replaces live game validation."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
                 RowLayout { Layout.fillWidth: true; TextField { id: archiveSearch; Layout.fillWidth: true; placeholderText: "Search commands, operations, probes, status, or reports" } ComboBox { id: archiveDomain; model: ["ALL DOMAINS", "MINING", "PRODUCTION", "TRAVEL", "MAINTENANCE", "OPERATIONS", "REPORTS"] } }
+                Label { Layout.fillWidth: true; visible: root.matchingArchive().length === 0; text: (root.reportsData.archive || []).length === 0 ? "NO LOCAL OPERATIONAL HISTORY IS AVAILABLE YET." : "NO ARCHIVE RECORDS MATCH THE CURRENT SEARCH AND DOMAIN FILTER."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 ListView {
                     id: archiveList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.matchingArchive()
                     delegate: Rectangle { id: archiveCard; required property var modelData; width: archiveList.width; height: 82; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4; Column { anchors.fill: parent; anchors.margins: 11; spacing: 4; Label { width: parent.width; text: archiveCard.modelData.kind + " · " + archiveCard.modelData.domain.toUpperCase() + " · " + archiveCard.modelData.status; color: Constants.cyanColor; font.family: Constants.technicalFont; elide: Text.ElideRight } Label { width: parent.width; text: archiveCard.modelData.title + " · " + archiveCard.modelData.probeName; color: Constants.textColor; font.bold: true; elide: Text.ElideRight } Label { width: parent.width; text: String(archiveCard.modelData.timestamp || "") + " · " + String(archiveCard.modelData.detail || "").replace(/\n/g, " "); color: Constants.mutedTextColor; elide: Text.ElideRight } } }

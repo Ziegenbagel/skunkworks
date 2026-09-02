@@ -583,13 +583,24 @@ Release gate: 1.1 reduces background resource use and remains responsive at
 scale without delaying urgent work, losing accumulated data, hiding enabled map
 information, duplicating notifications, or weakening execution safeguards.
 
-The following remain outside 1.1: system-tray execution, continuing automation
-after the main process exits, saved workspace layouts, and trusted-device
-synchronization. They remain Version 1.2 work.
+The following remain outside 1.1: strategic automation expansion, system-tray
+execution, continuing automation after the main process exits, saved workspace
+layouts, and trusted-device synchronization.
 
 ## Future Backlog
 
-### Version 1.2 — Desktop Continuity
+### Version 1.2 — Strategic Automation
+
+- Automated SCUT network design.
+- Hub-placement optimization.
+- Fuel-station and infrastructure network planning.
+- Advanced explorer campaigns and frontier coverage optimization.
+- Civilization-contact and quest reward analysis.
+- Expand automation only through explainable desired-state goals, live
+  preflight, bounded request budgets, and explicit opt-ins for consequential
+  behavior.
+
+### Version 1.3 — Desktop Continuity
 
 - System tray mode.
 - Continue automation while the main window is hidden.
@@ -605,7 +616,7 @@ synchronization. They remain Version 1.2 work.
   execution requires separate capability and must never be implied by the
   summary.
 
-### Version 1.3 — Localization and Accessibility
+### Version 1.4 — Localization and Accessibility
 
 - Introduce Qt translation catalogs with English as the canonical source
   language and French as the first complete additional language.
@@ -621,13 +632,6 @@ synchronization. They remain Version 1.2 work.
 - Document the contributor workflow for extracting, reviewing, updating, and
   testing translation catalogs as the interface evolves.
 
-### Version 1.x — Strategic Intelligence
-
-- Automated SCUT network design.
-- Hub-placement optimization.
-- Fuel-station and infrastructure network planning.
-- Advanced explorer campaigns and frontier coverage optimization.
-- Civilization-contact and quest reward analysis.
 - Economic what-if simulation.
 - Adaptive production priorities.
 - Predictive maintenance and probe replacement planning.

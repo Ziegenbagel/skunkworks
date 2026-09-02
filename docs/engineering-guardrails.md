@@ -786,6 +786,40 @@ Relevant code/tests:
 - Business errors remain visible and specific; do not collapse them into generic
   cancellation messages.
 
+### Automation target columns share one full-width grid contract
+
+Production/assembly targets and resource/safety floors use the same direct,
+full-width three-column grid. Explanatory copy inside either panel spans all
+three columns; it must not wrap the target rows in a nested layout whose
+implicit width can pull quantity and priority controls out of alignment.
+
+Relevant test: `tests/test_ui_assets.py::test_automation_target_panels_share_quantity_and_priority_columns`.
+
+### Report data belongs to the Communications projection
+
+Daily Reports, Industrial Analysis, and Operational Archive are three views of
+the same local retained-history model. The responsiveness projection and its
+Communications revision hash must both include `reports`; otherwise the worker
+may generate and persist valid data that the visible workspace can never
+receive. Reports are derived from SQLite history and must not add game API
+requests merely to populate analysis or archive views.
+
+Relevant test: `tests/test_ui_assets.py::test_logbook_workspace_uses_editable_game_pages_and_reports_are_local`.
+
+### Live account headers reserve capacity before a 429
+
+Rate-limit capacity is account-wide, so every `GameClient` instance for the
+same API base URL and credential shares the latest reported header budget.
+Focused-probe work remains eligible, while archival refreshes and additional
+background probes defer when their estimated cost would cross the protected
+reserve. Missing headers must not block initial telemetry, and local report
+generation remains eligible because it performs no game API requests.
+
+Relevant tests:
+
+- `tests/test_api_contract.py::GameClientContractTests::test_account_rate_budget_is_shared_and_protects_background_capacity`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_fleet_worker_defers_background_probes_below_account_reserve`
+
 ## Regression Workflow
 
 Before modifying a shared path:

@@ -943,6 +943,8 @@ def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
     assert "FOCUSED PROBE DETAILS" in settings
     assert "MANNY TASK DETAILS" in settings
     assert "FLEET LIST CACHE USED" in settings
+    assert "GAME API BUDGET" in settings
+    assert "BACKGROUND WORK DEFERRED TO PROTECT FOREGROUND CAPACITY" in settings
 
 
 def test_full_page_lists_avoid_nested_scroll_regions():
@@ -987,6 +989,9 @@ def test_automation_target_panels_share_quantity_and_priority_columns():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 
     assert settings.count("columns: 3; uniformCellWidths: true") == 2
+    production = settings.split('title: "PRODUCTION AND PROBE ASSEMBLY TARGETS"', 1)[1].split('title: "OWNED PROBE ROLES"', 1)[0]
+    assert "anchors.fill: parent; columns: 3; uniformCellWidths: true" in production
+    assert "Layout.columnSpan: 3; Layout.fillWidth: true" in production
     assert "targetNameColumnWidth" not in settings
     assert "targetQuantityColumnWidth" not in settings
     assert "PROBES ARE CUMULATIVE ASSEMBLY TOTALS FOR THIS BUILDER" in settings
@@ -1015,8 +1020,12 @@ def test_logbook_workspace_uses_editable_game_pages_and_reports_are_local():
     assert "INDUSTRIAL ANALYSIS" in reports
     assert "OPERATIONAL ARCHIVE" in reports
     assert "Reports no longer consume game Logbook pages" in reports
-    assert "loadLogbookPage" in app
+    assert "ANALYSIS POPULATES FROM SKUNKWORKS ACTION-JOURNAL RECORDS" in reports
+    assert "Search one local timeline of recorded commands" in reports
     controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
+    assert '"COMMUNICATIONS": {"communications", "logbook", "reports"}' in controller
+    assert '"communications": ("communications", "logbook", "reports")' in controller
+    assert "loadLogbookPage" in app
     mutation = controller.split("def _logbook_mutation", 1)[1].split("@Slot(bool)", 1)[0]
     assert "_start_refresh" not in mutation
 

@@ -713,6 +713,46 @@ class UiPreparationTests(unittest.TestCase):
         ])
         self.assertEqual([item["probeId"] for item in completed], [7, 9, 11])
 
+    def test_fleet_worker_defers_background_probes_below_account_reserve(self):
+        class Client:
+            @staticmethod
+            def background_budget_available():
+                return False
+
+        class Service:
+            client = Client()
+
+            def __init__(self):
+                self.loads = []
+
+            def load(self, probe_id, **_kwargs):
+                self.loads.append(probe_id)
+
+            @staticmethod
+            def run_automation_cycle(_fingerprint, _risk):
+                return {"status": "idle"}
+
+        service = Service()
+        automatic_policy = type(
+            "Policy", (), {"mode": "automatic", "live_execution_enabled": True},
+        )()
+        worker = _FleetAutomationWorker((7, 9, 11), service_factory=lambda: service)
+        completed = []
+        worker.signals.probe_completed.connect(completed.append)
+
+        with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=automatic_policy):
+            worker.run()
+
+        self.assertEqual(service.loads, [7])
+        self.assertEqual(
+            [item["result"]["status"] for item in completed],
+            ["idle", "deferred", "deferred"],
+        )
+        self.assertTrue(all(
+            item["result"].get("reason") == "account_api_budget_reserved"
+            for item in completed[1:]
+        ))
+
     def test_large_fleet_cycles_are_bounded_and_rotate_background_probes(self):
         started = []
 
@@ -1128,6 +1168,26 @@ class UiPreparationTests(unittest.TestCase):
         self.assertNotIn("galaxy", controller.presentationDashboard)
         self.assertNotIn("communications", controller.presentationDashboard)
         self.assertNotIn("production", controller.presentationDashboard)
+
+    def test_communications_projection_includes_local_reports(self):
+        controller = MissionControlController()
+        reports = {
+            "daily": ({"id": "daily:7:2026-09-01"},),
+            "industrial": {"measuredTotals": ({"category": "Mining", "count": 3},)},
+            "archive": ({"kind": "COMMAND", "title": "Mine"},),
+        }
+        controller._dashboard = {
+            "focus": {"probeId": 7},
+            "alerts": [],
+            "sectionRevisions": {"communications": "reports-present"},
+            "communications": {},
+            "logbook": {},
+            "reports": reports,
+        }
+
+        controller.setActiveSection("COMMUNICATIONS")
+
+        self.assertIs(controller.presentationDashboard["reports"], reports)
 
     def test_changing_visible_section_reprojects_without_changing_snapshot(self):
         controller = MissionControlController()

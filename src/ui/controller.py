@@ -580,19 +580,27 @@ class MissionControlDataService:
             } for response in world.hazard_context.get("scutNetworks", ())
               if (network := response.get("network") or {}).get("id") is not None),
         }
-        if include_archival and bool(selected.get("isDefault")):
-            daily_result = {"created": [], "failures": []}
-            if self.data_engine.get_preference("auto_daily_reports", self.data_engine.get_preference("auto_game_logbook", "false")) == "true":
-                daily_result = DailyProbeReportService(self.data_engine).generate_local_due(
-                    probe_data.get("probes", ()), automation["probeRoles"],
+        daily_result = {"created": [], "failures": []}
+        if (
+            bool(selected.get("isDefault"))
+            and self.data_engine.get_preference(
+                "auto_daily_reports",
+                self.data_engine.get_preference("auto_game_logbook", "false"),
+            ) == "true"
+        ):
+            # Local report generation uses retained SQLite evidence only. It
+            # remains eligible when API-budget pressure defers archival reads.
+            daily_result = DailyProbeReportService(self.data_engine).generate_local_due(
+                probe_data.get("probes", ()), automation["probeRoles"],
+            )
+            if daily_result["created"]:
+                dashboard["reports"] = MissionControlViewModelBuilder(
+                    self._operations, self.data_engine,
+                )._reports(
+                    self.data_engine.archive_reports(),
+                    dashboard.get("actions", ()), dashboard.get("operations", ()),
                 )
-                if daily_result["created"]:
-                    dashboard["reports"] = MissionControlViewModelBuilder(
-                        self._operations, self.data_engine,
-                    )._reports(
-                        self.data_engine.archive_reports(),
-                        dashboard.get("actions", ()), dashboard.get("operations", ()),
-                    )
+        if include_archival and bool(selected.get("isDefault")):
             cached_logbook = self._logbook_cache.get(selected_id)
             if cached_logbook is None or now - cached_logbook[0] >= 300:
                 cached_logbook = (
@@ -601,13 +609,13 @@ class MissionControlDataService:
                 )
                 self._logbook_cache[selected_id] = cached_logbook
             dashboard["logbook"] = cached_logbook[1]
-            dashboard["logbook"]["dailyReportFailures"] = daily_result["failures"]
         else:
             cached_logbook = self._logbook_cache.get(selected_id)
             if cached_logbook is None or now - cached_logbook[0] >= 300:
                 cached_logbook = (now, self.logbook_view(selected_id, (selected,)))
                 self._logbook_cache[selected_id] = cached_logbook
             dashboard["logbook"] = cached_logbook[1]
+        dashboard["logbook"]["dailyReportFailures"] = daily_result["failures"]
         timings["displayData"] = round(
             time.monotonic() - display_data_started, 3,
         )
@@ -622,6 +630,10 @@ class MissionControlDataService:
                 else "not_requested"
             ),
             "archivalSyncSeconds": max(60, int(archival_sync_seconds)),
+            "apiRequestBudget": dict(getattr(self.client, "rate_limit", {}) or {}),
+            "backgroundApiWorkAllowed": bool(
+                getattr(self.client, "background_budget_available", lambda: True)()
+            ),
         }
         # Stable worker-computed revisions let QML keep large section models
         # when an unrelated part of the dashboard changes.  Hashing belongs
@@ -641,7 +653,7 @@ class MissionControlDataService:
             "resources": ("resourceLedger",),
             "fleet": ("probe", "inventoryManagement", "automation"),
             "safety": ("alerts", "terminalRecovery"),
-            "communications": ("communications", "logbook"),
+            "communications": ("communications", "logbook", "reports"),
         }
         dashboard["sectionRevisions"] = {
             name: hashlib.sha1(json.dumps(
@@ -3046,12 +3058,27 @@ class _FleetAutomationWorker(QRunnable):
             # initialized recipes and the 30-second fleet index cache instead
             # of repeating account-wide API work once per probe.
             service = self.service_factory()
-            for probe_id in self.probe_ids:
+            for index, probe_id in enumerate(self.probe_ids):
                 policy = ExecutionPolicyStore().load(probe_id)
                 if not (
                     policy.mode == ExecutionMode.AUTOMATIC
                     and policy.live_execution_enabled
                 ):
+                    continue
+                budget_check = getattr(
+                    getattr(service, "client", None),
+                    "background_budget_available", None,
+                )
+                if index > 0 and budget_check is not None and not budget_check():
+                    probe_result = {
+                        "probeId": probe_id,
+                        "result": {
+                            "status": "deferred",
+                            "reason": "account_api_budget_reserved",
+                        },
+                    }
+                    results.append(probe_result)
+                    _safe_emit(self.signals.probe_completed, probe_result)
                     continue
                 try:
                     service.load(
@@ -3431,7 +3458,7 @@ class MissionControlController(QObject):
             "MISSIONS": {"missions"},
             "PRODUCTION": {"production"},
             "SAFETY": {"terminalRecovery"},
-            "COMMUNICATIONS": {"communications", "logbook"},
+            "COMMUNICATIONS": {"communications", "logbook", "reports"},
             "MANUAL CONTROL": {
                 "automation", "automationRuntime", "blueprintSharing",
                 "combatSafety", "crafting", "inventoryManagement", "probe",
@@ -5846,6 +5873,12 @@ class MissionControlController(QObject):
     ):
         if self._refreshing:
             return
+        budget_check = getattr(
+            getattr(self.service, "client", None),
+            "background_budget_available", None,
+        )
+        if include_archival and budget_check is not None and not budget_check():
+            include_archival = False
         self._event_loop_refresh_baseline = int(
             self._event_loop_diagnostics.get("stallCount", 0)
         )

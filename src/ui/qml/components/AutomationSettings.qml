@@ -676,11 +676,9 @@ Item {
 
             GroupBox {
                 title: "PRODUCTION AND PROBE ASSEMBLY TARGETS"; Layout.fillWidth: true
-                ColumnLayout {
-                    anchors.fill: parent; spacing: 10
-                    Label { Layout.fillWidth: true; text: "PROBES ARE CUMULATIVE ASSEMBLY TOTALS FOR THIS BUILDER. ALL OTHER ITEMS ARE MAINTAINED STOCK TARGETS AND ARE REPLENISHED AFTER USE OR TRANSFER."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                    GridLayout {
-                    Layout.fillWidth: true; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
+                GridLayout {
+                    anchors.fill: parent; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
+                    Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "PROBES ARE CUMULATIVE ASSEMBLY TOTALS FOR THIS BUILDER. ALL OTHER ITEMS ARE MAINTAINED STOCK TARGETS AND ARE REPLENISHED AFTER USE OR TRANSFER."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                     Label { text: "AUTOMATION TARGET"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "DESIRED QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
@@ -708,7 +706,6 @@ Item {
                     Label { text: "MISSILES"; color: Constants.criticalColor; font.family: Constants.technicalFont; ToolTip.visible: missileHover.hovered; ToolTip.text: "Maintain completed missiles in inventory. Launching remains a separately confirmed manual combat action."; HoverHandler { id: missileHover } }
                     SpinBox { id: missileTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("missile") }
                     SpinBox { id: missilePriority; from: 1; to: 10; editable: true; value: root.productionPriority("missile") }
-                    }
                 }
             }
 
@@ -891,6 +888,20 @@ Item {
                               ? "FLEET LIST CACHE USED · SKIPPED A DUPLICATE GAME API REQUEST"
                               : "FLEET LIST DOWNLOADED FROM THE GAME API"
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: String(((root.refreshDiagnostics || {}).apiRequestBudget || {}).remaining || "").length > 0
+                        text: "GAME API BUDGET · "
+                              + String(((root.refreshDiagnostics || {}).apiRequestBudget || {}).remaining || "?")
+                              + " OF " + String(((root.refreshDiagnostics || {}).apiRequestBudget || {}).limit || "?")
+                              + " REQUESTS REMAINING · "
+                              + (Boolean((root.refreshDiagnostics || {}).backgroundApiWorkAllowed)
+                                 ? "BACKGROUND WORK AVAILABLE"
+                                 : "BACKGROUND WORK DEFERRED TO PROTECT FOREGROUND CAPACITY")
+                        color: Boolean((root.refreshDiagnostics || {}).backgroundApiWorkAllowed)
+                               ? Constants.mutedTextColor : Constants.warningColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                     Label {
                         Layout.fillWidth: true

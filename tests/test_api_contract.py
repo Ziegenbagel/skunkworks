@@ -99,6 +99,32 @@ class GameClientContractTests(unittest.TestCase):
             12,
         )
 
+    def test_account_rate_budget_is_shared_and_protects_background_capacity(self):
+        GameClient._shared_rate_limits.clear()
+        first = self.client([
+            FakeResponse(
+                {"id": 1},
+                headers={
+                    "X-RateLimit-Limit": "60",
+                    "X-RateLimit-Remaining": "18",
+                    "X-RateLimit-Reset": "4102444800",
+                },
+            ),
+        ])
+
+        first.get_player()
+        second = self.client([])
+
+        self.assertFalse(second.background_budget_available())
+        self.assertTrue(second.background_budget_available(estimated_cost=5, reserve=12))
+        GameClient._shared_rate_limits.clear()
+
+    def test_unknown_rate_budget_does_not_block_initial_background_telemetry(self):
+        GameClient._shared_rate_limits.clear()
+        client = self.client([])
+
+        self.assertTrue(client.background_budget_available())
+
     def test_retries_transient_disconnects_for_read_requests(self):
         delays = []
         with patch.dict(os.environ, {"VON_NEUMANN_API_KEY": "test-key"}):

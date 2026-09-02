@@ -71,6 +71,11 @@ Responsibilities:
 
 GameClient does **not** save files or interpret data.
 
+The latest account rate-limit headers are shared across client instances for
+the same API base URL and credential. Foreground reads and mutation preflight
+retain access to the protected reserve; stale-tolerant archival and background
+fleet work defer before consuming that capacity.
+
 ## API Contract Boundary
 
 Skunkworks supports deployed API v103 through reviewed upstream API v130. The
