@@ -29,7 +29,9 @@ remains the record for internal implementation work.
   other production quantities continue to replenish consumed or transferred stock.
 
 - Added Normal, Low Power, and scheduled operating profiles, including daily or
-  one-time start and end times.
+  one-time start and end times. In a controlled 30-minute comparison, Low Power
+  reduced average CPU usage by approximately 30% while retaining scheduled
+  automation.
 - Added opt-in desktop notifications with platform availability and test status
   shown in Settings.
 - Fixed live desktop alerts, approvals, failures, and operation notifications
