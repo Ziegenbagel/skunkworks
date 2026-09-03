@@ -1761,6 +1761,17 @@ class MissionControlViewModelBuilder:
             str(item.get("id")): item.get("name") or f"Probe {item.get('id')}"
             for item in (getattr(self.operations.world, "fleet", {}) or {}).get("probes", ())
         }
+        focused_probe = getattr(self.operations.world, "probe", {}) or {}
+        if focused_probe.get("id") is not None:
+            probe_names.setdefault(
+                str(focused_probe["id"]),
+                focused_probe.get("name") or f"Probe {focused_probe['id']}",
+            )
+        manny_names = {
+            str(item.get("id")): item.get("name") or "Manny"
+            for item in (getattr(self.operations.world, "mannies", {}) or {}).get("mannies", ())
+            if item.get("id") is not None
+        }
         categories = Counter()
         by_probe = defaultdict(Counter)
         archive = []
@@ -1780,7 +1791,9 @@ class MissionControlViewModelBuilder:
                 "kind": "COMMAND", "domain": category, "status": status.upper(),
                 "probeId": probe_id, "probeName": probe_names.get(probe_id, f"Probe {probe_id}"),
                 "title": self._command_archive_title(row, command_type),
-                "detail": self._command_archive_detail(row),
+                "detail": self._command_archive_detail(
+                    row, probe_names=probe_names, manny_names=manny_names,
+                ),
                 "timestamp": row.get("observed_at", ""),
             })
         for row in reversed(operations):
@@ -1842,7 +1855,11 @@ class MissionControlViewModelBuilder:
         return command_type.replace("_", " ").title()
 
     @classmethod
-    def _command_archive_detail(cls, row):
+    def _command_archive_detail(
+        cls, row, *, probe_names=None, manny_names=None,
+    ):
+        probe_names = probe_names or {}
+        manny_names = manny_names or {}
         command = cls._command_payload(row)
         payload = command.get("payload") or {}
         metadata = command.get("metadata") or {}
@@ -1875,15 +1892,36 @@ class MissionControlViewModelBuilder:
         if isinstance(target, dict) and all(target.get(axis) is not None for axis in ("x", "y", "z")):
             parts.append(f"Destination: {target['x']}:{target['y']}:{target['z']}")
         if payload.get("targetProbeId") is not None:
-            parts.append(f"Target probe: {payload['targetProbeId']}")
+            target_probe_id = str(payload["targetProbeId"])
+            parts.append(
+                "Target probe: " + probe_names.get(
+                    target_probe_id, "name unavailable for this historical order",
+                )
+            )
         if payload.get("amount") is not None:
             parts.append(f"Amount: {payload['amount']} ECE")
         if payload.get("integrityPercent") is not None:
             parts.append(f"Repair target: {payload['integrityPercent']}% integrity")
-        if target_id is not None:
-            parts.append(f"Manny/target ID: {target_id}")
+        if target_id is not None and command_type.startswith("manny_"):
+            parts.append(
+                "Manny: " + str(
+                    metadata.get("mannyName")
+                    or manny_names.get(str(target_id))
+                    or "name unavailable for this historical order"
+                )
+            )
         if command.get("reason"):
-            parts.append(f"Reason: {command['reason']}")
+            reason = str(command["reason"])
+            for probe_id, probe_name in probe_names.items():
+                reason = re.sub(
+                    rf"\bprobe\s+{re.escape(probe_id)}\b",
+                    f"probe {probe_name}", reason, flags=re.IGNORECASE,
+                )
+            reason = re.sub(
+                r"\bprobe\s+\d+\b", "probe with name unavailable", reason,
+                flags=re.IGNORECASE,
+            )
+            parts.append(f"Reason: {reason}")
         try:
             blockers = json.loads(row.get("blockers_json") or "[]")
         except (TypeError, ValueError, json.JSONDecodeError):

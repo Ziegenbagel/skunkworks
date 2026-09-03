@@ -14,6 +14,13 @@ Item {
     signal deleteRequested(string reportId)
     signal favoriteChanged(string reportId, bool favorited)
 
+    function archiveSearchText(row) {
+        return [
+            row.kind, row.domain, row.status, row.title, row.probeName,
+            row.detail, root.localTimestamp(row.timestamp), row.timestamp
+        ].map(value => String(value || "")).join(" ").toLowerCase();
+    }
+
     function selectedDailyReport() {
         const selected = (reportsData.daily || []).find(
             row => String(row.id || "") === selectedDailyReportId
@@ -27,8 +34,7 @@ Item {
         return (reportsData.archive || []).filter(row => {
             if (domain !== "ALL DOMAINS" && String(row.domain || "").toUpperCase() !== domain) return false;
             if (!needle.length) return true;
-            return (String(row.title || "") + " " + String(row.detail || "") + " "
-                    + String(row.probeName || "") + " " + String(row.status || "")).toLowerCase().indexOf(needle) >= 0;
+            return root.archiveSearchText(row).indexOf(needle) >= 0;
         });
     }
 
@@ -46,6 +52,14 @@ Item {
         const days = Math.max(0, Math.ceil((deletion.getTime() - currentEpochMs) / 86400000));
         const timing = days === 0 ? "TODAY" : "IN " + days + (days === 1 ? " DAY" : " DAYS");
         return "AUTO DELETING " + timing + " AT 17:00 · " + deletion.toLocaleDateString(Qt.locale(), Locale.ShortFormat);
+    }
+
+    function retentionWarningVisible(report) {
+        if (Boolean(report.favorited)) return false;
+        const deletion = new Date(String(report.deletesAt || ""));
+        if (isNaN(deletion.getTime())) return false;
+        const remaining = deletion.getTime() - currentEpochMs;
+        return remaining >= 0 && remaining <= 5 * 86400000;
     }
 
     Timer {
@@ -100,20 +114,24 @@ Item {
                                 color: String(dailyCard.modelData.id || "") === root.selectedDailyReportId ? Constants.selectedColor : Constants.panelColor
                                 border.color: Boolean(dailyCard.modelData.favorited) ? Constants.warningColor : Constants.lineColor
                                 radius: 4
-                                Column {
+                                Item {
                                     anchors.left: parent.left; anchors.right: favoriteButton.left
                                     anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.margins: 12
-                                    spacing: 6
                                     Label {
-                                        width: parent.width
+                                        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                                        anchors.bottom: retentionWarning.visible ? retentionWarning.top : parent.bottom
                                         text: String(dailyCard.modelData.title || "Daily report")
                                         color: Constants.textColor; font.family: Constants.technicalFont
-                                        wrapMode: Text.Wrap; elide: Text.ElideRight
+                                        wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
+                                        verticalAlignment: Text.AlignVCenter
                                     }
                                     Label {
-                                        width: parent.width
+                                        id: retentionWarning
+                                        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                                        height: 18
+                                        visible: root.retentionWarningVisible(dailyCard.modelData)
                                         text: root.retentionLabel(dailyCard.modelData)
-                                        color: Boolean(dailyCard.modelData.favorited) ? Constants.warningColor : Constants.criticalColor
+                                        color: Constants.criticalColor
                                         font.family: Constants.technicalFont; font.pixelSize: 11
                                         elide: Text.ElideRight
                                     }
@@ -186,7 +204,7 @@ Item {
                 anchors.fill: parent; spacing: 10
                 Label { text: "OPERATIONAL ARCHIVE"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
                 Label { Layout.fillWidth: true; text: "Search one local timeline of recorded commands, long-running operations, and generated reports. This is historical evidence for review and troubleshooting; it never sends commands or replaces live game validation."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
-                RowLayout { Layout.fillWidth: true; TextField { id: archiveSearch; Layout.fillWidth: true; placeholderText: "Search commands, operations, probes, status, or reports" } ComboBox { id: archiveDomain; model: ["ALL DOMAINS", "MINING", "PRODUCTION", "TRAVEL", "MAINTENANCE", "OPERATIONS", "REPORTS"] } }
+                RowLayout { Layout.fillWidth: true; TextField { id: archiveSearch; Layout.fillWidth: true; placeholderText: "Search names, resources, quantities, sectors, reasons, status, dates, or reports" } ComboBox { id: archiveDomain; model: ["ALL DOMAINS", "MINING", "PRODUCTION", "TRAVEL", "MAINTENANCE", "OPERATIONS", "REPORTS"] } }
                 Label { Layout.fillWidth: true; visible: root.matchingArchive().length === 0; text: (root.reportsData.archive || []).length === 0 ? "NO LOCAL OPERATIONAL HISTORY IS AVAILABLE YET." : "NO ARCHIVE RECORDS MATCH THE CURRENT SEARCH AND DOMAIN FILTER."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 ListView {
                     id: archiveList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.matchingArchive()

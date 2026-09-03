@@ -353,6 +353,7 @@ class UiPreparationTests(unittest.TestCase):
                 "metadata": {
                     "orderAmount": 0.4, "estimatedTrips": 2,
                     "sector": {"x": 3, "y": -2, "z": 1},
+                    "mannyName": "Prospector",
                 },
                 "reason": "Restore the metals floor",
             }
@@ -372,6 +373,44 @@ class UiPreparationTests(unittest.TestCase):
             self.assertIn("Ordered: 0.4 ECE", action["detail"])
             self.assertIn("Source object: asteroid-4", action["detail"])
             self.assertIn("Sector: 3:-2:1", action["detail"])
+            self.assertIn("Manny: Prospector", action["detail"])
+            self.assertNotIn("manny-7", action["detail"])
+
+    def test_archive_resolves_target_probe_name_without_exposing_id(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            base = build_operations()
+            base.world.fleet = {"probes": (
+                {"id": 1, "name": "Reserve"},
+                {"id": 644, "name": "Explorer One"},
+            )}
+            operations = Operations(
+                base.world, base.manufacturing.recipes, data_engine=engine,
+            )
+            command = {
+                "type": "manny_transfer_deuterium", "probeId": 1,
+                "targetId": "mny_private", "payload": {
+                    "targetProbeId": 644, "amount": 13,
+                },
+                "metadata": {"mannyName": "Courier"},
+                "reason": "Top up designated probe 644.",
+            }
+            reports = MissionControlViewModelBuilder(operations, engine)._reports(
+                report_records=(),
+                action_records=({
+                    "command_type": "manny_transfer_deuterium",
+                    "status": "succeeded", "probe_id": 1,
+                    "observed_at": "2026-09-03T20:00:00+00:00",
+                    "command_json": json.dumps(command), "blockers_json": "[]",
+                },), operation_records=(),
+            )
+
+            detail = reports["archive"][0]["detail"]
+            self.assertIn("Target probe: Explorer One", detail)
+            self.assertIn("Manny: Courier", detail)
+            self.assertIn("probe Explorer One", detail)
+            self.assertNotIn("644", detail)
+            self.assertNotIn("mny_private", detail)
 
     def test_local_report_mutations_update_daily_and_archive_views(self):
         controller = MissionControlController.__new__(MissionControlController)

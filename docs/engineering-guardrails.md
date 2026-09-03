@@ -892,10 +892,20 @@ The generation marker doubles as a tombstone, so deleting the current day's
 report cannot make a later refresh recreate it. Favorite state is durable and
 protects a report from the automatic 30-day sweep. The sweep applies only to
 unfavorited daily reports; operational reports and other archive evidence are
-never included. Each unfavorited row displays its changing countdown and exact
-17:00 local deletion boundary. A local mutation updates the Communications
+never included. An unfavorited row displays its changing countdown and exact
+17:00 local deletion boundary only when five days or less remain; hiding earlier
+warnings keeps report titles readable. A local mutation updates the Communications
 presentation revision and both report projections together; the remaining list
 must not disappear while waiting for another refresh.
+
+Archive detail uses probe and Manny names rather than internal IDs. New commands
+retain the acting Manny name; existing journal rows resolve names from current
+fleet telemetry where possible and otherwise state that the historical name is
+unavailable without exposing the private identifier.
+Archive free-text search covers every displayed record field: kind, domain,
+status, title, probe and Manny names, detail text, and both local-formatted and
+stored timestamps. Details consequently make resources, quantities, sectors,
+targets, reasons, and blockers searchable without a separate index or API call.
 
 Relevant tests:
 

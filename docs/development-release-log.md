@@ -26,7 +26,9 @@ remains the record for internal implementation work.
   reports show their retention countdown and are automatically deleted at
   17:00 local time at the end of day 30 to bound long-term storage.
 - Expanded Operational Archive command cards with retained quantities,
-  resources, targets, locations, and reasons.
+  resources, named probes and Mannys, locations, and reasons. Daily-report
+  deletion warnings appear only during their final five days. Archive search
+  covers every displayed field, including those operational details and dates.
 - Added in-application notification banners when Skunkworks is focused and the
   operating system suppresses its foreground desktop banner.
 - Changed probe assembly quantities to cumulative builder targets, so moving an
