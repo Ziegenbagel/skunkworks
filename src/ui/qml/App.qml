@@ -304,6 +304,7 @@ ApplicationWindow {
                     height: parent.height
                     color: Constants.cyanColor
                     SequentialAnimation on x {
+                        running: startupOverlay.visible
                         loops: Animation.Infinite
                         NumberAnimation { from: 0; to: 270; duration: 900; easing.type: Easing.InOutQuad }
                         NumberAnimation { from: 270; to: 0; duration: 900; easing.type: Easing.InOutQuad }

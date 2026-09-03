@@ -342,6 +342,10 @@ Navigation audio is part of the interaction boundary. Keep its common effect
 preloaded and replay the existing source; repeatedly assigning the same media
 URL can synchronously rebuild the macOS AVFoundation player and make every tab
 change appear to be a rendering stall.
+Animations owned by transient overlays must run only while their overlay is
+visible. In particular, the startup loading sweep must stop after live startup
+finishes; an invisible infinite animation still drives the Qt Quick scene graph
+and can consume a substantial fraction of one CPU core while the app is idle.
 Recurring presentation bindings must be self-contained and exception-free:
 countdown ticks may not call functions absent from their component, and controls
 must not assign negative model indices while asynchronously loaded models are

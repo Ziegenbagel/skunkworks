@@ -625,6 +625,8 @@ def test_app_uses_a_dedicated_live_data_loading_screen():
     assert "def startupLoading" in controller
     assert "loadingProgress" in app
     assert "loadingStatus" in app
+    loading_animation = app.split("id: loadingSweep", 1)[1].split("NumberAnimation", 1)[0]
+    assert "running: startupOverlay.visible" in loading_animation
 
 
 def test_live_failures_never_substitute_concept_dashboard_data():
