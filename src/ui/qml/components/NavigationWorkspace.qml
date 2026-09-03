@@ -64,6 +64,8 @@ PanelFrame {
     signal logbookDeleteRequested(int pageId)
     signal autoLogbookChanged(bool enabled)
     signal logbookPageOpenRequested(int pageId)
+    signal reportDeleteRequested(string reportId)
+    signal reportFavoriteChanged(string reportId, bool favorited)
     signal messageSendRequested(var payload)
     signal messageReadRequested(string messageId)
     signal operatorManualRequested()
@@ -483,6 +485,8 @@ PanelFrame {
                     onLogbookDeleteRequested: pageId => root.logbookDeleteRequested(pageId)
                     onAutoLogbookChanged: enabled => root.autoLogbookChanged(enabled)
                     onLogbookPageOpenRequested: pageId => root.logbookPageOpenRequested(pageId)
+                    onReportDeleteRequested: reportId => root.reportDeleteRequested(reportId)
+                    onReportFavoriteChanged: (reportId, favorited) => root.reportFavoriteChanged(reportId, favorited)
                 }
             }
         }

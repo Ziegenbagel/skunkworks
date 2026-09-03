@@ -677,9 +677,12 @@ recent legacy backlog at full resolution is not a complete growth fix.
 `DataEngine.compact_history()` retains recent high-resolution telemetry, daily
 older probe/resource samples, and only the latest complete sector payload for
 every probe-sector pair. It runs automatically at most weekly without vacuuming.
-It never removes preferences, operations, roles, visits, archive reports,
-event state, execution leases, or action history. Physical `VACUUM` requires an
-exclusive maintenance boundary and must not run underneath a live application.
+It never removes preferences, operations, roles, visits, event state, execution
+leases, or action history. Report retention is a separate daily maintenance
+boundary: it removes only unfavorited `daily_probe_report` rows older than 30
+days. Favorited daily reports and every other archive kind are preserved.
+Physical `VACUUM` requires an exclusive maintenance boundary and must not run
+underneath a live application.
 
 Relevant code/tests:
 
@@ -876,6 +879,21 @@ Relevant tests:
 
 - `tests/test_ui_assets.py::test_reports_keep_daily_selector_visible_and_format_archive_time_locally`
 - `tests/test_ui_preparation.py::UiPreparationTests::test_report_action_archive_does_not_duplicate_status_or_timestamp`
+
+### Local daily report deletion and retention preserve operator intent
+
+Daily reports may be deleted explicitly without touching game Logbook pages.
+The generation marker doubles as a tombstone, so deleting the current day's
+report cannot make a later refresh recreate it. Favorite state is durable and
+protects a report from the automatic 30-day sweep. The sweep applies only to
+unfavorited daily reports; operational reports and other archive evidence are
+never included.
+
+Relevant tests:
+
+- `tests/test_data_engine.py::DataEngineTests::test_daily_report_retention_preserves_favorites_and_other_archives`
+- `tests/test_daily_reports.py::DailyProbeReportTests::test_deleted_local_report_is_not_recreated_for_the_same_day`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_local_report_mutations_update_daily_and_archive_views`
 
 ### Live account headers reserve capacity before a 429
 

@@ -125,6 +125,9 @@ Communications separates game-facing text from local operational reporting:
 - Messaging and Logbook remain game API capabilities.
 - Daily Reports are generated locally from retained telemetry and accepted
   action-journal records; they do not automatically create game Logbook pages.
+  Operators may favorite or explicitly delete them. Unfavorited daily reports
+  are retained for 30 days; favorites and non-daily operational archives are
+  excluded from automatic report retention.
 - Industrial Analysis labels retained-history counts as measured and must label
   derived trends or estimates as inferred. Missing evidence remains unavailable.
 - Operational Archive is a searchable presentation over retained reports,

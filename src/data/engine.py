@@ -11,7 +11,7 @@ from pathlib import Path
 from src.application.paths import application_paths
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class DataEngine:
@@ -41,6 +41,7 @@ class DataEngine:
         with closing(sqlite3.connect(self.path)) as connection:
             connection.execute("PRAGMA journal_mode = WAL")
         self._migrate()
+        self.run_daily_report_retention()
         self.run_due_maintenance()
 
     def set_preference(self, key, value):
@@ -1061,6 +1062,53 @@ class DataEngine:
                 (report_id, title, kind, content, self._now()),
             )
 
+    def set_archive_report_favorite(self, report_id, favorited):
+        """Persist operator protection for one local report."""
+
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE archive_reports SET favorited = ? WHERE id = ?",
+                (int(bool(favorited)), str(report_id)),
+            )
+        return cursor.rowcount > 0
+
+    def delete_archive_report(self, report_id):
+        """Delete one explicitly selected local report."""
+
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM archive_reports WHERE id = ?", (str(report_id),),
+            )
+        return cursor.rowcount > 0
+
+    def delete_expired_daily_reports(self, retention_days=30, *, now=None):
+        """Remove old unfavorited daily reports and preserve every other archive."""
+
+        now = now or datetime.now(UTC)
+        cutoff = now - timedelta(days=max(1, int(retention_days)))
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM archive_reports
+                WHERE kind = 'daily_probe_report'
+                  AND favorited = 0
+                  AND datetime(created_at) < datetime(?)
+                """,
+                (cutoff.isoformat(),),
+            )
+        return cursor.rowcount
+
+    def run_daily_report_retention(self, retention_days=30):
+        """Apply report retention at most once per UTC day per data store."""
+
+        key = "last_daily_report_retention_date"
+        today = datetime.now(UTC).date().isoformat()
+        if self.get_preference(key) == today:
+            return None
+        removed = self.delete_expired_daily_reports(retention_days)
+        self.set_preference(key, today)
+        return removed
+
     def archive_reports(self):
         return self._rows(
             "SELECT * FROM archive_reports ORDER BY created_at DESC, id", ()
@@ -1341,10 +1389,20 @@ class DataEngine:
                     title TEXT NOT NULL,
                     kind TEXT NOT NULL,
                     content TEXT NOT NULL,
-                    created_at TEXT NOT NULL
+                    created_at TEXT NOT NULL,
+                    favorited INTEGER NOT NULL DEFAULT 0
                 );
                 """
             )
+            report_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(archive_reports)")
+            }
+            if "favorited" not in report_columns:
+                connection.execute(
+                    "ALTER TABLE archive_reports "
+                    "ADD COLUMN favorited INTEGER NOT NULL DEFAULT 0"
+                )
             connection.execute(
                 """
                 INSERT OR IGNORE INTO schema_migrations (

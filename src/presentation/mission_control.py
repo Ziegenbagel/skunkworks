@@ -1793,6 +1793,8 @@ class MissionControlViewModelBuilder:
         for row in reports:
             archive.append({
                 "kind": "REPORT", "domain": "Reports", "status": "RECORDED",
+                "reportId": row.get("id", ""),
+                "favorited": bool(row.get("favorited", False)),
                 "probeId": "", "probeName": "Fleet", "title": row.get("title", "Report"),
                 "detail": row.get("content", ""), "timestamp": row.get("created_at", ""),
             })
@@ -1806,7 +1808,9 @@ class MissionControlViewModelBuilder:
             "breakdown": " · ".join(f"{name.upper()} {count}" for name, count in sorted(counts.items())),
         } for probe_id, counts in sorted(by_probe.items()))
         return {
-            "daily": tuple(row for row in reports if row.get("kind") == "daily_probe_report"),
+            "daily": tuple({
+                **row, "favorited": bool(row.get("favorited", False)),
+            } for row in reports if row.get("kind") == "daily_probe_report"),
             "archive": tuple(archive[:2000]),
             "industrial": {"measuredTotals": measured, "probeActivity": utilization},
         }

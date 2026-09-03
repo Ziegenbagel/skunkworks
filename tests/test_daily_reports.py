@@ -89,6 +89,16 @@ class DailyProbeReportTests(unittest.TestCase):
         self.assertEqual(report["kind"], "daily_probe_report")
         self.assertIn("Explorer One", report["title"])
 
+    def test_deleted_local_report_is_not_recreated_for_the_same_day(self):
+        probes = ({"id": 762, "name": "Explorer One"},)
+        self.reporter.generate_local_due(probes, {"762": "explorer"})
+        self.engine.delete_archive_report("daily:762:2026-08-09")
+
+        result = self.reporter.generate_local_due(probes, {"762": "explorer"})
+
+        self.assertEqual(result["created"], [])
+        self.assertEqual(self.engine.archive_reports(), [])
+
     def test_transfer_targets_use_probe_names_instead_of_internal_ids(self):
         self.engine.record_action(
             "transfer-1",

@@ -74,7 +74,9 @@ class DailyProbeReportService:
             report_id = f"daily:{probe_id}:{report_date}"
             marker = self.marker_key(probe_id, report_date)
             existing = any(str(row["id"]) == report_id for row in self.data_engine.archive_reports())
-            if existing:
+            # The marker is also a tombstone after an operator deletes today's
+            # local report. Do not recreate it during the next refresh.
+            if existing or self.data_engine.get_preference(marker) is not None:
                 continue
             try:
                 title = f"{TITLE_PREFIX} · {probe.get('name') or f'Probe {probe_id}'} · {report_date}"

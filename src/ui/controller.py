@@ -5890,6 +5890,76 @@ class MissionControlController(QObject):
             pending_message="SAVING DAILY REPORT SETTING",
         )
 
+    def _local_report_engine(self):
+        if self.service is not None and hasattr(self.service, "data_engine"):
+            return self.service.data_engine
+        return self.settings_engine
+
+    @Slot(str)
+    def deleteLocalReport(self, report_id):
+        report_id = str(report_id or "")
+        if not report_id:
+            return
+        self._run_background_call(
+            "settings",
+            lambda: self._local_report_engine().delete_archive_report(report_id),
+            lambda deleted: self._accept_local_report_mutation(
+                report_id, "delete", bool(deleted), False,
+            ),
+            pending_message="DELETING LOCAL REPORT",
+        )
+
+    @Slot(str, bool)
+    def setLocalReportFavorite(self, report_id, favorited):
+        report_id = str(report_id or "")
+        if not report_id:
+            return
+        self._run_background_call(
+            "settings",
+            lambda: self._local_report_engine().set_archive_report_favorite(
+                report_id, favorited,
+            ),
+            lambda updated: self._accept_local_report_mutation(
+                report_id, "favorite", bool(updated), bool(favorited),
+            ),
+            pending_message="SAVING REPORT FAVORITE",
+        )
+
+    def _accept_local_report_mutation(
+        self, report_id, action, succeeded, favorited,
+    ):
+        if not succeeded:
+            self._set_error("That local report is no longer available.")
+            return
+        reports = dict(self._dashboard.get("reports", {}))
+        if action == "delete":
+            reports["daily"] = tuple(
+                row for row in reports.get("daily", ())
+                if str(row.get("id", "")) != report_id
+            )
+            reports["archive"] = tuple(
+                row for row in reports.get("archive", ())
+                if str(row.get("reportId", "")) != report_id
+            )
+            self._set_operation_notice("LOCAL REPORT DELETED")
+        else:
+            reports["daily"] = tuple(
+                {**row, "favorited": favorited}
+                if str(row.get("id", "")) == report_id else row
+                for row in reports.get("daily", ())
+            )
+            reports["archive"] = tuple(
+                {**row, "favorited": favorited}
+                if str(row.get("reportId", "")) == report_id else row
+                for row in reports.get("archive", ())
+            )
+            self._set_operation_notice(
+                "REPORT FAVORITED" if favorited else "REPORT FAVORITE REMOVED"
+            )
+        self._dashboard["reports"] = reports
+        self._set_error("")
+        self.dashboardChanged.emit()
+
     def _start_refresh(
         self, probe_id, prefer_cached_fleet=False, include_archival=True,
     ):

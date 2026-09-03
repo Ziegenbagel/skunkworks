@@ -1070,6 +1070,11 @@ def test_reports_keep_daily_selector_visible_and_format_archive_time_locally():
     assert 'text: "LOCAL · " + root.localTimestamp' in reports
     assert "root.localTimestamp(archiveCard.modelData.timestamp)" in reports
     assert 'String(archiveCard.modelData.timestamp || "")' not in reports
+    assert "DELETE LOCAL DAILY REPORT?" in reports
+    assert "AUTOMATIC 30-DAY RETENTION" in reports
+    assert "root.favoriteChanged" in reports
+    assert "window.backend.deleteLocalReport(reportId)" in Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    assert "window.backend.setLocalReportFavorite(reportId, favorited)" in Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
 
 
 def test_focused_window_uses_in_app_notification_banner():

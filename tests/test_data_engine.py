@@ -1,6 +1,8 @@
 import json
+import sqlite3
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -19,7 +21,71 @@ class DataEngineTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_schema_is_migrated(self):
-        self.assertEqual(self.engine.schema_version(), 4)
+        self.assertEqual(self.engine.schema_version(), 5)
+
+    def test_existing_report_archive_gains_durable_favorite_column(self):
+        legacy_path = Path(self.temporary.name) / "legacy.sqlite3"
+        with sqlite3.connect(legacy_path) as connection:
+            connection.executescript(
+                """
+                CREATE TABLE schema_migrations (
+                    version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL
+                );
+                INSERT INTO schema_migrations VALUES (4, '2026-09-01');
+                CREATE TABLE archive_reports (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                INSERT INTO archive_reports VALUES (
+                    'daily:legacy', 'Legacy daily', 'daily_probe_report',
+                    'content', '2026-09-01T00:00:00+00:00'
+                );
+                """
+            )
+
+        migrated = DataEngine(legacy_path)
+
+        report = dict(migrated.archive_reports()[0])
+        self.assertEqual(migrated.schema_version(), 5)
+        self.assertEqual(report["favorited"], 0)
+
+    def test_daily_report_retention_preserves_favorites_and_other_archives(self):
+        self.engine.save_archive_report(
+            "daily:old", "Old daily", "old", kind="daily_probe_report",
+        )
+        self.engine.save_archive_report(
+            "daily:favorite", "Favorite daily", "favorite",
+            kind="daily_probe_report",
+        )
+        self.engine.save_archive_report(
+            "operational:old", "Old operational", "operational",
+        )
+        self.engine.set_archive_report_favorite("daily:favorite", True)
+        with self.engine._connect() as connection:
+            connection.execute(
+                "UPDATE archive_reports SET created_at = ?",
+                ("2026-07-01T00:00:00+00:00",),
+            )
+
+        removed = self.engine.delete_expired_daily_reports(
+            30, now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
+        )
+
+        self.assertEqual(removed, 1)
+        reports = {row["id"]: dict(row) for row in self.engine.archive_reports()}
+        self.assertNotIn("daily:old", reports)
+        self.assertEqual(reports["daily:favorite"]["favorited"], 1)
+        self.assertIn("operational:old", reports)
+
+    def test_local_report_can_be_deleted_explicitly(self):
+        self.engine.save_archive_report("daily:delete", "Delete me", "content")
+
+        self.assertTrue(self.engine.delete_archive_report("daily:delete"))
+        self.assertFalse(self.engine.delete_archive_report("daily:delete"))
+        self.assertEqual(self.engine.archive_reports(), [])
 
     def test_remembers_selected_probe(self):
         self.engine.remember_probe(762)
@@ -395,7 +461,7 @@ class DataEngineTests(unittest.TestCase):
         self.assertEqual(report["schemaVersion"], SCHEMA_VERSION)
         self.assertGreater(report["allocatedBytes"], 0)
         self.assertGreaterEqual(report["totalFileBytes"], report["files"]["database"])
-        self.assertEqual(report["rowCounts"]["preferences"], 3)
+        self.assertEqual(report["rowCounts"]["preferences"], 4)
         self.assertGreaterEqual(report["reclaimableBytes"], 0)
 
     def test_integrity_report_checks_database_and_foreign_keys(self):

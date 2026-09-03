@@ -737,6 +737,16 @@ ApplicationWindow {
             if (window.backend) window.backend.loadLogbookPage(pageId);
         }
 
+        function onReportDeleteRequested(reportId) {
+            AudioManager.play("warning");
+            if (window.backend) window.backend.deleteLocalReport(reportId);
+        }
+
+        function onReportFavoriteChanged(reportId, favorited) {
+            AudioManager.play("save");
+            if (window.backend) window.backend.setLocalReportFavorite(reportId, favorited);
+        }
+
         function onOperatorManualRequested() {
             AudioManager.play("navigate");
             if (window.backend) window.backend.openOperatorManual();

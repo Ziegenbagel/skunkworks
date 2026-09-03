@@ -18,6 +18,8 @@ Item {
     signal logbookDeleteRequested(int pageId)
     signal autoLogbookChanged(bool enabled)
     signal logbookPageOpenRequested(int pageId)
+    signal reportDeleteRequested(string reportId)
+    signal reportFavoriteChanged(string reportId, bool favorited)
 
     TabBar {
         id: tabs
@@ -89,6 +91,8 @@ Item {
             reportsData: root.reportsData
             autoReportsEnabled: Boolean(root.logbookData.autoLoggingEnabled)
             onAutoReportsChanged: enabled => root.autoLogbookChanged(enabled)
+            onDeleteRequested: reportId => root.reportDeleteRequested(reportId)
+            onFavoriteChanged: (reportId, favorited) => root.reportFavoriteChanged(reportId, favorited)
         }
     }
 }
