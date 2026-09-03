@@ -1084,19 +1084,46 @@ class DataEngine:
     def delete_expired_daily_reports(self, retention_days=30, *, now=None):
         """Remove old unfavorited daily reports and preserve every other archive."""
 
-        now = now or datetime.now(UTC)
-        cutoff = now - timedelta(days=max(1, int(retention_days)))
+        now = now or datetime.now().astimezone()
         with self._connect() as connection:
-            cursor = connection.execute(
+            rows = connection.execute(
                 """
-                DELETE FROM archive_reports
+                SELECT id, created_at FROM archive_reports
                 WHERE kind = 'daily_probe_report'
                   AND favorited = 0
-                  AND datetime(created_at) < datetime(?)
                 """,
-                (cutoff.isoformat(),),
-            )
-        return cursor.rowcount
+            ).fetchall()
+            expired_ids = [
+                row["id"] for row in rows
+                if self.daily_report_deletion_at(
+                    row["id"], row["created_at"], retention_days,
+                    timezone=now.tzinfo,
+                ) <= now
+            ]
+            if expired_ids:
+                connection.executemany(
+                    "DELETE FROM archive_reports WHERE id = ?",
+                    ((report_id,) for report_id in expired_ids),
+                )
+        return len(expired_ids)
+
+    @staticmethod
+    def daily_report_deletion_at(
+        report_id, created_at, retention_days=30, *, timezone=None,
+    ):
+        """Return the local 17:00 retention boundary for one daily report."""
+
+        timezone = timezone or datetime.now().astimezone().tzinfo
+        try:
+            report_day = datetime.strptime(
+                str(report_id).rsplit(":", 1)[-1], "%Y-%m-%d",
+            ).date()
+            created = datetime.combine(report_day, datetime.min.time(), timezone)
+        except (TypeError, ValueError):
+            created = datetime.fromisoformat(str(created_at)).astimezone(timezone)
+        return (created + timedelta(days=max(1, int(retention_days)))).replace(
+            hour=17, minute=0, second=0, microsecond=0,
+        )
 
     def run_daily_report_retention(self, retention_days=30):
         """Apply report retention at most once per UTC day per data store."""

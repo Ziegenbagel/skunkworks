@@ -183,6 +183,9 @@ class TaskCommandTranslator:
         api_target_amount = round(target_amount / unit_scale, 4)
         trips = max(1, int((target_amount / (trip_capacity * unit_scale)) + 0.999999))
         target_container = self._preferred_mining_container(task.target, resource_type)
+        sector = (
+            (self.operations.world.probe.get("sector") or {}).get("relative") or {}
+        )
 
         payload = {
             "objectId": task.target,
@@ -210,6 +213,10 @@ class TaskCommandTranslator:
                 "plannedMiningWorkers": planned_workers,
                 "backgroundWork": bool(task.background_work),
                 "remainingAmount": max(0, round(float(task.quantity) - target_amount, 3)),
+                "sector": {
+                    axis: sector.get(axis) for axis in ("x", "y", "z")
+                    if sector.get(axis) is not None
+                },
             },
         )
 

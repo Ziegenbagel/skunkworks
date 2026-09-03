@@ -334,7 +334,44 @@ class UiPreparationTests(unittest.TestCase):
             action = reports["archive"][0]
             self.assertEqual(action["timestamp"], timestamp)
             self.assertEqual(action["status"], "FAILED")
-            self.assertEqual(action["detail"], "")
+            self.assertNotIn(timestamp, action["detail"])
+            self.assertNotIn("FAILED", action["detail"])
+
+    def test_mining_archive_exposes_order_resource_source_and_sector(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            base = build_operations()
+            operations = Operations(
+                base.world, base.manufacturing.recipes, data_engine=engine,
+            )
+            command = {
+                "type": "manny_mine", "probeId": 1, "targetId": "manny-7",
+                "payload": {
+                    "objectId": "asteroid-4", "resources": ["metals"],
+                    "targetAmount": 0.4,
+                },
+                "metadata": {
+                    "orderAmount": 0.4, "estimatedTrips": 2,
+                    "sector": {"x": 3, "y": -2, "z": 1},
+                },
+                "reason": "Restore the metals floor",
+            }
+            reports = MissionControlViewModelBuilder(operations, engine)._reports(
+                report_records=(),
+                action_records=({
+                    "command_type": "manny_mine", "status": "succeeded",
+                    "probe_id": 1, "observed_at": "2026-09-03T20:00:00+00:00",
+                    "command_json": json.dumps(command), "blockers_json": "[]",
+                },),
+                operation_records=(),
+            )
+
+            action = reports["archive"][0]
+            self.assertEqual(action["title"], "Mine Metals")
+            self.assertIn("Resource: Metals", action["detail"])
+            self.assertIn("Ordered: 0.4 ECE", action["detail"])
+            self.assertIn("Source object: asteroid-4", action["detail"])
+            self.assertIn("Sector: 3:-2:1", action["detail"])
 
     def test_local_report_mutations_update_daily_and_archive_views(self):
         controller = MissionControlController.__new__(MissionControlController)
@@ -343,6 +380,7 @@ class UiPreparationTests(unittest.TestCase):
             "archive": ({"reportId": "daily:1", "favorited": False},),
             "industrial": {},
         }}
+        controller._section_revision_counter = 0
         controller._set_error = lambda _message: None
         controller._set_operation_notice = lambda _message: None
         controller.dashboardChanged = Mock()
@@ -352,6 +390,9 @@ class UiPreparationTests(unittest.TestCase):
         )
         self.assertTrue(controller._dashboard["reports"]["daily"][0]["favorited"])
         self.assertTrue(controller._dashboard["reports"]["archive"][0]["favorited"])
+        self.assertTrue(
+            controller._dashboard["sectionRevisions"]["communications"].startswith("local-")
+        )
 
         controller._accept_local_report_mutation(
             "daily:1", "delete", True, False,

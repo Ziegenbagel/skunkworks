@@ -23,7 +23,10 @@ remains the record for internal implementation work.
 - Moved automatic daily reports into local Skunkworks storage so they no longer
   consume game Logbook pages.
 - Added local daily-report favorites and explicit deletion. Unfavorited daily
-  reports are automatically deleted after 30 days to bound long-term storage.
+  reports show their retention countdown and are automatically deleted at
+  17:00 local time at the end of day 30 to bound long-term storage.
+- Expanded Operational Archive command cards with retained quantities,
+  resources, targets, locations, and reasons.
 - Added in-application notification banners when Skunkworks is focused and the
   operating system suppresses its foreground desktop banner.
 - Changed probe assembly quantities to cumulative builder targets, so moving an

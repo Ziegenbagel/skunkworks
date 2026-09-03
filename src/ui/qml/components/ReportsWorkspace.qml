@@ -9,6 +9,7 @@ Item {
     property var reportsData: ({})
     property bool autoReportsEnabled: false
     property string selectedDailyReportId: ""
+    property double currentEpochMs: Date.now()
     signal autoReportsChanged(bool enabled)
     signal deleteRequested(string reportId)
     signal favoriteChanged(string reportId, bool favorited)
@@ -36,6 +37,23 @@ Item {
         const parsed = new Date(String(value));
         if (isNaN(parsed.getTime())) return String(value);
         return parsed.toLocaleString(Qt.locale(), Locale.ShortFormat);
+    }
+
+    function retentionLabel(report) {
+        if (Boolean(report.favorited)) return "FAVORITED · AUTO DELETE OFF";
+        const deletion = new Date(String(report.deletesAt || ""));
+        if (isNaN(deletion.getTime())) return "AUTO DELETE DATE UNAVAILABLE";
+        const days = Math.max(0, Math.ceil((deletion.getTime() - currentEpochMs) / 86400000));
+        const timing = days === 0 ? "TODAY" : "IN " + days + (days === 1 ? " DAY" : " DAYS");
+        return "AUTO DELETING " + timing + " AT 17:00 · " + deletion.toLocaleDateString(Qt.locale(), Locale.ShortFormat);
+    }
+
+    Timer {
+        interval: 60000
+        repeat: true
+        running: root.visible
+        triggeredOnStart: true
+        onTriggered: root.currentEpochMs = Date.now()
     }
 
     TabBar {
@@ -78,15 +96,27 @@ Item {
                             model: root.reportsData.daily || []
                             delegate: Rectangle {
                                 id: dailyCard; required property var modelData
-                                width: dailyList.width; height: 72
+                                width: dailyList.width; height: 88
                                 color: String(dailyCard.modelData.id || "") === root.selectedDailyReportId ? Constants.selectedColor : Constants.panelColor
                                 border.color: Boolean(dailyCard.modelData.favorited) ? Constants.warningColor : Constants.lineColor
                                 radius: 4
-                                Label {
+                                Column {
                                     anchors.left: parent.left; anchors.right: favoriteButton.left
                                     anchors.top: parent.top; anchors.bottom: parent.bottom; anchors.margins: 12
-                                    text: String(dailyCard.modelData.title || "Daily report")
-                                    color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                                    spacing: 6
+                                    Label {
+                                        width: parent.width
+                                        text: String(dailyCard.modelData.title || "Daily report")
+                                        color: Constants.textColor; font.family: Constants.technicalFont
+                                        wrapMode: Text.Wrap; elide: Text.ElideRight
+                                    }
+                                    Label {
+                                        width: parent.width
+                                        text: root.retentionLabel(dailyCard.modelData)
+                                        color: Boolean(dailyCard.modelData.favorited) ? Constants.warningColor : Constants.criticalColor
+                                        font.family: Constants.technicalFont; font.pixelSize: 11
+                                        elide: Text.ElideRight
+                                    }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.selectedDailyReportId = String(dailyCard.modelData.id || "") }
                                 }
                                 ToolButton {
@@ -160,7 +190,20 @@ Item {
                 Label { Layout.fillWidth: true; visible: root.matchingArchive().length === 0; text: (root.reportsData.archive || []).length === 0 ? "NO LOCAL OPERATIONAL HISTORY IS AVAILABLE YET." : "NO ARCHIVE RECORDS MATCH THE CURRENT SEARCH AND DOMAIN FILTER."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 ListView {
                     id: archiveList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.matchingArchive()
-                    delegate: Rectangle { id: archiveCard; required property var modelData; width: archiveList.width; height: 82; color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4; Column { anchors.fill: parent; anchors.margins: 11; spacing: 4; Label { width: parent.width; text: archiveCard.modelData.kind + " · " + archiveCard.modelData.domain.toUpperCase() + " · " + archiveCard.modelData.status; color: Constants.cyanColor; font.family: Constants.technicalFont; elide: Text.ElideRight } Label { width: parent.width; text: archiveCard.modelData.title + " · " + archiveCard.modelData.probeName; color: Constants.textColor; font.bold: true; elide: Text.ElideRight } Label { width: parent.width; text: "LOCAL · " + root.localTimestamp(archiveCard.modelData.timestamp) + (archiveCard.modelData.detail ? " · " + String(archiveCard.modelData.detail).replace(/\n/g, " ") : ""); color: Constants.mutedTextColor; elide: Text.ElideRight } } }
+                    delegate: Rectangle {
+                        id: archiveCard; required property var modelData
+                        width: archiveList.width; height: Math.max(104, archiveDetails.implicitHeight + 22)
+                        color: Constants.raisedColor; border.color: Constants.lineColor; radius: 4
+                        Column {
+                            id: archiveDetails
+                            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                            anchors.margins: 11; spacing: 4
+                            Label { width: parent.width; text: archiveCard.modelData.kind + " · " + archiveCard.modelData.domain.toUpperCase() + " · " + archiveCard.modelData.status; color: Constants.cyanColor; font.family: Constants.technicalFont; elide: Text.ElideRight }
+                            Label { width: parent.width; text: archiveCard.modelData.title + " · " + archiveCard.modelData.probeName; color: Constants.textColor; font.bold: true; elide: Text.ElideRight }
+                            Label { width: parent.width; text: "LOCAL · " + root.localTimestamp(archiveCard.modelData.timestamp); color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                            Label { width: parent.width; visible: String(archiveCard.modelData.detail || "").length > 0; text: String(archiveCard.modelData.detail || ""); color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        }
+                    }
                 }
             }
         }

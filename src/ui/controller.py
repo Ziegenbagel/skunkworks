@@ -5957,6 +5957,7 @@ class MissionControlController(QObject):
                 "REPORT FAVORITED" if favorited else "REPORT FAVORITE REMOVED"
             )
         self._dashboard["reports"] = reports
+        self._touch_section_revisions("communications")
         self._set_error("")
         self.dashboardChanged.emit()
 

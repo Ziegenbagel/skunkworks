@@ -7,6 +7,7 @@ import json
 import re
 from collections import Counter, defaultdict
 from src.models.galaxy import SectorCoordinates
+from src.data.engine import DataEngine
 
 
 class MissionControlViewModelBuilder:
@@ -1778,8 +1779,8 @@ class MissionControlViewModelBuilder:
             archive.append({
                 "kind": "COMMAND", "domain": category, "status": status.upper(),
                 "probeId": probe_id, "probeName": probe_names.get(probe_id, f"Probe {probe_id}"),
-                "title": command_type.replace("_", " ").title(),
-                "detail": "",
+                "title": self._command_archive_title(row, command_type),
+                "detail": self._command_archive_detail(row),
                 "timestamp": row.get("observed_at", ""),
             })
         for row in reversed(operations):
@@ -1809,8 +1810,84 @@ class MissionControlViewModelBuilder:
         } for probe_id, counts in sorted(by_probe.items()))
         return {
             "daily": tuple({
-                **row, "favorited": bool(row.get("favorited", False)),
+                **row,
+                "favorited": bool(row.get("favorited", False)),
+                "deletesAt": DataEngine.daily_report_deletion_at(
+                    row.get("id", ""), row.get("created_at", ""),
+                ).isoformat(),
             } for row in reports if row.get("kind") == "daily_probe_report"),
             "archive": tuple(archive[:2000]),
             "industrial": {"measuredTotals": measured, "probeActivity": utilization},
         }
+
+    @staticmethod
+    def _command_payload(row):
+        try:
+            return json.loads(row.get("command_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+
+    @classmethod
+    def _command_archive_title(cls, row, command_type):
+        command = cls._command_payload(row)
+        payload = command.get("payload") or {}
+        metadata = command.get("metadata") or {}
+        if command_type == "manny_mine":
+            resource = next(iter(payload.get("resources") or ()), "resource")
+            return f"Mine {str(resource).replace('_', ' ').title()}"
+        if command_type in {"manny_craft", "atomic_printer_craft"}:
+            return f"Craft {str(payload.get('recipe') or 'item').replace('_', ' ').title()}"
+        if command_type == "manny_assemble_probe":
+            return f"Assemble {str(payload.get('model') or metadata.get('model') or 'probe').replace('_', ' ').title()}"
+        return command_type.replace("_", " ").title()
+
+    @classmethod
+    def _command_archive_detail(cls, row):
+        command = cls._command_payload(row)
+        payload = command.get("payload") or {}
+        metadata = command.get("metadata") or {}
+        parts = []
+        command_type = str(row.get("command_type") or command.get("type") or "")
+        target_id = command.get("targetId")
+        if command_type == "manny_mine":
+            resource = next(iter(payload.get("resources") or ()), metadata.get("resource"))
+            amount = metadata.get("orderAmount", payload.get("targetAmount"))
+            if resource:
+                parts.append(f"Resource: {str(resource).replace('_', ' ').title()}")
+            if amount is not None:
+                parts.append(f"Ordered: {amount} ECE")
+            if payload.get("objectId") is not None:
+                parts.append(f"Source object: {payload['objectId']}")
+            sector = metadata.get("sector") or {}
+            if all(sector.get(axis) is not None for axis in ("x", "y", "z")):
+                parts.append(f"Sector: {sector['x']}:{sector['y']}:{sector['z']}")
+            else:
+                parts.append("Sector: not recorded for this historical order")
+            if metadata.get("estimatedTrips") is not None:
+                parts.append(f"Estimated trips: {metadata['estimatedTrips']}")
+        elif payload.get("recipe"):
+            parts.append(f"Recipe: {str(payload['recipe']).replace('_', ' ').title()}")
+        elif payload.get("model") or metadata.get("model"):
+            parts.append(
+                "Model: " + str(payload.get("model") or metadata.get("model")).replace("_", " ").title()
+            )
+        target = payload.get("target") or metadata.get("finalDestination")
+        if isinstance(target, dict) and all(target.get(axis) is not None for axis in ("x", "y", "z")):
+            parts.append(f"Destination: {target['x']}:{target['y']}:{target['z']}")
+        if payload.get("targetProbeId") is not None:
+            parts.append(f"Target probe: {payload['targetProbeId']}")
+        if payload.get("amount") is not None:
+            parts.append(f"Amount: {payload['amount']} ECE")
+        if payload.get("integrityPercent") is not None:
+            parts.append(f"Repair target: {payload['integrityPercent']}% integrity")
+        if target_id is not None:
+            parts.append(f"Manny/target ID: {target_id}")
+        if command.get("reason"):
+            parts.append(f"Reason: {command['reason']}")
+        try:
+            blockers = json.loads(row.get("blockers_json") or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            blockers = []
+        if blockers:
+            parts.append("Blockers: " + " · ".join(str(value) for value in blockers))
+        return "\n".join(parts) or "No additional command details were recorded."

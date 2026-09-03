@@ -679,8 +679,9 @@ older probe/resource samples, and only the latest complete sector payload for
 every probe-sector pair. It runs automatically at most weekly without vacuuming.
 It never removes preferences, operations, roles, visits, event state, execution
 leases, or action history. Report retention is a separate daily maintenance
-boundary: it removes only unfavorited `daily_probe_report` rows older than 30
-days. Favorited daily reports and every other archive kind are preserved.
+boundary: it removes only unfavorited `daily_probe_report` rows at 17:00
+operator-local time at the end of day 30. Favorited daily reports and every
+other archive kind are preserved.
 Physical `VACUUM` requires an exclusive maintenance boundary and must not run
 underneath a live application.
 
@@ -874,6 +875,10 @@ thin strip when the report list is empty. Operational Archive retains sortable
 UTC timestamps in its presentation model, but converts them to the operator's
 local timezone for display. A timestamp or status already shown in the archive
 card must not be repeated inside its detail text.
+Command cards decode the retained journal and use the available card width for
+operational details. Mining entries include ordered amount, resource, source
+object, and recorded sector; older entries without sector metadata say that the
+location was not recorded rather than inventing it.
 
 Relevant tests:
 
@@ -887,7 +892,10 @@ The generation marker doubles as a tombstone, so deleting the current day's
 report cannot make a later refresh recreate it. Favorite state is durable and
 protects a report from the automatic 30-day sweep. The sweep applies only to
 unfavorited daily reports; operational reports and other archive evidence are
-never included.
+never included. Each unfavorited row displays its changing countdown and exact
+17:00 local deletion boundary. A local mutation updates the Communications
+presentation revision and both report projections together; the remaining list
+must not disappear while waiting for another refresh.
 
 Relevant tests:
 

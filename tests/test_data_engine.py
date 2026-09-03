@@ -80,6 +80,14 @@ class DataEngineTests(unittest.TestCase):
         self.assertEqual(reports["daily:favorite"]["favorited"], 1)
         self.assertIn("operational:old", reports)
 
+    def test_daily_report_retention_ends_at_local_1700_after_day_30(self):
+        deletion = self.engine.daily_report_deletion_at(
+            "daily:762:2026-09-01", "2026-09-01T17:01:00-07:00", 30,
+            timezone=datetime.fromisoformat("2026-09-03T00:00:00-07:00").tzinfo,
+        )
+
+        self.assertEqual(deletion.isoformat(), "2026-10-01T17:00:00-07:00")
+
     def test_local_report_can_be_deleted_explicitly(self):
         self.engine.save_archive_report("daily:delete", "Delete me", "content")
 
