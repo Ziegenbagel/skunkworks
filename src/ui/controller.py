@@ -5933,30 +5933,30 @@ class MissionControlController(QObject):
             return
         reports = dict(self._dashboard.get("reports", {}))
         if action == "delete":
-            reports["daily"] = tuple(
+            reports["daily"] = [
                 row for row in reports.get("daily", ())
                 if str(row.get("id", "")) != report_id
-            )
-            reports["archive"] = tuple(
+            ]
+            reports["archive"] = [
                 row for row in reports.get("archive", ())
                 if str(row.get("reportId", "")) != report_id
-            )
+            ]
             self._set_operation_notice("LOCAL REPORT DELETED")
         else:
-            reports["daily"] = tuple(
+            reports["daily"] = [
                 {**row, "favorited": favorited}
                 if str(row.get("id", "")) == report_id else row
                 for row in reports.get("daily", ())
-            )
-            reports["archive"] = tuple(
+            ]
+            reports["archive"] = [
                 {**row, "favorited": favorited}
                 if str(row.get("reportId", "")) == report_id else row
                 for row in reports.get("archive", ())
-            )
+            ]
             self._set_operation_notice(
                 "REPORT FAVORITED" if favorited else "REPORT FAVORITE REMOVED"
             )
-        self._dashboard["reports"] = reports
+        self._dashboard["reports"] = self._qt_safe(reports)
         self._touch_section_revisions("communications")
         self._set_error("")
         self.dashboardChanged.emit()

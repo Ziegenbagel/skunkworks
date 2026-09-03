@@ -29,6 +29,8 @@ remains the record for internal implementation work.
   resources, named probes and Mannys, locations, and reasons. Daily-report
   deletion warnings appear only during their final five days. Archive search
   covers every displayed field, including those operational details and dates.
+- Fixed local report deletion so the remaining daily reports stay visible
+  immediately instead of returning only after a dashboard refresh.
 - Added in-application notification banners when Skunkworks is focused and the
   operating system suppresses its foreground desktop banner.
 - Changed probe assembly quantities to cumulative builder targets, so moving an

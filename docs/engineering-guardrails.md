@@ -896,7 +896,9 @@ never included. An unfavorited row displays its changing countdown and exact
 17:00 local deletion boundary only when five days or less remain; hiding earlier
 warnings keeps report titles readable. A local mutation updates the Communications
 presentation revision and both report projections together; the remaining list
-must not disappear while waiting for another refresh.
+must not disappear while waiting for another refresh. Both mutated projections
+remain concrete QML-safe lists; tuples make JavaScript array operations fail and
+blank every row until an authoritative refresh restores the model shape.
 
 Archive detail uses probe and Manny names rather than internal IDs. New commands
 retain the acting Manny name; existing journal rows resolve names from current

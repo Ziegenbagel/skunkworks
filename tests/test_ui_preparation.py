@@ -415,8 +415,14 @@ class UiPreparationTests(unittest.TestCase):
     def test_local_report_mutations_update_daily_and_archive_views(self):
         controller = MissionControlController.__new__(MissionControlController)
         controller._dashboard = {"reports": {
-            "daily": ({"id": "daily:1", "favorited": False},),
-            "archive": ({"reportId": "daily:1", "favorited": False},),
+            "daily": (
+                {"id": "daily:1", "favorited": False},
+                {"id": "daily:2", "favorited": False},
+            ),
+            "archive": (
+                {"reportId": "daily:1", "favorited": False},
+                {"reportId": "daily:2", "favorited": False},
+            ),
             "industrial": {},
         }}
         controller._section_revision_counter = 0
@@ -436,8 +442,12 @@ class UiPreparationTests(unittest.TestCase):
         controller._accept_local_report_mutation(
             "daily:1", "delete", True, False,
         )
-        self.assertEqual(controller._dashboard["reports"]["daily"], ())
-        self.assertEqual(controller._dashboard["reports"]["archive"], ())
+        daily = controller._dashboard["reports"]["daily"]
+        archive = controller._dashboard["reports"]["archive"]
+        self.assertIsInstance(daily, list)
+        self.assertIsInstance(archive, list)
+        self.assertEqual([row["id"] for row in daily], ["daily:2"])
+        self.assertEqual([row["reportId"] for row in archive], ["daily:2"])
 
     def test_qt_controller_refreshes_and_switches_probe_context(self):
         class Service:
