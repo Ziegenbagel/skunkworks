@@ -1076,6 +1076,9 @@ def test_reports_keep_daily_selector_visible_and_format_archive_time_locally():
     assert "AT 17:00" in reports
     assert "remaining <= 5 * 86400000" in reports
     assert "visible: root.retentionWarningVisible(dailyCard.modelData)" in reports
+    assert "property double dailyScrollOffsetToRestore: -1" in reports
+    assert "root.dailyScrollOffsetToRestore = dailyList.contentY" in reports
+    assert "onCountChanged:" in reports
     assert "function archiveSearchText(row)" in reports
     assert "row.kind, row.domain, row.status, row.title, row.probeName" in reports
     assert "row.detail, root.localTimestamp(row.timestamp), row.timestamp" in reports

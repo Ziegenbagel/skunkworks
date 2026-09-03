@@ -899,6 +899,11 @@ presentation revision and both report projections together; the remaining list
 must not disappear while waiting for another refresh. Both mutated projections
 remain concrete QML-safe lists; tuples make JavaScript array operations fail and
 blank every row until an authoritative refresh restores the model shape.
+Explicit deletion is optimistic: remove the selected row from both projections
+before the SQLite worker starts, restore it only on a real persistence failure,
+and treat an already-absent row as an idempotent success rather than a network
+error. The Daily Reports list restores its bounded pre-deletion scroll offset
+after the model shrinks, so deleting an old report does not jump to the newest.
 
 Archive detail uses probe and Manny names rather than internal IDs. New commands
 retain the acting Manny name; existing journal rows resolve names from current

@@ -10,6 +10,7 @@ Item {
     property bool autoReportsEnabled: false
     property string selectedDailyReportId: ""
     property double currentEpochMs: Date.now()
+    property double dailyScrollOffsetToRestore: -1
     signal autoReportsChanged(bool enabled)
     signal deleteRequested(string reportId)
     signal favoriteChanged(string reportId, bool favorited)
@@ -108,6 +109,17 @@ Item {
                             clip: true
                             spacing: 8
                             model: root.reportsData.daily || []
+                            onCountChanged: {
+                                if (root.dailyScrollOffsetToRestore < 0) return;
+                                const offset = root.dailyScrollOffsetToRestore;
+                                Qt.callLater(function() {
+                                    dailyList.contentY = Math.max(
+                                        dailyList.originY,
+                                        Math.min(offset, dailyList.originY + Math.max(0, dailyList.contentHeight - dailyList.height))
+                                    );
+                                    root.dailyScrollOffsetToRestore = -1;
+                                });
+                            }
                             delegate: Rectangle {
                                 id: dailyCard; required property var modelData
                                 width: dailyList.width; height: 88
@@ -241,6 +253,7 @@ Item {
         }
         onAccepted: {
             const reportId = root.selectedDailyReportId;
+            root.dailyScrollOffsetToRestore = dailyList.contentY;
             root.selectedDailyReportId = "";
             root.deleteRequested(reportId);
         }

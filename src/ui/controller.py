@@ -5900,14 +5900,62 @@ class MissionControlController(QObject):
         report_id = str(report_id or "")
         if not report_id:
             return
-        self._run_background_call(
-            "settings",
+        removed = self._remove_local_report_from_dashboard(report_id)
+        if not removed["daily"] and not removed["archive"]:
+            self._set_operation_notice("LOCAL REPORT ALREADY REMOVED")
+            return
+        started = self._run_background_call(
+            f"report-delete:{report_id}",
             lambda: self._local_report_engine().delete_archive_report(report_id),
-            lambda deleted: self._accept_local_report_mutation(
-                report_id, "delete", bool(deleted), False,
-            ),
+            lambda _deleted: self._set_operation_notice("LOCAL REPORT DELETED"),
             pending_message="DELETING LOCAL REPORT",
+            on_failure=lambda error: self._restore_local_report_after_failure(
+                removed, error,
+            ),
         )
+        if not started:
+            self._restore_local_report_after_failure(
+                removed, "Local report deletion is already in progress.",
+            )
+
+    def _remove_local_report_from_dashboard(self, report_id):
+        reports = dict(self._dashboard.get("reports", {}))
+        daily = list(reports.get("daily", ()))
+        archive = list(reports.get("archive", ()))
+        removed = {
+            "daily": [
+                (index, row) for index, row in enumerate(daily)
+                if str(row.get("id", "")) == report_id
+            ],
+            "archive": [
+                (index, row) for index, row in enumerate(archive)
+                if str(row.get("reportId", "")) == report_id
+            ],
+        }
+        reports["daily"] = [
+            row for row in daily if str(row.get("id", "")) != report_id
+        ]
+        reports["archive"] = [
+            row for row in archive
+            if str(row.get("reportId", "")) != report_id
+        ]
+        self._dashboard["reports"] = self._qt_safe(reports)
+        self._touch_section_revisions("communications")
+        self.dashboardChanged.emit()
+        return removed
+
+    def _restore_local_report_after_failure(self, removed, error):
+        reports = dict(self._dashboard.get("reports", {}))
+        for key in ("daily", "archive"):
+            rows = list(reports.get(key, ()))
+            for index, row in removed.get(key, ()):
+                rows.insert(min(int(index), len(rows)), row)
+            reports[key] = rows
+        self._dashboard["reports"] = self._qt_safe(reports)
+        self._touch_section_revisions("communications")
+        self.dashboardChanged.emit()
+        self._set_error(str(error) or "The local report could not be deleted.")
+        self._set_operation_notice("")
 
     @Slot(str, bool)
     def setLocalReportFavorite(self, report_id, favorited):

@@ -449,6 +449,68 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual([row["id"] for row in daily], ["daily:2"])
         self.assertEqual([row["reportId"] for row in archive], ["daily:2"])
 
+    def test_local_report_delete_is_removed_before_persistence_finishes(self):
+        workers = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                workers.append(worker)
+
+        controller = MissionControlController.__new__(MissionControlController)
+        controller._dashboard = {"reports": {
+            "daily": [
+                {"id": "daily:1"}, {"id": "daily:2"},
+            ],
+            "archive": [
+                {"reportId": "daily:1"}, {"reportId": "daily:2"},
+            ],
+            "industrial": {},
+        }}
+        controller._section_revision_counter = 0
+        controller._background_calls = {}
+        controller.thread_pool = DeferredPool()
+        controller.service = type("Service", (), {"data_engine": object()})()
+        controller._set_error = lambda _message: None
+        controller._set_operation_notice = lambda _message: None
+        controller.dashboardChanged = Mock()
+
+        controller.deleteLocalReport("daily:1")
+
+        self.assertEqual(len(workers), 1)
+        self.assertEqual(
+            [row["id"] for row in controller._dashboard["reports"]["daily"]],
+            ["daily:2"],
+        )
+        self.assertEqual(
+            [row["reportId"] for row in controller._dashboard["reports"]["archive"]],
+            ["daily:2"],
+        )
+
+    def test_failed_local_report_delete_restores_original_position(self):
+        controller = MissionControlController.__new__(MissionControlController)
+        controller._dashboard = {"reports": {
+            "daily": [{"id": "daily:2"}],
+            "archive": [{"reportId": "daily:2"}],
+            "industrial": {},
+        }}
+        controller._section_revision_counter = 0
+        controller._set_error = Mock()
+        controller._set_operation_notice = lambda _message: None
+        controller.dashboardChanged = Mock()
+        removed = {
+            "daily": [(0, {"id": "daily:1"})],
+            "archive": [(0, {"reportId": "daily:1"})],
+        }
+
+        controller._restore_local_report_after_failure(removed, "disk unavailable")
+
+        self.assertEqual(
+            [row["id"] for row in controller._dashboard["reports"]["daily"]],
+            ["daily:1", "daily:2"],
+        )
+        controller._set_error.assert_called_once_with("disk unavailable")
+
     def test_qt_controller_refreshes_and_switches_probe_context(self):
         class Service:
             def __init__(self):
