@@ -11,6 +11,7 @@ Item {
     property var probeData: ({})
     property var idleMannies: []
     property var improvements: []
+    property var activeImprovements: []
     property var miningTargets: []
     property var inspectableObjects: []
     property var detachedContainers: []
@@ -301,6 +302,37 @@ Item {
                     visible: root.improvements.length > 0
                     text: "INSTALLATION TIME · " + root.readableDuration(root.selectedUpgrade().durationSeconds)
                     color: Constants.cyanColor; font.family: Constants.technicalFont
+                }
+            }
+        }
+        GroupBox {
+            visible: root.manualOnly
+            title: "ACTIVE PROBE UPGRADES"; Layout.fillWidth: true
+            ColumnLayout {
+                anchors.fill: parent; spacing: 8
+                Label {
+                    Layout.fillWidth: true
+                    visible: root.activeImprovements.length === 0
+                    text: "NO UPGRADES ARE CURRENTLY INSTALLED ON THIS PROBE."
+                    color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                }
+                Repeater {
+                    model: root.activeImprovements
+                    delegate: ColumnLayout {
+                        id: activeUpgradeCard
+                        required property var modelData
+                        Layout.fillWidth: true; spacing: 2
+                        Label {
+                            Layout.fillWidth: true
+                            text: String(activeUpgradeCard.modelData.displayName || activeUpgradeCard.modelData.id || "Unknown upgrade").toUpperCase()
+                            color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: String(activeUpgradeCard.modelData.description || "Installed and active on this probe.")
+                            color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                        }
+                    }
                 }
             }
         }

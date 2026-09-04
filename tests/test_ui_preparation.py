@@ -31,6 +31,21 @@ class ImmediatePool:
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_active_probe_upgrades_include_only_completed_probe_improvements(self):
+        improvements = {"improvements": (
+            {"id": "reinforced_couplings", "name": "Reinforced Couplings", "description": "Stronger.", "done": True},
+            {"id": "pending_upgrade", "name": "Pending Upgrade", "done": False},
+            {"id": "asteroid_upgrade", "name": "Asteroid Upgrade", "done": True, "installableOnProbe": False},
+        )}
+
+        active = MissionControlDataService._active_probe_improvements_view(improvements)
+
+        self.assertEqual(active, ({
+            "id": "reinforced_couplings",
+            "displayName": "Reinforced Couplings",
+            "description": "Stronger.",
+        },))
+
     def test_probe_upgrade_requirements_include_live_stored_availability(self):
         operations = build_operations()
         operations.world.probe["inventory"]["items"] = [

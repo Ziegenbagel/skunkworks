@@ -850,6 +850,19 @@ Relevant tests:
 - `tests/test_ui_preparation.py::UiPreparationTests::test_probe_upgrade_requirements_include_live_stored_availability`
 - `tests/test_ui_assets.py::test_fleet_workspace_exposes_live_probe_upgrade_controls`
 
+### Installed probe upgrades remain visible
+
+Manual Control lists every completed, probe-installable improvement for the
+focused probe directly below the upgrade controls. The list comes from the live
+probe improvement response and must exclude unfinished choices and improvements
+that cannot be installed on probes. An empty list is stated explicitly rather
+than leaving the panel blank.
+
+Relevant tests:
+
+- `tests/test_ui_preparation.py::UiPreparationTests::test_active_probe_upgrades_include_only_completed_probe_improvements`
+- `tests/test_ui_assets.py::test_fleet_workspace_exposes_live_probe_upgrade_controls`
+
 ### Automation target columns share one full-width grid contract
 
 Production/assembly targets and resource/safety floors use the same direct,

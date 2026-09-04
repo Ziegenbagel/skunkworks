@@ -257,6 +257,7 @@ Item {
                 probeData: root.dashboardData.probe || ({})
                 idleMannies: (root.dashboardData.inventoryManagement || {}).idleMannies || []
                 improvements: root.dashboardData.probeImprovements || []
+                activeImprovements: root.dashboardData.activeProbeImprovements || []
                 miningTargets: (root.dashboardData.inventoryManagement || {}).miningTargets || []
                 inspectableObjects: (root.dashboardData.inventoryManagement || {}).inspectableObjects || []
                 detachedContainers: (root.dashboardData.inventoryManagement || {}).detachedContainers || []

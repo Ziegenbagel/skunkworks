@@ -560,6 +560,9 @@ class MissionControlDataService:
           if improvement.get("available", False)
           and not improvement.get("done", False)
           and improvement.get("installableOnProbe", True))
+        dashboard["activeProbeImprovements"] = self._active_probe_improvements_view(
+            improvements_response,
+        )
         owned_probe_ids = {
             int(item.get("id")) for item in probe_data.get("probes", ())
             if item.get("id") is not None
@@ -646,7 +649,7 @@ class MissionControlDataService:
             "manualControl": (
                 "automationRuntime", "blueprintSharing", "combatSafety",
                 "crafting", "inventoryManagement", "probe",
-                "probeImprovements", "automation",
+                "probeImprovements", "activeProbeImprovements", "automation",
             ),
             "settings": (
                 "automation", "automationRuntime", "credentials",
@@ -702,6 +705,20 @@ class MissionControlDataService:
             })
             result.append(item)
         return tuple(result)
+
+    @staticmethod
+    def _active_probe_improvements_view(response):
+        """Present completed, probe-installable improvements for the focused probe."""
+        return tuple({
+            "id": improvement.get("id"),
+            "displayName": (
+                improvement.get("name")
+                or str(improvement.get("id", "")).replace("_", " ").title()
+            ),
+            "description": improvement.get("description", ""),
+        } for improvement in response.get("improvements", ())
+          if improvement.get("done", False)
+          and improvement.get("installableOnProbe", True))
 
     def _preference_json_list(self, key):
         try:
