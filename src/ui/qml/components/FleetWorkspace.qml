@@ -30,6 +30,22 @@ Item {
     signal probeRenameRequested(string name)
     signal mannyRenameRequested(string mannyId, string name)
     signal fleetNamingRequested(var policy, bool applyExisting)
+
+    function selectedUpgrade() {
+        if (upgradeChoice.currentIndex < 0 || upgradeChoice.currentIndex >= root.improvements.length)
+            return ({});
+        return root.improvements[upgradeChoice.currentIndex] || ({});
+    }
+
+    function upgradeIngredientLabel(ingredient) {
+        const kind = String(ingredient.kind || "item");
+        const required = Number(ingredient.quantity || 0);
+        const available = Number(ingredient.available || 0);
+        const quantity = kind === "resource" ? required.toFixed(2) + " ECE" : required.toFixed(0) + " ×";
+        const stored = kind === "resource" ? available.toFixed(2) + " ECE" : available.toFixed(0);
+        return quantity + " " + String(ingredient.name || ingredient.type || "Unknown").toUpperCase()
+            + " · " + stored + " STORED";
+    }
     signal makeDefaultRequested()
     signal repairRequested(string mannyId, real integrityPercent)
     signal upgradeRequested(string mannyId, string improvementId)
@@ -252,19 +268,39 @@ Item {
         GroupBox {
             visible: root.manualOnly
             title: "MANUAL PROBE UPGRADE"; Layout.fillWidth: true
-            RowLayout {
-                anchors.fill: parent; spacing: 12
-                ComboBox { id: upgradeChoice; Layout.fillWidth: true; model: root.improvements; textRole: "displayName"; valueRole: "id" }
-                ComboBox { id: upgradeManny; Layout.preferredWidth: 240; model: root.idleMannies; textRole: "name"; valueRole: "id" }
-                Button {
-                    text: "INSTALL UPGRADE"
-                    enabled: upgradeChoice.currentIndex >= 0 && upgradeManny.currentIndex >= 0 && root.improvements.length > 0 && root.idleMannies.length > 0
-                    onClicked: root.upgradeRequested(String(upgradeManny.currentValue), String(upgradeChoice.currentValue))
+            ColumnLayout {
+                anchors.fill: parent; spacing: 9
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 12
+                    ComboBox { id: upgradeChoice; Layout.fillWidth: true; model: root.improvements; textRole: "displayName"; valueRole: "id" }
+                    ComboBox { id: upgradeManny; Layout.preferredWidth: 240; model: root.idleMannies; textRole: "name"; valueRole: "id" }
+                    Button {
+                        text: "INSTALL UPGRADE"
+                        enabled: upgradeChoice.currentIndex >= 0 && upgradeManny.currentIndex >= 0 && root.improvements.length > 0 && root.idleMannies.length > 0
+                        onClicked: root.upgradeRequested(String(upgradeManny.currentValue), String(upgradeChoice.currentValue))
+                    }
                 }
                 Label {
-                    Layout.preferredWidth: 420
-                    text: root.improvements.length ? String((root.improvements[upgradeChoice.currentIndex] || {}).description || "Selected upgrade is available for this probe.") : "No unlocked, unfinished upgrade is currently available for this probe."
+                    Layout.fillWidth: true
+                    text: root.improvements.length ? String(root.selectedUpgrade().description || "Selected upgrade is available for this probe.") : "No unlocked, unfinished upgrade is currently available for this probe."
                     color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: root.improvements.length > 0
+                    text: "REQUIRED COMPONENTS AND MATERIALS · "
+                        + ((root.selectedUpgrade().ingredients || []).length
+                            ? (root.selectedUpgrade().ingredients || []).map(root.upgradeIngredientLabel).join("  ·  ")
+                            : "NO INPUTS REPORTED")
+                    color: (root.selectedUpgrade().ingredients || []).every(function(item) { return Boolean(item.sufficient); })
+                        ? Constants.nominalColor : Constants.warningColor
+                    font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                }
+                Label {
+                    Layout.fillWidth: true
+                    visible: root.improvements.length > 0
+                    text: "INSTALLATION TIME · " + root.readableDuration(root.selectedUpgrade().durationSeconds)
+                    color: Constants.cyanColor; font.family: Constants.technicalFont
                 }
             }
         }

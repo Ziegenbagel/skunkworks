@@ -31,6 +31,7 @@ from src.application.probe_selector import ProbeSelector
 from src.data import DataEngine
 from src.intelligence.world_builder import WorldBuilder
 from src.operations.operations import Operations
+from src.operations.manufacturing import ManufacturingService
 from src.operations.logistics import FleetRoleService, TankerLogisticsService
 from src.operations import OperationFactory, OperationStore, RoundTripTransportPlan
 from src.presentation import MissionControlViewModelBuilder
@@ -552,7 +553,9 @@ class MissionControlDataService:
             "displayName": improvement.get("name") or str(improvement.get("id", "")).replace("_", " ").title(),
             "description": improvement.get("description", ""),
             "durationSeconds": int(improvement.get("durationSeconds", 0) or 0),
-            "ingredients": tuple(improvement.get("ingredients", ())),
+            "ingredients": self._improvement_ingredients_view(
+                world, self.recipes, improvement,
+            ),
         } for improvement in improvements_response.get("improvements", ())
           if improvement.get("available", False)
           and not improvement.get("done", False)
@@ -664,6 +667,41 @@ class MissionControlDataService:
         }
         report(100, "Mission control ready")
         return dashboard
+
+    @staticmethod
+    def _improvement_ingredients_view(world, recipes, improvement):
+        """Describe upgrade inputs and live stored availability for the UI."""
+
+        inventory = (world.probe.get("inventory") or {})
+        resource_amounts = {
+            str(stock.get("type")): sum(
+                float(placement.get("amount", 0) or 0)
+                for placement in (stock.get("containers") or ())
+            ) if stock.get("containers") else float(stock.get("amount", 0) or 0)
+            for stock in (inventory.get("resourceStocks") or ())
+        }
+        manufacturing = ManufacturingService(world, recipes)
+        result = []
+        for ingredient in improvement.get("ingredients", ()):
+            item = dict(ingredient)
+            ingredient_type = str(item.get("type") or "unknown")
+            kind = str(item.get("kind") or "item")
+            required = float(item.get("quantity", 0) or 0)
+            available = (
+                resource_amounts.get(ingredient_type, 0.0)
+                if kind == "resource"
+                else float(manufacturing.inventory_count(
+                    ingredient_type, include_active=False,
+                ))
+            )
+            recipe = recipes.get(ingredient_type) or {}
+            item.update({
+                "name": recipe.get("name") or ingredient_type.replace("_", " ").title(),
+                "available": available,
+                "sufficient": available >= required,
+            })
+            result.append(item)
+        return tuple(result)
 
     def _preference_json_list(self, key):
         try:

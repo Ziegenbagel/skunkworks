@@ -836,6 +836,20 @@ Relevant code/tests:
 - Business errors remain visible and specific; do not collapse them into generic
   cancellation messages.
 
+### Manual probe upgrades disclose their complete inputs
+
+Selecting an available probe improvement in Manual Control shows every required
+crafted component and raw material, its quantity, the currently stored amount,
+whether that amount is sufficient, and the installation duration before the
+operator submits the command. Requirements come from the live improvement
+catalog and inventory projection; the UI must not duplicate or guess recipes.
+Active production does not count as stored upgrade input.
+
+Relevant tests:
+
+- `tests/test_ui_preparation.py::UiPreparationTests::test_probe_upgrade_requirements_include_live_stored_availability`
+- `tests/test_ui_assets.py::test_fleet_workspace_exposes_live_probe_upgrade_controls`
+
 ### Automation target columns share one full-width grid contract
 
 Production/assembly targets and resource/safety floors use the same direct,

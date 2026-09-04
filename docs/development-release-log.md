@@ -33,6 +33,9 @@ remains the record for internal implementation work.
   immediately instead of returning only after a dashboard refresh.
 - Made local report deletion remove its row immediately and retain the current
   list position, preventing duplicate attempts and jumps back to the newest report.
+- Added selected probe-upgrade requirements to Manual Control, including each
+  component or material, required quantity, stored availability, sufficiency,
+  and installation time.
 - Added in-application notification banners when Skunkworks is focused and the
   operating system suppresses its foreground desktop banner.
 - Changed probe assembly quantities to cumulative builder targets, so moving an

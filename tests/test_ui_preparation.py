@@ -31,6 +31,29 @@ class ImmediatePool:
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_probe_upgrade_requirements_include_live_stored_availability(self):
+        operations = build_operations()
+        operations.world.probe["inventory"]["items"] = [
+            {"id": "circuit-1", "type": "integrated_circuit", "quantity": 1},
+        ]
+        operations.world.probe["inventory"]["resourceStocks"].append({
+            "type": "carbon_compounds", "amount": 0.25,
+        })
+        improvement = {"ingredients": (
+            {"type": "integrated_circuit", "quantity": 1, "kind": "item"},
+            {"type": "carbon_compounds", "quantity": 0.4, "kind": "resource"},
+        )}
+
+        ingredients = MissionControlDataService._improvement_ingredients_view(
+            operations.world, operations.manufacturing.recipes, improvement,
+        )
+
+        self.assertEqual(ingredients[0]["name"], "Integrated Circuit")
+        self.assertEqual(ingredients[0]["available"], 1)
+        self.assertTrue(ingredients[0]["sufficient"])
+        self.assertEqual(ingredients[1]["available"], 0.25)
+        self.assertFalse(ingredients[1]["sufficient"])
+
     def test_probe_option_displays_completed_arrival_as_idle(self):
         option = MissionControlDataService._probe_option({
             "id": 7,

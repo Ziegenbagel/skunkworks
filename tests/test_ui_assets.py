@@ -296,6 +296,10 @@ def test_fleet_workspace_exposes_live_probe_upgrade_controls():
 
     assert "MANUAL PROBE UPGRADE" in fleet
     assert "INSTALL UPGRADE" in fleet
+    assert "REQUIRED COMPONENTS AND MATERIALS" in fleet
+    assert "upgradeIngredientLabel" in fleet
+    assert "item.sufficient" in fleet
+    assert "INSTALLATION TIME" in fleet
     assert "upgradeRequested" in fleet
     assert "ManualControlWorkspace" in workspace
     assert "probeImprovements" in manual
