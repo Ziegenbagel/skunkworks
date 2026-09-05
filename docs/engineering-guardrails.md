@@ -790,6 +790,20 @@ require, synthesize, or infer this field in probe-side planet presentation or
 mining decisions; its absence is part of the reviewed backward-compatible
 contract.
 
+Observed Others vessels retain their precise server state and normalized motion
+direction in presentation. `large_ship` and `ship` observations use a distinct
+Others vessel identity and icon rather than the unknown-contact fallback.
+
+Others mothership wrecks are both operational resource sources and inspectable
+sector evidence. Identify them from live semantic fields even while the
+published `SectorObject.type` enum omits a wreck value; never parse their opaque
+IDs or send a locally invented type back to the game. Exhaustion ends mining but
+does not remove inspection.
+
+An installed Relativistic Path Clearing effect zeros only modeled intersector
+integrity loss. Travel safety must continue calculating collision probability,
+container-detachment risk, weapons, asteroid impacts, and black-hole hazards.
+
 Autonomous-unit telemetry must not be rendered as a floating overlay over Live
 Sector. Operational map space remains unobstructed unless the operator opens a
 dedicated detail surface or a critical safety takeover is required.

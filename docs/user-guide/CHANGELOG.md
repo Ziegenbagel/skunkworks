@@ -1,5 +1,12 @@
 # Operator Manual Revision History
 
+## 1.6 — 2026-09-05
+
+- Added reviewed support for Others mothership wreck inspection and mining,
+  precise observed Others vessel states, and the Relativistic Path Clearing
+  travel effect.
+- Added a distinct spherical Others vessel icon to Live Sector.
+
 ## 1.5 — 2026-09-01
 
 - Added reviewed API v130 compatibility and documented that its local planet

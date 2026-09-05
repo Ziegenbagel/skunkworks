@@ -46,6 +46,28 @@ class TravelSafetyTests(unittest.TestCase):
             2,
         )
 
+    def test_relativistic_path_clearing_removes_only_intersector_integrity_loss(self):
+        operations = build_operations()
+        operations.world.probe["inventory"]["containers"] = [
+            {"kind": "probe"},
+            *({"kind": "container"} for _ in range(6)),
+        ]
+        operations.world.hazard_context = {"improvements": {"improvements": [{
+            "id": "relativistic_path_clearing",
+            "done": True,
+            "installableOnProbe": True,
+            "effects": {"intersectorIntegrityLossImmunity": True},
+        }]}}
+
+        option = operations.travel_safety.assess(
+            SectorCoordinates(3, 3, 0), route_mode="direct",
+        ).recommended
+
+        self.assertEqual(option.expected_integrity_loss_percent, 0)
+        self.assertEqual(option.maximum_integrity_loss_percent, 0)
+        self.assertGreater(option.collision_risk_percent, 0)
+        self.assertGreater(option.container_risk_percent, 0)
+
     def test_cautious_route_segments_collision_risk(self):
         operations = build_operations()
         assessment = operations.travel_safety.assess(

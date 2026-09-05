@@ -1,5 +1,14 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.0.12
+
+- Added inspection, mining, resource detail, and Live Sector identification for
+  persistent Others mothership wrecks.
+- Added precise Others vessel activity and movement labels with a distinct
+  spherical hostile-contact icon.
+- Applied Relativistic Path Clearing to intersector integrity forecasts while
+  preserving collision, container, weapon, asteroid, and black-hole risks.
+
 ## Skunkworks 1.0.11
 
 - Added reviewed compatibility with Von Neumann Game API v130.

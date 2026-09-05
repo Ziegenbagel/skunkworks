@@ -329,8 +329,11 @@ class TravelSafetyService:
             for _ in legs
         )
         total_distance = sum(distance for distance, _ in legs)
-        expected_integrity = round(total_distance * 1.5, 2)
-        maximum_integrity = round(total_distance * 3.0, 2)
+        integrity_multiplier = (
+            0.0 if self._intersector_integrity_loss_immune() else 1.0
+        )
+        expected_integrity = round(total_distance * 1.5 * integrity_multiplier, 2)
+        maximum_integrity = round(total_distance * 3.0 * integrity_multiplier, 2)
         fuel_cost = round(
             len(hops) * self.travel.fuel_cost(),
             4,
@@ -629,6 +632,26 @@ class TravelSafetyService:
             improvement.get("id")
             == "reinforced_container_couplings"
             and improvement.get("done", False)
+            for improvement in response.get("improvements", [])
+        )
+
+    def _intersector_integrity_loss_immune(self):
+        """Use the selected probe's installed path-clearing effect only."""
+        response = getattr(
+            self.world,
+            "hazard_context",
+            {},
+        ).get("improvements") or {}
+        return any(
+            improvement.get("done", False)
+            and improvement.get("installableOnProbe", True)
+            and (
+                (improvement.get("effects") or {}).get(
+                    "intersectorIntegrityLossImmunity",
+                    False,
+                )
+                or improvement.get("id") == "relativistic_path_clearing"
+            )
             for improvement in response.get("improvements", [])
         )
 
