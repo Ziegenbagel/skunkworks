@@ -50,6 +50,8 @@ QtObject {
             "detached_container": "detached-container",
             "deuterium_refuel_station": "deuterium-station",
             "dormant_construct": "dormant-construct",
+            "others_ship": "others-ship",
+            "others_mothership_wreck": "others-ship",
             "scut_relay": "scut-relay"
         };
         return icon(names[type] || "unknown-object");

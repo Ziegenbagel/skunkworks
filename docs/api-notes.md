@@ -61,6 +61,20 @@ all probe endpoints, so probe-side planet handling must remain valid without
 it. This additive Others observation does not change Skunkworks' probe-control
 routes.
 
+The 2026-09-02 through 2026-09-04 additive v130 contract changes expose precise
+states and normalized motion directions for observed Others ships, including
+`low_orbit` during active planetary harvesting. Destroyed Others motherships
+leave persistent wrecks whose `resourceTypes`, `resourceAmounts`, and
+`mannyMineable` fields support ordinary Manny mining; exhausted wrecks remain
+inspectable. The published `SectorObject.type` enum does not yet name the wreck
+representation, so Skunkworks recognizes it from its documented physical units
+and wreck identity without inventing an API type for mutation payloads.
+
+Inspecting a mothership wreck can unlock `relativistic_path_clearing`. Its
+`intersectorIntegrityLossImmunity` effect removes only the ordinary integrity
+loss accumulated between sectors. Collision, container, weapon, asteroid, and
+black-hole risks remain unchanged.
+
 API v121 rejects movement preparation when integrity is strictly below 10%
 with `probe_integrity_too_low`; exactly 10% is allowed. Zero integrity sets the
 probe to `dead` immediately.

@@ -381,7 +381,16 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 185
                 horizontalAlignment: onLeft ? Text.AlignRight : Text.AlignLeft
-                text: freeMarker.modelData.name || String(freeMarker.modelData.type).toUpperCase()
+                text: {
+                    const name = freeMarker.modelData.name || String(freeMarker.modelData.type).toUpperCase();
+                    if (String(freeMarker.modelData.type) !== "others_ship")
+                        return name;
+                    const state = String(freeMarker.modelData.status || "detected").split("_").join(" ").toUpperCase();
+                    const direction = freeMarker.modelData.movement && freeMarker.modelData.movement.direction
+                        ? " · VECTOR " + root.headingLabel(freeMarker.modelData.movement.direction)
+                        : "";
+                    return name + " · " + state + direction;
+                }
                 color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 13; font.bold: true; elide: Text.ElideRight
             }
         }

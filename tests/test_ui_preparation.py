@@ -1381,6 +1381,50 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in inventory["refuelStations"]], ["station-1"])
         self.assertEqual([item["id"] for item in inventory["waitingCargoMannies"]], ["manny-waiting"])
 
+    def test_others_wreck_is_mineable_inspectable_and_normalized_for_live_sector(self):
+        world = build_operations().world
+        wreck = {
+            "id": "wreck-others-1",
+            "type": "unknown",
+            "name": "Others Mothership Wreck",
+            "summary": "Persistent wreck",
+            "mass": 450000,
+            "massUnit": "kilogram",
+            "radius": 18,
+            "radiusUnit": "meter",
+            "mannyMineable": True,
+            "resourceTypes": ["metals", "carbon_compounds"],
+            "resourceAmounts": {
+                "deuterium": 0, "metals": 2.5,
+                "ice": 0, "carbon_compounds": 1.25,
+            },
+        }
+        world.sector["snapshot"] = {"sector": {"objects": [wreck]}}
+
+        inventory = MissionControlViewModelBuilder._inventory_management(world)
+        sector = MissionControlViewModelBuilder(build_operations())._sector_view(
+            world, {"x": 0, "y": 0, "z": 0},
+        )
+
+        self.assertEqual(inventory["miningTargets"][0]["id"], "wreck-others-1")
+        self.assertEqual(inventory["inspectableObjects"][0]["id"], "wreck-others-1")
+        self.assertEqual(sector["objects"][0]["type"], "others_mothership_wreck")
+        self.assertEqual(sector["objects"][0]["resourceAmounts"]["metals"], 2.5)
+
+    def test_observed_others_ship_keeps_precise_state_and_motion(self):
+        item = MissionControlViewModelBuilder._sector_object({
+            "id": "others-ship-1",
+            "type": "unknown",
+            "name": "Others vessel",
+            "observedClass": "large_ship",
+            "status": "low_orbit",
+            "movement": {"direction": {"x": 1, "y": 0, "z": -1}},
+        })
+
+        self.assertEqual(item["type"], "others_ship")
+        self.assertEqual(item["status"], "low_orbit")
+        self.assertEqual(item["movement"]["direction"]["z"], -1)
+
     def test_inventory_management_exposes_v112_motorized_asteroid_controls(self):
         world = build_operations().world
         world.hazard_context = {"improvements": {"improvements": [{
