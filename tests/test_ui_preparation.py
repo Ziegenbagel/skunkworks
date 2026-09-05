@@ -1459,6 +1459,26 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertIs(controller.presentationDashboard["reports"], reports)
 
+    def test_manual_control_projection_includes_installed_probe_upgrades(self):
+        controller = MissionControlController()
+        installed = ({
+            "id": "reinforced_container_couplings",
+            "displayName": "Reinforced Container Couplings",
+        },)
+        controller._dashboard = {
+            "focus": {"probeId": 7},
+            "alerts": [],
+            "sectionRevisions": {"manualControl": "installed-present"},
+            "activeProbeImprovements": installed,
+        }
+
+        controller.setActiveSection("MANUAL CONTROL")
+
+        self.assertIs(
+            controller.presentationDashboard["activeProbeImprovements"],
+            installed,
+        )
+
     def test_changing_visible_section_reprojects_without_changing_snapshot(self):
         controller = MissionControlController()
         controller._dashboard = {

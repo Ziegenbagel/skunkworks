@@ -242,7 +242,8 @@ PanelFrame {
                 "crafting": root.dashboardData.crafting || {},
                 "inventoryManagement": root.dashboardData.inventoryManagement || {},
                 "probe": root.dashboardData.probe || {},
-                "probeImprovements": root.dashboardData.probeImprovements || []
+                "probeImprovements": root.dashboardData.probeImprovements || [],
+                "activeProbeImprovements": root.dashboardData.activeProbeImprovements || []
             };
             root.cachedManualRevision = manualRevision;
         }

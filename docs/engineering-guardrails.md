@@ -870,11 +870,14 @@ Manual Control lists every completed, probe-installable improvement for the
 focused probe directly below the upgrade controls. The list comes from the live
 probe improvement response and must exclude unfinished choices and improvements
 that cannot be installed on probes. An empty list is stated explicitly rather
-than leaving the panel blank.
+than leaving the panel blank. The optimized Python presentation projection and
+the QML manual-workspace cache must both retain this collection; building it in
+the full dashboard alone does not make it visible.
 
 Relevant tests:
 
 - `tests/test_ui_preparation.py::UiPreparationTests::test_active_probe_upgrades_include_only_completed_probe_improvements`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_manual_control_projection_includes_installed_probe_upgrades`
 - `tests/test_ui_assets.py::test_fleet_workspace_exposes_live_probe_upgrade_controls`
 
 ### Automation target columns share one full-width grid contract

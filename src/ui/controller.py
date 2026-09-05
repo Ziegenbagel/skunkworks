@@ -3522,7 +3522,7 @@ class MissionControlController(QObject):
             "MANUAL CONTROL": {
                 "automation", "automationRuntime", "blueprintSharing",
                 "combatSafety", "crafting", "inventoryManagement", "probe",
-                "probeImprovements",
+                "probeImprovements", "activeProbeImprovements",
             },
             "SETTINGS": {
                 "automation", "automationRuntime", "credentials",

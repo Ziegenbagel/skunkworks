@@ -16,6 +16,8 @@ remains the record for internal implementation work.
 
 - Added an Active Probe Upgrades panel below Manual Probe Upgrade so every
   installed upgrade on the focused probe remains visible with its description.
+- Fixed the optimized Manual Control data projection so installed upgrades
+  actually reach that panel during normal navigation and refreshes.
 - Added multi-select item-type filters above Stored Items and Equipment so
   large inventories can be narrowed to one or several component types locally.
 - Added Deuterium Engines as a maintained production target so probes can

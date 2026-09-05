@@ -306,6 +306,7 @@ def test_fleet_workspace_exposes_live_probe_upgrade_controls():
     assert "ACTIVE PROBE UPGRADES" in fleet
     assert "activeImprovements" in fleet
     assert "activeProbeImprovements" in manual
+    assert '"activeProbeImprovements": root.dashboardData.activeProbeImprovements || []' in workspace
     assert "upgradeRequested" in fleet
     assert "ManualControlWorkspace" in workspace
     assert "probeImprovements" in manual
