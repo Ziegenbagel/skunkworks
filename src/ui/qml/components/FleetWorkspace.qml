@@ -351,8 +351,8 @@ Item {
                 Label {
                     Layout.columnSpan: 3; Layout.fillWidth: true
                     text: inspectionObject.count
-                        ? "Sends the selected idle Manny to inspect a planet, asteroid, detached container, or dormant construct without beginning a mining order."
-                        : "No inspectable planet, asteroid, detached container, or dormant construct is visible in the current detailed sector scan."
+                        ? "Sends the selected idle Manny to inspect a planet, asteroid, detached container, dormant construct, or Others mothership wreck without beginning a mining order."
+                        : "No inspectable planet, asteroid, detached container, dormant construct, or Others mothership wreck is visible in the current detailed sector scan."
                     color: inspectionObject.count ? Constants.mutedTextColor : Constants.warningColor
                     wrapMode: Text.Wrap
                 }

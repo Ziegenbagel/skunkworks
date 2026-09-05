@@ -33,6 +33,11 @@ targets, ownership and scan confidence, four resource types plus depletion, and
 all five asteroid-composition classes. Medium scan confidence is represented by
 the high-confidence badge at reduced opacity, avoiding a redundant raster.
 
+The Others vessel icon is an original transparent spherical alien-ship design
+generated for the API v130 Live Sector expansion. Its segmented graphite armor,
+cyan rim lighting, and restrained red-orange apertures distinguish hostile
+Others contacts from Skunkworks probe silhouettes at compact map sizes.
+
 `map-icons-expansion-master-chroma.png` is the generated 5×4 source atlas and
 `map-icons-expansion-master.png` is its transparent master. Run
 `tools/ui/slice_icon_atlas.py` after intentionally replacing the master to

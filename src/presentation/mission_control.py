@@ -196,6 +196,14 @@ class MissionControlViewModelBuilder:
                 target_type = re.sub(
                     r"([a-z0-9])([A-Z])", r"\1_\2", str(value.get("type", ""))
                 ).strip().lower().replace("-", "_").replace(" ", "_")
+                if MissionControlViewModelBuilder._is_others_mothership_wreck(
+                    value, target_type,
+                ):
+                    target_type = "others_mothership_wreck"
+                elif str(value.get("observedClass", "")).casefold() in {
+                    "large_ship", "ship",
+                }:
+                    target_type = "others_ship"
                 target_kind = "planet" if "planet" in target_type else "asteroid" if "asteroid" in target_type else ""
                 if not target_kind and value.get("mannyMineable", False):
                     target_kind = target_type or "mineable_object"
@@ -297,7 +305,10 @@ class MissionControlViewModelBuilder:
                         "name": value.get("name") or value.get("summary") or f"{target_type.replace('_', ' ').title()} · {target_id}",
                         "type": target_type or "celestial_object",
                     })
-                if target_type in {"planet", "asteroid", "detached_container", "dormant_construct"} and target_id and target_id not in seen_inspectable:
+                if target_type in {
+                    "planet", "asteroid", "detached_container",
+                    "dormant_construct", "others_mothership_wreck",
+                } and target_id and target_id not in seen_inspectable:
                     seen_inspectable.add(target_id)
                     inspectable_objects.append({
                         "id": target_id,
@@ -1217,9 +1228,20 @@ class MissionControlViewModelBuilder:
 
     @staticmethod
     def _sector_object(item):
+        object_type = re.sub(
+            r"([a-z0-9])([A-Z])", r"\1_\2", str(item.get("type", "unknown"))
+        ).strip().lower().replace("-", "_").replace(" ", "_")
+        if MissionControlViewModelBuilder._is_others_mothership_wreck(
+            item, object_type,
+        ):
+            object_type = "others_mothership_wreck"
+        elif str(item.get("observedClass", "")).casefold() in {
+            "large_ship", "ship",
+        }:
+            object_type = "others_ship"
         view = {
             "id": str(item.get("id", "unknown")),
-            "type": item.get("type", "unknown"),
+            "type": object_type,
             "name": item.get("name") or item.get("summary") or item.get("type", "Unknown").replace("_", " ").title(),
             "category": item.get("category"),
             "mass": item.get("mass"),
@@ -1238,6 +1260,8 @@ class MissionControlViewModelBuilder:
             ),
             "mode": item.get("mode"),
             "status": item.get("status"),
+            "observedClass": item.get("observedClass"),
+            "movement": item.get("movement") or {},
             "isTransitBeacon": bool(item.get("isTransitBeacon", False)),
             "resourceTypes": tuple(item.get("resourceTypes") or ()),
             "resourceComposition": item.get("resourceComposition") or {},
@@ -1254,6 +1278,25 @@ class MissionControlViewModelBuilder:
             "targetsCurrentProbe": bool(item.get("targetsCurrentProbe", False)),
         }
         return view
+
+    @staticmethod
+    def _is_others_mothership_wreck(item, normalized_type=None):
+        """Recognize the additive wreck representation despite its missing enum value."""
+        object_type = normalized_type or str(item.get("type", "")).casefold()
+        return (
+            "wreck" in object_type
+            or "mothership_wreck" in object_type
+            or (
+                item.get("massUnit") == "kilogram"
+                and item.get("radiusUnit") == "meter"
+                and (
+                    "wreck" in str(item.get("name", "")).casefold()
+                    or "wreck" in str(item.get("summary", "")).casefold()
+                    or "mothership" in str(item.get("name", "")).casefold()
+                    or "mothership" in str(item.get("summary", "")).casefold()
+                )
+            )
+        )
 
     def _event_alerts(self):
         alerts = []

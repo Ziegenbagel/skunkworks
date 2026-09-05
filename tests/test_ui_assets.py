@@ -25,6 +25,7 @@ EXPANSION_ICONS = (
     "detached-container",
     "dormant-construct",
     "unknown-object",
+    "others-ship",
     "waypoint-bookmark",
     "badge-scut-transit-beacon",
     "badge-hidden-container",
@@ -77,6 +78,8 @@ def test_asset_catalog_covers_current_api_objects_and_tanker():
         "detached_container",
         "deuterium_refuel_station",
         "dormant_construct",
+        "others_ship",
+        "others_mothership_wreck",
         "scut_relay",
         "deuterium_tanker",
     ):
