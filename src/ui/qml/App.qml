@@ -7,6 +7,7 @@ ApplicationWindow {
     property var backend: null
     property string foregroundNotificationTitle: ""
     property string foregroundNotificationMessage: ""
+    property var foregroundNotificationQueue: []
     readonly property bool hasLiveSnapshot: window.backend !== null
         && Object.keys(window.backend.presentationDashboard || ({})).length > 0
     width: Constants.width
@@ -48,13 +49,31 @@ ApplicationWindow {
         target: window.backend
         function onDesktopNotificationRequested(title, message) {
             if (window.active && window.visibility !== Window.Minimized) {
-                window.foregroundNotificationTitle = title;
-                window.foregroundNotificationMessage = message;
-                foregroundNotificationTimer.restart();
+                if (window.foregroundNotificationTitle.length > 0) {
+                    window.foregroundNotificationQueue = window.foregroundNotificationQueue.concat([{"title": title, "message": message}]);
+                } else {
+                    window.showNextForegroundNotification(title, message);
+                }
             }
         }
     }
-    Timer { id: foregroundNotificationTimer; interval: 8000; onTriggered: { window.foregroundNotificationTitle = ""; window.foregroundNotificationMessage = ""; } }
+    function showNextForegroundNotification(title, message) {
+        window.foregroundNotificationTitle = String(title || "");
+        window.foregroundNotificationMessage = String(message || "");
+        foregroundNotificationTimer.restart();
+    }
+    function dismissForegroundNotification() {
+        foregroundNotificationTimer.stop();
+        if (window.foregroundNotificationQueue.length > 0) {
+            const next = window.foregroundNotificationQueue[0];
+            window.foregroundNotificationQueue = window.foregroundNotificationQueue.slice(1);
+            window.showNextForegroundNotification(next.title, next.message);
+        } else {
+            window.foregroundNotificationTitle = "";
+            window.foregroundNotificationMessage = "";
+        }
+    }
+    Timer { id: foregroundNotificationTimer; interval: 8000; onTriggered: window.dismissForegroundNotification() }
     Rectangle {
         id: foregroundNotificationBanner
         z: 870
@@ -69,7 +88,7 @@ ApplicationWindow {
                 Label { Layout.fillWidth: true; text: window.foregroundNotificationTitle.toUpperCase(); color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; elide: Text.ElideRight }
                 Label { Layout.fillWidth: true; text: window.foregroundNotificationMessage; color: Constants.textColor; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
             }
-            Button { text: "DISMISS"; onClicked: { foregroundNotificationTimer.stop(); window.foregroundNotificationTitle = ""; window.foregroundNotificationMessage = ""; } }
+            Button { text: window.foregroundNotificationQueue.length > 0 ? "NEXT (" + window.foregroundNotificationQueue.length + ")" : "DISMISS"; onClicked: window.dismissForegroundNotification() }
         }
     }
 

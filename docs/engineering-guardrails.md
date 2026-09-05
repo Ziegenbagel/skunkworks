@@ -520,6 +520,11 @@ declared controller slot and desktop delivery uses a GUI-thread-owned QObject;
 an unscoped callback must not invoke the tray icon from a worker thread. A new
 authoritative operation result must not be overwritten by the previous
 dashboard result before notification extraction.
+Every accepted terminal result is submitted at the controller boundary where
+it becomes visible; notification discovery must not depend on a later full
+refresh. If discovery is already running, retain every pending snapshot in
+order rather than replacing intermediate results. Foreground banners likewise
+queue instead of overwriting one another when several events arrive together.
 Settings must expose the platform capability and a test action. A successful
 test request must be labeled as requested, never as confirmed OS delivery,
 because desktop policy can suppress a banner after Qt accepts it.

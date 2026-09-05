@@ -1837,6 +1837,7 @@ class MissionControlViewModelBuilder:
                 "detail": self._command_archive_detail(
                     row, probe_names=probe_names, manny_names=manny_names,
                 ),
+                "amount": self._command_archive_amount(row),
                 "timestamp": row.get("observed_at", ""),
             })
         for row in reversed(operations):
@@ -1896,6 +1897,25 @@ class MissionControlViewModelBuilder:
         if command_type == "manny_assemble_probe":
             return f"Assemble {str(payload.get('model') or metadata.get('model') or 'probe').replace('_', ' ').title()}"
         return command_type.replace("_", " ").title()
+
+    @classmethod
+    def _command_archive_amount(cls, row):
+        """Expose a sortable quantity only when the retained command recorded one."""
+
+        command = cls._command_payload(row)
+        payload = command.get("payload") or {}
+        metadata = command.get("metadata") or {}
+        value = (
+            metadata.get("orderAmount")
+            if metadata.get("orderAmount") is not None
+            else payload.get("targetAmount")
+            if payload.get("targetAmount") is not None
+            else payload.get("amount")
+        )
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
 
     @classmethod
     def _command_archive_detail(

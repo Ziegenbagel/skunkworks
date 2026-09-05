@@ -1104,6 +1104,20 @@ def test_focused_window_uses_in_app_notification_banner():
     assert "onDesktopNotificationRequested" in app
     assert "foregroundNotificationBanner" in app
     assert "window.active && window.visibility !== Window.Minimized" in app
+    assert "foregroundNotificationQueue" in app
+    assert "window.dismissForegroundNotification()" in app
+
+
+def test_archive_exposes_status_date_and_sort_controls():
+    reports = Path("src/ui/qml/components/ReportsWorkspace.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "id: archiveStatus" in reports
+    assert "id: archiveDateRange" in reports
+    assert "id: archiveSort" in reports
+    assert '"AMOUNT HIGH–LOW"' in reports
+    assert "left.amount" in reports
 
 
 def test_settings_exposes_operator_manual_and_change_log_links():

@@ -406,6 +406,7 @@ class UiPreparationTests(unittest.TestCase):
             )
 
             action = reports["archive"][0]
+            self.assertEqual(action["amount"], 0.4)
             self.assertEqual(action["title"], "Mine Metals")
             self.assertIn("Resource: Metals", action["detail"])
             self.assertIn("Ordered: 0.4 ECE", action["detail"])

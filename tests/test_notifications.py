@@ -130,6 +130,120 @@ def test_live_notification_result_reaches_controller_delivery_signal():
     ] == "command-1"
 
 
+def test_terminal_results_are_not_lost_while_notification_worker_is_busy():
+    workers = []
+
+    class DeferredPool:
+        @staticmethod
+        def start(worker):
+            workers.append(worker)
+
+    preferences = Preferences()
+    save_policy(preferences, {
+        "enabled": True, "categories": ["operations"],
+        "minimumSeverity": "info",
+    })
+    controller = MissionControlController(
+        settings_engine=preferences, thread_pool=DeferredPool(),
+    )
+    controller._notifications_primed = True
+    controller._dashboard = {"focus": {"name": "Hub"}, "automationRuntime": {}}
+    requested = []
+    controller.desktopNotificationRequested.connect(
+        lambda title, message: requested.append((title, message))
+    )
+
+    controller._queue_terminal_notification({
+        "status": "succeeded", "commandType": "manny_mine",
+        "commandId": "one",
+    })
+    controller._queue_terminal_notification({
+        "status": "succeeded", "commandType": "manny_craft",
+        "commandId": "two",
+    })
+
+    assert len(workers) == 1
+    workers.pop(0).run()
+    assert len(workers) == 1
+    workers.pop(0).run()
+    assert [title for title, _message in requested] == [
+        "Hub · Manny Mine completed", "Hub · Manny Craft completed",
+    ]
+
+
+def test_manual_acceptance_enters_notification_path_without_waiting_for_refresh():
+    preferences = Preferences()
+    save_policy(preferences, {
+        "enabled": True, "categories": ["operations"],
+        "minimumSeverity": "info",
+    })
+    controller = MissionControlController(
+        settings_engine=preferences, thread_pool=ImmediatePool(),
+    )
+    controller._notifications_primed = True
+    controller._dashboard = {"focus": {"name": "Hub"}, "automationRuntime": {}}
+    requested = []
+    controller.desktopNotificationRequested.connect(
+        lambda title, message: requested.append((title, message))
+    )
+
+    controller._command_accepted(
+        {"commandId": "manual-1", "commandType": "move_probe"},
+        "TRAVEL ORDER ACCEPTED · SYNCING", refresh=False,
+    )
+
+    assert requested == [
+        ("Hub · Move Probe completed", "TRAVEL ORDER ACCEPTED · SYNCING")
+    ]
+
+
+def test_repeated_manual_acceptances_without_server_ids_remain_distinct():
+    preferences = Preferences()
+    save_policy(preferences, {
+        "enabled": True, "categories": ["operations"],
+        "minimumSeverity": "info",
+    })
+    controller = MissionControlController(
+        settings_engine=preferences, thread_pool=ImmediatePool(),
+    )
+    controller._notifications_primed = True
+    controller._dashboard = {"focus": {"name": "Hub"}, "automationRuntime": {}}
+    requested = []
+    controller.desktopNotificationRequested.connect(
+        lambda title, message: requested.append((title, message))
+    )
+
+    controller._command_accepted({}, "ORDER ACCEPTED · SYNCING", refresh=False)
+    controller._command_accepted({}, "ORDER ACCEPTED · SYNCING", refresh=False)
+
+    assert len(requested) == 2
+
+
+def test_failed_manual_command_enters_failure_notification_path():
+    preferences = Preferences()
+    save_policy(preferences, {
+        "enabled": True, "categories": ["failures"],
+        "minimumSeverity": "warning",
+    })
+    controller = MissionControlController(
+        settings_engine=preferences, thread_pool=ImmediatePool(),
+    )
+    controller._notifications_primed = True
+    controller._dashboard = {"focus": {"name": "Hub"}, "automationRuntime": {}}
+    requested = []
+    controller.desktopNotificationRequested.connect(
+        lambda title, message: requested.append((title, message))
+    )
+
+    controller._queue_command_failure_notification(
+        "Insufficient fuel", command_type="move_probe",
+    )
+
+    assert requested == [
+        ("Hub · Move Probe needs attention", "Insufficient fuel")
+    ]
+
+
 def test_desktop_notification_bridge_owns_tray_delivery_slot():
     calls = []
 

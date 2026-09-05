@@ -32,10 +32,36 @@ Item {
     function matchingArchive() {
         const needle = archiveSearch.text.trim().toLowerCase();
         const domain = archiveDomain.currentText;
-        return (reportsData.archive || []).filter(row => {
+        const status = archiveStatus.currentText;
+        const rangeDays = [0, 1, 7, 30][archiveDateRange.currentIndex];
+        const cutoff = rangeDays > 0 ? currentEpochMs - rangeDays * 86400000 : 0;
+        const rows = (reportsData.archive || []).filter(row => {
             if (domain !== "ALL DOMAINS" && String(row.domain || "").toUpperCase() !== domain) return false;
+            if (status !== "ALL STATUSES" && String(row.status || "").toUpperCase() !== status) return false;
+            if (cutoff > 0) {
+                const timestamp = new Date(String(row.timestamp || "")).getTime();
+                if (isNaN(timestamp) || timestamp < cutoff) return false;
+            }
             if (!needle.length) return true;
             return root.archiveSearchText(row).indexOf(needle) >= 0;
+        });
+        const mode = archiveSort.currentIndex;
+        return rows.slice().sort((left, right) => {
+            if (mode === 0 || mode === 1) {
+                const delta = new Date(String(left.timestamp || "")).getTime() - new Date(String(right.timestamp || "")).getTime();
+                return mode === 0 ? -delta : delta;
+            }
+            if (mode === 2 || mode === 3) {
+                const leftMissing = left.amount === undefined || left.amount === null;
+                const rightMissing = right.amount === undefined || right.amount === null;
+                if (leftMissing !== rightMissing) return leftMissing ? 1 : -1;
+                const delta = Number(left.amount) - Number(right.amount);
+                return mode === 2 ? -delta : delta;
+            }
+            const keys = mode === 4 ? [left.probeName, right.probeName]
+                       : mode === 5 ? [left.title, right.title]
+                       : [left.status, right.status];
+            return String(keys[0] || "").localeCompare(String(keys[1] || ""));
         });
     }
 
@@ -216,7 +242,8 @@ Item {
                 anchors.fill: parent; spacing: 10
                 Label { text: "OPERATIONAL ARCHIVE"; color: Constants.cyanColor; font.family: Constants.displayFont; font.pixelSize: 18; font.bold: true }
                 Label { Layout.fillWidth: true; text: "Search one local timeline of recorded commands, long-running operations, and generated reports. This is historical evidence for review and troubleshooting; it never sends commands or replaces live game validation."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
-                RowLayout { Layout.fillWidth: true; TextField { id: archiveSearch; Layout.fillWidth: true; placeholderText: "Search names, resources, quantities, sectors, reasons, status, dates, or reports" } ComboBox { id: archiveDomain; model: ["ALL DOMAINS", "MINING", "PRODUCTION", "TRAVEL", "MAINTENANCE", "OPERATIONS", "REPORTS"] } }
+                RowLayout { Layout.fillWidth: true; TextField { id: archiveSearch; Layout.fillWidth: true; placeholderText: "Search names, resources, quantities, sectors, reasons, status, dates, or reports" } ComboBox { id: archiveDomain; model: ["ALL DOMAINS", "MINING", "PRODUCTION", "TRAVEL", "MAINTENANCE", "OPERATIONS", "REPORTS"] } ComboBox { id: archiveStatus; model: ["ALL STATUSES", "PROPOSED", "APPROVED", "STARTED", "SUCCEEDED", "COMPLETED", "FAILED", "REJECTED", "CANCELLED", "BLOCKED", "RECORDED"] } }
+                RowLayout { Layout.fillWidth: true; Label { text: "DATE RANGE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont } ComboBox { id: archiveDateRange; model: ["ALL TIME", "LAST 24 HOURS", "LAST 7 DAYS", "LAST 30 DAYS"] } Label { text: "SORT BY"; color: Constants.mutedTextColor; font.family: Constants.technicalFont } ComboBox { id: archiveSort; model: ["NEWEST FIRST", "OLDEST FIRST", "AMOUNT HIGH–LOW", "AMOUNT LOW–HIGH", "PROBE NAME", "OPERATION", "STATUS"] } Item { Layout.fillWidth: true } Label { text: root.matchingArchive().length + " MATCHING RECORDS"; color: Constants.mutedTextColor; font.family: Constants.technicalFont } }
                 Label { Layout.fillWidth: true; visible: root.matchingArchive().length === 0; text: (root.reportsData.archive || []).length === 0 ? "NO LOCAL OPERATIONAL HISTORY IS AVAILABLE YET." : "NO ARCHIVE RECORDS MATCH THE CURRENT SEARCH AND DOMAIN FILTER."; color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                 ListView {
                     id: archiveList; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8; model: root.matchingArchive()

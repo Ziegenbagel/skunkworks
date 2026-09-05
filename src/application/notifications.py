@@ -132,7 +132,8 @@ class NotificationCoordinator:
                 result.append(NotificationCandidate(
                     self._key(
                         "operation", last.get("fingerprint"),
-                        last.get("commandId"), status, subject, message,
+                        last.get("commandId"), last.get("notificationEventId"),
+                        status, subject, message,
                     ),
                     category, title, message,
                     "info" if succeeded else "critical",

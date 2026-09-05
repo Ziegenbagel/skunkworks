@@ -18,6 +18,11 @@ remains the record for internal implementation work.
   installed upgrade on the focused probe remains visible with its description.
 - Fixed the optimized Manual Control data projection so installed upgrades
   actually reach that panel during normal navigation and refreshes.
+- Made notification extraction occur when terminal results become visible,
+  retained closely spaced results in order, and queued foreground banners so
+  one event cannot overwrite another.
+- Added Operational Archive status and date-range filters plus sorting by time,
+  recorded amount, probe name, operation, or status.
 - Added multi-select item-type filters above Stored Items and Equipment so
   large inventories can be narrowed to one or several component types locally.
 - Added Deuterium Engines as a maintained production target so probes can

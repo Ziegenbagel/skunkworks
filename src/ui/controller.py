@@ -3426,7 +3426,7 @@ class MissionControlController(QObject):
         self._notification_coordinator = NotificationCoordinator(self.settings_engine)
         self._notifications_primed = False
         self._notification_worker = None
-        self._pending_notification_dashboard = None
+        self._pending_notification_dashboards = []
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
         self._startup_loading = True
@@ -3970,13 +3970,22 @@ class MissionControlController(QObject):
         message = error_formatter(error) if error_formatter else str(error) or type(error).__name__
         self._set_error(message)
         self._set_operation_notice("")
+        if key == "command":
+            self._queue_command_failure_notification(message)
 
     def _command_accepted(
-        self, _result=None, success_message="ORDER ACCEPTED · SYNCING",
+        self, result=None, success_message="ORDER ACCEPTED · SYNCING",
         *, refresh=True,
     ):
         self._set_error("")
         self._set_operation_notice(success_message)
+        notification_result = dict(result or {})
+        notification_result.setdefault("status", "accepted")
+        notification_result.setdefault("accepted", True)
+        notification_result.setdefault("message", success_message)
+        if not notification_result.get("fingerprint") and not notification_result.get("commandId"):
+            notification_result["notificationEventId"] = time.time_ns()
+        self._queue_terminal_notification(notification_result)
         if refresh and not self._refreshing:
             self._start_refresh(
                 self._focused_probe_id,
@@ -4285,6 +4294,7 @@ class MissionControlController(QObject):
         runtime = dict(self._dashboard.get("automationRuntime", {}))
         runtime["lastResult"] = self._qt_safe(result)
         self._dashboard["automationRuntime"] = runtime
+        self._queue_notification_processing(self._dashboard)
         self.dashboardChanged.emit()
         self._start_refresh(self._focused_probe_id)
 
@@ -4292,6 +4302,9 @@ class MissionControlController(QObject):
     def _reject_automation_cycle(self, message):
         self._automation_cycle_worker = None
         self._set_error("Automation cycle failed: " + message)
+        self._queue_command_failure_notification(
+            message, command_type="automation_cycle",
+        )
 
     def _automation_tick(self):
         # A repeating QTimer should remain active, but explicitly self-heal if
@@ -4396,6 +4409,7 @@ class MissionControlController(QObject):
         runtime = dict(self._dashboard.get("automationRuntime", {}))
         runtime["lastResult"] = self._qt_safe(result)
         self._dashboard["automationRuntime"] = runtime
+        self._queue_notification_processing(self._dashboard)
 
         command_results = result.get("results") or (result,)
         claimed = {
@@ -4455,6 +4469,8 @@ class MissionControlController(QObject):
         if focused_result is not None:
             runtime["lastResult"] = self._qt_safe(focused_result)
         self._dashboard["automationRuntime"] = runtime
+        if focused_result is not None:
+            self._queue_notification_processing(self._dashboard)
         self._touch_section_revisions("manualControl", "settings")
         self.dashboardChanged.emit()
         # Every scheduled cycle is followed by an authoritative focused-probe
@@ -4779,7 +4795,11 @@ class MissionControlController(QObject):
             self.manualCraftOverrideChanged.emit()
             self._set_error("")
         else:
-            self._set_error(str(error) or type(error).__name__)
+            message = str(error) or type(error).__name__
+            self._set_error(message)
+            self._queue_command_failure_notification(
+                message, command_type="manny_craft",
+            )
         self._set_manual_craft_queue_notice()
         self._start_next_manual_craft_order()
 
@@ -5455,7 +5475,11 @@ class MissionControlController(QObject):
         self._manual_mining_worker = None
         if int(order["probeId"]) == int(self._focused_probe_id):
             self._restore_rejected_manual_manny(order)
-        self._set_error(self._inventory_error_message(error), context="command")
+        message = self._inventory_error_message(error)
+        self._set_error(message, context="command")
+        self._queue_command_failure_notification(
+            message, command_type="manny_mine",
+        )
         self._set_operation_notice(
             f"MINING ORDER REJECTED · {len(self._manual_mining_queue)} STILL QUEUED"
         )
@@ -6393,7 +6417,7 @@ class MissionControlController(QObject):
     def _queue_notification_processing(self, dashboard, prime=False):
         snapshot = dict(dashboard)
         if self._notification_worker is not None:
-            self._pending_notification_dashboard = (snapshot, bool(prime))
+            self._pending_notification_dashboards.append((snapshot, bool(prime)))
             return
         worker = _BackgroundCallWorker(
             lambda: self._notification_coordinator.take_new(
@@ -6416,19 +6440,36 @@ class MissionControlController(QObject):
             self.desktopNotificationRequested.emit(
                 notification.title, notification.message,
             )
-        pending = self._pending_notification_dashboard
-        self._pending_notification_dashboard = None
+        pending = self._pending_notification_dashboards.pop(0) if self._pending_notification_dashboards else None
         if pending is not None:
             dashboard, prime = pending
             self._queue_notification_processing(dashboard, prime=prime)
 
     def _reject_notification_processing(self, _error):
         self._notification_worker = None
-        pending = self._pending_notification_dashboard
-        self._pending_notification_dashboard = None
+        pending = self._pending_notification_dashboards.pop(0) if self._pending_notification_dashboards else None
         if pending is not None:
             dashboard, prime = pending
             self._queue_notification_processing(dashboard, prime=prime)
+
+    def _queue_terminal_notification(self, result):
+        """Submit a terminal result at the boundary where the UI accepts it."""
+
+        snapshot = dict(self._dashboard)
+        runtime = dict(snapshot.get("automationRuntime", {}))
+        runtime["lastResult"] = self._qt_safe(result)
+        snapshot["automationRuntime"] = runtime
+        self._queue_notification_processing(snapshot)
+
+    def _queue_command_failure_notification(
+        self, message, *, command_type="manual_command",
+    ):
+        self._queue_terminal_notification({
+            "status": "failed",
+            "commandType": command_type,
+            "message": str(message or "Command failed"),
+            "notificationEventId": time.time_ns(),
+        })
 
     def _arm_emergency_missile_escape(self):
         if self._emergency_stop or self._emergency_escape_worker is not None:
