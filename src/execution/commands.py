@@ -14,6 +14,7 @@ class CommandType(StrEnum):
     MANNY_REFILL_DEUTERIUM_TANK = "manny_refill_deuterium_tank"
     MANNY_ASSEMBLE_PROBE = "manny_assemble_probe"
     MANNY_REPAIR = "manny_repair"
+    MANNY_INSPECT_SECTOR_OBJECT = "manny_inspect_sector_object"
     MOVE_PROBE = "move_probe"
     CANCEL_PROBE_MOVE = "cancel_probe_move"
 

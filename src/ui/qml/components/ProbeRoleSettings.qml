@@ -9,6 +9,7 @@ Item {
     property var settingsData: ({})
     property var availableProbes: []
     property var focusedProbeData: ({})
+    property var runtimeData: ({})
     property int focusedProbeId: -1
     property int defaultProbeId: -1
     readonly property bool canManageRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
@@ -138,8 +139,59 @@ Item {
                     Label { visible: reserveTarget.currentIndex >= 0 && Number(reserveTarget.currentValue) === root.focusedProbeId; text: "A reserve tanker cannot refill itself."; color: Constants.criticalColor; font.family: Constants.technicalFont }
                     }
                 }
+                GroupBox {
+                    visible: root.focusedRole === "explorer"
+                    title: "AUTONOMOUS FRONTIER EXPLORATION"
+                    Layout.fillWidth: true
+                    ColumnLayout {
+                        anchors.fill: parent; spacing: 14
+                        Label {
+                            Layout.fillWidth: true
+                            text: "The Explorer scans on arrival, remains inside verified SCUT coverage, and uses an idle Manny to inspect dormant constructs or derelict Others ships. Habitable-species contact always pauses until you review and acknowledge its alert in Safety."
+                            color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                        }
+                        Rectangle {
+                            Layout.fillWidth: true; implicitHeight: explorerStatus.implicitHeight + 24
+                            color: Constants.raisedColor; border.color: Constants.lineColor; radius: 3
+                            Label {
+                                id: explorerStatus
+                                anchors.fill: parent; anchors.margins: 12
+                                text: "STATUS · " + String((root.runtimeData.explorer || {}).phase || "NOT EVALUATED").replace(/_/g, " ").toUpperCase()
+                                      + "\n" + String((root.runtimeData.explorer || {}).summary || "Save settings, then run or enable an automation cycle to evaluate the campaign.")
+                                color: Boolean((root.runtimeData.explorer || {}).paused) ? Constants.warningColor : Constants.cyanColor
+                                font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                            }
+                        }
+                        CheckBox {
+                            id: explorerEnabled
+                            text: "ENABLE AUTONOMOUS EXPLORATION"
+                            checked: Boolean(root.focusedSettings.explorationEnabled)
+                        }
+                        RowLayout {
+                            Label { text: "FRONTIER FOCUS"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox {
+                                id: explorerMode
+                                Layout.preferredWidth: 360
+                                model: ["PLANETARY FRONTIER (WITH FALLBACK)", "ANY FRONTIER"]
+                                currentIndex: String(root.focusedSettings.frontierMode || "planetary_frontier") === "any_frontier" ? 1 : 0
+                            }
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: "Planetary focus prefers scans suggesting planets, then automatically falls back to the nearest ordinary unexplored sector instead of stalling. Existing global fuel, Metals, repair, and safe-hop settings remain authoritative."
+                            color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                        }
+                        Button {
+                            text: "SAVE EXPLORER ROLE SETTINGS"
+                            onClicked: root.roleSettingsSaveRequested(root.focusedProbeId, {
+                                "explorationEnabled": Boolean(explorerEnabled.checked),
+                                "frontierMode": explorerMode.currentIndex === 1 ? "any_frontier" : "planetary_frontier"
+                            })
+                        }
+                    }
+                }
                 Item {
-                    visible: ["transport", "deuterium_tanker", "deuterium_reserve"].indexOf(root.focusedRole) < 0
+                    visible: ["transport", "deuterium_tanker", "deuterium_reserve", "explorer"].indexOf(root.focusedRole) < 0
                     Layout.fillWidth: true
                     Layout.minimumWidth: roleScroll.availableWidth
                     Layout.preferredHeight: Math.max(300, roleScroll.availableHeight - 90)

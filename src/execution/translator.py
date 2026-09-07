@@ -23,11 +23,32 @@ class TaskCommandTranslator:
             "Cancel Automatic Travel": self._cancel_move,
             "Assemble Probe": self._assemble_probe,
             "Repair Probe": self._repair,
+            "Inspect Sector Object": self._inspect_sector_object,
             "Transfer Deuterium": self._transfer_deuterium,
             "Refill Deuterium Tank": self._refill_deuterium_tank,
         }.get(task.action)
 
         return handler(task) if handler is not None else None
+
+    def _inspect_sector_object(self, task):
+        manny = self._claim_idle_manny()
+        if manny is None or not task.target:
+            return None
+        return Command(
+            type=CommandType.MANNY_INSPECT_SECTOR_OBJECT,
+            probe_id=self.probe_id,
+            target_id=manny["id"],
+            payload={"objectId": task.target},
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+            metadata={
+                "workflowAuthorized": bool(task.workflow_authorized),
+                "mannyName": manny.get("name") or "Manny",
+                "objectName": task.metadata.get("objectName", task.target),
+                "objectType": task.metadata.get("objectType", "sector_object"),
+            },
+        )
 
     def _cancel_move(self, task):
         return Command(

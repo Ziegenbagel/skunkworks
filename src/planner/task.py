@@ -1,6 +1,6 @@
 """Task model for the Planner."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.models.galaxy import SectorCoordinates
 
@@ -44,5 +44,8 @@ class Task:
     # workflow's narrowly typed command; global live execution and emergency
     # stop protections still apply.
     workflow_authorized: bool = False
+
+    # Presentation and command-journal context that does not affect planning.
+    metadata: dict = field(default_factory=dict)
 
     priority: int = 100

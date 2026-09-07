@@ -988,6 +988,25 @@ Relevant tests:
 
 ## Regression Workflow
 
+### Explorer role automation remains policy-controlled and resumable
+
+An enabled Explorer role contributes ordinary typed planner commands; it does
+not create a second executor. Every movement remains inside positively verified
+SCUT coverage and inherits emergency stop, execution-mode, live-execution, and
+preflight protections. Planetary focus is a preference with an ordinary
+frontier fallback. When all twelve neighboring sectors are known, the role may
+route to the nearest known frontier rather than stalling.
+
+Arrival discovery work precedes further travel. Dormant constructs and derelict
+Others ships are inspected through an actual idle Manny using the game
+`inspect-sector-object` task. A habitable-species, civilization, intelligent-life,
+or first-contact alert pauses selection of further destinations until operator
+action; automation never silently acknowledges that contact.
+
+Relevant tests:
+
+- `tests/test_explorer_campaign.py`
+
 Before modifying a shared path:
 
 1. Identify every guardrail it touches.

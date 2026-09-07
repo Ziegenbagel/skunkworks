@@ -33,6 +33,7 @@ from src.intelligence.world_builder import WorldBuilder
 from src.operations.operations import Operations
 from src.operations.manufacturing import ManufacturingService
 from src.operations.logistics import FleetRoleService, TankerLogisticsService
+from src.operations.explorer_campaign import ExplorerCampaignService
 from src.operations import OperationFactory, OperationStore, RoundTripTransportPlan
 from src.presentation import MissionControlViewModelBuilder
 from src.recipes.manager import RecipeManager
@@ -891,6 +892,9 @@ class MissionControlDataService:
             transport_tasks.extend(
                 self._reserve_tanker_delivery_tasks(operations, probe_id)
             )
+            desired, explorer_tasks, explorer_view = self._reconcile_explorer_campaign(
+                operations, probe_id, desired,
+            )
             tasks = Planner(
                 operations,
                 desired,
@@ -905,6 +909,7 @@ class MissionControlDataService:
                     for task in tasks
                 ]
             tasks.extend(transport_tasks)
+            tasks.extend(explorer_tasks)
             tasks.sort(key=task_order_key)
             excluded_fabrication = set(excluded_fabrication)
             preparation_tasks = [
@@ -941,7 +946,71 @@ class MissionControlDataService:
                 "blockers": list(task.constraints),
             } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
+            "explorer": explorer_view if operations is not None and probe_id is not None else {},
         }
+
+    def _reconcile_explorer_campaign(self, operations, probe_id, desired):
+        """Project an enabled Explorer role into safe travel and Manny tasks."""
+        if not hasattr(self.data_engine, "fleet_roles"):
+            return desired, [], {}
+        row = next((dict(item) for item in FleetRoleService(self.data_engine).all("probe")
+                    if int(item["asset_id"]) == int(probe_id)), None)
+        if row is None or row.get("role") != "explorer":
+            return desired, [], {}
+        try:
+            settings = json.loads(row.get("metadata_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            settings = {}
+        if not settings.get("explorationEnabled", False):
+            return desired, [], {
+                "phase": "paused", "paused": True,
+                "summary": "Explorer automation is paused in Probe Role Settings.",
+                "mode": settings.get("frontierMode", "planetary_frontier"),
+            }
+        alerts = []
+        for record in self.data_engine.records("alerts", probe_id=probe_id):
+            try:
+                alert = json.loads(record["payload_json"])
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                alert = {}
+            alerts.append(alert)
+        resource_need = self._explorer_resource_need(operations, desired)
+        decision = ExplorerCampaignService(operations).decide(
+            mode=settings.get("frontierMode", "planetary_frontier"),
+            alerts=alerts,
+            resource_need=resource_need,
+        )
+        # An operator-owned travel goal is never overwritten by role automation.
+        if decision.destination is not None and desired.travel is None:
+            desired = replace(desired, travel=TravelGoal(
+                target=decision.destination,
+                route_mode="segmented",
+            ))
+        return desired, list(decision.tasks), {
+            "phase": decision.phase,
+            "paused": decision.paused,
+            "summary": decision.summary,
+            "mode": settings.get("frontierMode", "planetary_frontier"),
+            "destination": ({
+                "x": decision.destination.x,
+                "y": decision.destination.y,
+                "z": decision.destination.z,
+            } if decision.destination else None),
+        }
+
+    @staticmethod
+    def _explorer_resource_need(operations, desired):
+        fuel = operations.world.probe.get("fuel") or {}
+        maximum = float(fuel.get("maxDeuterium", 0) or 0)
+        available = float(fuel.get("deuterium", 0) or 0)
+        if maximum and available / maximum * 100 <= desired.fuel.minimum_percent:
+            return ("deuterium", maximum)
+        resources, _items = operations.manufacturing.available_inputs()
+        metals_goal = next((goal for goal in desired.resources
+                            if goal.resource_type == "metals"), None)
+        if metals_goal and float(resources.get("metals", 0) or 0) < metals_goal.minimum_amount:
+            return ("metals", metals_goal.minimum_amount)
+        return None
 
     def _apply_probe_role_goals(self, desired, operations, probe_id):
         """Add operational goals implied by a probe's assigned fleet role."""
@@ -2622,12 +2691,21 @@ class MissionControlDataService:
         return summary
 
     def _auto_scan_explorer_arrival(self, probe_id, operations):
-        role = next((
-            row["role"] for row in FleetRoleService(self.data_engine).all("probe")
+        role_row = next((
+            dict(row) for row in FleetRoleService(self.data_engine).all("probe")
             if int(row["asset_id"]) == int(probe_id)
         ), None)
+        try:
+            role_settings = json.loads((role_row or {}).get("metadata_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            role_settings = {}
         current = operations.travel.current_sector()
-        if role != "explorer" or current is None or operations.world.probe.get("status") != "idle":
+        if (
+            (role_row or {}).get("role") != "explorer"
+            or not role_settings.get("explorationEnabled", False)
+            or current is None
+            or operations.world.probe.get("status") != "idle"
+        ):
             return None
         marker = f"{current.x}:{current.y}:{current.z}"
         key = f"explorer_neighbor_scan:{probe_id}"

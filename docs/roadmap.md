@@ -597,7 +597,10 @@ focused regression tests pass. No 1.2 development commit receives a public
 - Automated SCUT network design.
 - Hub-placement optimization.
 - Fuel-station and infrastructure network planning.
-- Advanced explorer campaigns and frontier coverage optimization.
+- Advanced explorer campaigns and frontier coverage optimization. Initial
+  role workflow implemented on `develop`: planetary/any-frontier selection,
+  non-stalling fallback, SCUT-contained nearest-frontier routing, resource-floor
+  recovery, Manny discovery inspection, and civilization-contact hold.
 - Civilization-contact and quest reward analysis.
 - Expand automation only through explainable desired-state goals, live
   preflight, bounded request budgets, and explicit opt-ins for consequential

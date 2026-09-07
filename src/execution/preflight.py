@@ -29,6 +29,7 @@ class PreflightValidator:
             CommandType.MANNY_REFILL_DEUTERIUM_TANK,
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
+            CommandType.MANNY_INSPECT_SECTOR_OBJECT,
             CommandType.MOVE_PROBE,
         } and probe["status"] not in {"idle", "arrived"}:
             blockers.append("probe_unavailable")
@@ -47,6 +48,7 @@ class PreflightValidator:
             CommandType.MANNY_REFILL_DEUTERIUM_TANK,
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
+            CommandType.MANNY_INSPECT_SECTOR_OBJECT,
         }:
             manny = next(
                 (

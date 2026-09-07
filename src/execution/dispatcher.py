@@ -16,6 +16,7 @@ class CapabilityDispatcher:
             CommandType.MANNY_REFILL_DEUTERIUM_TANK: self._manny_refill_deuterium_tank,
             CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,
             CommandType.MANNY_REPAIR: self._manny_repair,
+            CommandType.MANNY_INSPECT_SECTOR_OBJECT: self._manny_inspect_sector_object,
             CommandType.MOVE_PROBE: self._move_probe,
             CommandType.CANCEL_PROBE_MOVE: self._cancel_probe_move,
         }
@@ -76,6 +77,14 @@ class CapabilityDispatcher:
     def _manny_repair(self, command):
         return self.capabilities.mannies.start_task(
             command.probe_id, command.target_id, "repair", command.payload,
+        )
+
+    def _manny_inspect_sector_object(self, command):
+        return self.capabilities.mannies.start_task(
+            command.probe_id,
+            command.target_id,
+            "inspect-sector-object",
+            command.payload,
         )
 
     def _move_probe(self, command):

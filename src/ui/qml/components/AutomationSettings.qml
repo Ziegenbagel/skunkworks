@@ -956,6 +956,7 @@ Item {
         focusedProbeId: root.focusedProbeId
         defaultProbeId: root.defaultProbeId
         focusedProbeData: root.focusedProbeData
+        runtimeData: root.runtimeData
         onRoleAssignmentRequested: (probeId, role) => root.roleAssignmentRequested(probeId, role)
         onRoleSettingsSaveRequested: (probeId, settings) => root.roleSettingsSaveRequested(probeId, settings)
         onTransportCycleRequested: plan => root.transportCycleRequested(plan)
