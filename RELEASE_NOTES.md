@@ -1,5 +1,10 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.1
+
+- Fixed Windows release validation so the portable package can be published
+  alongside the macOS and Linux packages.
+
 ## Skunkworks 1.1.0
 
 - Added Normal, Low Power, Auto, and Scheduled operating profiles. Low Power
