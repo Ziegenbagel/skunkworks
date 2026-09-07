@@ -152,10 +152,33 @@ class TravelService:
         if any(manny.get("currentTask") is not None for manny in relevant):
             blockers.append("manny_tasks_in_progress")
         if any(
-            (manny.get("location") or {}).get("type") != "probe"
+            not self._manny_is_aboard_current_probe(manny)
             for manny in relevant
         ):
             blockers.append("mannies_not_aboard")
+        # API v128 exposes deployed autonomous units independently of the
+        # ordinary Manny roster. A deployed Manny can be absent from, or lag
+        # behind, that roster during an arrival/inspection transition. Treat
+        # either a matching Manny ID or this probe as carrier as authoritative
+        # evidence that automatic departure must wait.
+        owned_ids = {str(manny.get("id")) for manny in mannies if manny.get("id") is not None}
+        probe_id = str(self.world.probe.get("id"))
+        for unit in (self.world.sector or {}).get("autonomousUnits", ()):
+            kind = str(unit.get("kind", unit.get("type", ""))).casefold()
+            if "manny" not in kind:
+                continue
+            carrier = unit.get("carrier") or {}
+            belongs_to_probe = (
+                str(unit.get("id")) in owned_ids
+                or str(carrier.get("id")) == probe_id
+                or str(unit.get("carrierProbeId", "")) == probe_id
+            )
+            spatial_state = str(unit.get("spatialState", "")).casefold()
+            if belongs_to_probe and spatial_state not in {
+                "aboard", "aboard_probe", "contained", "docked", "on_probe",
+            }:
+                blockers.append("mannies_not_aboard")
+                break
         # Accepted work may not yet have authoritative task telemetry. The
         # dispatch burst marks its Manny unavailable immediately; treat that
         # local claim as enough to invalidate a previously planned auto-jump.
@@ -166,3 +189,15 @@ class TravelService:
         ):
             blockers.append("mannies_unavailable_for_travel")
         return tuple(blockers)
+
+    def _manny_is_aboard_current_probe(self, manny):
+        location = manny.get("location") or {}
+        location_type = str(location.get("type", "")).casefold().replace("-", "_")
+        if location_type not in {"probe", "aboard_probe", "on_probe"}:
+            return False
+        carrier_id = (
+            location.get("probeId")
+            or (location.get("probe") or {}).get("id")
+            or (location.get("carrier") or {}).get("id")
+        )
+        return carrier_id in {None, "", self.world.probe.get("id"), str(self.world.probe.get("id"))}

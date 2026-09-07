@@ -22,6 +22,9 @@ remains the record for internal implementation work.
   actual idle Manny to inspect dormant constructs and derelict Others ships.
 - Habitable-species and civilization contact pauses further exploration until
   the operator reviews and acknowledges the alert in Safety.
+- Hardened automatic travel against leaving Mannys behind by reconciling the
+  owned Manny roster with API-v128 deployed autonomous-unit observations and
+  rejecting Mannys shown aboard a different probe.
 
 ### Internal release support
 

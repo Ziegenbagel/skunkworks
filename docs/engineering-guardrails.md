@@ -1006,6 +1006,15 @@ action; automation never silently acknowledges that contact.
 Relevant tests:
 
 - `tests/test_explorer_campaign.py`
+- `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_auto_travel_blocks_deployed_manny_reported_only_as_autonomous_unit`
+
+Automatic departure treats the focused probe's Manny roster and the independent
+API-v128 autonomous-unit observation as complementary safety authorities. A
+deployed owned Manny reported by either source blocks travel, even when the
+other source is stale or omits the unit. A Manny located aboard a different
+probe is not considered safely aboard the focused probe. Recovery travel may
+still approach the stranded Manny's positively identified sector, but no role
+may use missing or contradictory telemetry as proof that all Mannys are aboard.
 
 Before modifying a shared path:
 

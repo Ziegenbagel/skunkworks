@@ -1546,6 +1546,49 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertNotIn("mannies_not_aboard", blockers)
         self.assertNotIn("mannies_unavailable_for_travel", blockers)
 
+    def test_auto_travel_blocks_deployed_manny_reported_only_as_autonomous_unit(self):
+        command = Command(
+            type=CommandType.MOVE_PROBE,
+            probe_id=1,
+            payload={"target": {"x": 1, "y": 1, "z": 0}},
+            reason="Explorer frontier route",
+            priority=1,
+            source_action="Move Probe",
+            metadata={"workflowAuthorized": True},
+        )
+        # The normal roster says the Manny is aboard, but the independent v128
+        # sector observation is the fresher authority during deployment.
+        manny = self.operations.world.mannies["mannies"][0]
+        manny["location"] = {"type": "probe", "probeId": 1}
+        self.operations.world.sector["autonomousUnits"] = [{
+            "id": manny["id"],
+            "kind": "manny",
+            "carrier": {"kind": "probe", "id": 1},
+            "spatialState": "deployed",
+        }]
+
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+
+        self.assertIn("mannies_not_aboard", blockers)
+
+    def test_auto_travel_does_not_treat_manny_on_another_probe_as_aboard(self):
+        command = Command(
+            type=CommandType.MOVE_PROBE,
+            probe_id=1,
+            payload={"target": {"x": 1, "y": 1, "z": 0}},
+            reason="Explorer frontier route",
+            priority=1,
+            source_action="Move Probe",
+            metadata={"workflowAuthorized": True},
+        )
+        self.operations.world.mannies["mannies"][0]["location"] = {
+            "type": "probe", "probeId": 99,
+        }
+
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+
+        self.assertIn("mannies_not_aboard", blockers)
+
     def test_auto_travel_cancellation_rechecks_grace_period_and_manny_state(self):
         command = Command(
             type=CommandType.CANCEL_PROBE_MOVE,
