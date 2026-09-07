@@ -1,5 +1,30 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.0
+
+- Added Normal, Low Power, Auto, and Scheduled operating profiles. Low Power
+  reduced average CPU usage by approximately 30% in a controlled 30-minute
+  comparison while retaining scheduled automation and urgent monitoring.
+- Added opt-in desktop notifications with category and severity controls,
+  restart-safe deduplication, delivery diagnostics, and queued in-app banners.
+- Kept network requests, persistence work, manual commands, and settings saves
+  from blocking the interface, with improved refresh and event-loop diagnostics.
+- Improved large-fleet, Production, and Galaxy Map responsiveness by deferring
+  hidden or unchanged interface data and reducing distant map detail when useful.
+- Added a Communications Reports workspace with local Daily Reports, Industrial
+  Analysis, and a detailed searchable and sortable Operational Archive.
+- Added favorites, immediate deletion, and 30-day automatic retention for local
+  daily reports without consuming game Logbook pages.
+- Added inventory type filters, Deuterium Engine production targets, cumulative
+  probe-assembly targets, and clearer assembly progress and reservation status.
+- Added manual probe-upgrade requirements and an Active Probe Upgrades panel
+  showing the installed upgrades reported for the focused probe.
+- Improved automatic travel and missing-Manny recovery, including deployed-Manny
+  checks, resumable journeys, hazard explanations, and reported recovery sectors.
+- Improved reserve-tanker replenishment, focused-probe switching, Galaxy Map
+  navigation handoff, and filtering for known habitable planets.
+- Other various fixes.
+
 ## Skunkworks 1.0.12
 
 - Added inspection, mining, resource detail, and Live Sector identification for
