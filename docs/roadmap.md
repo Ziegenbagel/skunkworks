@@ -2,13 +2,13 @@
 
 ## Status
 
-This is the canonical Skunkworks roadmap as of 2026-08-25.
+This is the canonical Skunkworks roadmap as of 2026-09-07.
 
-Skunkworks 1.0 shipped on 2026-08-23 and the stable patch line has advanced
-through 1.0.4. Missions 1–26 below are retained as the historical foundation
-and release record. Active development now occurs on `develop` and targets
-Version 1.1 — Efficient Background Operations. Public 1.0 maintenance remains
-on `main` and every released hotfix is merged back into `develop`.
+Skunkworks 1.1 shipped from `main` after completing the Efficient Background
+Operations release gate. Missions 1–26 below and the 1.1 plan are retained as
+the historical foundation and release record. Active development now occurs on
+`develop` and targets Version 1.2 — Strategic Automation. Public maintenance
+remains on `main` and every released hotfix is merged back into `develop`.
 
 This roadmap reconciles:
 
@@ -450,7 +450,7 @@ Skunkworks 1.0 must:
 - Keep the core independent from the UI.
 - Pass the Mission 26 release gates.
 
-## Active Development
+## Released Version
 
 ### Version 1.1 — Efficient Background Operations
 
@@ -458,10 +458,8 @@ Goal: keep Skunkworks responsive and informative as fleet size, discovered
 space, and retained history grow, without weakening command safety or making
 the UI authoritative over accepted game state.
 
-Development version: `1.1.0.dev0`. Feature branches start from `develop`, use
-the `codex/<feature-name>` convention, and return to `develop` only after their
-focused regression tests pass. No 1.1 development commit receives a public
-`v*` tag until the integrated release candidate is promoted to `main`.
+Released version: `1.1.0`. The approved integrated candidate was promoted from
+`develop` to `main` and tagged from the resulting main commit.
 
 #### Phase 1 — Baselines and Low Power Mode
 
@@ -587,9 +585,14 @@ The following remain outside 1.1: strategic automation expansion, system-tray
 execution, continuing automation after the main process exits, saved workspace
 layouts, and trusted-device synchronization.
 
-## Future Backlog
+## Active Development
 
 ### Version 1.2 — Strategic Automation
+
+Development version: `1.2.0.dev0`. Feature branches start from `develop`, use
+the `codex/<feature-name>` convention, and return to `develop` only after their
+focused regression tests pass. No 1.2 development commit receives a public
+`v*` tag until the integrated release candidate is promoted to `main`.
 
 - Automated SCUT network design.
 - Hub-placement optimization.
@@ -599,6 +602,8 @@ layouts, and trusted-device synchronization.
 - Expand automation only through explainable desired-state goals, live
   preflight, bounded request budgets, and explicit opt-ins for consequential
   behavior.
+
+## Future Backlog
 
 ### Version 1.3 — Desktop Continuity
 

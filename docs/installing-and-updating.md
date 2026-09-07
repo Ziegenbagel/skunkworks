@@ -94,7 +94,7 @@ Do not run unreviewed source from a moving branch against a valuable game
 account. Prefer a signed release tag, and review configuration before enabling
 automatic orders.
 
-### Owner testing of the 1.1 development branch
+### Owner testing of the 1.2 development branch
 
 The `develop` branch is installed separately from public package updates. It
 continues to use the normal accumulated user-data profile unless an isolated
@@ -108,7 +108,7 @@ uv run --no-sync skunkworks
 ```
 
 Back up the database before testing persistence or migration changes. The
-development footer must show `1.1.0.dev...`; development builds are not public
+development footer must show `1.2.0.dev...`; development builds are not public
 releases and should not replace the stable package used for rollback.
 The repository `.venv` is managed by `uv` and may not contain `pip`; use the
 commands above instead of installing into that environment with `python -m pip`.

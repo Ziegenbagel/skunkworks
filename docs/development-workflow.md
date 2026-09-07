@@ -71,7 +71,7 @@ Do not commit either location. A feature that changes the database schema must
 also prove that the previous public version can be upgraded without losing
 settings, roles, operations, galaxy history, or action history.
 
-## Launching the 1.1 development line
+## Launching the 1.2 development line
 
 This owner checkout uses the preserved private test profile at
 `private/test-data`. Always set `SKUNKWORKS_HOME` to that same directory when
@@ -116,8 +116,8 @@ starting the application.
 Keep the `SKUNKWORKS_HOME` assignment on every development launch; it is the
 identity of the selected writable profile, not an installation option.
 
-The footer must show a `1.1.0.dev...` version while this branch is under
-development. If it shows a public `1.0.x` version, stop and confirm the selected
+The footer must show a `1.2.0.dev...` version while this branch is under
+development. If it shows a public `1.1.x` version, stop and confirm the selected
 branch and editable installation before testing new behavior.
 
 ## Working procedure
