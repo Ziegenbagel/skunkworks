@@ -222,6 +222,13 @@ Manufacturing
 - What raw resources are required to complete a build?
 - Which manufacturing dependencies are missing?
 - Is a production chain currently achievable?
+
+Target semantics:
+
+- Probe assembly targets are cumulative output for the builder probe. Moving a
+  completed probe elsewhere does not reopen the assembly target.
+- All other production targets maintain stored-or-active quantity and replenish
+  items that are transferred or consumed.
 - Which resources are preventing production?
 
 Logistics

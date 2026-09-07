@@ -68,6 +68,15 @@ A large desired quantity is a long-term target, not an immediate claim on all ra
 resources. Reserve the next unit, re-read live inventory, then replan. Otherwise
 one goal such as 100 Mannys monopolizes mining and starves every other goal.
 
+### A deuterium reserve tanker replenishes its transferable surplus
+
+Assigning `deuterium_reserve` is an operational commitment, not only a transfer
+label. While that role is assigned to a deuterium tanker, planning adds an
+effective refill-to-100% fuel goal at high priority so the tanker mines back to
+full after preserving its protected reserve and supplying the next probe in its
+configured chain. The operator's ordinary saved fuel target remains unchanged
+and becomes effective again if the role is removed.
+
 Relevant code/tests:
 
 - `src/planner/rules/manufacturing.py`
@@ -102,6 +111,22 @@ Relevant code/tests:
 - `src/execution/preparer.py`
 - `src/execution/translator.py::release_claim`
 - `tests/test_execution_boundary.py`
+
+## Navigation Interface Invariants
+
+### Map selections create drafts, not commands
+
+Passing a selected Galaxy Map sector to Navigation is a local interface action.
+It may open Navigation and prefill the manual destination, but it must not
+preview, approve, dispatch, or refresh by itself. The operator remains in
+control of route review and every command boundary.
+
+Relevant code/tests:
+
+- `src/ui/qml/components/GalaxyMap3D.qml`
+- `src/ui/qml/components/NavigationWorkspace.qml`
+- `src/ui/qml/components/NavigationControl.qml`
+- `tests/test_ui_assets.py`
 
 ## Crafting and Assembly Invariants
 
@@ -140,6 +165,30 @@ one JSON object as one item.
 Do not issue duplicate work for output already active. Do not treat stale Manny
 task detail on an idle/mining Manny as active crafting.
 
+Ordinary production quantities are replenishing stock targets: stored and
+active output counts, and consuming or transferring output reopens the shortage.
+Probe assembly quantities are cumulative builder targets instead. Count
+successful assembly orders originating from that probe; transferring an
+assembled probe away must never cause its builder to manufacture a replacement.
+An active assembly remains credited while game completion telemetry catches up.
+Changing how assembly progress is counted must not remove the live fleet
+collection still required by role, reserve-source, transport, or presentation
+logic later in dashboard construction. A complete service-level dashboard load,
+not only isolated planner tests, guards this shared input.
+
+### Parent assembly goals remain visible during component work
+
+Every probe model registered in `PROBE_ASSEMBLY_REQUIREMENTS` uses the same
+component-progress calculation. While a target is waiting on its component kit,
+the complete planner status must retain a non-dispatching parent row and show
+every component's stored, active, required, and uncovered state. Actionable
+component rows remain separate where supported. A fleet goal that currently
+owns reservations must never disappear from the operator-facing planner list.
+
+Relevant test:
+`tests/test_execution_boundary.py::ExecutionBoundaryTests::test_active_tanker_component_does_not_hide_remaining_build_plan`.
+`tests/test_execution_boundary.py::ExecutionBoundaryTests::test_generic_probe_target_shows_registered_component_progress`.
+
 ## Manny Dispatch Invariants
 
 ### One cycle can use multiple distinct Mannys
@@ -155,6 +204,11 @@ Sector/inventory refresh can reconcile a completed Manny before the Manny list
 does. Fetch sector first, then Mannys. When a refresh changes a previously busy
 Manny to idle-and-ready, queue the normal policy-controlled automation cycle
 without waiting for another one-minute heartbeat.
+Planner reconciliation is an equivalent readiness boundary: when a durable
+move fingerprint changes from blocked to ready after Manny work completes,
+queue one immediate policy-controlled cycle even if the Manny was already in
+the prior visible idle pool. An unchanged ready fingerprint must not create a
+post-refresh dispatch loop.
 
 ### Accepted work must be reflected immediately in the UI
 
@@ -162,6 +216,60 @@ Fleet automation processes probes serially. Publish each focused-probe result as
 soon as it completes; do not wait for the rest of the fleet. Until authoritative
 task telemetry arrives, show `ORDER ACCEPTED · SYNCING` and remove accepted
 Mannys from the displayed idle pool.
+
+Manual mining bursts follow the same local-claim rule. Immediately append each
+reviewed order to a controller-owned FIFO, mark its Manny as `MINING ORDER
+QUEUED`, and remove that Manny from the visible idle pool before the preceding
+network request finishes. One background worker drains the FIFO serially, so a
+slow API response never disables selection of another idle Manny and concurrent
+orders cannot race the same live state. Accepted orders remain locally claimed;
+rejected orders restore their Manny. Do not start a full dashboard refresh after
+every order—the next scheduler-owned authoritative refresh reconciles the batch.
+The pending total includes the order currently being sent as well as the waiting
+tail; popping or dispatching the FIFO head must never make the UI report zero
+while work is in flight. Removing one claimed Manny must preserve a valid
+selection whenever another idle Manny remains.
+Accepted manual mining orders remain in the visible pending-sync total until an
+authoritative refresh for their probe arrives. Network acceptance must not emit
+a second full dashboard replacement: the enqueue mutation already claimed and
+marked that Manny, so only the lightweight queue notice changes on completion.
+Manual crafting uses the same optimistic-claim and serial-FIFO boundary. Each
+selected Manny disappears from both crafting and inventory idle models before
+the preceding request completes; accepted builds remain pending-sync until the
+scheduled authoritative refresh, and a reservation conflict restores that Manny
+before presenting the one-order override. Never refresh between accepted builds
+in a user-entered batch.
+
+Deuterium mining refills the probe tank and must not include a detached storage
+`targetContainerId`. Resource-routing rules may select detached destinations for
+ordinary cargo, but applying them to deuterium produces an API rejection and
+leaves an otherwise valid reserve tanker visibly idle.
+
+Automatic travel requires every owned Manny to be aboard and available at both
+planning and last-mile preflight, except for an explicit recovery hop whose
+target is the exact reported sector of an already off-probe Manny. A Manny command accepted earlier in the same
+dispatch burst immediately invalidates a previously prepared movement command;
+the probe must wait for authoritative task completion and return telemetry
+before continuing its durable route.
+
+During the API movement-preparation grace period, automatic planning checks the
+same invariant again. If any owned Manny is still working, unavailable, or off
+probe, dispatch the canonical movement cancellation after live preflight and
+retain the durable destination; cancellation must not erase the route that will
+resume after every Manny is aboard. Never cancel a preparing recovery hop whose
+live target is the reported sector of the missing Manny.
+
+Movement idempotency is authoritative-state based. The action journal records a
+move as succeeded when preparation is accepted, but that does not prove the hop
+completed: a subsequent safety cancellation may leave the probe at its origin.
+A ready move with the same fingerprint must therefore pass through fresh live
+preflight and dispatch again. Historical fingerprints remain hard idempotency
+guards for genuinely one-time mutations such as probe assembly.
+
+A secondary travel-risk acknowledgement is never generic. The queued command
+must display every live warning code and its human-readable reason—including
+the concrete expected and worst-case values supplied by the safety assessment—
+beside the acknowledgement control before the operator can accept it.
 
 Relevant code/tests:
 
@@ -172,6 +280,93 @@ Relevant code/tests:
 - `tests/test_ui_preparation.py`
 
 ## Refresh and UI Responsiveness Invariants
+
+### Operator actions never occupy the Qt UI thread
+
+API requests, live preflight, credential-vault access, SQLite writes, route
+calculation, and post-command synchronization triggered by buttons or settings
+must execute through a background worker. The initiating slot returns
+immediately, exposes a visible sending/saving state, and applies results on the
+Qt thread. Accepted commands use a focused lightweight sync; they do not force
+unrelated archival work before the interface becomes usable again.
+
+This boundary applies to every feature added for 1.1 and later, including small
+preference toggles and apparently local safety bookkeeping. Qt properties and
+dashboard-acceptance callbacks must consume in-memory or worker-prepared values;
+they must not open SQLite or policy files during QML reevaluation or refresh
+application. Fleet eligibility scans, travel-consent persistence, onboarding,
+combat-safety settings, unusual mining approvals, and handled-missile history
+all belong off-thread. A completion callback may update in-memory presentation
+state, emit signals, and schedule the next worker, but must not perform the
+durable read or write itself.
+
+Notification candidate extraction may use the accepted in-memory dashboard,
+but restart-safe `seen` persistence is also background work. Coalesce a newer
+dashboard while that worker is active rather than writing from the dashboard
+acceptance callback or starting overlapping SQLite writers.
+
+Production scrolling and Galaxy Map camera interaction are interaction
+boundaries. Dashboard updates may be coalesced until a production flick settles,
+and camera LOD may hide expensive geometry, but neither path may destroy and
+recreate its full delegate/model population for every wheel or drag event.
+Galaxy payloads carry a worker-computed content revision. Equivalent global
+refreshes retain the existing 3D model, updates arriving during camera movement
+are applied only after settling, and expensive overlays are hidden through one
+parent scene node rather than toggling every delegate binding individually.
+The same revision boundary applies to high-churn workspaces. Full refresh
+payloads compute section revisions in the worker. Production and Manual Control
+retain their accepted models when only an unrelated section changes, while
+controller-side optimistic mutations explicitly invalidate only the sections
+they changed. Heavy workspace construction is asynchronous so switching tabs
+cannot monopolize the event loop. Galaxy and Manual Control may remain retained
+after their first construction because their large inputs are revision-gated;
+do not retain an expensive workspace whose hidden bindings still consume every
+global dashboard replacement. The Qt/QML boundary receives a projection of the
+accepted dashboard sized for the visible workspace; hidden galaxy, history,
+communications, production, and manual-control graphs remain in the controller
+and must not cross that boundary during an unrelated workspace refresh. A
+revision-gated cache may accept a revision only when that section's projected
+payload is present; an unrelated projection carrying the same global revision
+must never replace a retained workspace with empty fallback models. A
+lightweight GUI timer records interactive
+event-loop stalls separately from API and worker timing; recording a stall must
+not itself emit a dashboard replacement.
+Stall diagnostics must retain enough bounded, privacy-safe attribution to be
+actionable: active section, latest UI activity, activity/dashboard age, refresh
+state, and dashboard generation. Dashboard notification-to-next-event-loop
+settle time is distinct from worker refresh time. Heavy workspace loaders report
+loading and ready boundaries, and stalls of at least 500 ms enter the rotating
+diagnostic log. Attribution history remains bounded and contains no API payload,
+credentials, messages, coordinates, or resource inventory.
+Navigation audio is part of the interaction boundary. Keep its common effect
+preloaded and replay the existing source; repeatedly assigning the same media
+URL can synchronously rebuild the macOS AVFoundation player and make every tab
+change appear to be a rendering stall.
+Animations owned by transient overlays must run only while their overlay is
+visible. In particular, the startup loading sweep must stop after live startup
+finishes; an invisible infinite animation still drives the Qt Quick scene graph
+and can consume a substantial fraction of one CPU core while the app is idle.
+Recurring presentation bindings must be self-contained and exception-free:
+countdown ticks may not call functions absent from their component, and controls
+must not assign negative model indices while asynchronously loaded models are
+temporarily empty. Repeated QML warnings are a responsiveness regression even
+when the interface remains visually usable.
+The background refresh converts Python containers to QML-safe lists and maps;
+every controller-side incremental dashboard mutation must preserve those same
+shapes. Reintroducing tuples after conversion makes JavaScript array methods
+fail and causes Qt controls to report invalid model sizes on every refresh.
+Dialogs must have a non-circular width owner rather than deriving implicit width
+from content whose width depends on the dialog's available width.
+
+Relevant code/tests:
+
+- `src/ui/controller.py::_run_background_call`
+- `src/ui/qml/components/NavigationWorkspace.qml`
+- `src/ui/qml/components/GalaxyMap3D.qml`
+- `tests/test_ui_preparation.py`
+- `tests/test_ui_assets.py`
+- `tests/test_credentials.py`
+- `tests/test_fleet_naming.py`
 
 ### Focused-probe safety telemetry is not default-probe archival history
 
@@ -198,18 +393,33 @@ Probe selection and active-tab telemetry must not wait for galaxy reconstruction
 archival synchronization, logbooks, planner explanations, or hidden workspaces.
 Production and Navigation use two-stage live updates. Cached data must be labeled
 as cached/refreshing; early live data must be labeled as finishing refresh.
+The focused-probe selector remains interactive during refresh because the
+controller already coalesces a requested probe change and runs it after the
+active worker. A background refresh may mark data as syncing, but must not make
+unrelated navigation controls appear globally disabled.
 
 ### Existing safety history is not a new-session notification
 
 Alerts present in the first live dashboard payload establish the session
 baseline. Only alerts first observed after that baseline may pulse the Safety
 navigation item; reopening Skunkworks must not relabel unchanged history as new.
+That baseline is probe-scoped. Switching probes or returning to one must not
+compare its cached alert history against another probe's viewed keys and flash
+the Safety tab; only alerts arriving after that probe's baseline may pulse it.
 
 ### Hidden heavy workspaces remain lazy
 
 Do not restore a design in which every QML workspace is instantiated and rebuilds
 on every global dashboard replacement. Preserve lazy loaders, bounded models,
 and viewport virtualization.
+
+### Completed arrival is stationary in operator-facing fleet status
+
+The game fleet API may retain `arrived` as a probe's movement phase long after
+travel completed. Fleet selectors and cards present that terminal phase as
+`idle`; active phases such as preparing, accelerating, cruising, traveling, and
+decelerating remain visible. This is presentation normalization only and must
+not rewrite the authoritative movement telemetry used by planning or safety.
 
 ### Do not overlap full fleet planning and a second full refresh
 
@@ -255,6 +465,109 @@ Relevant code/tests:
 - `src/ui/qml/components/GalaxyMap3D.qml`
 - `tests/test_ui_assets.py`
 
+Galaxy filters consume worker-normalized node fields rather than recursively
+walking persisted sector payloads in QML. Planet habitability uses the exact
+game score: a known score of 0.5 is included, lower and unknown scores are not,
+and the value is never converted to a percentage for comparison.
+
+### Low Power mode never delays operational safety or dispatch
+
+The Low Power profile may reduce stale-tolerant archival imports, background
+probe breadth, and distant map detail. It must not lengthen the one-minute
+automation heartbeat or defer Stop, focused safety telemetry, active-operation
+reconciliation, or an explicitly focused probe refresh. Enabled map overlays
+must still return when camera interaction settles.
+
+Relevant code/tests:
+
+- `src/application/operating_profile.py`
+- `tests/test_operating_profile.py`
+
+### Auto operating profile is idle-driven and wakes immediately
+
+Auto is a persisted operator choice, while Normal or Low Power is the visible
+effective profile. Auto may enter Low Power only after the configured interval
+without keyboard, mouse, click, touch, or wheel input. The first such operator input
+must restore Normal behavior immediately. Changing the effective profile must
+not restart or lengthen the one-minute automation heartbeat, trigger a second
+full refresh, or alter Stop, focused safety, and active-operation semantics.
+The configured and effective profile names must both be exposed to the UI so
+the operator can distinguish `AUTO → NORMAL` from `AUTO → LOW POWER`.
+
+Scheduled operating profiles use local wall-clock `HH:MM` boundaries. Daily
+windows repeat and must support crossing midnight. A once-only window resolves
+to the next selected start, returns to Normal after its end, and remains visibly
+completed rather than silently scheduling itself again. Scheduling changes only
+stale-tolerant Low Power behavior; operational safety and dispatch invariants
+remain immediate.
+
+Relevant code/tests:
+
+- `src/application/operating_profile.py`
+- `src/ui/controller.py`
+- `src/ui/qml/components/AutomationSettings.qml`
+- `tests/test_operating_profile.py`
+- `tests/test_ui_assets.py`
+
+### Desktop notifications are advisory and restart-safe
+
+Desktop notifications are opt-in. Refreshes and restarts must not replay the
+same alert or operation result, and delivery must never mark a game alert
+viewed or prove that a command succeeded. Notifications are available only
+while Skunkworks is running; background continuation is outside 1.1 scope.
+Candidate extraction may run in a worker, but its completion returns through a
+declared controller slot and desktop delivery uses a GUI-thread-owned QObject;
+an unscoped callback must not invoke the tray icon from a worker thread. A new
+authoritative operation result must not be overwritten by the previous
+dashboard result before notification extraction.
+Every accepted terminal result is submitted at the controller boundary where
+it becomes visible; notification discovery must not depend on a later full
+refresh. If discovery is already running, retain every pending snapshot in
+order rather than replacing intermediate results. Foreground banners likewise
+queue instead of overwriting one another when several events arrive together.
+Settings must expose the platform capability and a test action. A successful
+test request must be labeled as requested, never as confirmed OS delivery,
+because desktop policy can suppress a banner after Qt accepts it.
+Each event uses exactly one presentation channel. When the Skunkworks window is
+focused, the deduplicated notification appears only as a dismissible
+in-application banner. When the window is inactive or minimized, it is eligible
+only for operating-system desktop delivery. The two channels must never appear
+for the same event at the same time. A terminal automation status such as
+`succeeded` is authoritative even when an additional `accepted` flag is absent.
+Success must not be labeled as needing attention, and a notification must name
+the focused probe and specific operation or retain an equally specific game
+message. A bare status such as `Succeeded` is not useful enough to interrupt the
+operator and must be suppressed when no operation can be identified. Both
+channels are advisory and must not alter game alert read state.
+
+Relevant code/tests:
+
+- `src/application/notifications.py`
+- `src/ui/app.py`
+- `src/ui/qml/App.qml`
+- `tests/test_notifications.py`
+
+### Major-release promotion refreshes operator documentation
+
+Before a new major version moves from `develop` to `main`, audit every
+user-visible workflow, control, label, state, layout, and behavior changed during
+that development cycle. Update every affected operator-manual explanation. If a
+manual screenshot contains a changed surface, recreate it from the real QML
+using the repository's fictional offline documentation profile; never capture
+an operator's live account, private database, credentials, probe names, sectors,
+or inventory. Recreate all affected screenshots rather than selectively
+retaining images that depict old controls or behavior, rebuild the generated
+manual, and visually inspect its rendered pages for stale text, mismatched
+captions, clipping, overlap, and pagination regressions. Major-release promotion
+is not documentation-complete merely because the application and tests pass.
+
+Relevant code/tests:
+
+- `docs/user-guide/build_manual.py`
+- `docs/user-guide/README.md`
+- `tools/capture_synthetic_manual.py`
+- `docs/user-guide/Skunkworks_Operator_Manual.docx`
+
 ## Release Packaging Invariants
 
 ### Published release notes are operator-facing bullet lists
@@ -263,7 +576,16 @@ Every tagged and publicly packaged Skunkworks version has its own heading in
 `RELEASE_NOTES.md`, followed only by concise bullet points describing changes
 and fixes an operator can see, use, or reasonably care about. Do not publish
 development chronology, branch or merge details, API-analysis activity, test
-counts, implementation-layer terminology, or future-version content.
+counts, implementation-layer terminology, or statements about work that did
+not change the released application. When numerous small internal corrections
+are not individually useful to operators, summarize them with a final
+`Other various fixes.` bullet.
+
+Development release drafts stay outside `RELEASE_NOTES.md`. Before tagging, add
+the final version section, confirm it includes every user-visible change since
+the previous public version, and audit every bullet for accidental future or
+development-only content. Historical release sections retain bullet formatting
+so the packaged file remains easy to scan.
 
 ### Release patches finish by staging new packages
 
@@ -282,7 +604,18 @@ inspect or monitor a run only when the operator asks or reports a failure.
 The console entry point must work from an activated environment without relying
 on the repository root being present in `PYTHONPATH`. Packaging metadata must
 explicitly include the `src` application package and its QML and asset data.
-Test the installed `skunkworks` command from outside the checkout.
+Test the installed application import from outside the checkout. Python 3.14
+skips hidden `.pth` files, so setuptools' current `__editable__...pth` output is
+not a valid basis for the launcher. Source and `uv` instructions use a regular
+non-editable install until the editable mechanism is verified independently on
+every supported Python version.
+
+Relevant files/tests:
+
+- `pyproject.toml`
+- `.github/workflows/ci.yml`
+- `docs/installing-and-updating.md`
+- `tests/test_release_readiness.py`
 
 ### Upgrades preserve the existing user-data root
 
@@ -331,6 +664,10 @@ Runtime JSON snapshots are diagnostic artifacts, not permanent history. Keep
 compact latest snapshots plus no more than one timestamped archive per probe per
 hour, bounded to seven days and 168 archives per probe.
 
+A write-deduplication repair must also include a bounded migration for telemetry
+accumulated by older releases. Stopping new duplicate rows while leaving a
+recent legacy backlog at full resolution is not a complete growth fix.
+
 ### Local reads must stay bounded
 
 - Configure persistent SQLite WAL mode once per DataEngine, not on every short-
@@ -345,9 +682,13 @@ hour, bounded to seven days and 168 archives per probe.
 `DataEngine.compact_history()` retains recent high-resolution telemetry, daily
 older probe/resource samples, and only the latest complete sector payload for
 every probe-sector pair. It runs automatically at most weekly without vacuuming.
-It never removes preferences, operations, roles, visits, archive reports,
-event state, execution leases, or action history. Physical `VACUUM` requires an
-exclusive maintenance boundary and must not run underneath a live application.
+It never removes preferences, operations, roles, visits, event state, execution
+leases, or action history. Report retention is a separate daily maintenance
+boundary: it removes only unfavorited `daily_probe_report` rows at 17:00
+operator-local time at the end of day 30. Favorited daily reports and every
+other archive kind are preserved.
+Physical `VACUUM` requires an exclusive maintenance boundary and must not run
+underneath a live application.
 
 Relevant code/tests:
 
@@ -361,6 +702,13 @@ transactions. Use `DataEngine.backup()` (SQLite's online backup API), verify the
 result with `PRAGMA quick_check`, and write through a partial file before an
 atomic replace. Never overwrite the live database as a backup destination.
 Physical vacuuming remains an explicit offline maintenance action.
+
+Only one Skunkworks process may write a given application data root at a time.
+Separate test and release instances require separate `SKUNKWORKS_HOME` roots.
+
+Low Power may reduce cosmetic countdown cadence and reuse shared immutable
+cartography, but it must not lengthen the one-minute automation heartbeat or
+delay safety, active-task reconciliation, Stop, or explicit operator refreshes.
 
 Every SQLite connection must also be closed explicitly. A
 `sqlite3.Connection` context manager controls transactions but does not close
@@ -390,6 +738,12 @@ later feature release cannot erase the repair. Persistence or migration work
 must be tested against a verified copy or backup of existing user state. An
 upgrade never deletes accumulated data, and isolated experiments use a distinct
 `SKUNKWORKS_HOME`.
+
+Development launch instructions must name the intended writable profile
+explicitly. When a checkout has a preserved private test profile, every launch
+command includes the same `SKUNKWORKS_HOME`; omitting it would select a clean
+platform profile whose safe Observe Only defaults can be mistaken for erased
+operator settings.
 
 The complete procedure is authoritative in `docs/development-workflow.md`.
 
@@ -424,6 +778,10 @@ response. It never moves the carrier probe or selects a combat target.
 The API v128 autonomous-unit observation is local sector telemetry. It may
 identify a deployed unit and carrier but exposes no absolute coordinates;
 Skunkworks must not infer coordinates from opaque IDs.
+Do not request that local-sector observation while the focused probe is in an
+active travel phase. A 404 absence or documented transient 503 from this
+optional route must not reject otherwise valid focused-probe telemetry or leave
+the selector on the previous probe.
 
 API v129 separates probe and Others sector scans. Probe Galaxy observations
 remain on `GET /api/sector` with only relative `x`, `y`, and `z` parameters.
@@ -496,6 +854,134 @@ Relevant code/tests:
   leases are revalidated before dispatch.
 - Business errors remain visible and specific; do not collapse them into generic
   cancellation messages.
+
+### Manual probe upgrades disclose their complete inputs
+
+Selecting an available probe improvement in Manual Control shows every required
+crafted component and raw material, its quantity, the currently stored amount,
+whether that amount is sufficient, and the installation duration before the
+operator submits the command. Requirements come from the live improvement
+catalog and inventory projection; the UI must not duplicate or guess recipes.
+Active production does not count as stored upgrade input.
+
+Relevant tests:
+
+- `tests/test_ui_preparation.py::UiPreparationTests::test_probe_upgrade_requirements_include_live_stored_availability`
+- `tests/test_ui_assets.py::test_fleet_workspace_exposes_live_probe_upgrade_controls`
+
+### Installed probe upgrades remain visible
+
+Manual Control lists every completed, probe-installable improvement for the
+focused probe directly below the upgrade controls. The list comes from the live
+probe improvement response and must exclude unfinished choices and improvements
+that cannot be installed on probes. An empty list is stated explicitly rather
+than leaving the panel blank. The optimized Python presentation projection and
+the QML manual-workspace cache must both retain this collection; building it in
+the full dashboard alone does not make it visible.
+
+Relevant tests:
+
+- `tests/test_ui_preparation.py::UiPreparationTests::test_active_probe_upgrades_include_only_completed_probe_improvements`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_manual_control_projection_includes_installed_probe_upgrades`
+- `tests/test_ui_assets.py::test_fleet_workspace_exposes_live_probe_upgrade_controls`
+
+### Automation target columns share one full-width grid contract
+
+Production/assembly targets and resource/safety floors use the same direct,
+full-width three-column grid. Explanatory copy inside either panel spans all
+three columns; it must not wrap the target rows in a nested layout whose
+implicit width can pull quantity and priority controls out of alignment.
+
+Relevant test: `tests/test_ui_assets.py::test_automation_target_panels_share_quantity_and_priority_columns`.
+
+### Report data belongs to the Communications projection
+
+Daily Reports, Industrial Analysis, and Operational Archive are three views of
+the same local retained-history model. The responsiveness projection and its
+Communications revision hash must both include `reports`; otherwise the worker
+may generate and persist valid data that the visible workspace can never
+receive. Reports are derived from SQLite history and must not add game API
+requests merely to populate analysis or archive views.
+
+Relevant test: `tests/test_ui_assets.py::test_logbook_workspace_uses_editable_game_pages_and_reports_are_local`.
+
+### Accepted logbook deletions survive stale refreshes
+
+Game Logbook pages come from the live API, while dashboard construction may
+reuse a five-minute list cache and may finish concurrently with a user mutation.
+After the game accepts a page deletion, an older cached or in-flight dashboard
+must not make that page visible again. The controller retains the accepted
+deletion across subsequent payloads for the running session; local report and
+event archives remain separate and are not a source for the game Logbook list.
+
+Relevant test: `tests/test_ui_preparation.py::UiPreparationTests::test_accepted_logbook_delete_survives_stale_refresh_payload`.
+
+### Reports remain readable and use operator-local time
+
+The Daily Reports selector and selected-report body share one explicit
+side-by-side layout. Neither may consume the other's height or collapse into a
+thin strip when the report list is empty. Operational Archive retains sortable
+UTC timestamps in its presentation model, but converts them to the operator's
+local timezone for display. A timestamp or status already shown in the archive
+card must not be repeated inside its detail text.
+Command cards decode the retained journal and use the available card width for
+operational details. Mining entries include ordered amount, resource, source
+object, and recorded sector; older entries without sector metadata say that the
+location was not recorded rather than inventing it.
+
+Relevant tests:
+
+- `tests/test_ui_assets.py::test_reports_keep_daily_selector_visible_and_format_archive_time_locally`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_report_action_archive_does_not_duplicate_status_or_timestamp`
+
+### Local daily report deletion and retention preserve operator intent
+
+Daily reports may be deleted explicitly without touching game Logbook pages.
+The generation marker doubles as a tombstone, so deleting the current day's
+report cannot make a later refresh recreate it. Favorite state is durable and
+protects a report from the automatic 30-day sweep. The sweep applies only to
+unfavorited daily reports; operational reports and other archive evidence are
+never included. An unfavorited row displays its changing countdown and exact
+17:00 local deletion boundary only when five days or less remain; hiding earlier
+warnings keeps report titles readable. A local mutation updates the Communications
+presentation revision and both report projections together; the remaining list
+must not disappear while waiting for another refresh. Both mutated projections
+remain concrete QML-safe lists; tuples make JavaScript array operations fail and
+blank every row until an authoritative refresh restores the model shape.
+Explicit deletion is optimistic: remove the selected row from both projections
+before the SQLite worker starts, restore it only on a real persistence failure,
+and treat an already-absent row as an idempotent success rather than a network
+error. The Daily Reports list restores its bounded pre-deletion scroll offset
+after the model shrinks, so deleting an old report does not jump to the newest.
+
+Archive detail uses probe and Manny names rather than internal IDs. New commands
+retain the acting Manny name; existing journal rows resolve names from current
+fleet telemetry where possible and otherwise state that the historical name is
+unavailable without exposing the private identifier.
+Archive free-text search covers every displayed record field: kind, domain,
+status, title, probe and Manny names, detail text, and both local-formatted and
+stored timestamps. Details consequently make resources, quantities, sectors,
+targets, reasons, and blockers searchable without a separate index or API call.
+
+Relevant tests:
+
+- `tests/test_data_engine.py::DataEngineTests::test_daily_report_retention_preserves_favorites_and_other_archives`
+- `tests/test_daily_reports.py::DailyProbeReportTests::test_deleted_local_report_is_not_recreated_for_the_same_day`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_local_report_mutations_update_daily_and_archive_views`
+
+### Live account headers reserve capacity before a 429
+
+Rate-limit capacity is account-wide, so every `GameClient` instance for the
+same API base URL and credential shares the latest reported header budget.
+Focused-probe work remains eligible, while archival refreshes and additional
+background probes defer when their estimated cost would cross the protected
+reserve. Missing headers must not block initial telemetry, and local report
+generation remains eligible because it performs no game API requests.
+
+Relevant tests:
+
+- `tests/test_api_contract.py::GameClientContractTests::test_account_rate_budget_is_shared_and_protects_background_capacity`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_fleet_worker_defers_background_probes_below_account_reserve`
 
 ## Regression Workflow
 

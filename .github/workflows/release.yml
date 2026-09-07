@@ -35,7 +35,10 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --yes libegl1 libgl1 libxkbcommon-x11-0
       - name: Install project and deployment dependencies
-        run: python -m pip install -e . pytest pytest-qt pillow pyinstaller==6.22.2 imageio==2.37.4
+        run: python -m pip install . pytest pytest-qt pillow pyinstaller==6.22.2 imageio==2.37.4
+      - name: Verify installed application imports outside checkout
+        working-directory: ${{ runner.temp }}
+        run: python -c "from src.ui.app import run; print('installed launcher import ok')"
       - name: Verify tagged source
         run: python -m pytest -q tests
       - name: Verify release contents

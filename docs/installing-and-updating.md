@@ -74,7 +74,7 @@ cd skunkworks
 python3.14 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -e .
+python -m pip install .
 skunkworks
 ```
 
@@ -86,13 +86,36 @@ extracted directory.
 Developers using `uv` can reproduce the locked environment:
 
 ```bash
-uv sync --locked
+uv sync --locked --no-editable
 uv run python -m src.ui.app
 ```
 
 Do not run unreviewed source from a moving branch against a valuable game
 account. Prefer a signed release tag, and review configuration before enabling
 automatic orders.
+
+### Owner testing of the 1.1 development branch
+
+The `develop` branch is installed separately from public package updates. It
+continues to use the normal accumulated user-data profile unless an isolated
+`SKUNKWORKS_HOME` is set:
+
+```bash
+git switch develop
+git pull --ff-only origin develop
+uv sync --locked --no-editable
+uv run --no-sync skunkworks
+```
+
+Back up the database before testing persistence or migration changes. The
+development footer must show `1.1.0.dev...`; development builds are not public
+releases and should not replace the stable package used for rollback.
+The repository `.venv` is managed by `uv` and may not contain `pip`; use the
+commands above instead of installing into that environment with `python -m pip`.
+The non-editable install is required because Python 3.14 skips setuptools'
+hidden editable-install `.pth` file, which otherwise leaves the generated
+`skunkworks` launcher unable to import `src`. The launch command uses
+`--no-sync` so `uv` does not silently restore the editable installation.
 
 ## Updating a source checkout
 
@@ -102,7 +125,7 @@ Stop Skunkworks, create a verified database backup, then update to a named tag:
 python -m tools.database_maintenance --backup /safe/path/skunkworks.sqlite3
 git fetch --tags
 git checkout v1.0.4
-python -m pip install -e .
+python -m pip install .
 skunkworks
 ```
 

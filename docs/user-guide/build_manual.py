@@ -31,9 +31,10 @@ SCREENSHOTS = {
     for key in (
         "mission-control", "fleet", "galaxy", "navigation-travel",
         "navigation-scan", "resources", "missions", "production", "safety",
-        "logbook", "manual-build",
+        "logbook", "reports-daily", "reports-archive", "manual-build",
         "manual-field", "manual-cargo", "manual-network",
         "manual-container", "manual-asteroid", "settings-policy",
+        "settings-profile",
         "settings-planner", "settings-targets", "settings-floors",
         "settings-status", "settings-roles", "settings-reserve",
         "settings-tanker", "settings-transport",
@@ -820,10 +821,10 @@ def build_tabbed():
         style.paragraph_format.space_after = Pt(after)
     header = section.header.paragraphs[0]
     header.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    font(header.add_run("SKUNKWORKS  |  OPERATOR MANUAL  |  v0.5"), size=8, bold=True, color=MUTED)
+    font(header.add_run("SKUNKWORKS  |  OPERATOR MANUAL  |  v1.1"), size=8, bold=True, color=MUTED)
     footer = section.footer.paragraphs[0]
     footer.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    font(footer.add_run("Autonomous Exploration & Fleet Operations  |  Updated 2026-08-22"), size=8, color=MUTED)
+    font(footer.add_run("Autonomous Exploration & Fleet Operations  |  Updated 2026-09-07"), size=8, color=MUTED)
 
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(80)
@@ -834,15 +835,15 @@ def build_tabbed():
     p = doc.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.CENTER; p.paragraph_format.space_after = Pt(28)
     font(p.add_run("Organized by application tab and workspace"), size=12, color=MUTED)
     add_screen_figure(doc, "mission-control", "Mission Control: live fleet, sector, resources, safety, alerts, and production at a glance.")
-    add_note(doc, "Edition", "Version 0.5 follows the application's navigation hierarchy. Each top-level tab is one section; its sub-tabs, instructions, and supplied screenshots remain together.")
+    add_note(doc, "Edition", "Version 1.1 documents efficient background operation, local reports and archive analysis, notifications, upgrade visibility, and the current reviewed game capabilities.")
     doc.add_page_break()
     add_contents_page(doc, [
         ("1", "Getting Started", "3"), ("2", "Mission Control", "4"), ("3", "Fleet", "5"),
         ("4", "Galaxy Map", "6"), ("5", "Navigation", "7–9"), ("6", "Resources", "10"),
         ("7", "Missions", "11"), ("8", "Production", "12"), ("9", "Safety", "13"),
-        ("10", "Communications", "14"), ("11", "Manual Control", "15–21"),
-        ("12", "Settings", "22–31"), ("13", "Troubleshooting and Glossary", "32"),
-        ("", "Manny Warranty Redemption Form", "33"),
+        ("10", "Communications", "14–16"), ("11", "Manual Control", "17–23"),
+        ("12", "Settings", "24–33"), ("13", "Troubleshooting and Glossary", "34"),
+        ("", "Manny Warranty Redemption Form", "35"),
     ])
 
     doc.add_page_break(); add_heading(doc, "1. Getting Started")
@@ -871,7 +872,8 @@ def build_tabbed():
     doc.add_page_break(); add_heading(doc, "4. Galaxy Map")
     add_body(doc, "Galaxy Map presents the locally known FCC network. Drag to orbit or pan, use the wheel to zoom, and use the view buttons for precise orientation. Fit Map centers and zooms the camera to contain every sector admitted by the current filters. Verified neighboring-sector lines may disappear during camera motion for responsiveness, then return after the view settles at every zoom distance.")
     add_heading(doc, "Filters and sector details", 2)
-    add_bullets(doc, ["Filter by discovery state, resource, hazard, dropped container, focused-probe trail, or SCUT coverage.", "Select a node to read its coordinates, observations, objects, confidence, and last visit.", "Scan/Refresh requests current knowledge when the selected sector is reachable by the API."])
+    add_bullets(doc, ["Filter by discovery state, resource, hazard, dropped container, focused-probe trail, habitable planet, or SCUT coverage.", "Select a node to read its coordinates, observations, objects, confidence, and last visit.", "Others vessels use a distinct spherical contact icon; observed activity and movement labels come from current sector telemetry.", "Scan/Refresh requests current knowledge when the selected sector is reachable by the API."])
+    add_note(doc, "Travel effects", "Relativistic Path Clearing is included in intersector integrity forecasts, but collision, container, weapon, asteroid, and black-hole risks remain independently enforced.")
     add_note(doc, "Local knowledge", "Detailed history persists after scans, but Skunkworks never invents information the game API did not expose.")
     add_screen_figure(doc, "galaxy", "Figure 4-1. Rotatable FCC galaxy view, sector inspector, filters, trail, and SCUT coverage.")
 
@@ -895,7 +897,7 @@ def build_tabbed():
     doc.add_page_break(); add_heading(doc, "6. Resources")
     add_body(doc, "Resources groups probe storage, containers, drifting objects, and the latest observed asteroid reserves. Quantities retain their source location so users can distinguish accessible cargo from remote or detached stock.")
     add_heading(doc, "Reading inventory", 2)
-    add_bullets(doc, ["Probe deuterium is displayed as a percentage of tank capacity.", "Bulk resources use ECE quantities and retain their containing probe or container.", "Asteroid quantities are the latest recorded scan, not a prediction of current stock.", "Unknown or unavailable container contents remain explicitly labeled."])
+    add_bullets(doc, ["Probe deuterium is displayed as a percentage of tank capacity.", "Bulk resources use ECE quantities and retain their containing probe or container.", "Stored Items and Equipment can be narrowed with one or several item-type filters without another API request.", "Asteroid quantities are the latest recorded scan, not a prediction of current stock.", "Unknown or unavailable container contents remain explicitly labeled."])
     add_note(doc, "Related controls", "Resource movement, jettison, container routing, deployment, and recovery are operator commands under Manual Control → Cargo and Transfers. They are documented there with their actual screenshots.")
     add_screen_figure(doc, "resources", "Figure 6-1. Resource ledger groups probe storage, containers, detached cargo, and observed natural reserves.", width=6.2)
 
@@ -919,13 +921,20 @@ def build_tabbed():
     add_heading(doc, "Messaging", 2)
     add_body(doc, "Messaging contains account communications and unread state exposed by the game API. Messages remain separate from operational alerts and safety findings.")
     add_heading(doc, "Logbook", 2)
-    add_body(doc, "Logbook pages belong to the focused probe. Create, edit, and delete operator notes independently of automatic reporting. Routine refreshes are not logged as events.")
-    add_heading(doc, "Optional Automatic Reports", 3)
-    add_body(doc, "Automatic daily role reports and major-discovery reports are an opt-in feature controlled by the Auto-Log Daily Role Reports and Major Discoveries checkbox in the Logbook sub-tab. The checkbox is off by default and is stored as an account-wide preference rather than a separate setting for each probe.")
-    add_bullets(doc, ["When enabled, the first eligible refresh after 17:00 local time creates one due role-specific report for each owned probe.", "A report summarizes the previous reporting window using retained Skunkworks telemetry and commands accepted by the game; unavailable activity is not inferred.", "Major-discovery pages are also created only while this checkbox is enabled.", "Unchecking the option prevents future automatic reports but does not delete pages already created.", "Manual logbook pages remain available whether automatic reporting is enabled or disabled."])
-    add_note(doc, "Privacy", "Automatic reports are written into the game's probe logbooks. Review their contents before sharing screenshots or diagnostic material because reports can contain probe names, sectors, inventory activity, and operational history.", "warning")
-    add_screen_figure(doc, "logbook", "Figure 10-1. Messaging/Logbook sub-tabs, page list, editor, and automatic daily reports.", width=4.75)
+    add_body(doc, "Logbook pages belong to the focused probe and remain reserved for operator-authored game notes. Create, edit, and delete them independently of local reporting. Routine refreshes are not logged as events.")
+    add_screen_figure(doc, "logbook", "Figure 10-1. Messaging and focused-probe Logbook pages remain separate from local reports.", width=4.75)
+    doc.add_page_break()
+    add_heading(doc, "Daily Reports and Industrial Analysis", 2)
+    add_body(doc, "Reports are stored in the local Skunkworks archive and do not consume game Logbook pages. Generate Daily Reports is account-wide and disabled until the operator opts in.")
+    add_bullets(doc, ["The first eligible refresh after 17:00 local time creates each due report from retained telemetry and accepted commands.", "Favorite preserves a report indefinitely; unfavorited daily reports are deleted at 17:00 local time at the end of day 30.", "The red countdown appears only during the final five days. Delete Report removes one local report without changing the game Logbook.", "Industrial Analysis distinguishes measured retained totals from inferred estimates and unavailable evidence."])
+    add_screen_figure(doc, "reports-daily", "Figure 10-2. Local daily reports, favorites, retention, deletion, and report detail.", width=6.2)
+    doc.add_page_break()
+    add_heading(doc, "Operational Archive", 2)
+    add_body(doc, "Operational Archive combines retained commands, operations, and reports into a bounded local timeline. It is historical evidence and never replaces live validation before a command.")
+    add_bullets(doc, ["Free-text search covers names, resources, quantities, sectors, reasons, statuses, dates, and report content.", "Filter by domain, status, and the last 24 hours, 7 days, 30 days, or all retained time.", "Sort by newest, oldest, amount, probe name, operation, or status.", "Cards use probe and Manny names where retained and show recorded quantities, locations, targets, blockers, and reasons."])
+    add_screen_figure(doc, "reports-archive", "Figure 10-3. Archive search, filters, sorting controls, matching count, and detailed records.", width=6.2)
 
+    doc.add_page_break()
     add_heading(doc, "11. Manual Control")
     add_body(doc, "Manual Control contains one-time operator orders. Every command remains subject to live validation, confirmation, reservations, and Manny availability.")
     add_note(doc, "Review before sending", "Buttons labeled Review open a confirmation summary. Disabled controls indicate that a required Manny, item, object, blueprint, destination, or API capability is unavailable.")
@@ -937,7 +946,7 @@ def build_tabbed():
     doc.add_page_break()
     add_heading(doc, "Manny Field Operations", 2)
     add_body(doc, "This sub-tab operates directly on the focused probe and its same-sector neighbors.")
-    add_bullets(doc, ["Manual Probe Repair selects an idle Manny and a repair percentage; the order remains unavailable when no Manny can act.", "Manual Probe Upgrade lists only unlocked, unfinished upgrades supported by the current owner and probe.", "Manual Mining Order selects the Manny, mineable object, resource, ECE amount, and delivery destination. The amount is capped by Max per Manny Mining Order.", "Same-Sector Probe Transfers can send deuterium or a Manny to an arrived target probe.", "Transferring a busy Manny cancels that Manny's current task; moving probes are excluded until both probes arrive."])
+    add_bullets(doc, ["Manual Probe Repair selects an idle Manny and a repair percentage; the order remains unavailable when no Manny can act.", "Manual Probe Upgrade lists only unlocked, unfinished upgrades supported by the current owner and probe, including every required component or material, stored availability, sufficiency, and installation time.", "Active Probe Upgrades lists every completed upgrade currently reported for the focused probe.", "Manual Mining Order selects the Manny, mineable object, resource, ECE amount, and delivery destination. The amount is capped by Max per Manny Mining Order.", "Same-Sector Probe Transfers can send deuterium or a Manny to an arrived target probe.", "Transferring a busy Manny cancels that Manny's current task; moving probes are excluded until both probes arrive."])
     add_screen_figure(doc, "manual-field", "Figure 11-2. Repair, upgrade, mining, deuterium transfer, and Manny reassignment.", width=6.2)
     doc.add_page_break()
     add_heading(doc, "Cargo and Transfers", 2)
@@ -969,42 +978,47 @@ def build_tabbed():
     add_bullets(doc, ["The API key is stored in the operating-system credential vault and is not written into settings or logs.", "Test Connection verifies access; Remove deletes the saved credential.", "Audio separately controls background music, interface effects, hover sounds, and volumes.", "Execution Mode selects Observe Only, Approval, or Automatic.", "Allow Skunkworks to Send Game Orders is the master live-order permission.", "Command Allowlist limits crafting/assembly, mining, travel, deuterium transfer, and repair families.", "Max Orders per 1-Minute Cycle limits the number of commands sent in one automatic cycle."])
     add_screen_figure(doc, "settings-policy", "Figure 12-1. Credentials, audio, execution authority, allowlist, cycle limit, and command queue.", width=6.15)
     doc.add_page_break()
+    add_heading(doc, "Operating Profiles and Notifications", 3)
+    add_body(doc, "Normal, Low Power, Auto, and Scheduled profiles change stale-tolerant background work without delaying Stop, the one-minute automation heartbeat, focused safety, or active-operation reconciliation.")
+    add_bullets(doc, ["Low Power reduces background fleet breadth, archival cadence, distant map detail, and cosmetic update frequency.", "Auto enters Low Power after the configured idle interval and returns to Normal on the first keyboard, mouse, touch, click, or wheel event.", "Scheduled supports daily or once-only local start and end times, including windows that cross midnight.", "Desktop notifications are opt-in by category and minimum severity. All Events Info Plus is required for routine successful-operation notices.", "When Skunkworks is focused, eligible events appear as queued in-app banners. When inactive or minimized, they are eligible for operating-system delivery instead.", "Use Send Test Notification and the displayed platform status; a successful request cannot prove that the operating system displayed it."])
+    add_screen_figure(doc, "settings-profile", "Figure 12-2. Operating profile selection, effective mode, notification policy, and delivery test.", width=6.15)
+    doc.add_page_break()
     add_heading(doc, "Targets and Priorities", 3)
     add_body(doc, "Fleet Assembly Targets and Production Targets define persistent desired quantities. A target counts stored output plus output already active or allocated.")
     add_bullets(doc, ["Desired Quantity is the completed quantity to maintain, not a one-time batch size.", "Priority 1 is highest; 10 is lowest.", "Higher-priority goals claim current raw resources and required stored components before lower-priority goals.", "Equal-priority goals use stable target order and are reconsidered after each planning cycle.", "Ordinary crafts use the game's direct recipe and reserve only the next unit's raw inputs; probe assembly reserves its required physical components."])
-    add_screen_figure(doc, "settings-targets", "Figure 12-2. Persistent fleet and production targets with independent priorities.", width=6.15)
+    add_screen_figure(doc, "settings-targets", "Figure 12-3. Persistent fleet and production targets with independent priorities.", width=6.15)
     doc.add_page_break()
     add_heading(doc, "Resource and Safety Floors", 3)
     add_bullets(doc, ["Max per Manny Mining Order caps one continuous mining campaign from 0.05–0.55 ECE.", "Safe Segment Length limits how many collision-safe sectors one planned travel segment may span.", "Deuterium, Metals, Ice, and Carbon Compounds define minimum onboard reserves and independent priorities.", "Fuel Floor protects the percentage required before normal work or departure.", "Min Free Capacity keeps storage available for incoming work.", "Auto Repair At / Below and Repair Target define when automatic repair begins and where it stops."])
-    add_screen_figure(doc, "settings-floors", "Figure 12-3. Mining size, travel, resource, fuel, capacity, and repair floors.", width=6.15)
+    add_screen_figure(doc, "settings-floors", "Figure 12-4. Mining size, travel, resource, fuel, capacity, and repair floors.", width=6.15)
     doc.add_page_break()
     add_heading(doc, "Live Target Status and Planner", 3)
     add_body(doc, "Live Target Status is the compact desired-state summary. Each row shows current or active quantity, target, remaining work, and priority color. Refresh Diagnostics identifies the slowest refresh stages.")
-    add_screen_figure(doc, "settings-status", "Figure 12-4. Live Target Status, remaining work, and refresh diagnostics.", width=6.15)
+    add_screen_figure(doc, "settings-status", "Figure 12-5. Live Target Status, remaining work, and refresh diagnostics.", width=6.15)
     doc.add_page_break()
     add_heading(doc, "Complete Planner Status", 3)
     add_body(doc, "When no command is ready, the planner still lists every goal. Read each row from the intended output through its next-unit requirements and Waiting For reasons.")
     add_bullets(doc, ["Missing Resources shows the exact uncovered raw quantity after onboard and inbound stock.", "Fabricator Unavailable means the required worker type is occupied or absent.", "No Idle Manny prevents work that specifically requires a Manny.", "Fleet Role Assignment Not Automated identifies a role dependency that must be configured by the operator.", "Higher-priority reservations remain visible so lower-priority work is not mistaken for forgotten work."])
-    add_screen_figure(doc, "settings-planner", "Figure 12-5. Planner requirements, allocations, uncovered resources, and named blockers.", width=6.15)
+    add_screen_figure(doc, "settings-planner", "Figure 12-6. Planner requirements, allocations, uncovered resources, and named blockers.", width=6.15)
     doc.add_page_break()
     add_heading(doc, "Probe Role Settings", 2)
     add_body(doc, "Probe roles are configured together in this sub-tab. The default probe assigns one role to each owned probe. Selecting a role-bearing probe then exposes that role's own controls; roles without settings clearly say that no probe-specific controls are available yet.")
     add_heading(doc, "Role Assignment", 3)
     add_bullets(doc, ["Hub marks the main coordination probe.", "Explorer supports travel and scanning workflows.", "Transport carries a selected resource between configured endpoints.", "Deuterium Tanker carries fuel using an absolute tank target.", "Deuterium Reserve monitors and replenishes a selected downstream probe or tanker."])
-    add_screen_figure(doc, "settings-roles", "Figure 12-6. Fleet-wide role assignment from the default probe.", width=6.15)
+    add_screen_figure(doc, "settings-roles", "Figure 12-7. Fleet-wide role assignment from the default probe.", width=6.15)
     doc.add_page_break()
     add_heading(doc, "Deuterium Reserve", 3)
     add_body(doc, "Select Monitor and Refill Probe to identify the next link in the reserve chain. Protected Source Reserve is the ECE the reserve tanker must retain before it can forward fuel. Multiple reserve tankers can be chained by selecting another tanker as the monitored consumer.")
-    add_screen_figure(doc, "settings-reserve", "Figure 12-7. Reserve-chain consumer and protected source reserve.", width=6.15)
+    add_screen_figure(doc, "settings-reserve", "Figure 12-8. Reserve-chain consumer and protected source reserve.", width=6.15)
     doc.add_page_break()
     add_heading(doc, "Transport and Deuterium Tanker", 3)
     add_body(doc, "Both recurring roles use Loading Sector, Unloading Sector, Return Point, source/destination probes, repetition, protected deuterium, contingency hops, and an optional verified refuel stop.")
     add_bullets(doc, ["Transport selects a resource, loads until a cargo percentage, and unloads until a percentage remains.", "Deuterium Tanker always carries deuterium and loads the tank to an absolute ECE target.", "Repeat Until Paused makes the saved operation recurring.", "Route Depends on Refueling requires the selected intermediate FCC and minimum source quantity to be verified.", "Review validates the current route; Pause Route stops future departures without deleting the saved plan."])
-    add_screen_figure(doc, "settings-transport", "Figure 12-8. General Transport round-trip configuration.", width=6.05)
+    add_screen_figure(doc, "settings-transport", "Figure 12-9. General Transport round-trip configuration.", width=6.05)
     doc.add_page_break()
     add_heading(doc, "Deuterium Tanker", 3)
     add_body(doc, "Tanker mode replaces percentage cargo loading with Load Tank To ECE while preserving the protected fuel floor and contingency reserve for the complete loop.")
-    add_screen_figure(doc, "settings-tanker", "Figure 12-9. Deuterium Tanker absolute fuel-load configuration.", width=6.05)
+    add_screen_figure(doc, "settings-tanker", "Figure 12-10. Deuterium Tanker absolute fuel-load configuration.", width=6.05)
 
     doc.add_page_break(); add_heading(doc, "13. Troubleshooting and Glossary")
     table = doc.add_table(rows=1, cols=3); table.style = "Table Grid"; set_table_geometry(table, [2200, 3100, 4060])

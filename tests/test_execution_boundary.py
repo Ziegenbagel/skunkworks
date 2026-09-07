@@ -377,6 +377,21 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual(command.payload["targetContainerId"], "metals-depot")
 
+    def test_deuterium_mining_never_routes_to_detached_storage(self):
+        self.operations.world.sector["snapshot"] = {"sector": {"objects": [{
+            "id": "fuel-depot", "type": "detached_container",
+            "capacity": 1, "usedCapacity": 0,
+            "rules": {"priority": ["deuterium"]},
+        }]}}
+        from src.planner.task import Task
+        command = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Mine Deuterium", reason="Refill reserve tanker",
+            target="asteroid-1", quantity=25,
+            resource_type="deuterium", priority=1,
+        ))
+
+        self.assertNotIn("targetContainerId", command.payload)
+
     def test_station_refill_claims_idle_manny_and_uses_station_command(self):
         from src.planner.task import Task
 
@@ -1117,6 +1132,52 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertIn("must not be rebuilt", tanker_tasks[0].reason)
         self.assertFalse(any(task.action == "Craft Item" for task in tasks))
 
+    def test_transferred_probe_does_not_reopen_cumulative_assembly_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            engine = DataEngine(Path(directory) / "history.sqlite3")
+            engine.record_action(
+                "assembled-tanker-1",
+                {
+                    "type": "manny_assemble_probe", "probeId": 1,
+                    "payload": {"model": "deuterium_tanker", "containerIds": ["a", "b"]},
+                    "metadata": {"model": "deuterium_tanker"},
+                },
+                "succeeded",
+            )
+            self.operations.data_engine = engine
+            # The assembled tanker has since been transferred away and is no
+            # longer present in this fleet snapshot.
+            self.operations.world.fleet = {"probes": [{"id": 1, "model": "generic"}]}
+
+            tasks = Planner(
+                self.operations,
+                DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+            ).tasks()
+
+        self.assertFalse(any(task.category == "fleet_assembly" for task in tasks))
+
+    def test_assembly_history_is_scoped_to_builder_probe_and_model(self):
+        with tempfile.TemporaryDirectory() as directory:
+            engine = DataEngine(Path(directory) / "history.sqlite3")
+            for fingerprint, probe_id, model in (
+                ("other-builder", 2, "deuterium_tanker"),
+                ("other-model", 1, "generic"),
+            ):
+                engine.record_action(
+                    fingerprint,
+                    {"type": "manny_assemble_probe", "probeId": probe_id,
+                     "payload": {"model": model}, "metadata": {"model": model}},
+                    "succeeded",
+                )
+            self.operations.data_engine = engine
+
+            tasks = Planner(
+                self.operations,
+                DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
+            ).tasks()
+
+        self.assertTrue(any(task.category == "fleet_assembly" for task in tasks))
+
     def test_unlabelled_active_assembly_is_credited_to_supported_tanker_goal(self):
         self.operations.world.fleet = {"probes": [{"model": "generic"}]}
         self.operations.world.probe["inventory"]["items"] = []
@@ -1217,9 +1278,11 @@ class ExecutionBoundaryTests(unittest.TestCase):
             DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=1),)),
         ).tasks()
 
-        self.assertEqual(tasks[0].action, "Await Active Production")
-        self.assertIn("no duplicate order", tasks[0].reason)
-        self.assertIn("1 active craft allocated", tasks[0].reason)
+        active_component = next(
+            task for task in tasks if task.action == "Await Active Production"
+        )
+        self.assertIn("no duplicate order", active_component.reason)
+        self.assertIn("1 active craft allocated", active_component.reason)
         self.assertEqual(CommandPreparer(self.operations, 1, self.policy).prepare(tasks), ())
 
     def test_tanker_builds_final_steel_plate_allotment_after_consuming_components(self):
@@ -1266,15 +1329,55 @@ class ExecutionBoundaryTests(unittest.TestCase):
         tanker_tasks = [task for task in tasks if task.category == "fleet_assembly"]
         targets = {task.target for task in tanker_tasks}
 
+        summary = next(
+            task for task in tanker_tasks if task.target == "deuterium_tanker"
+        )
+        self.assertEqual(summary.action, "Prepare Probe Assembly")
+        self.assertEqual(summary.constraints, ("assembly_components_incomplete",))
+        self.assertIn("Next assembly kit", summary.reason)
+        self.assertIn("deuterium engine: 1 stored / 1 required, covered", summary.reason)
+        self.assertIn("scut relay: 0 stored, 1 active / 1 required, covered", summary.reason)
         self.assertIn("scut_relay", targets)
         self.assertIn("electric_motor", targets)
         self.assertIn("integrated_circuit", targets)
         self.assertEqual(
             targets,
-            {component for component, _ in TANKER_COMPONENTS} - {"deuterium_engine"},
+            ({component for component, _ in TANKER_COMPONENTS} - {"deuterium_engine"})
+            | {"deuterium_tanker"},
         )
         self.assertTrue(all(task.priority == 1 for task in tanker_tasks))
-        self.assertIn("component 2/8", tanker_tasks[0].reason.lower())
+        self.assertTrue(any(
+            "component 2/8" in task.reason.lower() for task in tanker_tasks
+        ))
+
+    def test_generic_probe_target_shows_registered_component_progress(self):
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["items"] = [
+            {"id": "engine-1", "type": "deuterium_engine"},
+            {"id": "motor-1", "type": "electric_motor", "quantity": 2},
+        ]
+        self.operations.world.mannies["mannies"][0].update({
+            "currentTask": "crafting",
+            "task": {"recipe": "scut_relay", "recipeName": "SCUT relay"},
+        })
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("generic", 2, priority=4),)),
+        ).tasks()
+        summary = next(
+            task for task in tasks
+            if task.category == "fleet_assembly" and task.target == "generic"
+        )
+
+        self.assertEqual(summary.priority, 4)
+        self.assertEqual(summary.constraints, ("assembly_components_incomplete",))
+        self.assertIn("Next assembly kit", summary.reason)
+        self.assertIn("deuterium engine: 1 stored / 1 required, covered", summary.reason)
+        self.assertIn("scut relay: 0 stored, 1 active / 1 required, covered", summary.reason)
+        self.assertIn("electric motor: 2 stored / 5 required, 3 still required", summary.reason)
+        self.assertIn(("deuterium_engine", 1), summary.reserved_items)
+        self.assertIn(("electric_motor", 2), summary.reserved_items)
 
     def test_tanker_resource_mining_inherits_tanker_priority(self):
         from src.planner.assembly import TANKER_COMPONENTS
@@ -1362,6 +1465,28 @@ class ExecutionBoundaryTests(unittest.TestCase):
             0,
         )
 
+    def test_cancelled_preparation_can_retry_the_same_move_fingerprint(self):
+        desired = DesiredState(
+            fuel=FuelGoal(0),
+            inventory=InventoryGoal(0),
+            travel=TravelGoal(SectorCoordinates(2, 0, 0)),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            journal = ActionJournal(
+                DataEngine(Path(temporary) / "cancelled-move.sqlite3"),
+            )
+            first = self.prepare(desired, journal)[0]
+            journal.data_engine.record_action(
+                first.command.fingerprint,
+                first.command.to_dict(),
+                "succeeded",
+            )
+
+            resumed = self.prepare(desired, journal)[0]
+
+        self.assertEqual(resumed.command.fingerprint, first.command.fingerprint)
+        self.assertNotIn("already_completed", resumed.blockers)
+
     def test_auto_travel_preflight_rechecks_scut_coverage(self):
         self.operations.world.hazard_context = {
             "scutNetworks": [{
@@ -1391,6 +1516,61 @@ class ExecutionBoundaryTests(unittest.TestCase):
         ).blockers(command)
 
         self.assertIn("route_leaves_scut_coverage", blockers)
+
+    def test_auto_travel_preflight_rechecks_locally_claimed_and_deployed_mannies(self):
+        command = Command(
+            type=CommandType.MOVE_PROBE,
+            probe_id=1,
+            payload={"target": {"x": 1, "y": 1, "z": 0}},
+            reason="Automatic route",
+            priority=1,
+            source_action="Move Probe",
+            metadata={"workflowAuthorized": True},
+        )
+        manny = self.operations.world.mannies["mannies"][0]
+        manny["canReceiveOrders"] = False
+
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+
+        self.assertIn("mannies_unavailable_for_travel", blockers)
+
+        manny["location"] = {"type": "sector", "sector": {"relative": {"x": 0, "y": 0, "z": 0}}}
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertIn("mannies_not_aboard", blockers)
+
+        manny["location"] = {
+            "type": "sector",
+            "sector": {"relative": {"x": 1, "y": 1, "z": 0}},
+        }
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertNotIn("mannies_not_aboard", blockers)
+        self.assertNotIn("mannies_unavailable_for_travel", blockers)
+
+    def test_auto_travel_cancellation_rechecks_grace_period_and_manny_state(self):
+        command = Command(
+            type=CommandType.CANCEL_PROBE_MOVE,
+            probe_id=1,
+            payload={},
+            reason="Keep deployed Manny safe",
+            priority=1,
+            source_action="Cancel Automatic Travel",
+            metadata={"workflowAuthorized": True},
+        )
+        self.operations.world.probe["movement"] = {"status": "preparing"}
+        manny = self.operations.world.mannies["mannies"][0]
+        manny["canReceiveOrders"] = False
+
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertEqual(blockers, ())
+
+        manny["canReceiveOrders"] = True
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertIn("all_mannies_aboard", blockers)
+
+        manny["canReceiveOrders"] = False
+        self.operations.world.probe["movement"] = {"status": "accelerating"}
+        blockers = PreflightValidator(self.operations, probe_id=1).blockers(command)
+        self.assertIn("movement_not_cancellable", blockers)
 
     def test_operator_approved_scut_exit_is_not_reblocked_by_preflight(self):
         self.operations.world.hazard_context = {

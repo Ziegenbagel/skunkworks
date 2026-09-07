@@ -95,6 +95,8 @@ def test_dashboard_keeps_persistent_probe_selector_binding_seam():
     assert "signal probeSelected(int probeId)" in selector
     assert "signal refreshRequested" in selector
     assert '"deuterium_tanker"' in screen
+    assert "enabled: count > 0" in selector
+    assert "enabled: count > 0 && !root.refreshing" not in selector
 
 
 def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
@@ -106,8 +108,20 @@ def test_summary_panels_open_full_detail_dialogs_without_dashboard_scrollbars():
     assert "onClicked: details.open()" in panel
     assert "Dialog {" in panel
     assert "ScrollView" in panel
+    assert "function countdown(epochMs)" in panel
+    assert "running: details.visible" in panel
     assert "previewFontSize: 13" in screen
     assert "summaryFontSize: 11" in screen
+
+
+def test_manual_control_never_assigns_a_negative_tab_index_while_loading():
+    manual = Path("src/ui/qml/components/ManualControlWorkspace.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert "function applyRequestedTabIndex()" in manual
+    assert "if (tabs.count <= 0)" in manual
+    assert "onCountChanged: root.applyRequestedTabIndex()" in manual
 
 
 def test_dashboard_branding_and_footer_use_readable_current_product_labels():
@@ -135,6 +149,40 @@ def test_application_uses_dedicated_skunkworks_icon():
     assert 'f"--icon={application_icon()}"' in builder
 
 
+def test_navigation_audio_is_preloaded_without_reassigning_the_same_source():
+    audio = Path("src/ui/qml/components/AudioManager.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert "navigationEffectSource" in audio
+    assert "source: root.navigationEffectSource" in audio
+    assert "String(effectPlayer.source) !== String(nextSource)" in audio
+    assert "effectPlayer.position = 0" in audio
+
+
+def test_operating_profile_controls_follow_audio_and_precede_automation():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+
+    audio = settings.index('title: "AUDIO"')
+    profile = settings.index('title: "OPERATING PROFILE AND LOCAL NOTIFICATIONS"')
+    automation = settings.index('title: "AUTOMATION EXECUTION"')
+    assert audio < profile < automation
+    assert 'model: ["NORMAL", "LOW POWER", "AUTO", "SCHEDULED"]' in settings
+    assert 'root.activeOperatingProfileName === "auto" ? "AUTO → "' in settings
+    assert 'id: autoIdleMinutes' in settings
+    assert 'Layout.preferredWidth: 150' in settings
+    assert 'text: "MINUTES · RANGE 1–120"' in settings
+    assert 'text: "SAVE PROFILE"' in settings
+    assert 'id: scheduleStart' in settings
+    assert 'id: scheduleEnd' in settings
+    assert 'model: ["DAILY", "ONCE"]' in settings
+    assert '"ACTIVE MODE · "' in settings
+    assert '"SELECTION NOT ACTIVE UNTIL SAVED"' in settings
+    assert '"OVERNIGHT CHECK · AUTOMATION STILL EVALUATES ABOUT ONCE PER MINUTE' in settings
+    assert 'model: ["ALL EVENTS (INFO+)", "WARNINGS AND CRITICAL", "CRITICAL ONLY"]' in settings
+    assert 'text: "SUCCESSFUL OPERATIONS"' in settings
+
+
 def test_frozen_footer_version_falls_back_to_release_constant():
     with patch("src.ui.controller.Path.read_text", side_effect=OSError):
         assert MissionControlDataService._app_version() == APP_VERSION
@@ -156,6 +204,28 @@ def test_top_navigation_is_interactive_and_has_connected_workspace():
     assert "Math.min(18, Math.max(13, root.width / 125))" in navigation
 
 
+def test_heavy_workspaces_use_revisions_and_asynchronous_loading():
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(
+        encoding="utf-8",
+    )
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert "eventLoopDiagnostics: window.backend ? window.backend.eventLoopDiagnostics" in app
+    assert "function syncHighChurnSections()" in workspace
+    assert "cachedProductionRevision" in workspace
+    assert "cachedManualDashboardData" in workspace
+    assert workspace.count("asynchronous: true") >= 8
+    assert workspace.count("retainedAfterFirstLoad") >= 6
+    assert "UI EVENT-LOOP STALLS" in settings
+    assert "LAST DASHBOARD UI SETTLE" in settings
+    assert "RECENT ATTRIBUTED STALLS" in settings
+    assert "signal workspaceActivity" in workspace
+    assert "workspace-loading" in workspace
+
+
 def test_safety_navigation_pulses_for_unviewed_alerts():
     navigation = Path("src/ui/qml/components/TopNavigationBar.qml").read_text(encoding="utf-8")
     screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
@@ -164,7 +234,8 @@ def test_safety_navigation_pulses_for_unviewed_alerts():
     assert "SequentialAnimation on opacity" in navigation
     assert 'navigationItem.modelData === "SAFETY"' in navigation
     assert "viewedAlertKeys" in screen
-    assert "alertBaselineEstablished" in screen
+    assert "alertBaselinesByProbe" in screen
+    assert "payloadProbeId !== root.focusedProbeId" in screen
     assert "updateUnviewedAlerts" in screen
 
 
@@ -176,6 +247,18 @@ def test_automation_targets_include_integrated_circuits():
     assert 'productionQuantity("integrated_circuit")' in settings
     assert '"recipeId": "integrated_circuit"' in settings
     assert 'text: "INTEGRATED CIRCUITS"' in settings
+
+
+def test_automation_targets_include_deuterium_engine_stockpiles():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'productionQuantity("deuterium_engine")' in settings
+    assert 'productionPriority("deuterium_engine")' in settings
+    assert '"recipeId": "deuterium_engine"' in settings
+    assert 'text: "DEUTERIUM ENGINES"' in settings
+    assert "asteroid propulsion installation" in settings
 
 
 def test_automation_targets_include_missile_stockpiles_without_launch_automation():
@@ -216,6 +299,14 @@ def test_fleet_workspace_exposes_live_probe_upgrade_controls():
 
     assert "MANUAL PROBE UPGRADE" in fleet
     assert "INSTALL UPGRADE" in fleet
+    assert "REQUIRED COMPONENTS AND MATERIALS" in fleet
+    assert "upgradeIngredientLabel" in fleet
+    assert "item.sufficient" in fleet
+    assert "INSTALLATION TIME" in fleet
+    assert "ACTIVE PROBE UPGRADES" in fleet
+    assert "activeImprovements" in fleet
+    assert "activeProbeImprovements" in manual
+    assert '"activeProbeImprovements": root.dashboardData.activeProbeImprovements || []' in workspace
     assert "upgradeRequested" in fleet
     assert "ManualControlWorkspace" in workspace
     assert "probeImprovements" in manual
@@ -353,6 +444,19 @@ def test_dashboard_density_controls_scale_summaries_and_bound_sector_labels():
     assert "readonly property bool above" in sector
 
 
+def test_planet_details_dialog_has_a_non_circular_explicit_width():
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
+    start = sector.index("id: planetDetails")
+    dialog = sector[start:sector.index("Repeater {", start)]
+
+    assert "width: Math.min(620, parent.width - 48)" in dialog
+    assert "width: planetDetails.availableWidth" in dialog
+    assert "width: 560" not in dialog
+    assert 'text: "HABITABILITY SCORE · "' in dialog
+    assert "habitabilityScore).toFixed(6)" in dialog
+    assert "habitabilityScore) * 100" not in dialog
+
+
 def test_hull_panel_uses_release_thresholds_without_duplicate_reading():
     screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
     telemetry = Path("src/ui/qml/components/TelemetryBar.qml").read_text(encoding="utf-8")
@@ -375,12 +479,37 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "function panBy(" in galaxy
     assert "mapDirectionToScene" in galaxy
     assert "renderedEdges" in galaxy
-    assert "cameraMoving ? [] : visibleEdges" in galaxy
+    assert "readonly property var renderedEdges: visibleEdges" in galaxy
+    assert "visible: !root.cameraMoving" in galaxy
+    assert "property var renderedGalaxyData" in galaxy
+    assert "property var deferredGalaxyData" in galaxy
+    assert "function applyGalaxyData(value)" in galaxy
+    assert "root.applyGalaxyData(root.deferredGalaxyData)" in galaxy
+
+
+def test_galaxy_map_renders_owned_manny_locations():
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
+
+    assert "ownedMannyLocations" in galaxy
+    assert 'objectName: "manny-location:"' in galaxy
+    assert "SHOW OWNED MANNY LOCATIONS" in galaxy
+    assert "OWNED MANNYS · " in galaxy
+
+
+def test_secondary_risk_acknowledgement_displays_live_hazard_reasons():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
+
+    assert "SECONDARY SAFETY ACKNOWLEDGEMENT REQUIRED" in settings
+    assert 'String(modelData.code || "travel_hazard")' in settings
+    assert 'String(modelData.message || "No additional hazard detail was supplied.")' in settings
+    assert "I UNDERSTAND AND ACCEPT THESE DISPLAYED RISKS" in settings
     assert "cameraMoving || distantOverview ? [] : visibleEdges" not in galaxy
     assert "id: cameraSettle" in galaxy
     assert "function fitVisibleMap()" in galaxy
     assert 'text: "FIT MAP"' in galaxy
-    assert "automaticClipping: true" in galaxy
+    assert "automaticClipping: false" in galaxy
+    assert "clipNear: 1; clipFar: 100000" in galaxy
     assert "RIGHT/MIDDLE DRAG · PAN" in galaxy
     assert "import QtQuick3D" in galaxy
     assert "View3D" in galaxy
@@ -410,6 +539,8 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert "id: godSectorHalo" in galaxy
     assert "pickable: false" in galaxy
     assert "DROPPED CONTAINERS" in galaxy
+    assert 'text: "PLANET HABITABILITY ≥ 0.5"' in galaxy
+    assert "habitablePlanetOnly && !node.hasHabitablePlanet" in galaxy
     assert "FOCUSED PROBE · RECENT 10 TRAIL" in galaxy
     assert "recentTrail" in galaxy
     assert "filtersExpanded" in galaxy
@@ -419,6 +550,34 @@ def test_galaxy_map_uses_rotatable_three_dimensional_scene():
     assert 'text: "SCANNED"' in galaxy
     assert 'text: "OBSERVED"' not in galaxy
     assert 'text: "UNKNOWN"' not in galaxy
+
+
+def test_production_defers_model_replacement_during_active_scrolling():
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'root.section === "PRODUCTION" && sectionGrid.moving' in workspace
+    assert "renderedRowsRefreshPending" in workspace
+    assert "onMovementEnded" in workspace
+    assert "reuseItems: true" in workspace
+
+
+def test_galaxy_sector_can_prefill_navigation_without_sending_travel():
+    galaxy = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+
+    assert "signal travelRequested(int x, int y, int z)" in galaxy
+    assert 'text: "USE FOR TRAVEL"' in galaxy
+    assert "root.travelRequested(root.selectedNode.x" in galaxy
+    assert 'root.navigationSectionRequested("NAVIGATION")' in workspace
+    assert 'root.requestedTravelSector = ({"x": x, "y": y, "z": z})' in workspace
+    assert "requestedTravelSector: root.requestedTravelSector" in workspace
+    assert "chooseSector(requestedTravelSector)" in navigation
+    assert "onNavigationSectionRequested(section)" in app
+    assert "travelPreviewRequested" not in galaxy
 
 
 def test_probe_selector_display_is_keyed_to_authoritative_focus_id():
@@ -477,6 +636,8 @@ def test_app_uses_a_dedicated_live_data_loading_screen():
     assert "def startupLoading" in controller
     assert "loadingProgress" in app
     assert "loadingStatus" in app
+    loading_animation = app.split("id: loadingSweep", 1)[1].split("NumberAnimation", 1)[0]
+    assert "running: startupOverlay.visible" in loading_animation
 
 
 def test_live_failures_never_substitute_concept_dashboard_data():
@@ -630,6 +791,22 @@ def test_inventory_workspace_exposes_identity_rules_items_and_transfers():
     assert "replaceAll(" not in inventory
 
 
+def test_stored_inventory_supports_local_multi_type_filters():
+    inventory = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "FILTER STORED ITEMS · SELECT ONE OR MORE TYPES" in inventory
+    assert "function itemTypeOptions()" in inventory
+    assert "function filteredItems()" in inventory
+    assert "function toggleItemType(type)" in inventory
+    assert "selectedItemTypes.slice()" in inventory
+    assert "SHOWING ITEMS THAT MATCH ANY SELECTED TYPE" in inventory
+    assert "model: root.filteredItems()" in inventory
+    assert "onClicked: root.selectedItemTypes = []" in inventory
+    assert "NO STORED ITEMS MATCH THE SELECTED TYPES" in inventory
+
+
 def test_fleet_workspace_scopes_manny_auto_naming_to_focused_probe():
     fleet = Path("src/ui/qml/components/FleetWorkspace.qml").read_text(encoding="utf-8")
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
@@ -712,8 +889,22 @@ def test_fleet_workspace_exposes_quick_manual_mining_orders():
     assert "MINING_MAINTENANCE" not in manual
     assert "TRANSFERS_CONTAINERS" not in manual
     assert "manualMiningRequested" in navigation
+    assert "onCountChanged" in fleet
+    assert "if (count > 0 && currentIndex < 0)" in fleet
     assert "inventoryManagement || {}).miningTargets" in manual
     assert 'runInventoryMannyAction("mine", mannyId, payload)' in app
+
+
+def test_hidden_workspace_projection_cannot_replace_manual_cache_with_empty_data():
+    workspace = Path(
+        "src/ui/qml/components/NavigationWorkspace.qml"
+    ).read_text(encoding="utf-8")
+
+    assert "const hasManualPayload = root.dashboardData.crafting !== undefined" in workspace
+    assert "root.dashboardData.inventoryManagement !== undefined" in workspace
+    assert "root.dashboardData.automationRuntime !== undefined" in workspace
+    assert "if (hasManualPayload" in workspace
+    assert "if (hasProductionPayload" in workspace
 
 
 def test_manual_control_exposes_v112_motorized_asteroid_workflows():
@@ -771,6 +962,8 @@ def test_api_v128_remote_manny_safety_and_autonomous_units_are_visible():
     assert "SHOW SECTOR ON GALAXY MAP" in safety
     assert "OPT-IN REMOTE MANNY LASER RESPONSE" in manual
     assert "setTargetedMannyRecallEnabled" in controller
+    assert '"targeted-manny-safety-settings"' in controller
+    assert '"targeted-manny-recall-state"' in controller
     assert "LOCAL AUTONOMOUS UNITS · API v128" not in sector
 
 
@@ -791,6 +984,8 @@ def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
     assert "FOCUSED PROBE DETAILS" in settings
     assert "MANNY TASK DETAILS" in settings
     assert "FLEET LIST CACHE USED" in settings
+    assert "GAME API BUDGET" in settings
+    assert "BACKGROUND WORK DEFERRED TO PROTECT FOREGROUND CAPACITY" in settings
 
 
 def test_full_page_lists_avoid_nested_scroll_regions():
@@ -802,6 +997,17 @@ def test_full_page_lists_avoid_nested_scroll_regions():
     assert "id: waitingPlanList" not in settings
     assert "model: root.runtimeData.queue || []" in settings
     assert "model: root.waitingPlans()" in settings
+
+
+def test_notification_settings_expose_delivery_status_and_test_action():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
+    navigation = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+
+    assert 'text: "SEND TEST NOTIFICATION"' in settings
+    assert "notificationDelivery.detail" in settings
+    assert "onTestNotificationRequested" in navigation
+    assert "sendTestNotification()" in app
 
 
 def test_automation_tabs_avoid_qt_mnemonic_underscores_and_show_all_live_targets():
@@ -824,11 +1030,22 @@ def test_automation_target_panels_share_quantity_and_priority_columns():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 
     assert settings.count("columns: 3; uniformCellWidths: true") == 2
+    production = settings.split('title: "PRODUCTION AND PROBE ASSEMBLY TARGETS"', 1)[1].split('title: "OWNED PROBE ROLES"', 1)[0]
+    assert "anchors.fill: parent; columns: 3; uniformCellWidths: true" in production
+    assert "Layout.columnSpan: 3; Layout.fillWidth: true" in production
     assert "targetNameColumnWidth" not in settings
     assert "targetQuantityColumnWidth" not in settings
+    assert "PROBES ARE CUMULATIVE ASSEMBLY TOTALS FOR THIS BUILDER" in settings
+    assert "ALL OTHER ITEMS ARE MAINTAINED STOCK TARGETS" in settings
+    guide = settings.index('title: "HOW TARGETS AND PRIORITIES WORK"')
+    targets = settings.index('title: "PRODUCTION AND PROBE ASSEMBLY TARGETS"')
+    assert guide < targets
+    assert "ASSEMBLY COMPONENTS ARE PROTECTED FROM OTHER CRAFTING" in settings
+    assert "A HIGHER-PRIORITY ORDINARY CRAFT MAY USE COMPONENTS" in settings
+    assert "ASSEMBLY WINS ONLY WHEN PRIORITIES ARE EQUAL" in settings
 
 
-def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
+def test_logbook_workspace_uses_editable_game_pages_and_reports_are_local():
     logbook = Path("src/ui/qml/components/LogbookWorkspace.qml").read_text(encoding="utf-8")
     app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
 
@@ -836,15 +1053,71 @@ def test_logbook_workspace_uses_editable_game_pages_and_opt_in_reports():
     assert "+ NEW PAGE" in logbook
     assert "SAVE CHANGES" in logbook
     assert "DELETE LOGBOOK PAGE?" in logbook
-    assert "AUTO-LOG DAILY ROLE REPORTS AND MAJOR DISCOVERIES" in logbook
+    assert "AUTO-LOG DAILY ROLE REPORTS AND MAJOR DISCOVERIES" not in logbook
     assert "id: contentScroller" in logbook
     assert "ScrollBar.vertical.policy: ScrollBar.AsNeeded" in logbook
-    assert "newDailyReportCount" in Path("src/ui/qml/components/CommunicationsWorkspace.qml").read_text(encoding="utf-8")
-    assert "newDailyReportCount" in Path("src/ui/qml/components/TopNavigationBar.qml").read_text(encoding="utf-8")
-    assert "loadLogbookPage" in app
+    reports = Path("src/ui/qml/components/ReportsWorkspace.qml").read_text(encoding="utf-8")
+    assert "DAILY REPORTS" in reports
+    assert "INDUSTRIAL ANALYSIS" in reports
+    assert "OPERATIONAL ARCHIVE" in reports
+    assert "Reports no longer consume game Logbook pages" in reports
+    assert "ANALYSIS POPULATES FROM SKUNKWORKS ACTION-JOURNAL RECORDS" in reports
+    assert "Search one local timeline of recorded commands" in reports
     controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
+    assert '"COMMUNICATIONS": {"communications", "logbook", "reports"}' in controller
+    assert '"communications": ("communications", "logbook", "reports")' in controller
+    assert "loadLogbookPage" in app
     mutation = controller.split("def _logbook_mutation", 1)[1].split("@Slot(bool)", 1)[0]
     assert "_start_refresh" not in mutation
+
+
+def test_reports_keep_daily_selector_visible_and_format_archive_time_locally():
+    reports = Path("src/ui/qml/components/ReportsWorkspace.qml").read_text(encoding="utf-8")
+
+    assert "RowLayout {\n                    Layout.fillWidth: true\n                    Layout.fillHeight: true" in reports
+    assert "Layout.preferredWidth: Math.max(360, root.width * 0.32)" in reports
+    assert "function localTimestamp(value)" in reports
+    assert "toLocaleString(Qt.locale(), Locale.ShortFormat)" in reports
+    assert 'text: "LOCAL · " + root.localTimestamp' in reports
+    assert "root.localTimestamp(archiveCard.modelData.timestamp)" in reports
+    assert 'String(archiveCard.modelData.timestamp || "")' not in reports
+    assert "DELETE LOCAL DAILY REPORT?" in reports
+    assert "AUTOMATIC 30-DAY RETENTION" in reports
+    assert "AUTO DELETING " in reports
+    assert "AT 17:00" in reports
+    assert "remaining <= 5 * 86400000" in reports
+    assert "visible: root.retentionWarningVisible(dailyCard.modelData)" in reports
+    assert "property double dailyScrollOffsetToRestore: -1" in reports
+    assert "root.dailyScrollOffsetToRestore = dailyList.contentY" in reports
+    assert "onCountChanged:" in reports
+    assert "function archiveSearchText(row)" in reports
+    assert "row.kind, row.domain, row.status, row.title, row.probeName" in reports
+    assert "row.detail, root.localTimestamp(row.timestamp), row.timestamp" in reports
+    assert "Search names, resources, quantities, sectors, reasons, status, dates, or reports" in reports
+    assert "root.favoriteChanged" in reports
+    assert "window.backend.deleteLocalReport(reportId)" in Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    assert "window.backend.setLocalReportFavorite(reportId, favorited)" in Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+
+
+def test_focused_window_uses_in_app_notification_banner():
+    app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
+    assert "onDesktopNotificationRequested" in app
+    assert "foregroundNotificationBanner" in app
+    assert "window.active && window.visibility !== Window.Minimized" in app
+    assert "foregroundNotificationQueue" in app
+    assert "window.dismissForegroundNotification()" in app
+
+
+def test_archive_exposes_status_date_and_sort_controls():
+    reports = Path("src/ui/qml/components/ReportsWorkspace.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "id: archiveStatus" in reports
+    assert "id: archiveDateRange" in reports
+    assert "id: archiveSort" in reports
+    assert '"AMOUNT HIGH–LOW"' in reports
+    assert "left.amount" in reports
 
 
 def test_settings_exposes_operator_manual_and_change_log_links():

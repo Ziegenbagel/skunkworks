@@ -38,7 +38,7 @@ Skunkworks currently requires Python 3.14 and the dependencies declared in
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install .
 skunkworks
 ```
 

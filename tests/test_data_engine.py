@@ -1,6 +1,8 @@
 import json
+import sqlite3
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -19,7 +21,79 @@ class DataEngineTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_schema_is_migrated(self):
-        self.assertEqual(self.engine.schema_version(), 4)
+        self.assertEqual(self.engine.schema_version(), 5)
+
+    def test_existing_report_archive_gains_durable_favorite_column(self):
+        legacy_path = Path(self.temporary.name) / "legacy.sqlite3"
+        with sqlite3.connect(legacy_path) as connection:
+            connection.executescript(
+                """
+                CREATE TABLE schema_migrations (
+                    version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL
+                );
+                INSERT INTO schema_migrations VALUES (4, '2026-09-01');
+                CREATE TABLE archive_reports (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                INSERT INTO archive_reports VALUES (
+                    'daily:legacy', 'Legacy daily', 'daily_probe_report',
+                    'content', '2026-09-01T00:00:00+00:00'
+                );
+                """
+            )
+
+        migrated = DataEngine(legacy_path)
+
+        report = dict(migrated.archive_reports()[0])
+        self.assertEqual(migrated.schema_version(), 5)
+        self.assertEqual(report["favorited"], 0)
+
+    def test_daily_report_retention_preserves_favorites_and_other_archives(self):
+        self.engine.save_archive_report(
+            "daily:old", "Old daily", "old", kind="daily_probe_report",
+        )
+        self.engine.save_archive_report(
+            "daily:favorite", "Favorite daily", "favorite",
+            kind="daily_probe_report",
+        )
+        self.engine.save_archive_report(
+            "operational:old", "Old operational", "operational",
+        )
+        self.engine.set_archive_report_favorite("daily:favorite", True)
+        with self.engine._connect() as connection:
+            connection.execute(
+                "UPDATE archive_reports SET created_at = ?",
+                ("2026-07-01T00:00:00+00:00",),
+            )
+
+        removed = self.engine.delete_expired_daily_reports(
+            30, now=datetime.fromisoformat("2026-09-03T00:00:00+00:00"),
+        )
+
+        self.assertEqual(removed, 1)
+        reports = {row["id"]: dict(row) for row in self.engine.archive_reports()}
+        self.assertNotIn("daily:old", reports)
+        self.assertEqual(reports["daily:favorite"]["favorited"], 1)
+        self.assertIn("operational:old", reports)
+
+    def test_daily_report_retention_ends_at_local_1700_after_day_30(self):
+        deletion = self.engine.daily_report_deletion_at(
+            "daily:762:2026-09-01", "2026-09-01T17:01:00-07:00", 30,
+            timezone=datetime.fromisoformat("2026-09-03T00:00:00-07:00").tzinfo,
+        )
+
+        self.assertEqual(deletion.isoformat(), "2026-10-01T17:00:00-07:00")
+
+    def test_local_report_can_be_deleted_explicitly(self):
+        self.engine.save_archive_report("daily:delete", "Delete me", "content")
+
+        self.assertTrue(self.engine.delete_archive_report("daily:delete"))
+        self.assertFalse(self.engine.delete_archive_report("daily:delete"))
+        self.assertEqual(self.engine.archive_reports(), [])
 
     def test_remembers_selected_probe(self):
         self.engine.remember_probe(762)
@@ -358,6 +432,35 @@ class DataEngineTests(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertIsNone(second)
 
+    def test_legacy_compaction_runs_once_and_preserves_daily_history(self):
+        self.engine.set_preference("legacy_history_compaction_v1", "pending")
+        for minute in range(3):
+            world = SimpleNamespace(
+                probe={
+                    "id": 762, "name": "Beta", "model": "generic", "status": "idle",
+                    "sector": {"relative": {"x": minute, "y": 0, "z": 0}},
+                },
+                sector={"snapshot": None, "resources": []},
+            )
+            self.engine.record_world(
+                world, observed_at=f"2020-01-01T00:0{minute}:00+00:00",
+            )
+
+        result = self.engine.compact_legacy_history_once()
+
+        self.assertEqual(result["probeRowsRemoved"], 2)
+        self.assertEqual(len(self.engine.probe_history(762)), 1)
+        self.assertEqual(
+            self.engine.get_preference("legacy_history_compaction_v1"), "complete",
+        )
+        self.assertIsNone(self.engine.compact_legacy_history_once())
+
+    def test_galaxy_cache_is_shared_between_engines_for_same_database(self):
+        first = self.engine.galaxy_map()
+        second_engine = DataEngine(self.engine.path)
+
+        self.assertIs(second_engine.galaxy_map(), first)
+
     def test_database_report_exposes_reclaimable_space_and_row_counts(self):
         self.engine.set_preference("operator", "ready")
 
@@ -366,7 +469,7 @@ class DataEngineTests(unittest.TestCase):
         self.assertEqual(report["schemaVersion"], SCHEMA_VERSION)
         self.assertGreater(report["allocatedBytes"], 0)
         self.assertGreaterEqual(report["totalFileBytes"], report["files"]["database"])
-        self.assertEqual(report["rowCounts"]["preferences"], 2)
+        self.assertEqual(report["rowCounts"]["preferences"], 4)
         self.assertGreaterEqual(report["reclaimableBytes"], 0)
 
     def test_integrity_report_checks_database_and_foreign_keys(self):

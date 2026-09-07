@@ -71,6 +71,11 @@ Responsibilities:
 
 GameClient does **not** save files or interpret data.
 
+The latest account rate-limit headers are shared across client instances for
+the same API base URL and credential. Foreground reads and mutation preflight
+retain access to the protected reserve; stale-tolerant archival and background
+fleet work defer before consuming that capacity.
+
 ## API Contract Boundary
 
 Skunkworks supports deployed API v103 through reviewed upstream API v130. The
@@ -112,6 +117,27 @@ event workflow state, execution leases, and the separate Skunkworks Archive.
 Live API responses remain authoritative. Persistence supports historical
 reasoning and never replaces live validation before a control action. See
 the Data Engine section below.
+
+## Reports Workspace
+
+Communications separates game-facing text from local operational reporting:
+
+- Messaging and Logbook remain game API capabilities.
+- Daily Reports are generated locally from retained telemetry and accepted
+  action-journal records; they do not automatically create game Logbook pages.
+  Operators may favorite or explicitly delete them. Unfavorited daily reports
+  are retained through 17:00 local time at the end of day 30; favorites and
+  non-daily operational archives are excluded from automatic report retention.
+- Industrial Analysis labels retained-history counts as measured and must label
+  derived trends or estimates as inferred. Missing evidence remains unavailable.
+- Operational Archive is a searchable presentation over retained reports,
+  operations, and action history. It is historical evidence and never replaces
+  live command preflight. Command cards decode retained payload and metadata to
+  show relevant quantities, resources, targets, locations, and reasons without
+  making additional game API requests.
+
+Reports are assembled off the UI thread as part of the dashboard projection.
+QML filters an already bounded presentation model and does not query SQLite.
 
 ---
 

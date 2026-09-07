@@ -33,7 +33,14 @@ Item {
     property var pendingAsteroidAction: ({})
     property var pendingMissileAction: ({})
 
-    onRequestedTabIndexChanged: tabs.currentIndex = Math.max(0, Math.min(tabs.count - 1, requestedTabIndex))
+    function applyRequestedTabIndex() {
+        if (tabs.count <= 0)
+            return;
+        tabs.currentIndex = Math.max(
+            0, Math.min(tabs.count - 1, requestedTabIndex));
+    }
+
+    onRequestedTabIndexChanged: applyRequestedTabIndex()
 
     function readableDuration(secondsValue) {
         const seconds = Math.max(0, Math.round(Number(secondsValue || 0)));
@@ -75,6 +82,7 @@ Item {
             id: tabs
             objectName: "manualControlTabs"
             Layout.fillWidth: true
+            onCountChanged: root.applyRequestedTabIndex()
             TabButton { text: "PRODUCTION AND ASSEMBLY" }
             TabButton { text: "MANNY FIELD OPERATIONS" }
             TabButton { text: "CARGO AND TRANSFERS" }
@@ -249,6 +257,7 @@ Item {
                 probeData: root.dashboardData.probe || ({})
                 idleMannies: (root.dashboardData.inventoryManagement || {}).idleMannies || []
                 improvements: root.dashboardData.probeImprovements || []
+                activeImprovements: root.dashboardData.activeProbeImprovements || []
                 miningTargets: (root.dashboardData.inventoryManagement || {}).miningTargets || []
                 inspectableObjects: (root.dashboardData.inventoryManagement || {}).inspectableObjects || []
                 detachedContainers: (root.dashboardData.inventoryManagement || {}).detachedContainers || []

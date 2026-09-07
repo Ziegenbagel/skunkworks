@@ -63,7 +63,10 @@ Item {
                 model: root.probeModel
                 textRole: "name"
                 valueRole: "id"
-                enabled: count > 0 && !root.refreshing
+                // Probe changes are queued by the controller while a refresh
+                // is active, so the selector does not need to make the whole
+                // header feel locked during background synchronization.
+                enabled: count > 0
 
                 background: Rectangle {
                     color: selector.pressed ? Constants.selectedColor : Constants.raisedColor

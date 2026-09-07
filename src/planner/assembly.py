@@ -1,6 +1,7 @@
 """Authoritative special probe-assembly requirements."""
 
 from collections import Counter
+import json
 
 
 GENERIC_COMPONENTS = (
@@ -26,6 +27,33 @@ PROBE_ASSEMBLY_REQUIREMENTS = {
     "generic": GENERIC_COMPONENTS,
     "deuterium_tanker": TANKER_COMPONENTS,
 }
+
+
+def recorded_probe_assembly_count(operations, model):
+    """Count successful assembly orders originating from the focused probe.
+
+    Fleet assembly goals are cumulative production targets. A completed probe
+    leaving the fleet must not make its builder assemble a replacement.
+    """
+
+    data_engine = getattr(operations, "data_engine", None)
+    probe_id = (getattr(operations.world, "probe", {}) or {}).get("id")
+    if data_engine is None or probe_id is None:
+        return 0
+    count = 0
+    for row in data_engine.action_history(int(probe_id)):
+        if row["status"] != "succeeded" or row["command_type"] != "manny_assemble_probe":
+            continue
+        try:
+            command = json.loads(row["command_json"] or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        payload = command.get("payload") or {}
+        metadata = command.get("metadata") or {}
+        assembled_model = payload.get("model") or metadata.get("model")
+        if str(assembled_model or "").strip().lower().replace("-", "_") == model:
+            count += 1
+    return count
 
 
 def active_probe_assembly_count(operations, model):
@@ -63,8 +91,8 @@ def active_probe_assembly_count(operations, model):
     return count
 
 
-def tanker_component_statuses(operations):
-    """Return every tanker component's stored, active, and outstanding state."""
+def probe_component_statuses(operations, model):
+    """Return stored, active, and outstanding state for a registered probe kit."""
 
     inventory = operations.world.probe.get("inventory", {})
     counts = Counter()
@@ -76,7 +104,7 @@ def tanker_component_statuses(operations):
             quantity = 1
         counts[item.get("type")] += quantity
     statuses = []
-    for component, required in TANKER_COMPONENTS:
+    for component, required in PROBE_ASSEMBLY_REQUIREMENTS.get(model, ()):
         completed = counts.get(component, 0)
         active = operations.manufacturing.active_production_count(component)
         credited_active = min(active, max(0, required - completed))
@@ -93,6 +121,12 @@ def tanker_component_statuses(operations):
             "missing": max(0, required - completed - credited_active),
         })
     return tuple(statuses)
+
+
+def tanker_component_statuses(operations):
+    """Return every tanker component's state for compatibility callers."""
+
+    return probe_component_statuses(operations, "deuterium_tanker")
 
 
 def tanker_shortage(operations):

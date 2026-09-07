@@ -9,12 +9,25 @@ Item {
     property var settingsData: ({})
     property var runtimeData: ({})
     property var refreshDiagnostics: ({})
+    property var eventLoopDiagnostics: ({})
     property var availableProbes: []
     property var credentialData: ({})
     property int focusedProbeId: -1
     property int defaultProbeId: -1
     property var focusedProbeData: ({})
     property int desiredStateProbeId: -2
+    property var operatingProfile: ({"name": "normal"})
+    property var notificationPolicy: ({"enabled": false, "categories": [], "minimumSeverity": "warning"})
+    property var notificationDelivery: ({"available": false, "supportsMessages": false, "detail": "CHECKING DESKTOP NOTIFICATION SUPPORT"})
+    readonly property string activeOperatingProfileName: String(operatingProfile.name || "normal")
+    readonly property string effectiveOperatingProfileName: String(operatingProfile.effective_name || activeOperatingProfileName)
+    readonly property int savedOperatingProfileIdleMinutes: Number(operatingProfile.idle_minutes || 10)
+    readonly property string selectedOperatingProfileName: operatingProfileControl.currentIndex === 3 ? "scheduled"
+                                                           : operatingProfileControl.currentIndex === 2 ? "auto"
+                                                           : operatingProfileControl.currentIndex === 1 ? "low_usage" : "normal"
+    readonly property bool operatingProfileSelectionDirty: operatingProfileControl.currentIndex >= 0
+                                                           && (selectedOperatingProfileName !== activeOperatingProfileName
+                                                               || autoIdleMinutes.value !== savedOperatingProfileIdleMinutes)
     readonly property bool canManageProbeRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
     signal saveRequested(var settings)
     signal roleAssignmentRequested(int probeId, string role)
@@ -37,6 +50,9 @@ Item {
     signal diagnosticLogsRequested()
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
+    signal operatingProfileSaveRequested(string name, int idleMinutes, var schedule)
+    signal notificationPolicySaveRequested(var policy)
+    signal testNotificationRequested()
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
 
     function productionQuantity(recipeId) {
@@ -100,6 +116,18 @@ Item {
         }
         return summaries.join("  ·  ");
     }
+
+    function recentStallSummary() {
+        const stalls = (root.eventLoopDiagnostics || {}).recentStalls || [];
+        return stalls.slice(Math.max(0, stalls.length - 5)).reverse().map(function(item) {
+            return Number(item.durationMs || 0) + " MS · "
+                    + String(item.section || "UNKNOWN") + " · "
+                    + String(item.activity || "UNKNOWN") + " · ACTIVITY +"
+                    + Number(item.activityAgeMs || 0) + " MS · DASHBOARD +"
+                    + Number(item.dashboardAgeMs || 0) + " MS"
+                    + (Boolean(item.refreshing) ? " · REFRESHING" : "");
+        }).join("\n");
+    }
     function waitingPlans() {
         return runtimeData.planning || [];
     }
@@ -144,6 +172,8 @@ Item {
         relayPriority.value = productionPriority("scut_relay");
         circuitTarget.value = productionQuantity("integrated_circuit");
         circuitPriority.value = productionPriority("integrated_circuit");
+        deuteriumEngineTarget.value = productionQuantity("deuterium_engine");
+        deuteriumEnginePriority.value = productionPriority("deuterium_engine");
         missileTarget.value = productionQuantity("missile");
         missilePriority.value = productionPriority("missile");
         beaconTarget.value = productionQuantity("scut_transit_beacon");
@@ -186,18 +216,34 @@ Item {
     Component.onCompleted: {
         syncExecutionControls();
         syncDesiredStateControls();
+        syncOperatingProfileControls();
+    }
+    onOperatingProfileChanged: syncOperatingProfileControls()
+    function syncOperatingProfileControls() {
+        operatingProfileControl.currentIndex = String(operatingProfile.name || "normal") === "scheduled" ? 3
+                                             : String(operatingProfile.name || "normal") === "auto" ? 2
+                                             : String(operatingProfile.name || "normal") === "low_usage" ? 1 : 0;
+        autoIdleMinutes.value = Number(operatingProfile.idle_minutes || 10);
+        const schedule = operatingProfile.schedule || {};
+        scheduleStart.text = String(schedule.start_time || "22:00");
+        scheduleEnd.text = String(schedule.end_time || "07:00");
+        scheduleRecurrence.currentIndex = String(schedule.recurrence || "daily") === "once" ? 1 : 0;
+        notificationEnabled.checked = Boolean(notificationPolicy.enabled);
+        notificationSeverity.currentIndex = String(notificationPolicy.minimumSeverity || "warning") === "critical" ? 2
+                                          : String(notificationPolicy.minimumSeverity || "warning") === "info" ? 0 : 1;
     }
     function payload() {
         const production = [];
         const existing = settingsData.production || [];
         for (let i = 0; i < existing.length; ++i)
-            if (existing[i].recipeId !== "manny" && existing[i].recipeId !== "additional_container" && existing[i].recipeId !== "scut_relay" && existing[i].recipeId !== "scut_transit_beacon" && existing[i].recipeId !== "integrated_circuit" && existing[i].recipeId !== "missile")
+            if (existing[i].recipeId !== "manny" && existing[i].recipeId !== "additional_container" && existing[i].recipeId !== "scut_relay" && existing[i].recipeId !== "scut_transit_beacon" && existing[i].recipeId !== "integrated_circuit" && existing[i].recipeId !== "deuterium_engine" && existing[i].recipeId !== "missile")
                 production.push(existing[i]);
         production.push({"recipeId": "manny", "quantity": mannyTarget.value, "priority": mannyPriority.value});
         production.push({"recipeId": "additional_container", "quantity": containerTarget.value, "priority": containerPriority.value});
         production.push({"recipeId": "scut_relay", "quantity": relayTarget.value, "priority": relayPriority.value});
         production.push({"recipeId": "scut_transit_beacon", "quantity": beaconTarget.value, "priority": beaconPriority.value});
         production.push({"recipeId": "integrated_circuit", "quantity": circuitTarget.value, "priority": circuitPriority.value});
+        production.push({"recipeId": "deuterium_engine", "quantity": deuteriumEngineTarget.value, "priority": deuteriumEnginePriority.value});
         production.push({"recipeId": "missile", "quantity": missileTarget.value, "priority": missilePriority.value});
         return {
             "priorityScaleMax": 10,
@@ -288,6 +334,188 @@ Item {
             }
 
             GroupBox {
+                title: "OPERATING PROFILE AND LOCAL NOTIFICATIONS"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 10
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Rectangle {
+                            Layout.preferredWidth: 245
+                            Layout.preferredHeight: 36
+                            color: root.effectiveOperatingProfileName === "low_usage" ? Constants.warningColor : Constants.nominalColor
+                            radius: 2
+                            Label {
+                                anchors.centerIn: parent
+                                text: "ACTIVE MODE · "
+                                      + (root.activeOperatingProfileName === "auto" ? "AUTO → " : root.activeOperatingProfileName === "scheduled" ? "SCHEDULED → " : "")
+                                      + (root.effectiveOperatingProfileName === "low_usage" ? "LOW POWER" : "NORMAL")
+                                color: "#07131b"; font.family: Constants.technicalFont; font.bold: true
+                            }
+                        }
+                        Label { text: "SELECT MODE"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        ComboBox {
+                            id: operatingProfileControl
+                            model: ["NORMAL", "LOW POWER", "AUTO", "SCHEDULED"]
+                            Layout.preferredWidth: 220
+                        }
+                        Label {
+                            text: "AUTO AFTER"
+                            visible: operatingProfileControl.currentIndex === 2
+                            color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true
+                        }
+                        SpinBox {
+                            id: autoIdleMinutes
+                            visible: operatingProfileControl.currentIndex === 2
+                            from: 1; to: 120; value: 10
+                            editable: true
+                            Layout.preferredWidth: 150
+                            textFromValue: function(value) { return String(value) }
+                            valueFromText: function(text) { return Math.max(1, Math.min(120, parseInt(text) || 10)) }
+                        }
+                        Label {
+                            text: "MINUTES · RANGE 1–120"
+                            visible: operatingProfileControl.currentIndex === 2
+                            color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                        }
+                        Button {
+                            text: "SAVE PROFILE"
+                            enabled: root.operatingProfileSelectionDirty
+                            onClicked: root.operatingProfileSaveRequested(
+                                root.selectedOperatingProfileName,
+                                autoIdleMinutes.value,
+                                {"start_time": scheduleStart.text,
+                                 "end_time": scheduleEnd.text,
+                                 "recurrence": scheduleRecurrence.currentIndex === 1 ? "once" : "daily"})
+                        }
+                        Label {
+                            visible: root.operatingProfileSelectionDirty
+                            text: "SELECTION NOT ACTIVE UNTIL SAVED"
+                            color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: operatingProfileControl.currentIndex === 3
+                        Label { text: "LOW POWER FROM"; color: Constants.cyanColor; font.bold: true }
+                        TextField { id: scheduleStart; text: "22:00"; placeholderText: "HH:MM"; Layout.preferredWidth: 110 }
+                        Label { text: "TO"; color: Constants.cyanColor; font.bold: true }
+                        TextField { id: scheduleEnd; text: "07:00"; placeholderText: "HH:MM"; Layout.preferredWidth: 110 }
+                        ComboBox { id: scheduleRecurrence; model: ["DAILY", "ONCE"]; Layout.preferredWidth: 130 }
+                        Label { text: "LOCAL TIME · OVERNIGHT WINDOWS SUPPORTED"; color: Constants.mutedTextColor }
+                        Item { Layout.fillWidth: true }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: root.effectiveOperatingProfileName === "low_usage"
+                              ? "ACTIVE LOW POWER BEHAVIOR · SAFETY, STOP, FOCUSED TELEMETRY, ACTIVE OPERATIONS, AND THE 1-MINUTE AUTOMATION HEARTBEAT STAY IMMEDIATE. ARCHIVAL SYNCHRONIZATION CHANGES FROM 5 TO 30 MINUTES, BACKGROUND FLEET CHECKS DROP FROM FOUR PROBES TO ONE PER CYCLE, DISTANT MAP DETAIL IS REDUCED, AND COSMETIC COUNTDOWNS UPDATE EVERY 10 SECONDS."
+                              : "ACTIVE NORMAL BEHAVIOR · BACKGROUND FLEET CHECKS USE THE NORMAL BREADTH, ARCHIVAL SYNCHRONIZATION MAY RUN EVERY 5 MINUTES, AND THE SETTLED GALAXY MAP USES FULL DETAIL."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.activeOperatingProfileName === "scheduled"
+                        text: "SCHEDULED MODE · " + String(root.operatingProfile.schedule_status || "waiting").toUpperCase()
+                              + " · LOW POWER " + String((root.operatingProfile.schedule || {}).start_time || "22:00")
+                              + "–" + String((root.operatingProfile.schedule || {}).end_time || "07:00")
+                              + " · " + String((root.operatingProfile.schedule || {}).recurrence || "daily").toUpperCase()
+                        color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.effectiveOperatingProfileName === "low_usage"
+                        text: "OVERNIGHT CHECK · AUTOMATION STILL EVALUATES ABOUT ONCE PER MINUTE; NEW SAFETY ALERTS AND ACTIVE-OPERATION CHANGES STILL APPEAR PROMPTLY; REFRESH DIAGNOSTICS SHOULD OFTEN REPORT ARCHIVAL HISTORY DEFERRED; THE GALAXY MAP SHOULD REMAIN USABLE WITH LOWER DISTANT DETAIL; AND CPU/ENERGY USE SHOULD BE LOWER THAN A COMPARABLE NORMAL-MODE RUN."
+                        color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.activeOperatingProfileName === "auto"
+                        text: "AUTO MODE · OPERATOR KEYBOARD, CLICK, TOUCH, OR WHEEL INPUT RETURNS THE APP TO NORMAL IMMEDIATELY. AFTER "
+                              + root.savedOperatingProfileIdleMinutes + " MINUTES WITHOUT INPUT, BACKGROUND BEHAVIOR CHANGES TO LOW POWER."
+                        color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Constants.lineColor }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "DESKTOP NOTIFICATIONS · CHECKING A CATEGORY MAKES THAT KIND OF NEW EVENT ELIGIBLE. THE SEVERITY FILTER IS THEN APPLIED. UNCHECKED CATEGORIES NEVER CREATE A DESKTOP POP-UP."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        CheckBox {
+                            id: notificationEnabled
+                            text: "ENABLE DESKTOP NOTIFICATIONS"
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Master switch. Pop-ups are delivered only while Skunkworks is running."
+                        }
+                        Label { text: "MINIMUM SEVERITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        ComboBox {
+                            id: notificationSeverity
+                            model: ["ALL EVENTS (INFO+)", "WARNINGS AND CRITICAL", "CRITICAL ONLY"]
+                            Layout.preferredWidth: 235
+                        }
+                        Button {
+                            text: "SAVE NOTIFICATIONS"
+                            onClicked: {
+                                const categories = [];
+                                if (notifyCritical.checked) categories.push("critical");
+                                if (notifyDiscoveries.checked) categories.push("discoveries");
+                                if (notifyApprovals.checked) categories.push("approvals");
+                                if (notifyOperations.checked) categories.push("operations");
+                                if (notifyFailures.checked) categories.push("failures");
+                                const severity = notificationSeverity.currentIndex === 2 ? "critical"
+                                               : notificationSeverity.currentIndex === 0 ? "info" : "warning";
+                                root.notificationPolicySaveRequested({"enabled": notificationEnabled.checked, "categories": categories, "minimumSeverity": severity});
+                            }
+                        }
+                        Button {
+                            text: "SEND TEST NOTIFICATION"
+                            enabled: Boolean(root.notificationPolicy.enabled)
+                                     && Boolean(root.notificationDelivery.available)
+                                     && Boolean(root.notificationDelivery.supportsMessages)
+                            onClicked: root.testNotificationRequested()
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Uses the saved notification policy. A request is not proof that macOS displayed the banner."
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: String(root.notificationDelivery.detail || "DESKTOP NOTIFICATION STATUS UNAVAILABLE")
+                        color: root.notificationDelivery.supportsMessages ? Constants.nominalColor : Constants.warningColor
+                        font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: notificationSeverity.currentIndex === 0
+                              ? "ALL EVENTS · INCLUDES ROUTINE SUCCESSFUL OPERATIONS, WARNINGS, APPROVAL REQUESTS, AND CRITICAL EVENTS."
+                              : notificationSeverity.currentIndex === 2
+                              ? "CRITICAL ONLY · ONLY EVENTS CLASSIFIED AS CRITICAL, SUCH AS SERIOUS SAFETY ERRORS OR FAILED OPERATIONS."
+                              : "WARNINGS AND CRITICAL · EXCLUDES ROUTINE SUCCESSFUL-OPERATION MESSAGES BUT INCLUDES WARNING-LEVEL ALERTS, APPROVAL REQUESTS, AND CRITICAL FAILURES."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    GridLayout {
+                        Layout.fillWidth: true; columns: 2; columnSpacing: 18; rowSpacing: 4
+                        CheckBox { id: notifyCritical; text: "SAFETY ALERTS"; checked: (root.notificationPolicy.categories || []).indexOf("critical") >= 0 }
+                        Label { Layout.fillWidth: true; text: "New game safety alerts that are not classified as discoveries or failures."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        CheckBox { id: notifyDiscoveries; text: "DISCOVERIES"; checked: (root.notificationPolicy.categories || []).indexOf("discoveries") >= 0 }
+                        Label { Layout.fillWidth: true; text: "Discovery alerts, including dormant constructs and blueprint discoveries."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        CheckBox { id: notifyApprovals; text: "APPROVAL REQUESTS"; checked: (root.notificationPolicy.categories || []).indexOf("approvals") >= 0 }
+                        Label { Layout.fillWidth: true; text: "Automation commands waiting for operator approval."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        CheckBox { id: notifyOperations; text: "SUCCESSFUL OPERATIONS"; checked: (root.notificationPolicy.categories || []).indexOf("operations") >= 0 }
+                        Label { Layout.fillWidth: true; text: "Successful automation results. These are informational and require All Events (Info+)."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        CheckBox { id: notifyFailures; text: "FAILURES"; checked: (root.notificationPolicy.categories || []).indexOf("failures") >= 0 }
+                        Label { Layout.fillWidth: true; text: "Failed commands, failed automation results, and alerts identified as failures."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "NOTIFICATIONS ARE DEDUPLICATED ACROSS REFRESHES AND RESTARTS. DELIVERY DOES NOT MARK AN ALERT VIEWED OR PROVE A COMMAND SUCCEEDED."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                }
+            }
+
+            GroupBox {
                 title: "AUTOMATION EXECUTION"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 10
@@ -356,11 +584,29 @@ Item {
                                     Label { Layout.fillWidth: true; text: commandRow.modelData.reason || "Proposed automation action"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                                     Label { visible: String(commandRow.modelData.type) === "manny_mine"; Layout.fillWidth: true; text: "ORDER " + Number((commandRow.modelData.metadata || {}).orderAmount || 0).toFixed(3) + " ECE · " + Number((commandRow.modelData.metadata || {}).estimatedTrips || 0) + " AUTOMATIC MANNY TRIPS · " + Number((commandRow.modelData.metadata || {}).remainingAmount || 0).toFixed(3) + " ECE STILL NEEDED"; color: Constants.cyanColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                                     Label { visible: (commandRow.modelData.blockers || []).length > 0; Layout.fillWidth: true; text: "BLOCKED · " + (commandRow.modelData.blockers || []).join(", "); color: Constants.criticalColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                    Label {
+                                        visible: String(commandRow.modelData.disposition) === "awaiting_risk_acknowledgement"
+                                        Layout.fillWidth: true
+                                        text: "SECONDARY SAFETY ACKNOWLEDGEMENT REQUIRED · REVIEW THE LIVE REASONS BELOW"
+                                        color: Constants.criticalColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                                    }
+                                    Repeater {
+                                        model: commandRow.modelData.warnings || []
+                                        delegate: Label {
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            text: "RISK · " + String(modelData.code || "travel_hazard").replace(/_/g, " ").toUpperCase()
+                                                + " · " + String(modelData.message || "No additional hazard detail was supplied.")
+                                            color: String(modelData.severity || "").toLowerCase() === "danger"
+                                                ? Constants.criticalColor : Constants.warningColor
+                                            font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                                        }
+                                    }
                                 }
                                 CheckBox {
                                     id: riskAcknowledgement
                                     visible: (commandRow.modelData.warnings || []).length > 0
-                                    text: "ACKNOWLEDGE RISK"
+                                    text: "I UNDERSTAND AND ACCEPT THESE DISPLAYED RISKS"
                                     onClicked: {
                                         if (checked
                                                 && String(root.runtimeData.mode) === "automatic"
@@ -400,9 +646,42 @@ Item {
             }
 
             GroupBox {
-                title: "FLEET ASSEMBLY TARGETS"; Layout.fillWidth: true
+                title: "HOW TARGETS AND PRIORITIES WORK"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    Label {
+                        Layout.fillWidth: true
+                        text: "PROBE ASSEMBLY TARGETS ARE CUMULATIVE · A TARGET OF 5 MEANS THIS PROBE ASSEMBLES 5 TOTAL. TRANSFERRING A COMPLETED PROBE AWAY DOES NOT CREATE A REPLACEMENT ORDER."
+                        color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "ALL OTHER PRODUCTION TARGETS MAINTAIN CURRENT STOCK · ITEMS ALREADY STORED OR ACTIVELY BEING PRODUCED COUNT TOWARD THE TARGET. USING OR TRANSFERRING THEM REOPENS THE SHORTAGE."
+                        color: Constants.textColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "PRIORITY 1 IS HIGHEST AND PRIORITY 10 IS LOWEST. SKUNKWORKS ALWAYS CONSIDERS THE NUMERIC PRIORITY FIRST; PROBE ASSEMBLY WINS ONLY WHEN PRIORITIES ARE EQUAL."
+                        color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "ASSEMBLY COMPONENTS ARE PROTECTED FROM OTHER CRAFTING WHEN THE ASSEMBLY TARGET HAS A HIGHER OR EQUAL PRIORITY. A HIGHER-PRIORITY ORDINARY CRAFT MAY USE COMPONENTS RESERVED FOR A LOWER-PRIORITY ASSEMBLY; SKUNKWORKS WILL THEN REBUILD THE ASSEMBLY SHORTAGE."
+                        color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "EXAMPLE · ASSEMBLY P2 IS PROTECTED FROM COMPONENT CRAFTING AT P2–P10. A P1 CRAFT MAY USE THOSE COMPONENTS. FOR THE STRONGEST ASSEMBLY PROTECTION, GIVE THE PROBE TARGET THE SAME OR A LOWER PRIORITY NUMBER THAN COMPETING PRODUCTION TARGETS."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                }
+            }
+
+            GroupBox {
+                title: "PRODUCTION AND PROBE ASSEMBLY TARGETS"; Layout.fillWidth: true
                 GridLayout {
                     anchors.fill: parent; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
+                    Label { Layout.columnSpan: 3; Layout.fillWidth: true; text: "PROBES ARE CUMULATIVE ASSEMBLY TOTALS FOR THIS BUILDER. ALL OTHER ITEMS ARE MAINTAINED STOCK TARGETS AND ARE REPLENISHED AFTER USE OR TRANSFER."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                     Label { text: "AUTOMATION TARGET"; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "DESIRED QUANTITY"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
                     Label { text: "PRIORITY · 1 IS HIGHEST"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
@@ -427,6 +706,9 @@ Item {
                     Label { text: "INTEGRATED CIRCUITS"; color: Constants.cyanColor; font.family: Constants.technicalFont; ToolTip.visible: circuitHover.hovered; ToolTip.text: "Maintain integrated circuits for relay activation and other component-dependent work."; HoverHandler { id: circuitHover } }
                     SpinBox { id: circuitTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("integrated_circuit") }
                     SpinBox { id: circuitPriority; from: 1; to: 10; editable: true; value: root.productionPriority("integrated_circuit") }
+                    Label { text: "DEUTERIUM ENGINES"; color: Constants.cyanColor; font.family: Constants.technicalFont; ToolTip.visible: deuteriumEngineHover.hovered; ToolTip.text: "Maintain completed Deuterium Engines for asteroid propulsion installation and other component-dependent work."; HoverHandler { id: deuteriumEngineHover } }
+                    SpinBox { id: deuteriumEngineTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("deuterium_engine") }
+                    SpinBox { id: deuteriumEnginePriority; from: 1; to: 10; editable: true; value: root.productionPriority("deuterium_engine") }
                     Label { text: "MISSILES"; color: Constants.criticalColor; font.family: Constants.technicalFont; ToolTip.visible: missileHover.hovered; ToolTip.text: "Maintain completed missiles in inventory. Launching remains a separately confirmed manual combat action."; HoverHandler { id: missileHover } }
                     SpinBox { id: missileTarget; from: 0; to: 999; editable: true; value: root.productionQuantity("missile") }
                     SpinBox { id: missilePriority; from: 1; to: 10; editable: true; value: root.productionPriority("missile") }
@@ -580,10 +862,63 @@ Item {
                     }
                     Label {
                         Layout.fillWidth: true
+                        text: "UI EVENT-LOOP STALLS · "
+                              + Number((root.eventLoopDiagnostics || {}).stallCount || 0)
+                              + " · LAST " + Number((root.eventLoopDiagnostics || {}).lastStallMs || 0)
+                              + " MS · MAX " + Number((root.eventLoopDiagnostics || {}).maximumStallMs || 0) + " MS"
+                              + " · THIS REFRESH " + Number((root.eventLoopDiagnostics || {}).stallsSinceRefresh || 0)
+                        color: Number((root.eventLoopDiagnostics || {}).maximumStallMs || 0) >= 500
+                               ? Constants.warningColor : Constants.mutedTextColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "LAST DASHBOARD UI SETTLE · "
+                              + Number((root.eventLoopDiagnostics || {}).lastDashboardSettleMs || 0)
+                              + " MS · LAST ATTRIBUTION · "
+                              + String((root.eventLoopDiagnostics || {}).lastAttribution || "NONE")
+                        color: Number((root.eventLoopDiagnostics || {}).lastDashboardSettleMs || 0) >= 500
+                               ? Constants.warningColor : Constants.mutedTextColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: root.recentStallSummary().length > 0
+                        text: "RECENT ATTRIBUTED STALLS\n" + root.recentStallSummary()
+                        color: Constants.mutedTextColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
                         text: Boolean((root.refreshDiagnostics || {}).reusedFleetIndex)
                               ? "FLEET LIST CACHE USED · SKIPPED A DUPLICATE GAME API REQUEST"
                               : "FLEET LIST DOWNLOADED FROM THE GAME API"
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: String(((root.refreshDiagnostics || {}).apiRequestBudget || {}).remaining || "").length > 0
+                        text: "GAME API BUDGET · "
+                              + String(((root.refreshDiagnostics || {}).apiRequestBudget || {}).remaining || "?")
+                              + " OF " + String(((root.refreshDiagnostics || {}).apiRequestBudget || {}).limit || "?")
+                              + " REQUESTS REMAINING · "
+                              + (Boolean((root.refreshDiagnostics || {}).backgroundApiWorkAllowed)
+                                 ? "BACKGROUND WORK AVAILABLE"
+                                 : "BACKGROUND WORK DEFERRED TO PROTECT FOREGROUND CAPACITY")
+                        color: Boolean((root.refreshDiagnostics || {}).backgroundApiWorkAllowed)
+                               ? Constants.mutedTextColor : Constants.warningColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: String((root.refreshDiagnostics || {}).archivalHistoryState || "not_requested") === "deferred"
+                              ? "ARCHIVAL HISTORY DEFERRED BY OPERATING PROFILE · LIVE SAFETY AND FOCUSED TELEMETRY STILL REFRESHED"
+                              : String((root.refreshDiagnostics || {}).archivalHistoryState || "not_requested") === "synchronized"
+                              ? "ARCHIVAL HISTORY SYNCHRONIZED THIS REFRESH"
+                              : "ARCHIVAL HISTORY NOT REQUESTED BY THIS FAST REFRESH"
+                        color: String((root.refreshDiagnostics || {}).archivalHistoryState || "") === "deferred"
+                               ? Constants.warningColor : Constants.mutedTextColor
+                        font.family: Constants.technicalFont; wrapMode: Text.Wrap
                     }
                 }
             }

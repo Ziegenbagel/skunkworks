@@ -4,8 +4,12 @@ import os
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QLibraryInfo, QTimer, QUrl, qVersion
-from PySide6.QtGui import QGuiApplication, QIcon
+from PySide6.QtCore import (
+    QCoreApplication, QLibraryInfo, QLockFile, QObject, Slot, QTimer, QUrl,
+    qVersion,
+)
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuickControls2 import QQuickStyle
 
@@ -48,16 +52,71 @@ def application_icon_path():
     return root / "src" / "ui" / "assets" / "icons" / "skunkworks-app.png"
 
 
+def acquire_instance_lock(paths=None):
+    """Hold one application instance per writable data root."""
+
+    paths = (paths or application_paths()).ensure()
+    lock = QLockFile(str(paths.state / "skunkworks-instance.lock"))
+    if not lock.tryLock(0):
+        return None
+    return lock
+
+
+def notification_delivery_capabilities():
+    """Describe Qt tray-message support without claiming OS-level delivery."""
+
+    available = bool(QSystemTrayIcon.isSystemTrayAvailable())
+    supports_messages = available and bool(QSystemTrayIcon.supportsMessages())
+    if not available:
+        detail = "UNAVAILABLE · THIS DESKTOP SESSION HAS NO SYSTEM NOTIFICATION TRAY"
+    elif not supports_messages:
+        detail = "UNAVAILABLE · THIS QT PLATFORM DOES NOT SUPPORT DESKTOP MESSAGES"
+    elif sys.platform == "darwin":
+        app_name = "Skunkworks" if getattr(sys, "frozen", False) else "Python"
+        detail = (
+            "SUPPORTED BY QT · MACOS STILL CONTROLS DELIVERY. IF THE TEST DOES NOT "
+            f"APPEAR, ALLOW NOTIFICATIONS FOR {app_name.upper()} IN SYSTEM SETTINGS › NOTIFICATIONS."
+        )
+    else:
+        detail = "SUPPORTED BY QT · THE OPERATING SYSTEM STILL CONTROLS FINAL DELIVERY"
+    return available, supports_messages, detail
+
+
+class DesktopNotificationBridge(QObject):
+    """Deliver controller requests through a GUI-thread-owned Qt receiver."""
+
+    def __init__(self, tray_icon, should_deliver=None, parent=None):
+        super().__init__(parent)
+        self.tray_icon = tray_icon
+        self.should_deliver = should_deliver or (lambda: True)
+
+    @Slot(str, str)
+    def deliver(self, title, message):
+        if not self.should_deliver():
+            return
+        self.tray_icon.showMessage(
+            title, message, QSystemTrayIcon.Information, 8000,
+        )
+
+
 def run(controller=None):
     application_paths().migrate_legacy(Path(__file__).resolve().parents[2])
     configure_diagnostics()
     install_exception_hooks()
     configure_qt_plugin_paths()
     QQuickStyle.setStyle("Basic")
-    application = QGuiApplication(sys.argv)
+    application = QApplication(sys.argv)
     application.setApplicationName("Skunkworks")
     application.setOrganizationName("Skunkworks")
     application.setWindowIcon(QIcon(str(application_icon_path())))
+    instance_lock = acquire_instance_lock()
+    if instance_lock is None:
+        sys.stderr.write(
+            "Skunkworks is already running for this data directory. "
+            "Use the existing window or close it before starting another copy.\n"
+        )
+        return 2
+    application._skunkworks_instance_lock = instance_lock
 
     engine = QQmlApplicationEngine()
     qml_root = Path(__file__).parent / "qml"
@@ -67,6 +126,33 @@ def run(controller=None):
     if not engine.rootObjects():
         return 1
     controller = controller or MissionControlController()
+    notification_icon = QSystemTrayIcon(QIcon(str(application_icon_path())), application)
+    notification_icon.setToolTip("Skunkworks")
+    notification_available, notification_messages, notification_detail = (
+        notification_delivery_capabilities()
+    )
+    controller.configureNotificationDelivery(
+        notification_available, notification_messages, notification_detail,
+    )
+    if notification_available:
+        notification_icon.setVisible(bool(controller.notificationPolicy.get("enabled")))
+        controller.notificationPolicyChanged.connect(
+            lambda: notification_icon.setVisible(
+                bool(controller.notificationPolicy.get("enabled"))
+            )
+        )
+        if notification_messages:
+            root_window = engine.rootObjects()[0]
+            notification_bridge = DesktopNotificationBridge(
+                notification_icon,
+                should_deliver=lambda: not root_window.isActive(),
+                parent=application,
+            )
+            controller.desktopNotificationRequested.connect(
+                notification_bridge.deliver,
+            )
+            application._skunkworks_notification_bridge = notification_bridge
+    application._skunkworks_notification_icon = notification_icon
     engine.rootObjects()[0].setProperty("backend", controller)
     QTimer.singleShot(0, controller.start)
     return application.exec()

@@ -7,12 +7,14 @@ import "components"
 Rectangle {
     id: root
     signal combatControlsRequested()
+    signal uiActivityReported(string section, string activity)
     objectName: "missionControlScreen"
     property bool liveMode: false
     property bool refreshing: false
     property string connectionError: ""
     property bool emergencyStopActive: false
     property var dashboardData: ({})
+    property var eventLoopDiagnostics: ({})
     readonly property var focusData: dashboardData.focus || ({})
     readonly property var fleetData: dashboardData.fleet || ({})
     readonly property var probeData: dashboardData.probe || ({})
@@ -77,7 +79,7 @@ Rectangle {
     property string currentNavigation: "MISSION CONTROL"
     property var viewedAlertKeys: ({})
     property int unviewedAlertCount: 0
-    property bool alertBaselineEstablished: false
+    property var alertBaselinesByProbe: ({})
     property alias probeSelectorControl: probeSelector
     property alias navigationBarControl: navigationBar
     property alias navigationWorkspaceControl: navigationWorkspace
@@ -93,22 +95,32 @@ Rectangle {
     color: Constants.voidColor
 
     function alertKey(alert) {
-        return String(alert.domain || "alert") + ":" + String(alert.id || alert.eventId || alert.timestamp || alert.summary || "unknown");
+        return String(root.focusedProbeId) + ":" + String(alert.domain || "alert") + ":" + String(alert.id || alert.eventId || alert.timestamp || alert.summary || "unknown");
     }
 
     function updateUnviewedAlerts() {
         const alerts = root.dashboardData.alerts || [];
-        // Alerts already present when the application starts are the baseline,
-        // not new notifications. Only arrivals after the first live dashboard
-        // payload should light the Safety navigation item.
-        if (!root.alertBaselineEstablished || root.currentNavigation === "SAFETY") {
+        const payloadProbeId = Number((root.dashboardData.focus || {}).id
+                                      || (root.dashboardData.probe || {}).id || -1);
+        // Probe selection changes before its dashboard payload arrives. Never
+        // baseline the previous probe's alerts under the newly selected ID.
+        if (payloadProbeId >= 0 && payloadProbeId !== root.focusedProbeId)
+            return;
+        const probeKey = String(root.focusedProbeId);
+        const baselineEstablished = Boolean(root.alertBaselinesByProbe[probeKey]);
+        // Existing history establishes a separate baseline for every probe.
+        // Returning to a probe must not relabel its cached history as new.
+        if (!baselineEstablished || root.currentNavigation === "SAFETY") {
             const viewed = Object.assign({}, root.viewedAlertKeys);
             for (let index = 0; index < alerts.length; index++)
                 viewed[root.alertKey(alerts[index])] = true;
             root.viewedAlertKeys = viewed;
             root.unviewedAlertCount = 0;
-            if (root.dashboardData && root.dashboardData.alerts !== undefined)
-                root.alertBaselineEstablished = true;
+            if (root.dashboardData && root.dashboardData.alerts !== undefined) {
+                const baselines = Object.assign({}, root.alertBaselinesByProbe);
+                baselines[probeKey] = true;
+                root.alertBaselinesByProbe = baselines;
+            }
             return;
         }
         let count = 0;
@@ -119,7 +131,13 @@ Rectangle {
         root.unviewedAlertCount = count;
     }
 
-    onDashboardDataChanged: updateUnviewedAlerts()
+    onDashboardDataChanged: {
+        updateUnviewedAlerts();
+        root.uiActivityReported(root.currentNavigation, "dashboard-data-changed");
+        Qt.callLater(function() {
+            root.uiActivityReported(root.currentNavigation, "dashboard-settled");
+        });
+    }
     onCurrentNavigationChanged: updateUnviewedAlerts()
 
     Item {
@@ -598,8 +616,13 @@ Rectangle {
                 Layout.fillHeight: true
                 section: root.currentNavigation
                 dashboardData: root.dashboardData
+                eventLoopDiagnostics: root.eventLoopDiagnostics
                 availableProbes: root.availableProbes
                 focusedProbeId: root.focusedProbeId
+                operatingProfile: root.dashboardData.operatingProfile || ({"name": "normal", "map_detail": "normal"})
+                notificationPolicy: root.dashboardData.notificationPolicy || ({"enabled": false, "categories": []})
+                notificationDelivery: root.dashboardData.notificationDelivery || ({"available": false, "supportsMessages": false, "detail": ""})
+                onWorkspaceActivity: (section, activity) => root.uiActivityReported(section, activity)
                 onGalaxyMapRequested: root.currentNavigation = "GALAXY MAP"
             }
 

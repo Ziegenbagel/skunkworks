@@ -2,9 +2,12 @@
 
 from dataclasses import asdict
 from datetime import datetime
+import hashlib
 import json
 import re
+from collections import Counter, defaultdict
 from src.models.galaxy import SectorCoordinates
+from src.data.engine import DataEngine
 
 
 class MissionControlViewModelBuilder:
@@ -85,6 +88,9 @@ class MissionControlViewModelBuilder:
             "archive": self._archive_records(),
             "communications": self._communications(probe),
         }
+        result["reports"] = self._reports(
+            result["archive"], result["actions"], result["operations"],
+        )
         result["navigation"] = self.navigation_view()
         result["sectorResources"] = self._sector_resource_totals(
             result["resourceLedger"], source_type="asteroid",
@@ -351,7 +357,7 @@ class MissionControlViewModelBuilder:
         missile_items = tuple(
             item for item in items if str(item.get("type", "")).casefold() == "missile"
         )
-        return {
+        result = {
             "probeId": world.probe.get("id"),
             "probeName": world.probe.get("name", "Probe"),
             "containers": containers,
@@ -411,6 +417,7 @@ class MissionControlViewModelBuilder:
             "deuterium": float((world.probe.get("fuel") or {}).get("deuterium", world.probe.get("deuterium", 0)) or 0),
             "maxDeuterium": float((world.probe.get("fuel") or {}).get("maxDeuterium", 100) or 100),
         }
+        return result
 
     @staticmethod
     def _container_label(container, probe_name):
@@ -535,6 +542,28 @@ class MissionControlViewModelBuilder:
     def _galaxy_view(self, world, focus_coordinates):
         galaxy = getattr(world, "galaxy", None)
         records = galaxy.sectors() if galaxy is not None else ()
+        owned_manny_locations = []
+        mannies_by_sector = {}
+        for manny in (world.mannies or {}).get("mannies", ()):
+            location = manny.get("location") or {}
+            relative = (location.get("sector") or {}).get("relative")
+            if location.get("type") == "probe" or not isinstance(relative, dict):
+                continue
+            if not all(axis in relative for axis in ("x", "y", "z")):
+                continue
+            row = {
+                "id": str(manny.get("id", "")),
+                "name": manny.get("name", "Manny"),
+                "x": int(relative["x"]),
+                "y": int(relative["y"]),
+                "z": int(relative["z"]),
+                "locationType": str(location.get("type", "sector")),
+                "currentTask": manny.get("currentTask"),
+                "canReceiveOrders": bool(manny.get("canReceiveOrders", False)),
+            }
+            owned_manny_locations.append(row)
+            key = f"{row['x']}:{row['y']}:{row['z']}"
+            mannies_by_sector.setdefault(key, []).append(row)
         nodes = []
         for record in records:
             coordinate = record.coordinates
@@ -544,6 +573,7 @@ class MissionControlViewModelBuilder:
             object_types = [str(item.get("type", "unknown")) for item in objects]
             resource_types = self._galaxy_resource_types(sector, objects)
             hazard_types = self._galaxy_hazard_types(sector, objects)
+            max_planet_habitability = self._galaxy_max_planet_habitability(objects)
             has_detached_containers = any(
                 "container" in str(item.get("type") or item.get("kind") or "").casefold()
                 for item in objects
@@ -563,8 +593,9 @@ class MissionControlViewModelBuilder:
                 # GalaxyMap records without either a visit or observation do
                 # not represent discovered sectors and are not rendered.
                 continue
+            node_id = f"{coordinate.x}:{coordinate.y}:{coordinate.z}"
             nodes.append({
-                "id": f"{coordinate.x}:{coordinate.y}:{coordinate.z}",
+                "id": node_id,
                 "x": coordinate.x,
                 "y": coordinate.y,
                 "z": coordinate.z,
@@ -580,6 +611,13 @@ class MissionControlViewModelBuilder:
                 "hasHazard": bool(hazard_types),
                 "hazardTypes": hazard_types,
                 "hasDetachedContainers": has_detached_containers,
+                "maxPlanetHabitability": max_planet_habitability,
+                "hasHabitablePlanet": (
+                    max_planet_habitability is not None
+                    and max_planet_habitability >= 0.5
+                ),
+                "ownedMannies": tuple(mannies_by_sector.get(node_id, ())),
+                "ownedMannyCount": len(mannies_by_sector.get(node_id, ())),
                 "knowledgeLevel": knowledge,
                 "confidence": float(sector.get("confidence", 0) or 0),
                 "isFocused": is_focused,
@@ -648,7 +686,7 @@ class MissionControlViewModelBuilder:
                 ).neighbors()
             )
         )
-        return {
+        result = {
             "nodes": tuple(nodes),
             # Camera centering must not depend on the focused sector already
             # existing in the persisted discovery graph. A newly arrived or
@@ -670,7 +708,16 @@ class MissionControlViewModelBuilder:
             "scutRanges": tuple(scut_ranges),
             "scutCoverageCells": tuple(scut_coverage_cells.values()),
             "scutCoverageBoundary": scut_coverage_boundary,
+            "ownedMannyLocations": tuple(owned_manny_locations),
         }
+        # The controller refreshes global dashboard objects frequently even
+        # when durable galaxy knowledge is unchanged. Compute the revision in
+        # the worker-built presentation layer so QML can retain its expensive
+        # 3D delegate population across equivalent refreshes.
+        result["revision"] = hashlib.sha1(
+            json.dumps(result, sort_keys=True, default=str).encode("utf-8")
+        ).hexdigest()
+        return result
 
     def _communications(self, probe):
         if not self.operations.messaging:
@@ -806,6 +853,29 @@ class MissionControlViewModelBuilder:
             ):
                 collect(candidate.get(key))
         return sorted(item for item in found if item)
+
+    @staticmethod
+    def _galaxy_max_planet_habitability(objects):
+        """Return the best exact known planet score in a sector observation."""
+        scores = []
+        pending = list(objects or ())
+        while pending:
+            item = pending.pop()
+            if not isinstance(item, dict):
+                continue
+            type_ = str(item.get("type") or item.get("kind") or "").casefold()
+            if type_ == "planet" or type_.endswith("_planet"):
+                score = item.get("habitabilityScore")
+                try:
+                    if score is not None:
+                        scores.append(float(score))
+                except (TypeError, ValueError):
+                    pass
+            for key in ("objects", "bookmarkTargets", "minableTargets"):
+                nested = item.get(key) or ()
+                if isinstance(nested, (list, tuple)):
+                    pending.extend(nested)
+        return max(scores) if scores else None
 
     @staticmethod
     def _galaxy_hazard_types(sector, objects):
@@ -1388,6 +1458,14 @@ class MissionControlViewModelBuilder:
             task_type = manny.get("currentTask")
             if not task_type:
                 ready = bool(manny.get("canReceiveOrders", False))
+                location = manny.get("location") or {}
+                relative = (location.get("sector") or {}).get("relative") or {}
+                location_text = (
+                    f"FCC {relative['x']} / {relative['y']} / {relative['z']}"
+                    if all(axis in relative for axis in ("x", "y", "z"))
+                    else "Aboard probe" if location.get("type") == "probe"
+                    else "Coordinates unavailable"
+                )
                 work.append({
                     "id": str(manny.get("id", manny.get("name", len(work)))),
                     "asset": manny.get("name", "Manny"),
@@ -1398,7 +1476,8 @@ class MissionControlViewModelBuilder:
                     "displayText": f"{manny.get('name', 'MANNY')} · IDLE · {'READY' if ready else 'UNAVAILABLE'}",
                     "detailText": (
                         f"Asset: {manny.get('name', 'Manny')}\n"
-                        f"Status: Idle\nCan receive automation order: {'Yes' if ready else 'No'}"
+                        f"Status: Idle\nLocation: {location_text}\n"
+                        f"Can receive automation order: {'Yes' if ready else 'No'}"
                     ),
                 })
                 continue
@@ -1714,3 +1793,202 @@ class MissionControlViewModelBuilder:
         if not self.data_engine:
             return ()
         return tuple(dict(row) for row in self.data_engine.archive_reports())
+
+    def _reports(self, report_records=None, action_records=None, operation_records=None):
+        if not self.data_engine:
+            return {"daily": (), "archive": (), "industrial": {}}
+        reports = [dict(row) for row in (report_records if report_records is not None else self.data_engine.archive_reports())]
+        actions = [dict(row) for row in (action_records if action_records is not None else self.data_engine.action_history())]
+        operations = [dict(row) for row in (operation_records if operation_records is not None else self.data_engine.operation_records())]
+        probe_names = {
+            str(item.get("id")): item.get("name") or f"Probe {item.get('id')}"
+            for item in (getattr(self.operations.world, "fleet", {}) or {}).get("probes", ())
+        }
+        focused_probe = getattr(self.operations.world, "probe", {}) or {}
+        if focused_probe.get("id") is not None:
+            probe_names.setdefault(
+                str(focused_probe["id"]),
+                focused_probe.get("name") or f"Probe {focused_probe['id']}",
+            )
+        manny_names = {
+            str(item.get("id")): item.get("name") or "Manny"
+            for item in (getattr(self.operations.world, "mannies", {}) or {}).get("mannies", ())
+            if item.get("id") is not None
+        }
+        categories = Counter()
+        by_probe = defaultdict(Counter)
+        archive = []
+        for row in reversed(actions):
+            command_type = str(row.get("command_type") or "unknown")
+            category = (
+                "Mining" if command_type == "manny_mine" else
+                "Production" if command_type in {"manny_craft", "atomic_printer_craft", "manny_assemble_probe"} else
+                "Travel" if command_type == "move_probe" else
+                "Maintenance" if command_type == "manny_repair" else "Operations"
+            )
+            status = str(row.get("status") or "unknown")
+            probe_id = str(row.get("probe_id"))
+            categories[(category, status)] += 1
+            by_probe[probe_id][category] += 1
+            archive.append({
+                "kind": "COMMAND", "domain": category, "status": status.upper(),
+                "probeId": probe_id, "probeName": probe_names.get(probe_id, f"Probe {probe_id}"),
+                "title": self._command_archive_title(row, command_type),
+                "detail": self._command_archive_detail(
+                    row, probe_names=probe_names, manny_names=manny_names,
+                ),
+                "amount": self._command_archive_amount(row),
+                "timestamp": row.get("observed_at", ""),
+            })
+        for row in reversed(operations):
+            archive.append({
+                "kind": "OPERATION", "domain": "Operations", "status": str(row.get("state", "")).upper(),
+                "probeId": str(row.get("probe_id") or ""),
+                "probeName": probe_names.get(str(row.get("probe_id")), "Fleet"),
+                "title": row.get("name") or row.get("objective") or "Operation",
+                "detail": row.get("objective") or "", "timestamp": row.get("updated_at", ""),
+            })
+        for row in reports:
+            archive.append({
+                "kind": "REPORT", "domain": "Reports", "status": "RECORDED",
+                "reportId": row.get("id", ""),
+                "favorited": bool(row.get("favorited", False)),
+                "probeId": "", "probeName": "Fleet", "title": row.get("title", "Report"),
+                "detail": row.get("content", ""), "timestamp": row.get("created_at", ""),
+            })
+        archive.sort(key=lambda item: str(item.get("timestamp", "")), reverse=True)
+        measured = tuple({
+            "category": category, "status": status.upper(), "count": count,
+        } for (category, status), count in sorted(categories.items()))
+        utilization = tuple({
+            "probeId": probe_id, "probeName": probe_names.get(probe_id, f"Probe {probe_id}"),
+            "orders": sum(counts.values()),
+            "breakdown": " · ".join(f"{name.upper()} {count}" for name, count in sorted(counts.items())),
+        } for probe_id, counts in sorted(by_probe.items()))
+        return {
+            "daily": tuple({
+                **row,
+                "favorited": bool(row.get("favorited", False)),
+                "deletesAt": DataEngine.daily_report_deletion_at(
+                    row.get("id", ""), row.get("created_at", ""),
+                ).isoformat(),
+            } for row in reports if row.get("kind") == "daily_probe_report"),
+            "archive": tuple(archive[:2000]),
+            "industrial": {"measuredTotals": measured, "probeActivity": utilization},
+        }
+
+    @staticmethod
+    def _command_payload(row):
+        try:
+            return json.loads(row.get("command_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+
+    @classmethod
+    def _command_archive_title(cls, row, command_type):
+        command = cls._command_payload(row)
+        payload = command.get("payload") or {}
+        metadata = command.get("metadata") or {}
+        if command_type == "manny_mine":
+            resource = next(iter(payload.get("resources") or ()), "resource")
+            return f"Mine {str(resource).replace('_', ' ').title()}"
+        if command_type in {"manny_craft", "atomic_printer_craft"}:
+            return f"Craft {str(payload.get('recipe') or 'item').replace('_', ' ').title()}"
+        if command_type == "manny_assemble_probe":
+            return f"Assemble {str(payload.get('model') or metadata.get('model') or 'probe').replace('_', ' ').title()}"
+        return command_type.replace("_", " ").title()
+
+    @classmethod
+    def _command_archive_amount(cls, row):
+        """Expose a sortable quantity only when the retained command recorded one."""
+
+        command = cls._command_payload(row)
+        payload = command.get("payload") or {}
+        metadata = command.get("metadata") or {}
+        value = (
+            metadata.get("orderAmount")
+            if metadata.get("orderAmount") is not None
+            else payload.get("targetAmount")
+            if payload.get("targetAmount") is not None
+            else payload.get("amount")
+        )
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _command_archive_detail(
+        cls, row, *, probe_names=None, manny_names=None,
+    ):
+        probe_names = probe_names or {}
+        manny_names = manny_names or {}
+        command = cls._command_payload(row)
+        payload = command.get("payload") or {}
+        metadata = command.get("metadata") or {}
+        parts = []
+        command_type = str(row.get("command_type") or command.get("type") or "")
+        target_id = command.get("targetId")
+        if command_type == "manny_mine":
+            resource = next(iter(payload.get("resources") or ()), metadata.get("resource"))
+            amount = metadata.get("orderAmount", payload.get("targetAmount"))
+            if resource:
+                parts.append(f"Resource: {str(resource).replace('_', ' ').title()}")
+            if amount is not None:
+                parts.append(f"Ordered: {amount} ECE")
+            if payload.get("objectId") is not None:
+                parts.append(f"Source object: {payload['objectId']}")
+            sector = metadata.get("sector") or {}
+            if all(sector.get(axis) is not None for axis in ("x", "y", "z")):
+                parts.append(f"Sector: {sector['x']}:{sector['y']}:{sector['z']}")
+            else:
+                parts.append("Sector: not recorded for this historical order")
+            if metadata.get("estimatedTrips") is not None:
+                parts.append(f"Estimated trips: {metadata['estimatedTrips']}")
+        elif payload.get("recipe"):
+            parts.append(f"Recipe: {str(payload['recipe']).replace('_', ' ').title()}")
+        elif payload.get("model") or metadata.get("model"):
+            parts.append(
+                "Model: " + str(payload.get("model") or metadata.get("model")).replace("_", " ").title()
+            )
+        target = payload.get("target") or metadata.get("finalDestination")
+        if isinstance(target, dict) and all(target.get(axis) is not None for axis in ("x", "y", "z")):
+            parts.append(f"Destination: {target['x']}:{target['y']}:{target['z']}")
+        if payload.get("targetProbeId") is not None:
+            target_probe_id = str(payload["targetProbeId"])
+            parts.append(
+                "Target probe: " + probe_names.get(
+                    target_probe_id, "name unavailable for this historical order",
+                )
+            )
+        if payload.get("amount") is not None:
+            parts.append(f"Amount: {payload['amount']} ECE")
+        if payload.get("integrityPercent") is not None:
+            parts.append(f"Repair target: {payload['integrityPercent']}% integrity")
+        if target_id is not None and command_type.startswith("manny_"):
+            parts.append(
+                "Manny: " + str(
+                    metadata.get("mannyName")
+                    or manny_names.get(str(target_id))
+                    or "name unavailable for this historical order"
+                )
+            )
+        if command.get("reason"):
+            reason = str(command["reason"])
+            for probe_id, probe_name in probe_names.items():
+                reason = re.sub(
+                    rf"\bprobe\s+{re.escape(probe_id)}\b",
+                    f"probe {probe_name}", reason, flags=re.IGNORECASE,
+                )
+            reason = re.sub(
+                r"\bprobe\s+\d+\b", "probe with name unavailable", reason,
+                flags=re.IGNORECASE,
+            )
+            parts.append(f"Reason: {reason}")
+        try:
+            blockers = json.loads(row.get("blockers_json") or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            blockers = []
+        if blockers:
+            parts.append("Blockers: " + " · ".join(str(value) for value in blockers))
+        return "\n".join(parts) or "No additional command details were recorded."

@@ -43,3 +43,9 @@ This is the canonical contributor standard.
 Support Windows, macOS, and Linux together. A release requires compatible API
 validation, safe upgrade behavior, signed/packaged runtime testing, accessibility
 and scaling checks, and a recoverable migration path for local data.
+
+Published release notes use one version heading followed by concise,
+operator-facing bullets. Exclude development chronology, API-analysis work,
+branch details, test counts, and implementation-only changes. Use a final
+`Other various fixes.` bullet when individually listing small internal fixes
+would not help operators.

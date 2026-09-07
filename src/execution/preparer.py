@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from .commands import CommandType
 from .policy import ExecutionMode
 from .preflight import PreflightValidator
 from .translator import TaskCommandTranslator
@@ -87,6 +88,7 @@ class CommandPreparer:
 
             if (
                 self.journal is not None
+                and command.type != CommandType.MOVE_PROBE
                 and self.journal.was_successful(
                     command.fingerprint
                 )

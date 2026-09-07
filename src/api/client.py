@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 
 import requests
@@ -16,6 +17,11 @@ from src.api.contract import (
 
 class GameClient:
     """HTTP boundary for the Von Neumann Game API."""
+
+    BACKGROUND_REQUEST_RESERVE = 12
+    BACKGROUND_REQUEST_ESTIMATE = 8
+    _shared_rate_limits = {}
+    _shared_rate_limit_lock = threading.Lock()
 
     def __init__(
         self,
@@ -42,7 +48,38 @@ class GameClient:
         self.retry_backoff_seconds = max(0.0, float(retry_backoff_seconds))
         self._sleep = sleeper or time.sleep
         self.rate_limit = {}
+        self._rate_limit_key = (self.base_url, self.api_key)
+        with self._shared_rate_limit_lock:
+            self.rate_limit = dict(
+                self._shared_rate_limits.get(self._rate_limit_key, {})
+            )
         self.api_version = None
+
+    def background_budget_available(self, estimated_cost=None, reserve=None):
+        """Return whether stale-tolerant work fits below the account reserve."""
+
+        with self._shared_rate_limit_lock:
+            budget = dict(
+                self._shared_rate_limits.get(self._rate_limit_key, self.rate_limit)
+            )
+        try:
+            remaining = int(budget["remaining"])
+        except (KeyError, TypeError, ValueError):
+            return True
+        try:
+            reset = float(budget.get("reset", 0) or 0)
+        except (TypeError, ValueError):
+            reset = 0
+        if reset > 1_000_000_000 and reset <= time.time():
+            return True
+        estimated = int(
+            self.BACKGROUND_REQUEST_ESTIMATE
+            if estimated_cost is None else estimated_cost
+        )
+        protected = int(
+            self.BACKGROUND_REQUEST_RESERVE if reserve is None else reserve
+        )
+        return remaining - max(0, estimated) >= max(0, protected)
 
     def ensure_compatible_api(self):
         """Verify that the server satisfies the required API contract."""
@@ -177,3 +214,6 @@ class GameClient:
             for key, header in mapping.items()
             if header in response.headers
         }
+        if self.rate_limit:
+            with self._shared_rate_limit_lock:
+                self._shared_rate_limits[self._rate_limit_key] = dict(self.rate_limit)

@@ -150,12 +150,29 @@ def synthetic_dashboard() -> dict:
             "namingPolicy": {"enabled": True, "pattern": "{probe}-M{number}", "sequenceStyle": "numeric", "digits": 3},
         },
         "automationRuntime": {"probeId": 1001, "mode": "automatic", "liveExecutionEnabled": True, "maxCommandsPerCycle": 5, "allowedCommandTypes": ["manny_craft", "atomic_printer_craft", "manny_assemble_probe", "manny_mine", "manny_repair"], "queue": [], "planning": [{"priority": 2, "action": "prepare manufacturing", "target": "manny", "reason": "The next unit is evaluated from total raw resources; assembly components remain reserved only for assembly.", "blockers": ["fabricator unavailable"]}, {"priority": 3, "action": "restore resource floor", "target": "ice", "reason": "Mine 0.25 ECE Ice from Pale Comet and deliver it to attached storage.", "blockers": ["no idle manny"]}], "emergencyStopActive": False},
+        "operatingProfile": {"selectedName": "scheduled", "effectiveName": "low_power", "scheduleStatus": "active", "schedule": {"startTime": "22:00", "endTime": "07:00", "recurrence": "daily"}},
+        "notificationPolicy": {"enabled": True, "categories": ["critical", "discoveries", "approvals", "operations", "failures"], "minimumSeverity": "info"},
+        "notificationDelivery": {"available": True, "supportsMessages": True, "detail": "SUPPORTED BY QT · OPERATING SYSTEM CONTROLS FINAL DELIVERY"},
         "credentials": {"configured": True, "source": "SYNTHETIC DOCUMENTATION PROFILE"},
         "defaultProbeId": 1001,
         "refreshDiagnostics": {"elapsedSeconds": 4.2, "stages": {"automation": 1.4, "focusedProbe": 0.6, "fleet": 0.5}},
-        "logbook": {"pages": [{"id": "demo-report", "title": "Skunkworks Daily Report · 2026-08-20", "content": "SYNTHETIC DAILY OPERATIONS REPORT\nProbe: Wayfarer Hub\nRole: Hub\n\nCrafting orders dispatched: 3\nMining orders dispatched: 5\n\nGenerated from fictional documentation data.", "updatedAt": "2026-08-20T17:00:00Z"}], "autoLogEnabled": True},
+        "logbook": {"pages": [{"id": "operator-note", "title": "Wayfarer survey notes", "content": "Operator-authored synthetic note.", "updatedAt": "2026-09-06T18:00:00Z"}], "autoLogEnabled": True, "autoLoggingEnabled": True},
+        "reports": {
+            "daily": [
+                {"id": "daily:1001:2026-09-06", "title": "Skunkworks Daily Report · Wayfarer Hub · 2026-09-06", "content": "SYNTHETIC DAILY OPERATIONS REPORT\nProbe: Wayfarer Hub\nMining orders: 5\nCrafting orders: 3", "favorited": True, "deletesAt": "2026-10-06T17:00:00-07:00"},
+                {"id": "daily:1003:2026-09-06", "title": "Skunkworks Daily Report · Lantern Fuel Tender · 2026-09-06", "content": "SYNTHETIC DAILY OPERATIONS REPORT\nProbe: Lantern Fuel Tender\nFuel transferred: 13 ECE", "favorited": False, "deletesAt": "2026-10-06T17:00:00-07:00"},
+            ],
+            "industrial": {"measuredTotals": [{"category": "Mining", "status": "SUCCEEDED", "count": 18}, {"category": "Production", "status": "SUCCEEDED", "count": 7}], "probeActivity": [{"probeName": "Wayfarer Hub", "orders": 16, "breakdown": "MINING 11 · PRODUCTION 5"}, {"probeName": "Lantern Fuel Tender", "orders": 9, "breakdown": "OPERATIONS 6 · TRAVEL 3"}]},
+            "archive": [
+                {"kind": "COMMAND", "domain": "Mining", "status": "SUCCEEDED", "probeName": "Wayfarer Hub", "title": "Mine Metals", "detail": "Resource: Metals\nOrdered: 0.40 ECE\nSource object: Ferric Dawn\nSector: 0:0:0\nManny: WHub - 002", "amount": 0.4, "timestamp": "2026-09-06T20:14:00+00:00"},
+                {"kind": "COMMAND", "domain": "Operations", "status": "SUCCEEDED", "probeName": "Lantern Fuel Tender", "title": "Transfer Deuterium", "detail": "Amount: 13 ECE\nTarget probe: Harbor Fuel Reserve\nReason: Replenish the protected reserve chain", "amount": 13, "timestamp": "2026-09-06T19:45:00+00:00"},
+                {"kind": "REPORT", "domain": "Reports", "status": "RECORDED", "probeName": "Fleet", "title": "Daily Operations Report", "detail": "Local retained report", "timestamp": "2026-09-06T17:00:00-07:00"},
+            ],
+        },
         "blueprintSharing": {"networks": [{"id": 7001, "name": "DemoNet"}], "knownBlueprints": [], "recipientProbes": probes[1:]},
-        "probeImprovements": [], "terminalRecovery": {},
+        "probeImprovements": [{"id": "reinforced_couplings", "displayName": "Reinforced Couplings", "description": "Improves structural tolerance.", "durationSeconds": 7200, "ingredients": [{"name": "Integrated Circuit", "quantity": 1, "available": 2, "sufficient": True}, {"name": "Metals", "quantity": 0.5, "available": 9.2, "sufficient": True}]}],
+        "activeProbeImprovements": [{"id": "expanded_storage", "displayName": "Expanded Storage", "description": "Adds one container attachment point."}],
+        "terminalRecovery": {},
     }
 
 
@@ -184,6 +201,7 @@ def capture(
                 controller._dashboard["automationRuntime"]["probeId"] = probe_id
                 break
         controller._startup_loading = False
+        controller.setActiveSection(workspace)
 
         configure_qt_plugin_paths()
         QQuickStyle.setStyle("Basic")

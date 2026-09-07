@@ -4,29 +4,45 @@ from src.planner.task import Task
 from src.planner.assembly import (
     active_probe_assembly_count,
     empty_assembly_containers,
+    probe_component_statuses,
+    recorded_probe_assembly_count,
     tanker_component_statuses,
 )
 
 
-def plan(operations, desired_state) -> list[Task]:
-    probes = (getattr(operations.world, "fleet", None) or {}).get("probes", ())
-    counts = {}
-    for probe in probes:
-        model = probe.get("model", "generic")
-        counts[model] = counts.get(model, 0) + 1
+def _component_summary(component_statuses):
+    return "; ".join(
+        (
+            f"{status['component'].replace('_', ' ')}: "
+            f"{status['allocated_stored']} stored"
+            + (
+                f", {status['allocated_active']} active"
+                if status["allocated_active"] else ""
+            )
+            + f" / {status['required']} required"
+            + (
+                f", {status['missing']} still required"
+                if status["missing"] else ", covered"
+            )
+        )
+        for status in component_statuses
+    )
 
+
+def plan(operations, desired_state) -> list[Task]:
     tasks = []
     for goal in desired_state.fleet:
-        completed = counts.get(goal.model, 0)
+        completed = recorded_probe_assembly_count(operations, goal.model)
         active = active_probe_assembly_count(operations, goal.model)
-        shortage = max(0, goal.quantity - completed - active)
+        credited = max(completed, active)
+        shortage = max(0, goal.quantity - credited)
         if shortage == 0:
             if active and completed < goal.quantity:
                 tasks.append(Task(
                     action="Await Active Assembly",
                     reason=(
                         f"Desired {goal.model.replace('_', ' ')} fleet is "
-                        f"{goal.quantity}; {completed} complete and {active} assembly "
+                        f"{goal.quantity}; {completed} recorded and {active} assembly "
                         "in progress. Its committed components have already been "
                         "consumed by the game and must not be rebuilt."
                     ),
@@ -38,15 +54,34 @@ def plan(operations, desired_state) -> list[Task]:
                 ))
             continue
         if goal.model != "deuterium_tanker":
+            component_statuses = probe_component_statuses(operations, goal.model)
+            reserved_items = tuple(
+                (status["component"], status["allocated_stored"])
+                for status in component_statuses
+                if status["allocated_stored"] > 0
+            )
+            component_note = (
+                f" Next assembly kit — {_component_summary(component_statuses)}."
+                if component_statuses else ""
+            )
             tasks.append(Task(
                 action="Prepare Probe Assembly",
                 reason=(
                     f"Desired {goal.model.replace('_', ' ')} fleet is "
-                    f"{goal.quantity}; current fleet is {counts.get(goal.model, 0)}."
+                    f"{goal.quantity}; this probe has recorded {completed} successful "
+                    f"assembly order(s), {active} assembly order(s) are active, and "
+                    f"{shortage} still remain. Transferred probes do not reopen this target."
+                    + component_note
                 ),
                 category="fleet_assembly",
                 target=goal.model,
                 quantity=shortage,
+                constraints=(
+                    ("assembly_components_incomplete",)
+                    if any(status["completed"] < status["required"] for status in component_statuses)
+                    else ()
+                ),
+                reserved_items=reserved_items,
                 priority=goal.priority,
             ))
             continue
@@ -62,6 +97,26 @@ def plan(operations, desired_state) -> list[Task]:
             if status["completed"] < status["required"]
         ]
         if unfinished:
+            # Keep the configured fleet target visible while its actionable
+            # children describe individual component work. Without this
+            # parent status, the complete planner list looks as though the
+            # tanker goal disappeared precisely while it is driving claims.
+            tasks.append(Task(
+                action="Prepare Probe Assembly",
+                reason=(
+                    f"Desired deuterium tanker fleet is {goal.quantity}; "
+                    f"this probe has recorded {completed} successful assembly "
+                    f"order(s), {active} assembly order(s) are active, and "
+                    f"{shortage} still remain. Next assembly kit — "
+                    f"{_component_summary(component_statuses)}."
+                ),
+                category="fleet_assembly",
+                target=goal.model,
+                quantity=shortage,
+                constraints=("assembly_components_incomplete",),
+                reserved_items=reserved_items,
+                priority=goal.priority,
+            ))
             for index, status in enumerate(component_statuses, start=1):
                 component = status["component"]
                 amount = status["missing"]

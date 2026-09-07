@@ -21,6 +21,13 @@ Release flow:
 codex/<feature> -> develop -> main -> vX.Y.Z tag -> public packages
 ```
 
+Each user-visible change merged to `develop` also adds a concise candidate to
+`docs/development-release-log.md`. During promotion, validate those candidates
+against the finished application and rewrite the approved items as
+operator-facing bullets in `RELEASE_NOTES.md`. Never pass the development log
+directly to the public release workflow, and do not copy its internal-support
+notes into public notes as implementation detail.
+
 Urgent patch flow:
 
 ```text
@@ -64,6 +71,55 @@ Do not commit either location. A feature that changes the database schema must
 also prove that the previous public version can be upgraded without losing
 settings, roles, operations, galaxy history, or action history.
 
+## Launching the 1.1 development line
+
+This owner checkout uses the preserved private test profile at
+`private/test-data`. Always set `SKUNKWORKS_HOME` to that same directory when
+launching this checkout. Omitting it selects the platform default profile and
+can make the development copy appear to have reset settings and history even
+though the preserved profile is intact. A clean platform profile correctly
+starts in Observe Only; do not reconfigure it as a substitute for selecting the
+intended test profile.
+
+The preserved private profile points to the existing accumulated development
+database and retains its saved policy files. A verified backup is still
+required before testing persistence, migration, compaction, or restore changes.
+
+Update and launch the development branch on macOS or Linux:
+
+```bash
+cd /absolute/path/to/Skunkworks
+git switch develop
+git pull --ff-only origin develop
+uv sync --locked
+SKUNKWORKS_HOME="$PWD/private/test-data" uv run --no-sync python -m src.ui.app
+```
+
+On Windows PowerShell:
+
+```powershell
+Set-Location C:\absolute\path\to\Skunkworks
+git switch develop
+git pull --ff-only origin develop
+uv sync --locked
+$env:SKUNKWORKS_HOME = "$PWD\private\test-data"
+uv run --no-sync python -m src.ui.app
+```
+
+`uv` owns this repository's `.venv`; that environment may intentionally omit
+`pip`. Do not assume `python -m pip` is available inside it. The development
+launch deliberately runs `src.ui.app` from the checked-out repository instead
+of relying on an editable installation's generated console launcher. Run
+`uv sync --locked` again after pulling dependency changes. `--no-sync` on the
+launch command prevents `uv run` from silently changing the environment while
+starting the application.
+Keep the `SKUNKWORKS_HOME` assignment on every development launch; it is the
+identity of the selected writable profile, not an installation option.
+
+The footer must show a `1.1.0.dev...` version while this branch is under
+development. If it shows a public `1.0.x` version, stop and confirm the selected
+branch and editable installation before testing new behavior.
+
 ## Working procedure
 
 1. Begin new roadmap work from an up-to-date `develop`.
@@ -77,4 +133,3 @@ settings, roles, operations, galaxy history, or action history.
    metadata, rerun the release checklist, and create the release tag.
 8. After a hotfix ships from `main`, merge that same fix back into `develop` so
    future releases cannot erase it.
-

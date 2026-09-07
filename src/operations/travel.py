@@ -120,3 +120,49 @@ class TravelService:
             blockers.append("probe_integrity_too_low")
 
         return tuple(blockers)
+
+    def active_movement_target(self):
+        movement = self.world.probe.get("movement") or {}
+        value = movement.get("target") or movement.get("destination")
+        if not isinstance(value, dict):
+            return None
+        value = value.get("relative") or value.get("relativeCoordinates") or value
+        try:
+            return SectorCoordinates.from_api(value)
+        except (KeyError, TypeError, ValueError):
+            return None
+
+    def automatic_manny_departure_blockers(self, target=None):
+        """Block automatic departure unless off-probe Mannys are at the target."""
+
+        mannies = tuple(self.world.mannies.get("mannies", ()))
+        relevant = []
+        for manny in mannies:
+            location = manny.get("location") or {}
+            relative = (location.get("sector") or {}).get("relative")
+            at_recovery_target = False
+            if location.get("type") != "probe" and target is not None and relative:
+                try:
+                    at_recovery_target = SectorCoordinates.from_api(relative) == target
+                except (KeyError, TypeError, ValueError):
+                    pass
+            if not at_recovery_target:
+                relevant.append(manny)
+        blockers = []
+        if any(manny.get("currentTask") is not None for manny in relevant):
+            blockers.append("manny_tasks_in_progress")
+        if any(
+            (manny.get("location") or {}).get("type") != "probe"
+            for manny in relevant
+        ):
+            blockers.append("mannies_not_aboard")
+        # Accepted work may not yet have authoritative task telemetry. The
+        # dispatch burst marks its Manny unavailable immediately; treat that
+        # local claim as enough to invalidate a previously planned auto-jump.
+        if any(
+            manny.get("currentTask") is None
+            and not manny.get("canReceiveOrders", False)
+            for manny in relevant
+        ):
+            blockers.append("mannies_unavailable_for_travel")
+        return tuple(blockers)

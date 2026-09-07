@@ -1,8 +1,9 @@
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import requests
 
@@ -10,6 +11,7 @@ from src.data import DataEngine
 from src.execution import ExecutionMode
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
+from src.planner.desired_state_store import DesiredStateStore
 from src.presentation import MissionControlViewModelBuilder
 from src.ui.controller import (
     ManualCraftReservationConflict,
@@ -22,19 +24,99 @@ from src.ui.controller import (
 from tests.test_planner_missions import build_operations
 
 
-class UiPreparationTests(unittest.TestCase):
-    def test_optional_autonomous_unit_503_does_not_fail_core_refresh(self):
-        response = requests.Response()
-        response.status_code = 503
-        error = requests.HTTPError(response=response)
-        service = object.__new__(MissionControlDataService)
-        service.capabilities = type("Capabilities", (), {
-            "probes": type("Probes", (), {
-                "autonomous_units": staticmethod(lambda *_args, **_kwargs: (_ for _ in ()).throw(error)),
-            })(),
-        })()
+class ImmediatePool:
+    @staticmethod
+    def start(worker):
+        worker.run()
 
-        self.assertEqual(service._autonomous_units(7), ())
+
+class UiPreparationTests(unittest.TestCase):
+    def test_active_probe_upgrades_include_only_completed_probe_improvements(self):
+        improvements = {"improvements": (
+            {"id": "reinforced_couplings", "name": "Reinforced Couplings", "description": "Stronger.", "done": True},
+            {"id": "pending_upgrade", "name": "Pending Upgrade", "done": False},
+            {"id": "asteroid_upgrade", "name": "Asteroid Upgrade", "done": True, "installableOnProbe": False},
+        )}
+
+        active = MissionControlDataService._active_probe_improvements_view(improvements)
+
+        self.assertEqual(active, ({
+            "id": "reinforced_couplings",
+            "displayName": "Reinforced Couplings",
+            "description": "Stronger.",
+        },))
+
+    def test_probe_upgrade_requirements_include_live_stored_availability(self):
+        operations = build_operations()
+        operations.world.probe["inventory"]["items"] = [
+            {"id": "circuit-1", "type": "integrated_circuit", "quantity": 1},
+        ]
+        operations.world.probe["inventory"]["resourceStocks"].append({
+            "type": "carbon_compounds", "amount": 0.25,
+        })
+        improvement = {"ingredients": (
+            {"type": "integrated_circuit", "quantity": 1, "kind": "item"},
+            {"type": "carbon_compounds", "quantity": 0.4, "kind": "resource"},
+        )}
+
+        ingredients = MissionControlDataService._improvement_ingredients_view(
+            operations.world, operations.manufacturing.recipes, improvement,
+        )
+
+        self.assertEqual(ingredients[0]["name"], "Integrated Circuit")
+        self.assertEqual(ingredients[0]["available"], 1)
+        self.assertTrue(ingredients[0]["sufficient"])
+        self.assertEqual(ingredients[1]["available"], 0.25)
+        self.assertFalse(ingredients[1]["sufficient"])
+
+    def test_probe_option_displays_completed_arrival_as_idle(self):
+        option = MissionControlDataService._probe_option({
+            "id": 7,
+            "name": "Hub",
+            "status": "arrived",
+            "movement": {"phase": "arrived"},
+        })
+
+        self.assertEqual(option["status"], "idle")
+
+    def test_probe_option_preserves_active_movement_phase(self):
+        option = MissionControlDataService._probe_option({
+            "id": 8,
+            "name": "Explorer",
+            "status": "idle",
+            "movement": {"phase": "decelerating"},
+        })
+
+        self.assertEqual(option["status"], "decelerating")
+
+    def test_optional_autonomous_unit_absence_does_not_fail_core_refresh(self):
+        for status_code in (404, 503):
+            with self.subTest(status_code=status_code):
+                response = requests.Response()
+                response.status_code = status_code
+                error = requests.HTTPError(response=response)
+                service = object.__new__(MissionControlDataService)
+                service.capabilities = type("Capabilities", (), {
+                    "probes": type("Probes", (), {
+                        "autonomous_units": staticmethod(
+                            lambda *_args, **_kwargs: (
+                                _ for _ in ()
+                            ).throw(error)
+                        ),
+                    })(),
+                })()
+
+                self.assertEqual(service._autonomous_units(7), ())
+
+    def test_active_travel_skips_local_autonomous_unit_observation(self):
+        self.assertTrue(MissionControlDataService._probe_is_in_active_travel({
+            "status": "idle",
+            "movement": {"phase": "decelerating"},
+        }))
+        self.assertFalse(MissionControlDataService._probe_is_in_active_travel({
+            "status": "arrived",
+            "movement": {"phase": "arrived"},
+        }))
 
     def test_targeted_manny_recall_revalidates_and_recalls_exactly_one_owned_manny(self):
         calls = []
@@ -138,6 +220,44 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(events, ["sector", "mannies"])
 
+    def test_dashboard_load_retains_fleet_for_reserve_source_preparation(self):
+        class DashboardPrepared(Exception):
+            pass
+
+        class Client:
+            @staticmethod
+            def get_player():
+                return {"player": {"id": 1}}
+
+            @staticmethod
+            def get_probes():
+                return {"probes": [{"id": 1, "name": "Probe 1", "isDefault": True}]}
+
+            @staticmethod
+            def get_probe(_probe_id):
+                return {"probe": {"id": 1, "name": "Probe 1", "status": "idle"}}
+
+            @staticmethod
+            def get_mannies(_probe_id):
+                return {"mannies": []}
+
+        with tempfile.TemporaryDirectory() as temporary:
+            service = MissionControlDataService(
+                client=Client(),
+                data_engine=DataEngine(Path(temporary) / "complete-load.sqlite3"),
+            )
+            service._initialize = lambda: setattr(service, "api_version", 127)
+            world = build_operations().world
+            world.probe["name"] = "Probe 1"
+            service._build_world = lambda *_args: world
+            service._hazard_cache[1] = (time.monotonic(), {})
+            service._safety_sync_at[1] = time.monotonic()
+            service._auto_scan_explorer_arrival = lambda *_args: None
+            service.automation_view = lambda *_args: (_ for _ in ()).throw(DashboardPrepared)
+
+            with self.assertRaises(DashboardPrepared):
+                service.load(1, include_archival=False)
+
     def test_slow_startup_releases_splash_without_cancelling_refresh(self):
         controller = MissionControlController()
         controller._refreshing = True
@@ -230,6 +350,206 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(engine.archive_reports()[0]["title"], "Command Brief")
             self.assertEqual(engine.records("logbook_pages"), [])
 
+    def test_report_action_archive_does_not_duplicate_status_or_timestamp(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            base = build_operations()
+            operations = Operations(
+                base.world, base.manufacturing.recipes, data_engine=engine,
+            )
+            timestamp = "2026-09-02T01:51:17.539538+00:00"
+            reports = MissionControlViewModelBuilder(operations, engine)._reports(
+                report_records=(),
+                action_records=({
+                    "command_type": "manny_repair",
+                    "status": "failed",
+                    "probe_id": 1,
+                    "observed_at": timestamp,
+                },),
+                operation_records=(),
+            )
+
+            action = reports["archive"][0]
+            self.assertEqual(action["timestamp"], timestamp)
+            self.assertEqual(action["status"], "FAILED")
+            self.assertNotIn(timestamp, action["detail"])
+            self.assertNotIn("FAILED", action["detail"])
+
+    def test_mining_archive_exposes_order_resource_source_and_sector(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            base = build_operations()
+            operations = Operations(
+                base.world, base.manufacturing.recipes, data_engine=engine,
+            )
+            command = {
+                "type": "manny_mine", "probeId": 1, "targetId": "manny-7",
+                "payload": {
+                    "objectId": "asteroid-4", "resources": ["metals"],
+                    "targetAmount": 0.4,
+                },
+                "metadata": {
+                    "orderAmount": 0.4, "estimatedTrips": 2,
+                    "sector": {"x": 3, "y": -2, "z": 1},
+                    "mannyName": "Prospector",
+                },
+                "reason": "Restore the metals floor",
+            }
+            reports = MissionControlViewModelBuilder(operations, engine)._reports(
+                report_records=(),
+                action_records=({
+                    "command_type": "manny_mine", "status": "succeeded",
+                    "probe_id": 1, "observed_at": "2026-09-03T20:00:00+00:00",
+                    "command_json": json.dumps(command), "blockers_json": "[]",
+                },),
+                operation_records=(),
+            )
+
+            action = reports["archive"][0]
+            self.assertEqual(action["amount"], 0.4)
+            self.assertEqual(action["title"], "Mine Metals")
+            self.assertIn("Resource: Metals", action["detail"])
+            self.assertIn("Ordered: 0.4 ECE", action["detail"])
+            self.assertIn("Source object: asteroid-4", action["detail"])
+            self.assertIn("Sector: 3:-2:1", action["detail"])
+            self.assertIn("Manny: Prospector", action["detail"])
+            self.assertNotIn("manny-7", action["detail"])
+
+    def test_archive_resolves_target_probe_name_without_exposing_id(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            base = build_operations()
+            base.world.fleet = {"probes": (
+                {"id": 1, "name": "Reserve"},
+                {"id": 644, "name": "Explorer One"},
+            )}
+            operations = Operations(
+                base.world, base.manufacturing.recipes, data_engine=engine,
+            )
+            command = {
+                "type": "manny_transfer_deuterium", "probeId": 1,
+                "targetId": "mny_private", "payload": {
+                    "targetProbeId": 644, "amount": 13,
+                },
+                "metadata": {"mannyName": "Courier"},
+                "reason": "Top up designated probe 644.",
+            }
+            reports = MissionControlViewModelBuilder(operations, engine)._reports(
+                report_records=(),
+                action_records=({
+                    "command_type": "manny_transfer_deuterium",
+                    "status": "succeeded", "probe_id": 1,
+                    "observed_at": "2026-09-03T20:00:00+00:00",
+                    "command_json": json.dumps(command), "blockers_json": "[]",
+                },), operation_records=(),
+            )
+
+            detail = reports["archive"][0]["detail"]
+            self.assertIn("Target probe: Explorer One", detail)
+            self.assertIn("Manny: Courier", detail)
+            self.assertIn("probe Explorer One", detail)
+            self.assertNotIn("644", detail)
+            self.assertNotIn("mny_private", detail)
+
+    def test_local_report_mutations_update_daily_and_archive_views(self):
+        controller = MissionControlController.__new__(MissionControlController)
+        controller._dashboard = {"reports": {
+            "daily": (
+                {"id": "daily:1", "favorited": False},
+                {"id": "daily:2", "favorited": False},
+            ),
+            "archive": (
+                {"reportId": "daily:1", "favorited": False},
+                {"reportId": "daily:2", "favorited": False},
+            ),
+            "industrial": {},
+        }}
+        controller._section_revision_counter = 0
+        controller._set_error = lambda _message: None
+        controller._set_operation_notice = lambda _message: None
+        controller.dashboardChanged = Mock()
+
+        controller._accept_local_report_mutation(
+            "daily:1", "favorite", True, True,
+        )
+        self.assertTrue(controller._dashboard["reports"]["daily"][0]["favorited"])
+        self.assertTrue(controller._dashboard["reports"]["archive"][0]["favorited"])
+        self.assertTrue(
+            controller._dashboard["sectionRevisions"]["communications"].startswith("local-")
+        )
+
+        controller._accept_local_report_mutation(
+            "daily:1", "delete", True, False,
+        )
+        daily = controller._dashboard["reports"]["daily"]
+        archive = controller._dashboard["reports"]["archive"]
+        self.assertIsInstance(daily, list)
+        self.assertIsInstance(archive, list)
+        self.assertEqual([row["id"] for row in daily], ["daily:2"])
+        self.assertEqual([row["reportId"] for row in archive], ["daily:2"])
+
+    def test_local_report_delete_is_removed_before_persistence_finishes(self):
+        workers = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                workers.append(worker)
+
+        controller = MissionControlController.__new__(MissionControlController)
+        controller._dashboard = {"reports": {
+            "daily": [
+                {"id": "daily:1"}, {"id": "daily:2"},
+            ],
+            "archive": [
+                {"reportId": "daily:1"}, {"reportId": "daily:2"},
+            ],
+            "industrial": {},
+        }}
+        controller._section_revision_counter = 0
+        controller._background_calls = {}
+        controller.thread_pool = DeferredPool()
+        controller.service = type("Service", (), {"data_engine": object()})()
+        controller._set_error = lambda _message: None
+        controller._set_operation_notice = lambda _message: None
+        controller.dashboardChanged = Mock()
+
+        controller.deleteLocalReport("daily:1")
+
+        self.assertEqual(len(workers), 1)
+        self.assertEqual(
+            [row["id"] for row in controller._dashboard["reports"]["daily"]],
+            ["daily:2"],
+        )
+        self.assertEqual(
+            [row["reportId"] for row in controller._dashboard["reports"]["archive"]],
+            ["daily:2"],
+        )
+
+    def test_failed_local_report_delete_restores_original_position(self):
+        controller = MissionControlController.__new__(MissionControlController)
+        controller._dashboard = {"reports": {
+            "daily": [{"id": "daily:2"}],
+            "archive": [{"reportId": "daily:2"}],
+            "industrial": {},
+        }}
+        controller._section_revision_counter = 0
+        controller._set_error = Mock()
+        controller._set_operation_notice = lambda _message: None
+        controller.dashboardChanged = Mock()
+        removed = {
+            "daily": [(0, {"id": "daily:1"})],
+            "archive": [(0, {"reportId": "daily:1"})],
+        }
+
+        controller._restore_local_report_after_failure(removed, "disk unavailable")
+
+        self.assertEqual(
+            [row["id"] for row in controller._dashboard["reports"]["daily"]],
+            ["daily:1", "daily:2"],
+        )
+        controller._set_error.assert_called_once_with("disk unavailable")
+
     def test_qt_controller_refreshes_and_switches_probe_context(self):
         class Service:
             def __init__(self):
@@ -295,6 +615,39 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(service.requests, [(7, False), (9, True)])
 
+    def test_accepted_logbook_delete_survives_stale_refresh_payload(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            controller = MissionControlController(
+                settings_engine=DataEngine(Path(temporary) / "settings.sqlite3")
+            )
+            controller._dashboard = {
+                "logbook": {
+                    "pages": [
+                        {"id": 41, "title": "Keep"},
+                        {"id": 42, "title": "Delete", "isNewDailyReport": True},
+                    ],
+                    "newDailyReportCount": 1,
+                },
+            }
+
+            controller._accept_logbook_mutation({}, "delete", 42, None)
+            stale_dashboard = {
+                "logbook": {
+                    "pages": [
+                        {"id": 41, "title": "Keep"},
+                        {"id": 42, "title": "Delete", "isNewDailyReport": True},
+                    ],
+                    "newDailyReportCount": 1,
+                },
+            }
+            controller._suppress_accepted_logbook_deletions(stale_dashboard)
+
+            self.assertEqual(
+                [page["id"] for page in stale_dashboard["logbook"]["pages"]],
+                [41],
+            )
+            self.assertEqual(stale_dashboard["logbook"]["newDailyReportCount"], 0)
+
     def test_selected_tab_priority_payload_is_shown_before_full_refresh(self):
         controller = MissionControlController()
         controller._refresh_target_id = 9
@@ -357,6 +710,31 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertTrue(controller._automation_after_refresh)
 
+    def test_incremental_dashboard_mutations_keep_qml_safe_array_models(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 9
+        controller._dashboard = {
+            "production": ({"id": "manny-a", "taskType": "idle"},),
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"},),
+            },
+            "automationRuntime": {},
+        }
+
+        controller._accept_fleet_automation_probe({
+            "probeId": 9,
+            "result": {
+                "results": ({
+                    "status": "succeeded", "targetId": "manny-a",
+                },),
+            },
+        })
+
+        self.assertIsInstance(controller.dashboard["production"], list)
+        self.assertIsInstance(
+            controller.dashboard["inventoryManagement"]["idleMannies"], list,
+        )
+
     def test_refresh_does_not_replan_for_manny_already_idle(self):
         controller = MissionControlController()
         controller._refresh_previous_idle_manny_ids = {"already-idle"}
@@ -371,6 +749,62 @@ class UiPreparationTests(unittest.TestCase):
             "automationRuntime": {
                 "mode": "automatic",
                 "liveExecutionEnabled": True,
+            },
+        }
+        controller._finish_refresh = lambda: None
+
+        controller._accept_dashboard(payload)
+
+        self.assertFalse(controller._automation_after_refresh)
+
+    def test_refresh_reconciliation_immediately_resumes_newly_ready_travel(self):
+        controller = MissionControlController()
+        controller._refresh_previous_idle_manny_ids = {"manny-a"}
+        controller._refresh_previous_ready_move_fingerprints = set()
+        controller._initial_automation_cycle_pending = False
+        controller._refresh_target_id = 9
+        payload = {
+            "focus": {"probeId": 9},
+            "probeOptions": ({"id": 9, "name": "Explorer"},),
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"},),
+            },
+            "automationRuntime": {
+                "mode": "automatic",
+                "liveExecutionEnabled": True,
+                "queue": ({
+                    "fingerprint": "resume-trip-9",
+                    "type": "move_probe",
+                    "disposition": "ready",
+                },),
+            },
+        }
+        controller._finish_refresh = lambda: None
+
+        controller._accept_dashboard(payload)
+
+        self.assertTrue(controller._automation_after_refresh)
+
+    def test_refresh_does_not_redispatch_an_unchanged_ready_move(self):
+        controller = MissionControlController()
+        controller._refresh_previous_idle_manny_ids = {"manny-a"}
+        controller._refresh_previous_ready_move_fingerprints = {"resume-trip-9"}
+        controller._initial_automation_cycle_pending = False
+        controller._refresh_target_id = 9
+        payload = {
+            "focus": {"probeId": 9},
+            "probeOptions": ({"id": 9, "name": "Explorer"},),
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"},),
+            },
+            "automationRuntime": {
+                "mode": "automatic",
+                "liveExecutionEnabled": True,
+                "queue": ({
+                    "fingerprint": "resume-trip-9",
+                    "type": "move_probe",
+                    "disposition": "ready",
+                },),
             },
         }
         controller._finish_refresh = lambda: None
@@ -512,10 +946,12 @@ class UiPreparationTests(unittest.TestCase):
             "src.ui.controller._FleetAutomationWorker", Worker
         ):
             controller._dispatch_fleet_automation()
+            self.assertEqual(started[0].probe_ids, (9, 7, 11))
+            controller._accept_fleet_eligibility((9, 7, 11))
 
-        self.assertEqual(len(started), 1)
-        self.assertEqual(started[0].probe_ids, (7, 9, 11))
-        self.assertIs(controller._fleet_automation_worker, started[0])
+        self.assertEqual(len(started), 2)
+        self.assertEqual(started[1].probe_ids, (7, 9, 11))
+        self.assertIs(controller._fleet_automation_worker, started[1])
 
     def test_fleet_worker_reuses_one_service_and_recent_fleet_index(self):
         instances = []
@@ -548,6 +984,46 @@ class UiPreparationTests(unittest.TestCase):
         ])
         self.assertEqual([item["probeId"] for item in completed], [7, 9, 11])
 
+    def test_fleet_worker_defers_background_probes_below_account_reserve(self):
+        class Client:
+            @staticmethod
+            def background_budget_available():
+                return False
+
+        class Service:
+            client = Client()
+
+            def __init__(self):
+                self.loads = []
+
+            def load(self, probe_id, **_kwargs):
+                self.loads.append(probe_id)
+
+            @staticmethod
+            def run_automation_cycle(_fingerprint, _risk):
+                return {"status": "idle"}
+
+        service = Service()
+        automatic_policy = type(
+            "Policy", (), {"mode": "automatic", "live_execution_enabled": True},
+        )()
+        worker = _FleetAutomationWorker((7, 9, 11), service_factory=lambda: service)
+        completed = []
+        worker.signals.probe_completed.connect(completed.append)
+
+        with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=automatic_policy):
+            worker.run()
+
+        self.assertEqual(service.loads, [7])
+        self.assertEqual(
+            [item["result"]["status"] for item in completed],
+            ["idle", "deferred", "deferred"],
+        )
+        self.assertTrue(all(
+            item["result"].get("reason") == "account_api_budget_reserved"
+            for item in completed[1:]
+        ))
+
     def test_large_fleet_cycles_are_bounded_and_rotate_background_probes(self):
         started = []
 
@@ -579,11 +1055,13 @@ class UiPreparationTests(unittest.TestCase):
             "src.ui.controller._FleetAutomationWorker", Worker,
         ):
             controller._dispatch_fleet_automation()
+            controller._accept_fleet_eligibility(range(1, 9))
             controller._fleet_automation_worker = None
             controller._dispatch_fleet_automation()
+            controller._accept_fleet_eligibility(range(1, 9))
 
-        assert started[0].probe_ids == (1, 2, 3, 4)
-        assert started[1].probe_ids == (1, 5, 6, 7)
+        assert started[1].probe_ids == (1, 2, 3, 4)
+        assert started[3].probe_ids == (1, 5, 6, 7)
 
     def test_focused_fleet_result_marks_accepted_manny_as_syncing(self):
         controller = MissionControlController()
@@ -605,7 +1083,7 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(controller._dashboard["production"][0]["taskType"], "dispatch_pending")
         self.assertIn("ORDER ACCEPTED", controller._dashboard["production"][0]["displayText"])
-        self.assertEqual(controller._dashboard["inventoryManagement"]["idleMannies"], ())
+        self.assertEqual(controller._dashboard["inventoryManagement"]["idleMannies"], [])
 
     def test_busy_periodic_tick_is_queued_instead_of_discarded(self):
         controller = MissionControlController()
@@ -743,9 +1221,10 @@ class UiPreparationTests(unittest.TestCase):
         controller = MissionControlController()
         controller._focused_probe_id = 7
         for mode in (ExecutionMode.APPROVE, ExecutionMode.AUTOMATIC):
-            policy = type("Policy", (), {"mode": mode})()
-            with patch("src.ui.controller.ExecutionPolicyStore.load", return_value=policy):
-                self.assertTrue(controller._require_manual_control())
+            controller._dashboard = {
+                "automationRuntime": {"mode": mode.value},
+            }
+            self.assertTrue(controller._require_manual_control())
 
     def test_manual_craft_conflict_waits_for_explicit_one_order_override(self):
         calls = []
@@ -757,10 +1236,17 @@ class UiPreparationTests(unittest.TestCase):
                 if not override_reservations:
                     raise ManualCraftReservationConflict("Reserved resources")
 
-        controller = MissionControlController(service=Service())
+        controller = MissionControlController(service=Service(), thread_pool=ImmediatePool())
         controller._focused_probe_id = 7
         controller._require_manual_control = lambda: True
-        controller._start_refresh = lambda probe_id: calls.append(("refresh", probe_id))
+        controller._dashboard = {
+            "crafting": {"idleMannies": [{"id": "manny-a"}]},
+            "inventoryManagement": {"idleMannies": [{"id": "manny-a"}]},
+            "production": [{"id": "manny-a", "asset": "Manny A", "taskType": "idle"}],
+        }
+        controller._start_refresh = lambda *_args, **_kwargs: self.fail(
+            "manual crafting must wait for scheduled authoritative refresh",
+        )
 
         controller.queueManualCraft("container", "manny-a")
 
@@ -768,8 +1254,315 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(controller.manualCraftOverride["recipeId"], "container")
         controller.overrideManualCraft()
         self.assertEqual(calls[1], ("container", "manny-a", True))
-        self.assertEqual(calls[2], ("refresh", 7))
         self.assertEqual(controller.manualCraftOverride, {})
+        self.assertEqual(len(controller._manual_craft_accepted_orders), 1)
+
+    def test_multiple_manual_crafts_queue_without_refreshing_between_orders(self):
+        workers = []
+        calls = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                workers.append(worker)
+
+        class Service:
+            @staticmethod
+            def manual_craft(recipe_id, manny_id, override_reservations=False):
+                calls.append((recipe_id, manny_id, override_reservations))
+                return {"accepted": True}
+
+        controller = MissionControlController(Service(), DeferredPool())
+        controller._focused_probe_id = 7
+        controller._require_manual_control = lambda: True
+        idle = [{"id": "manny-a"}, {"id": "manny-b"}]
+        controller._dashboard = {
+            "crafting": {"idleMannies": list(idle)},
+            "inventoryManagement": {"idleMannies": list(idle)},
+            "production": [
+                {"id": "manny-a", "asset": "Manny A", "taskType": "idle"},
+                {"id": "manny-b", "asset": "Manny B", "taskType": "idle"},
+            ],
+        }
+        controller._start_refresh = lambda *_args, **_kwargs: self.fail(
+            "craft batch must not refresh between orders",
+        )
+
+        controller.queueManualCraft("container", "manny-a")
+        controller.queueManualCraft("integrated_circuit", "manny-b")
+
+        self.assertEqual(len(workers), 1)
+        self.assertEqual(len(controller._manual_craft_queue), 2)
+        self.assertEqual(controller.dashboard["crafting"]["idleMannies"], [])
+        self.assertIn("2 PENDING SYNC", controller.operationNotice)
+        workers[0].run()
+        self.assertEqual(len(workers), 2)
+        workers[1].run()
+        self.assertEqual(
+            calls,
+            [
+                ("container", "manny-a", False),
+                ("integrated_circuit", "manny-b", False),
+            ],
+        )
+        self.assertEqual(controller._manual_craft_queue, [])
+        self.assertEqual(len(controller._manual_craft_accepted_orders), 2)
+        self.assertIn("2 ACCEPTED", controller.operationNotice)
+
+    def test_manual_command_returns_before_background_dispatch_runs(self):
+        started = []
+        calls = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                started.append(worker)
+
+        class Service:
+            @staticmethod
+            def manual_repair(manny_id, integrity_percent):
+                calls.append((manny_id, integrity_percent))
+
+        controller = MissionControlController(Service(), DeferredPool())
+        controller._focused_probe_id = 7
+        controller._require_manual_control = lambda: True
+
+        controller.queueManualRepair("manny-a", 75)
+
+        self.assertEqual(calls, [])
+        self.assertEqual(len(started), 1)
+        self.assertIn("SENDING REPAIR ORDER", controller.operationNotice)
+        started[0].run()
+        self.assertEqual(calls, [("manny-a", 75)])
+
+    def test_manual_mining_batches_sync_until_scheduled_refresh(self):
+        calls = []
+
+        class Service:
+            @staticmethod
+            def inventory_manny_action(action, manny_id, payload, probe_id=None):
+                calls.append((action, manny_id, payload))
+                return {"accepted": True}
+
+        controller = MissionControlController(
+            service=Service(), thread_pool=ImmediatePool(),
+        )
+        controller._focused_probe_id = 7
+        controller._dashboard = {
+            "automationRuntime": {"mode": ExecutionMode.APPROVE.value},
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"}, {"id": "manny-b"}),
+            },
+            "production": (
+                {"id": "manny-a", "asset": "Miner A", "taskType": "idle"},
+                {"id": "manny-b", "asset": "Miner B", "taskType": "idle"},
+            ),
+        }
+        refreshes = []
+        controller._start_refresh = lambda *args, **kwargs: refreshes.append(
+            (args, kwargs),
+        )
+
+        controller.runInventoryMannyAction(
+            "mine", "manny-a", {"targetId": "asteroid-1"},
+        )
+
+        self.assertEqual(
+            calls,
+            [("mine", "manny-a", {"targetId": "asteroid-1"})],
+        )
+        self.assertEqual(refreshes, [])
+        self.assertEqual(
+            [item["id"] for item in controller.dashboard[
+                "inventoryManagement"
+            ]["idleMannies"]],
+            ["manny-b"],
+        )
+        self.assertEqual(
+            controller.dashboard["production"][0]["taskType"],
+            "dispatch_pending",
+        )
+        self.assertIn("1 PENDING SYNC", controller.operationNotice)
+        self.assertIn("1 ACCEPTED", controller.operationNotice)
+        self.assertEqual(len(controller._manual_mining_accepted_orders), 1)
+        self.assertTrue(
+            controller.dashboard["sectionRevisions"]["production"].startswith("local-")
+        )
+        self.assertTrue(
+            controller.dashboard["sectionRevisions"]["manualControl"].startswith("local-")
+        )
+
+    def test_event_loop_monitor_records_only_interactive_stalls(self):
+        controller = MissionControlController()
+        controller._event_loop_last_sample = 100.0
+
+        with patch("src.ui.controller.time.monotonic", return_value=100.45):
+            controller._sample_event_loop()
+
+        self.assertEqual(controller.eventLoopDiagnostics["stallCount"], 1)
+        self.assertEqual(controller.eventLoopDiagnostics["lastStallMs"], 350)
+        self.assertEqual(controller.eventLoopDiagnostics["maximumStallMs"], 350)
+        self.assertEqual(
+            controller.eventLoopDiagnostics["recentStalls"][-1]["durationMs"],
+            350,
+        )
+        self.assertIn("MISSION CONTROL", controller.eventLoopDiagnostics["lastAttribution"])
+
+    def test_dashboard_settle_diagnostic_measures_gui_application_time(self):
+        controller = MissionControlController()
+        controller._dashboard_signal_at = 100.0
+        controller._dashboard_generation = 4
+
+        with patch("src.ui.controller.time.monotonic", return_value=100.75):
+            controller.reportUiActivity("PRODUCTION", "dashboard-settled")
+
+        self.assertEqual(controller.eventLoopDiagnostics["lastDashboardSettleMs"], 750)
+        self.assertEqual(controller._ui_activity["section"], "PRODUCTION")
+
+    def test_presentation_dashboard_excludes_hidden_heavy_sections(self):
+        controller = MissionControlController()
+        controller._dashboard = {
+            "focus": {"probeId": 7},
+            "alerts": [],
+            "sectionRevisions": {},
+            "automation": {"enabled": True},
+            "refreshDiagnostics": {"totalSeconds": 4.5},
+            "galaxy": {"systems": [{"id": "system-a"}]},
+            "communications": {"messages": [{"id": "message-a"}]},
+            "production": [{"id": "manny-a"}],
+        }
+
+        controller.setActiveSection("SETTINGS")
+
+        self.assertIn("automation", controller.presentationDashboard)
+        self.assertIn("refreshDiagnostics", controller.presentationDashboard)
+        self.assertNotIn("galaxy", controller.presentationDashboard)
+        self.assertNotIn("communications", controller.presentationDashboard)
+        self.assertNotIn("production", controller.presentationDashboard)
+
+    def test_communications_projection_includes_local_reports(self):
+        controller = MissionControlController()
+        reports = {
+            "daily": ({"id": "daily:7:2026-09-01"},),
+            "industrial": {"measuredTotals": ({"category": "Mining", "count": 3},)},
+            "archive": ({"kind": "COMMAND", "title": "Mine"},),
+        }
+        controller._dashboard = {
+            "focus": {"probeId": 7},
+            "alerts": [],
+            "sectionRevisions": {"communications": "reports-present"},
+            "communications": {},
+            "logbook": {},
+            "reports": reports,
+        }
+
+        controller.setActiveSection("COMMUNICATIONS")
+
+        self.assertIs(controller.presentationDashboard["reports"], reports)
+
+    def test_manual_control_projection_includes_installed_probe_upgrades(self):
+        controller = MissionControlController()
+        installed = ({
+            "id": "reinforced_container_couplings",
+            "displayName": "Reinforced Container Couplings",
+        },)
+        controller._dashboard = {
+            "focus": {"probeId": 7},
+            "alerts": [],
+            "sectionRevisions": {"manualControl": "installed-present"},
+            "activeProbeImprovements": installed,
+        }
+
+        controller.setActiveSection("MANUAL CONTROL")
+
+        self.assertIs(
+            controller.presentationDashboard["activeProbeImprovements"],
+            installed,
+        )
+
+    def test_changing_visible_section_reprojects_without_changing_snapshot(self):
+        controller = MissionControlController()
+        controller._dashboard = {
+            "focus": {"probeId": 7},
+            "alerts": [],
+            "sectionRevisions": {},
+            "galaxy": {"systems": [{"id": "system-a"}]},
+        }
+        changes = []
+        controller.presentationDashboardChanged.connect(
+            lambda: changes.append(True)
+        )
+
+        controller.setActiveSection("GALAXY MAP")
+
+        self.assertEqual(len(changes), 1)
+        self.assertIn("galaxy", controller.presentationDashboard)
+        self.assertIs(
+            controller.dashboard["galaxy"], controller._dashboard["galaxy"]
+        )
+
+    def test_multiple_manual_mining_orders_can_queue_while_first_is_sending(self):
+        workers = []
+        calls = []
+
+        class DeferredPool:
+            @staticmethod
+            def start(worker):
+                workers.append(worker)
+
+        class Service:
+            @staticmethod
+            def inventory_manny_action(action, manny_id, payload, probe_id=None):
+                calls.append((action, manny_id, payload))
+                return {"accepted": True}
+
+        controller = MissionControlController(Service(), DeferredPool())
+        controller._focused_probe_id = 7
+        controller._dashboard = {
+            "automationRuntime": {"mode": ExecutionMode.APPROVE.value},
+            "inventoryManagement": {
+                "idleMannies": ({"id": "manny-a"}, {"id": "manny-b"}),
+            },
+            "production": (
+                {"id": "manny-a", "asset": "Miner A", "taskType": "idle"},
+                {"id": "manny-b", "asset": "Miner B", "taskType": "idle"},
+            ),
+        }
+        controller._start_refresh = lambda *_args, **_kwargs: self.fail(
+            "manual mining must wait for the scheduled refresh",
+        )
+        dashboard_changes = []
+        controller.dashboardChanged.connect(lambda: dashboard_changes.append(True))
+
+        controller.runInventoryMannyAction(
+            "mine", "manny-a", {"objectId": "asteroid-1"},
+        )
+
+        self.assertIn("1 PENDING SYNC", controller.operationNotice)
+        self.assertIn("1 SENDING", controller.operationNotice)
+        self.assertIn("0 WAITING", controller.operationNotice)
+        controller.runInventoryMannyAction(
+            "mine", "manny-b", {"objectId": "asteroid-1"},
+        )
+
+        self.assertEqual(len(workers), 1)
+        self.assertEqual(len(controller._manual_mining_queue), 2)
+        self.assertIn("2 PENDING SYNC", controller.operationNotice)
+        self.assertIn("1 SENDING", controller.operationNotice)
+        self.assertIn("1 WAITING", controller.operationNotice)
+        self.assertEqual(
+            controller.dashboard["inventoryManagement"]["idleMannies"], [],
+        )
+        workers[0].run()
+        self.assertEqual(len(workers), 2)
+        self.assertEqual(calls[0][1], "manny-a")
+        workers[1].run()
+        self.assertEqual([item[1] for item in calls], ["manny-a", "manny-b"])
+        self.assertEqual(controller._manual_mining_queue, [])
+        self.assertEqual(len(controller._manual_mining_accepted_orders), 2)
+        self.assertIn("2 PENDING SYNC", controller.operationNotice)
+        self.assertIn("2 ACCEPTED", controller.operationNotice)
+        self.assertEqual(len(dashboard_changes), 2)
 
     def test_manual_craft_override_can_be_cancelled_without_dispatch(self):
         controller = MissionControlController()
@@ -794,7 +1587,7 @@ class UiPreparationTests(unittest.TestCase):
             def manual_craft(*_args, **_kwargs):
                 raise requests.HTTPError(response=response)
 
-        controller = MissionControlController(service=Service())
+        controller = MissionControlController(service=Service(), thread_pool=ImmediatePool())
         controller._focused_probe_id = 7
         controller._manual_craft_override = {
             "probeId": 7, "recipeId": "manny", "mannyId": "manny-a",
@@ -1097,7 +1890,11 @@ class UiPreparationTests(unittest.TestCase):
             {"inventory": {"items": []}},
             {"mannies": [
                 {"id": "ready", "name": "Manny Ready", "currentTask": None, "canReceiveOrders": True},
-                {"id": "busy", "name": "Manny Offline", "currentTask": None, "canReceiveOrders": False},
+                {
+                    "id": "busy", "name": "Manny Offline", "currentTask": None,
+                    "canReceiveOrders": False,
+                    "location": {"type": "sector", "sector": {"relative": {"x": 2, "y": 2, "z": -4}}},
+                },
             ]},
         )
 
@@ -1105,6 +1902,7 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(work[0]["taskType"], "idle")
         self.assertIn("IDLE · READY", work[0]["displayText"])
         self.assertIn("Can receive automation order: No", work[1]["detailText"])
+        self.assertIn("Location: FCC 2 / 2 / -4", work[1]["detailText"])
 
     def test_overdue_mining_exposes_storage_return_deadlock(self):
         work = MissionControlViewModelBuilder._production(
@@ -1208,11 +2006,18 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("1 planets", navigation["current"]["scanSummary"])
         self.assertIn("composition/category: Oceanic", navigation["current"]["detailText"])
 
+    def test_galaxy_view_has_a_stable_content_revision(self):
+        first = MissionControlViewModelBuilder(build_operations()).build()["galaxy"]
+        second = MissionControlViewModelBuilder(build_operations()).build()["galaxy"]
+
+        self.assertTrue(first["revision"])
+        self.assertEqual(first["revision"], second["revision"])
+
     def test_controller_persists_probe_role_and_updates_live_settings(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")
             service = type("Service", (), {"data_engine": engine})()
-            controller = MissionControlController(service)
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
             controller._focused_probe_id = 9
             controller._dashboard = {
                 "defaultProbeId": 9,
@@ -1229,7 +2034,7 @@ class UiPreparationTests(unittest.TestCase):
             engine = DataEngine(Path(temporary) / "ui.sqlite3")
             FleetRoleService(engine).assign("probe", 7, "deuterium_reserve")
             service = type("Service", (), {"data_engine": engine})()
-            controller = MissionControlController(service)
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
             controller._dashboard = {"automation": {"probeRoleSettings": {}}}
 
             controller.saveProbeRoleSettings(
@@ -1273,7 +2078,7 @@ class UiPreparationTests(unittest.TestCase):
                     },
                 },
             )()
-            controller = MissionControlController(service)
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
             controller._focused_probe_id = 1
             controller._dashboard = {
                 "automation": {
@@ -1288,6 +2093,133 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(automation["probeRoles"], {"1": "hub", "2": "miner"})
             self.assertEqual(automation["fleetStatus"], [{"model": "generic"}])
             self.assertEqual(automation["minimumFuelPercent"], 35)
+
+    def test_saving_targets_returns_before_persistence_runs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            started = []
+
+            class DeferredPool:
+                @staticmethod
+                def start(worker):
+                    started.append(worker)
+
+            engine = DataEngine(Path(temporary) / "settings-background.sqlite3")
+            service = type(
+                "Service",
+                (),
+                {
+                    "data_engine": engine,
+                    "automation_view": lambda self: {
+                        "mode": "observe", "liveExecutionEnabled": False,
+                    },
+                },
+            )()
+            controller = MissionControlController(service, DeferredPool())
+            controller._focused_probe_id = 1
+            controller._dashboard = {"automation": {}}
+
+            controller.saveAutomationSettings({"minimumFuelPercent": 42})
+
+            self.assertEqual(
+                DesiredStateStore(engine).load(1).fuel.minimum_percent, 20,
+            )
+            self.assertEqual(len(started), 1)
+            self.assertIn("SAVING AUTOMATION TARGETS", controller.operationNotice)
+            started[0].run()
+            self.assertEqual(
+                DesiredStateStore(engine).load(1).fuel.minimum_percent, 42,
+            )
+
+    def test_new_safety_and_resource_settings_return_before_sqlite_runs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            started = []
+
+            class DeferredPool:
+                @staticmethod
+                def start(worker):
+                    started.append(worker)
+
+            engine = DataEngine(Path(temporary) / "responsive-settings.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            service._selected_probe_id = 7
+            controller = MissionControlController(
+                service, DeferredPool(), settings_engine=engine,
+            )
+            controller._focused_probe_id = 7
+            controller._dashboard = {
+                "combatSafety": {"emergencyMissileEscapeEnabled": False},
+                "resourceLedger": {"rows": ({"objectId": "wreck-1"},)},
+            }
+
+            controller.setEmergencyMissileEscapeEnabled(True)
+
+            self.assertEqual(
+                engine.get_preference("emergency_missile_escape:7", "false"),
+                "false",
+            )
+            self.assertFalse(
+                controller.dashboard["combatSafety"]["emergencyMissileEscapeEnabled"]
+            )
+            started.pop(0).run()
+            self.assertEqual(
+                engine.get_preference("emergency_missile_escape:7"), "true",
+            )
+
+            controller.setUnusualMiningTargetApproval("wreck-1", True)
+
+            self.assertEqual(
+                engine.get_preference(
+                    "approved_unusual_mining_targets:7", "[]",
+                ),
+                "[]",
+            )
+            self.assertNotIn(
+                "automationApproved",
+                controller.dashboard["resourceLedger"]["rows"][0],
+            )
+            started.pop(0).run()
+            self.assertEqual(
+                json.loads(engine.get_preference(
+                    "approved_unusual_mining_targets:7",
+                )),
+                ["wreck-1"],
+            )
+            self.assertTrue(
+                controller.dashboard["resourceLedger"]["rows"][0]["automationApproved"]
+            )
+
+    def test_travel_approval_persistence_returns_before_worker_runs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            started = []
+            cycles = []
+
+            class DeferredPool:
+                @staticmethod
+                def start(worker):
+                    started.append(worker)
+
+            engine = DataEngine(Path(temporary) / "approval-background.sqlite3")
+            service = type("Service", (), {"data_engine": engine})()
+            controller = MissionControlController(service, DeferredPool())
+            controller._focused_probe_id = 3
+            controller._dashboard = {
+                "automation": {},
+                "automationRuntime": {
+                    "queue": ({"fingerprint": "move-1", "type": "move_probe"},),
+                },
+            }
+            controller._start_automation_cycle = (
+                lambda fingerprint, acknowledged: cycles.append(
+                    (fingerprint, acknowledged),
+                )
+            )
+
+            controller.approveAutomationCommand("move-1", True)
+
+            self.assertEqual(cycles, [])
+            self.assertEqual(len(started), 1)
+            started[0].run()
+            self.assertEqual(cycles, [("move-1", True)])
 
     def test_resource_summary_uses_current_probe_fuel_and_inventory_amounts(self):
         resources = MissionControlViewModelBuilder._resources({
@@ -1490,6 +2422,27 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(view["nodes"][0]["mapState"], "current")
         self.assertEqual(view["nodes"][1]["mapState"], "visited")
 
+    def test_galaxy_view_exposes_owned_mannies_left_in_known_sectors(self):
+        from src.models.galaxy import GalaxyMap
+
+        base = build_operations()
+        galaxy = GalaxyMap()
+        galaxy.record_visit({"relativeCoordinates": {"x": 1, "y": 1, "z": 0}, "visitCount": 1})
+        base.world.galaxy = galaxy
+        base.world.mannies["mannies"][0].update({
+            "name": "Explorer Manny",
+            "location": {"type": "sector", "sector": {"relative": {"x": 1, "y": 1, "z": 0}}},
+            "canReceiveOrders": False,
+        })
+
+        view = MissionControlViewModelBuilder(base)._galaxy_view(
+            base.world, {"x": 0, "y": 0, "z": 0},
+        )
+
+        self.assertEqual(view["ownedMannyLocations"][0]["name"], "Explorer Manny")
+        self.assertEqual(view["nodes"][0]["ownedMannyCount"], 1)
+        self.assertEqual(view["nodes"][0]["ownedMannies"][0]["x"], 1)
+
     def test_all_nonvisited_scan_records_use_the_scanned_filter(self):
         from src.models.galaxy import GalaxyMap
 
@@ -1603,6 +2556,44 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(view["recentTrail"][0]["to"], "1:1:0")
         self.assertEqual(view["recentTrailNodes"], ("1:1:0", "0:0:0"))
         self.assertEqual(history.probe_id, base.world.probe["id"])
+
+    def test_galaxy_view_exposes_planets_at_exact_habitability_threshold(self):
+        from src.models.galaxy import GalaxyMap
+
+        base = build_operations()
+        galaxy = GalaxyMap()
+        galaxy.record_observation({"sector": {
+            "relativeCoordinates": {"x": 2, "y": 0, "z": 0},
+            "knowledgeLevel": "detailed", "confidence": 1,
+            "objects": [{
+                "id": "system", "type": "solar_system",
+                "bookmarkTargets": [
+                    {"id": "low", "type": "planet", "habitabilityScore": 0.499999},
+                    {"id": "match", "type": "planet", "habitabilityScore": 0.5},
+                ],
+            }],
+        }}, probe_id=base.world.probe["id"])
+        base.world.galaxy = galaxy
+
+        node = MissionControlViewModelBuilder(base)._galaxy_view(
+            base.world, {"x": 0, "y": 0, "z": 0},
+        )["nodes"][0]
+
+        self.assertEqual(node["maxPlanetHabitability"], 0.5)
+        self.assertTrue(node["hasHabitablePlanet"])
+
+    def test_galaxy_view_does_not_promote_planets_below_habitability_threshold(self):
+        objects = [{
+            "type": "solar_system",
+            "bookmarkTargets": [
+                {"type": "planet", "habitabilityScore": "0.499999"},
+                {"type": "planet", "habitabilityScore": None},
+            ],
+        }]
+
+        score = MissionControlViewModelBuilder._galaxy_max_planet_habitability(objects)
+
+        self.assertEqual(score, 0.499999)
 
     def test_galaxy_view_exposes_active_scut_coverage_volumes(self):
         base = build_operations()

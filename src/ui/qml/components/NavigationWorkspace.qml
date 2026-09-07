@@ -9,15 +9,25 @@ PanelFrame {
 
     property string section: "FLEET"
     property var dashboardData: ({})
+    property var eventLoopDiagnostics: ({})
+    property var cachedProductionRows: []
+    property var cachedManualDashboardData: ({})
+    property string cachedProductionRevision: ""
+    property string cachedManualRevision: ""
+    property var requestedTravelSector: ({})
     property var availableProbes: []
     property int focusedProbeId: -1
     property double currentEpochMs: Date.now()
+    property var operatingProfile: ({"name": "normal", "map_detail": "normal"})
+    property var notificationPolicy: ({"enabled": false, "categories": []})
+    property var notificationDelivery: ({"available": false, "supportsMessages": false, "detail": ""})
     // Mining is the longest normal production record. Keep enough fixed room
     // for its full telemetry, countdown, and recall control without nested
     // card scrolling or content-driven layout calculations.
     readonly property int standardProductionCardHeight: 500
     property string productionSort: "name"
     property var renderedRows: []
+    property bool renderedRowsRefreshPending: false
     property int manualControlTabIndex: 0
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
@@ -54,6 +64,8 @@ PanelFrame {
     signal logbookDeleteRequested(int pageId)
     signal autoLogbookChanged(bool enabled)
     signal logbookPageOpenRequested(int pageId)
+    signal reportDeleteRequested(string reportId)
+    signal reportFavoriteChanged(string reportId, bool favorited)
     signal messageSendRequested(var payload)
     signal messageReadRequested(string messageId)
     signal operatorManualRequested()
@@ -72,6 +84,7 @@ PanelFrame {
     signal emergencyMissileEscapeChanged(bool enabled)
     signal targetedMannyRecallChanged(bool enabled)
     signal galaxyMapRequested()
+    signal navigationSectionRequested(string section)
     signal unusualMiningTargetApprovalRequested(string targetId, bool approved)
     signal makeDefaultProbeRequested()
     signal mindSnapshotReassignRequested()
@@ -79,6 +92,10 @@ PanelFrame {
     signal mannyCancelRequested(string mannyId)
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
+    signal operatingProfileSaveRequested(string name, int idleMinutes, var schedule)
+    signal notificationPolicySaveRequested(var policy)
+    signal testNotificationRequested()
+    signal workspaceActivity(string section, string activity)
 
     function countdown(epochMs) {
         const seconds = Math.max(0, Math.floor((Number(epochMs) - currentEpochMs) / 1000));
@@ -101,7 +118,7 @@ PanelFrame {
     }
 
     Timer {
-        interval: 1000
+        interval: Number(root.operatingProfile.cosmetic_tick_ms || 1000)
         running: root.visible && root.section === "PRODUCTION"
         repeat: true
         triggeredOnStart: true
@@ -131,7 +148,7 @@ PanelFrame {
                         "detail": item.detailText
                     }));
         if (section === "PRODUCTION") {
-            const rows = (dashboardData.production || []).map(item => ({
+            const rows = (root.cachedProductionRows || []).map(item => ({
                         "title": item.displayText,
                         "detail": item.detailText,
                         "asset": item.asset || "",
@@ -198,24 +215,97 @@ PanelFrame {
         }
     }
 
-    onDashboardDataChanged: refreshRenderedRows()
-    onAvailableProbesChanged: refreshRenderedRows()
-    onFocusedProbeIdChanged: refreshRenderedRows()
-    onSectionChanged: refreshRenderedRows()
-    onProductionSortChanged: refreshRenderedRows()
-    Component.onCompleted: refreshRenderedRows()
+    function syncHighChurnSections() {
+        const revisions = root.dashboardData.sectionRevisions || {};
+        const productionRevision = String(revisions.production || "");
+        const manualRevision = String(revisions.manualControl || "");
+        const hasProductionPayload = root.dashboardData.production !== undefined;
+        const hasManualPayload = root.dashboardData.crafting !== undefined
+            && root.dashboardData.inventoryManagement !== undefined
+            && root.dashboardData.automationRuntime !== undefined;
+        let productionChanged = false;
+        if (hasProductionPayload
+                && (root.cachedProductionRevision !== productionRevision
+                    || root.cachedProductionRows.length === 0)) {
+            root.cachedProductionRows = root.dashboardData.production || [];
+            root.cachedProductionRevision = productionRevision;
+            productionChanged = true;
+        }
+        if (hasManualPayload
+                && (root.cachedManualRevision !== manualRevision
+                    || Object.keys(root.cachedManualDashboardData).length === 0)) {
+            root.cachedManualDashboardData = {
+                "automation": root.dashboardData.automation || {},
+                "automationRuntime": root.dashboardData.automationRuntime || {},
+                "blueprintSharing": root.dashboardData.blueprintSharing || {},
+                "combatSafety": root.dashboardData.combatSafety || {},
+                "crafting": root.dashboardData.crafting || {},
+                "inventoryManagement": root.dashboardData.inventoryManagement || {},
+                "probe": root.dashboardData.probe || {},
+                "probeImprovements": root.dashboardData.probeImprovements || [],
+                "activeProbeImprovements": root.dashboardData.activeProbeImprovements || []
+            };
+            root.cachedManualRevision = manualRevision;
+        }
+        return productionChanged;
+    }
+
+    function scheduleRenderedRowsRefresh() {
+        renderedRowsRefreshPending = true;
+        if (root.section === "PRODUCTION" && sectionGrid.moving)
+            return;
+        rowRefreshTimer.restart();
+    }
+
+    Timer {
+        id: rowRefreshTimer
+        interval: 80
+        repeat: false
+        onTriggered: {
+            root.renderedRowsRefreshPending = false;
+            root.refreshRenderedRows();
+        }
+    }
+
+    onDashboardDataChanged: {
+        const productionChanged = root.syncHighChurnSections();
+        if (root.section !== "PRODUCTION" || productionChanged)
+            root.scheduleRenderedRowsRefresh();
+    }
+    onAvailableProbesChanged: scheduleRenderedRowsRefresh()
+    onFocusedProbeIdChanged: scheduleRenderedRowsRefresh()
+    onSectionChanged: {
+        root.scheduleRenderedRowsRefresh();
+        root.workspaceActivity(root.section, "section-selected");
+    }
+    onProductionSortChanged: scheduleRenderedRowsRefresh()
+    Component.onCompleted: {
+        root.syncHighChurnSections();
+        root.refreshRenderedRows();
+    }
 
     contentItem: Item {
         anchors.fill: parent
 
         Loader {
+            id: galaxyWorkspaceLoader
+            property bool retainedAfterFirstLoad: false
             anchors.fill: parent
-            active: root.section === "GALAXY MAP"
+            active: root.section === "GALAXY MAP" || retainedAfterFirstLoad
+            visible: root.section === "GALAXY MAP"
+            asynchronous: true
+            onLoaded: retainedAfterFirstLoad = true
+            onStatusChanged: root.workspaceActivity("GALAXY MAP", status === Loader.Loading ? "workspace-loading" : status === Loader.Ready ? "workspace-ready" : "workspace-inactive")
             sourceComponent: Component {
                 GalaxyMap3D {
                     galaxyData: root.dashboardData.galaxy || ({})
                     focusedProbeId: root.focusedProbeId
+                    detailProfile: String(root.operatingProfile.map_detail || "normal")
                     onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
+                    onTravelRequested: (x, y, z) => {
+                        root.requestedTravelSector = ({"x": x, "y": y, "z": z});
+                        root.navigationSectionRequested("NAVIGATION");
+                    }
                 }
             }
         }
@@ -223,16 +313,25 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "SETTINGS"
+            asynchronous: true
+            onStatusChanged: root.workspaceActivity("SETTINGS", status === Loader.Loading ? "workspace-loading" : status === Loader.Ready ? "workspace-ready" : "workspace-inactive")
             sourceComponent: Component {
                 AutomationSettings {
                     settingsData: root.dashboardData.automation || ({})
                     runtimeData: root.dashboardData.automationRuntime || ({})
                     refreshDiagnostics: root.dashboardData.refreshDiagnostics || ({})
+                    eventLoopDiagnostics: root.eventLoopDiagnostics
                     credentialData: root.dashboardData.credentials || ({})
                     availableProbes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
                     focusedProbeData: root.dashboardData.focus || ({})
                     defaultProbeId: root.dashboardData.defaultProbeId === undefined ? -1 : Number(root.dashboardData.defaultProbeId)
+                    operatingProfile: root.operatingProfile
+                    notificationPolicy: root.notificationPolicy
+                    notificationDelivery: root.notificationDelivery
+                    onOperatingProfileSaveRequested: (name, idleMinutes, schedule) => root.operatingProfileSaveRequested(name, idleMinutes, schedule)
+                    onNotificationPolicySaveRequested: policy => root.notificationPolicySaveRequested(policy)
+                    onTestNotificationRequested: root.testNotificationRequested()
                     onSaveRequested: settings => root.automationSettingsSaved(settings)
                     onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
                     onRoleSettingsSaveRequested: (probeId, settings) => root.probeRoleSettingsSaved(probeId, settings)
@@ -261,6 +360,7 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "NAVIGATION"
+            asynchronous: true
             sourceComponent: Component {
                 NavigationControl {
                     navigationData: root.dashboardData.navigation || ({})
@@ -268,6 +368,7 @@ PanelFrame {
                     automationData: root.dashboardData.automation || ({})
                     focusedProbe: root.dashboardData.focus || ({})
                     availableProbes: root.availableProbes
+                    requestedTravelSector: root.requestedTravelSector
                     onPreviewRequested: (x, y, z, routeMode) => root.travelPreviewRequested(x, y, z, routeMode)
                     onExecuteRequested: riskAcknowledged => root.travelExecuteRequested(riskAcknowledged)
                     onCancelMovementRequested: root.travelCancelRequested()
@@ -287,6 +388,7 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "RESOURCES"
+            asynchronous: true
             sourceComponent: Component {
                 ResourceWorkspace {
                     ledgerData: root.dashboardData.resourceLedger || ({})
@@ -298,8 +400,10 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "FLEET"
+            asynchronous: true
             sourceComponent: Component {
                 FleetWorkspace {
+                    operatingProfile: root.operatingProfile
                     probes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
                     probeData: root.dashboardData.probe || ({})
@@ -315,11 +419,17 @@ PanelFrame {
         }
 
         Loader {
+            id: manualWorkspaceLoader
+            property bool retainedAfterFirstLoad: false
             anchors.fill: parent
-            active: root.section === "MANUAL CONTROL"
+            active: root.section === "MANUAL CONTROL" || retainedAfterFirstLoad
+            visible: root.section === "MANUAL CONTROL"
+            asynchronous: true
+            onLoaded: retainedAfterFirstLoad = true
+            onStatusChanged: root.workspaceActivity("MANUAL CONTROL", status === Loader.Loading ? "workspace-loading" : status === Loader.Ready ? "workspace-ready" : "workspace-inactive")
             sourceComponent: Component {
                 ManualControlWorkspace {
-                    dashboardData: root.dashboardData
+                    dashboardData: root.cachedManualDashboardData
                     requestedTabIndex: root.manualControlTabIndex
                     probes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
@@ -346,6 +456,7 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "SAFETY"
+            asynchronous: true
             sourceComponent: Component {
                 SafetyWorkspace {
                     alerts: root.dashboardData.alerts || []
@@ -360,10 +471,12 @@ PanelFrame {
         Loader {
             anchors.fill: parent
             active: root.section === "COMMUNICATIONS"
+            asynchronous: true
             sourceComponent: Component {
                 CommunicationsWorkspace {
                     communicationsData: root.dashboardData.communications || ({})
                     logbookData: root.dashboardData.logbook || ({})
+                    reportsData: root.dashboardData.reports || ({})
                     probes: root.availableProbes
                     focusedProbeId: root.focusedProbeId
                     onMessageSendRequested: payload => root.messageSendRequested(payload)
@@ -373,6 +486,8 @@ PanelFrame {
                     onLogbookDeleteRequested: pageId => root.logbookDeleteRequested(pageId)
                     onAutoLogbookChanged: enabled => root.autoLogbookChanged(enabled)
                     onLogbookPageOpenRequested: pageId => root.logbookPageOpenRequested(pageId)
+                    onReportDeleteRequested: reportId => root.reportDeleteRequested(reportId)
+                    onReportFavoriteChanged: (reportId, favorited) => root.reportFavoriteChanged(reportId, favorited)
                 }
             }
         }
@@ -433,6 +548,11 @@ PanelFrame {
                 // keeps long Manny rosters from laying out every large card on
                 // each countdown tick or dashboard refresh.
                 cacheBuffer: cellHeight
+                reuseItems: true
+                onMovementEnded: {
+                    if (root.renderedRowsRefreshPending)
+                        root.scheduleRenderedRowsRefresh();
+                }
 
                 delegate: Rectangle {
                             id: sectionRow

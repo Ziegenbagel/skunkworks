@@ -9,11 +9,13 @@ import ".."
 Item {
     id: root
     property var galaxyData: ({})
+    property var renderedGalaxyData: ({})
+    property var deferredGalaxyData: null
     property int focusedProbeId: -1
     property var selectedNode: null
     property var selectedCoveragePoint: null
     property bool hasCenteredOnProbe: false
-    readonly property var nodes: galaxyData.nodes || []
+    readonly property var nodes: renderedGalaxyData.nodes || []
     readonly property var nodeIndex: {
         const result = {};
         for (let i = 0; i < nodes.length; ++i)
@@ -22,10 +24,10 @@ Item {
     }
     readonly property var recentTrailNodes: {
         const result = {};
-        const nodeIds = galaxyData.recentTrailNodes || [];
+        const nodeIds = renderedGalaxyData.recentTrailNodes || [];
         for (let i = 0; i < nodeIds.length; ++i)
             result[String(nodeIds[i])] = true;
-        const trail = galaxyData.recentTrail || [];
+        const trail = renderedGalaxyData.recentTrail || [];
         for (let i = 0; i < trail.length; ++i) {
             result[String(trail[i].from)] = true;
             result[String(trail[i].to)] = true;
@@ -37,33 +39,41 @@ Item {
     property bool showVisited: true
     property bool hazardsOnly: false
     property bool salvageOnly: false
+    property bool habitablePlanetOnly: false
     property bool showRecentTrail: true
     property bool showScutCoverage: false
     property bool showAxisLabels: true
+    property bool showOwnedMannies: true
     property bool filtersExpanded: true
     property bool cameraMoving: false
+    property string detailProfile: "normal"
     property bool showDeuterium: false
     property bool showMetals: false
     property bool showIce: false
     property bool showCarbonCompounds: false
     readonly property var visibleNodes: {
         const dependency = [showCurrent, showScanned, showVisited,
-                            hazardsOnly, salvageOnly, showDeuterium, showMetals,
+                            hazardsOnly, salvageOnly, habitablePlanetOnly,
+                            showDeuterium, showMetals,
                             showIce, showCarbonCompounds];
         return nodes.filter(function(node) { return root.matchesFilters(node); });
     }
     readonly property var visibleEdges: {
         const visible = {};
         for (let i = 0; i < visibleNodes.length; ++i) visible[visibleNodes[i].id] = true;
-        return (galaxyData.edges || []).filter(function(edge) { return visible[edge.from] && visible[edge.to]; });
+        return (renderedGalaxyData.edges || []).filter(function(edge) { return visible[edge.from] && visible[edge.to]; });
     }
     // Neighbor links dominate scene cost as explored space grows. Suspend them
     // only while the camera moves, then restore the complete topology after a
     // debounce. Distance must not permanently remove operational overlays.
-    readonly property bool distantOverview: camera.z > 1500
-    readonly property var renderedEdges: cameraMoving ? [] : visibleEdges
+    readonly property bool distantOverview: camera.z > (detailProfile === "reduced" ? 1100 : 1500)
+    // Keep the edge delegates allocated while interacting. Replacing their
+    // model with an empty list destroyed and recreated the complete mesh on
+    // every wheel/drag gesture, which caused the visible post-gesture freeze.
+    readonly property var renderedEdges: visibleEdges
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
+    signal travelRequested(int x, int y, int z)
 
     component CoverageCell: Model {
         id: coverageCell
@@ -87,6 +97,7 @@ Item {
         if (!stateEnabled(String(node.mapState || "unknown"))) return false;
         if (hazardsOnly && !node.hasHazard) return false;
         if (salvageOnly && !node.hasDetachedContainers) return false;
+        if (habitablePlanetOnly && !node.hasHabitablePlanet) return false;
         const selected = selectedResources();
         if (selected.length > 0) {
             const types = node.resourceTypes || [];
@@ -125,7 +136,7 @@ Item {
         return Qt.vector3d(Number(node.x) * spacing3D, Number(node.y) * spacing3D, Number(node.z) * spacing3D);
     }
     function focusedNode() {
-        const coordinates = galaxyData.focusCoordinates;
+        const coordinates = renderedGalaxyData.focusCoordinates;
         const coordinateId = coordinates && coordinates.x !== undefined
             && coordinates.y !== undefined && coordinates.z !== undefined
             ? String(coordinates.x) + ":" + String(coordinates.y) + ":" + String(coordinates.z)
@@ -138,10 +149,10 @@ Item {
         return null;
     }
     function centerOnFocusedProbe() {
-        if (galaxyData.focusProbeId !== undefined
-                && Number(galaxyData.focusProbeId) !== focusedProbeId)
+        if (renderedGalaxyData.focusProbeId !== undefined
+                && Number(renderedGalaxyData.focusProbeId) !== focusedProbeId)
             return false;
-        const coordinates = galaxyData.focusCoordinates;
+        const coordinates = renderedGalaxyData.focusCoordinates;
         const target = focusedNode();
         // The live focused-probe position is authoritative. `probeIds` on a
         // galaxy node means "has observed this sector" and is historical; it
@@ -207,6 +218,14 @@ Item {
         cameraMoving = true;
         cameraSettle.restart();
     }
+    function applyGalaxyData(value) {
+        const incoming = value || {};
+        if (String(incoming.revision || "") !== ""
+                && String(incoming.revision) === String(root.renderedGalaxyData.revision || ""))
+            return false;
+        root.renderedGalaxyData = incoming;
+        return true;
+    }
     function colorFor(node) {
         // Operational state must remain legible regardless of resource and
         // trail overlays. Hazards and the live focused sector take priority.
@@ -249,7 +268,7 @@ Item {
             id: cameraOrigin
             objectName: "galaxyCameraOrigin"
             eulerRotation: Qt.vector3d(-25, 35, 0)
-            PerspectiveCamera { id: camera; z: 950; fieldOfView: 45 }
+            PerspectiveCamera { id: camera; z: 950; fieldOfView: 45; clipNear: 1; clipFar: 100000 }
         }
         camera: camera
 
@@ -261,20 +280,25 @@ Item {
             scale: Qt.vector3d(0.12, 0.12, 0.12)
         }
 
-        Repeater3D {
-            model: root.showScutCoverage ? (root.galaxyData.scutCoverageBoundary || []) : []
-            delegate: CoverageCell {
-                required property var modelData
-                objectName: "scut:" + String(modelData.id)
-                coverageSelected: root.selectedCoveragePoint !== null
-                    && String(root.selectedCoveragePoint.id) === String(modelData.id)
-                position: root.positionFor(modelData)
+        Node {
+            visible: !root.cameraMoving
+            Repeater3D {
+                model: root.showScutCoverage ? (root.renderedGalaxyData.scutCoverageBoundary || []) : []
+                delegate: CoverageCell {
+                    required property var modelData
+                    objectName: "scut:" + String(modelData.id)
+                    coverageSelected: root.selectedCoveragePoint !== null
+                        && String(root.selectedCoveragePoint.id) === String(modelData.id)
+                    position: root.positionFor(modelData)
+                }
             }
         }
 
-        Repeater3D {
-            model: root.renderedEdges
-            delegate: Model {
+        Node {
+            visible: !root.cameraMoving
+            Repeater3D {
+                model: root.renderedEdges
+                delegate: Model {
                 id: linkModel
                 required property var modelData
                 property var fromNode: root.nodeById(modelData.from)
@@ -290,12 +314,15 @@ Item {
                 scale: Qt.vector3d(linkLength / 100, 0.018, 0.018)
                 eulerRotation: Qt.vector3d(0, -Math.atan2(dz, dx) * 180 / Math.PI, Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * 180 / Math.PI)
                 materials: DefaultMaterial { lighting: DefaultMaterial.NoLighting; diffuseColor: Constants.cyanColor; opacity: 0.82 }
+                }
             }
         }
 
-        Repeater3D {
-            model: root.showRecentTrail ? (root.galaxyData.recentTrail || []) : []
-            delegate: Model {
+        Node {
+            visible: !root.cameraMoving
+            Repeater3D {
+                model: root.showRecentTrail ? (root.renderedGalaxyData.recentTrail || []) : []
+                delegate: Model {
                 id: trailModel
                 required property var modelData
                 property var fromNode: root.nodeById(modelData.from)
@@ -312,6 +339,7 @@ Item {
                 scale: Qt.vector3d(linkLength / 100, 0.045, 0.045)
                 eulerRotation: Qt.vector3d(0, -Math.atan2(dz, dx) * 180 / Math.PI, Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * 180 / Math.PI)
                 materials: DefaultMaterial { lighting: DefaultMaterial.NoLighting; diffuseColor: Constants.warningColor; opacity: 0.96 }
+                }
             }
         }
 
@@ -321,16 +349,43 @@ Item {
                 id: sectorModel
                 required property var modelData
                 objectName: String(modelData.id)
-                source: (!root.cameraMoving && !root.distantOverview)
-                        || modelData.isFocused
+                source: !root.distantOverview || modelData.isFocused
                         || (root.selectedNode && String(root.selectedNode.id) === String(modelData.id))
                     ? "#Sphere" : "#Cube"
                 pickable: true
-                position: root.positionFor(modelData)
-                scale: modelData.isFocused ? Qt.vector3d(0.34, 0.34, 0.34) : Qt.vector3d(0.24, 0.24, 0.24)
+                position: {
+                    const sectorPosition = root.positionFor(modelData);
+                    return Qt.vector3d(sectorPosition.x, sectorPosition.y + 28, sectorPosition.z);
+                }
+                scale: modelData.isFocused ? Qt.vector3d(0.34, 0.34, 0.34)
+                     : root.detailProfile === "reduced" && root.distantOverview
+                     ? Qt.vector3d(0.19, 0.19, 0.19) : Qt.vector3d(0.24, 0.24, 0.24)
                 materials: DefaultMaterial {
                     lighting: DefaultMaterial.NoLighting
                     diffuseColor: root.colorFor(sectorModel.modelData)
+                }
+            }
+        }
+
+        // Owned Mannys outside the focused probe remain operationally
+        // important even when the sector's ordinary discovery filter is off.
+        Node {
+            visible: !root.cameraMoving
+            Repeater3D {
+                model: root.showOwnedMannies ? (root.renderedGalaxyData.ownedMannyLocations || []) : []
+                delegate: Model {
+                id: ownedMannyMarker
+                required property var modelData
+                objectName: "manny-location:" + String(modelData.id)
+                source: "#Sphere"
+                pickable: true
+                position: root.positionFor(modelData)
+                scale: Qt.vector3d(0.13, 0.13, 0.13)
+                materials: DefaultMaterial {
+                    lighting: DefaultMaterial.NoLighting
+                    diffuseColor: Constants.warningColor
+                    opacity: 0.98
+                }
                 }
             }
         }
@@ -363,7 +418,7 @@ Item {
     OrbitCameraController {
         anchors.fill: parent
         origin: cameraOrigin; camera: camera; panEnabled: true
-        automaticClipping: true
+        automaticClipping: false
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     }
 
@@ -371,7 +426,13 @@ Item {
         id: cameraSettle
         interval: 140
         repeat: false
-        onTriggered: root.cameraMoving = false
+        onTriggered: {
+            if (root.deferredGalaxyData !== null) {
+                root.applyGalaxyData(root.deferredGalaxyData);
+                root.deferredGalaxyData = null;
+            }
+            root.cameraMoving = false;
+        }
     }
     Connections {
         target: cameraOrigin
@@ -428,18 +489,26 @@ Item {
         }
     }
 
-    Component.onCompleted: Qt.callLater(root.resetCamera)
+    Component.onCompleted: {
+        root.applyGalaxyData(root.galaxyData);
+        Qt.callLater(root.resetCamera);
+    }
     onFocusedProbeIdChanged: {
         root.hasCenteredOnProbe = false;
-        if (root.galaxyData.focusProbeId !== undefined
-                && Number(root.galaxyData.focusProbeId) === root.focusedProbeId)
+        if (root.renderedGalaxyData.focusProbeId !== undefined
+                && Number(root.renderedGalaxyData.focusProbeId) === root.focusedProbeId)
             Qt.callLater(root.resetCamera);
     }
     onGalaxyDataChanged: {
+        if (root.cameraMoving) {
+            root.deferredGalaxyData = root.galaxyData;
+            return;
+        }
+        const changed = root.applyGalaxyData(root.galaxyData);
         // Initial data commonly arrives after the QML component is created.
         // Center once when it becomes available, but preserve operator pan and
         // orbit choices across ordinary background refreshes.
-        if (!root.hasCenteredOnProbe)
+        if (changed && !root.hasCenteredOnProbe)
             Qt.callLater(root.resetCamera);
     }
 
@@ -452,7 +521,7 @@ Item {
             const identifier = String(hit.objectHit.objectName);
             if (identifier.indexOf("scut:") === 0) {
                 const coverageId = identifier.slice(5);
-                const boundary = root.galaxyData.scutCoverageBoundary || [];
+                const boundary = root.renderedGalaxyData.scutCoverageBoundary || [];
                 for (let i = 0; i < boundary.length; ++i) {
                     if (String(boundary[i].id) === coverageId) {
                         root.selectedCoveragePoint = boundary[i];
@@ -460,6 +529,18 @@ Item {
                     }
                 }
                 return;
+            }
+            if (identifier.indexOf("manny-location:") === 0) {
+                const locations = root.renderedGalaxyData.ownedMannyLocations || [];
+                const mannyId = identifier.slice(15);
+                for (let i = 0; i < locations.length; ++i) {
+                    if (String(locations[i].id) === mannyId) {
+                        const nodeId = String(locations[i].x) + ":" + String(locations[i].y) + ":" + String(locations[i].z);
+                        root.selectedNode = root.nodeById(nodeId);
+                        root.selectedCoveragePoint = null;
+                        return;
+                    }
+                }
             }
             root.selectedCoveragePoint = null;
             root.selectedNode = root.nodeById(identifier);
@@ -477,7 +558,7 @@ Item {
                 text: root.selectedCoveragePoint
                     ? "SCUT BOUNDARY · FCC " + root.selectedCoveragePoint.x + " / " + root.selectedCoveragePoint.y + " / " + root.selectedCoveragePoint.z
                         + " · " + (root.selectedCoveragePoint.networkNames || []).join(", ").toUpperCase()
-                    : root.nodes.length + " SECTORS · " + (root.galaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"
+                    : root.nodes.length + " SECTORS · " + (root.renderedGalaxyData.edges || []).length + " VERIFIED NEIGHBOR LINKS"
                 color: root.selectedCoveragePoint ? Constants.warningColor : Constants.mutedTextColor
                 font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: root.selectedCoveragePoint !== null
             }
@@ -558,6 +639,12 @@ Item {
                 CheckBox { text: "DROPPED CONTAINERS"; checked: root.salvageOnly; onToggled: root.salvageOnly = checked }
                 CheckBox {
                     Layout.columnSpan: 2
+                    text: "PLANET HABITABILITY ≥ 0.5"
+                    checked: root.habitablePlanetOnly
+                    onToggled: root.habitablePlanetOnly = checked
+                }
+                CheckBox {
+                    Layout.columnSpan: 2
                     text: "FOCUSED PROBE · RECENT 10 TRAIL"
                     checked: root.showRecentTrail; onToggled: root.showRecentTrail = checked
                 }
@@ -571,11 +658,16 @@ Item {
                     text: "SHOW X / Y / Z AXIS LABELS"
                     checked: root.showAxisLabels; onToggled: root.showAxisLabels = checked
                 }
+                CheckBox {
+                    Layout.columnSpan: 2
+                    text: "SHOW OWNED MANNY LOCATIONS"
+                    checked: root.showOwnedMannies; onToggled: root.showOwnedMannies = checked
+                }
             }
             Label {
                 visible: root.filtersExpanded; Layout.fillWidth: true
                 text: root.visibleNodes.length + " OF " + root.nodes.length + " SECTORS VISIBLE · "
-                    + Number(root.galaxyData.recentTrailCount || 0) + " RECENT ROUTE SEGMENTS"
+                    + Number(root.renderedGalaxyData.recentTrailCount || 0) + " RECENT ROUTE SEGMENTS"
                 color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12
             }
             }
@@ -615,6 +707,12 @@ Item {
             Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? root.selectedNode.label + "  ·  X " + root.selectedNode.x + "  Y " + root.selectedNode.y + "  Z " + root.selectedNode.z : "NO SECTOR SELECTED"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? (root.isGodSector(root.selectedNode) ? "GOD SECTOR · ALL FOUR RESOURCES    " : "") + "STATE · " + String(root.selectedNode.mapState || "unknown").toUpperCase() + "    VISITS · " + Number(root.selectedNode.visitCount || 0) + "    OBJECTS · " + Number(root.selectedNode.objectCount || 0) : "CLICK A SECTOR DOT FOR DETAILS"; color: root.selectedNode && root.isGodSector(root.selectedNode) ? "#ffd34d" : root.selectedNode ? root.colorFor(root.selectedNode) : Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true; wrapMode: Text.Wrap }
             Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? ((root.selectedNode.objectTypes || []).join(", ").toUpperCase() || "NO CATALOGUED OBJECTS") : ""; color: Constants.textColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
+            Label {
+                visible: root.selectedNode && Number(root.selectedNode.ownedMannyCount || 0) > 0
+                Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20
+                text: "OWNED MANNYS · " + (root.selectedNode.ownedMannies || []).map(function(manny) { return String(manny.name || manny.id); }).join(", ")
+                color: Constants.warningColor; font.family: Constants.technicalFont; font.pixelSize: 12; font.bold: true; wrapMode: Text.Wrap
+            }
             ScrollView {
                 id: sectorObjectsScroll
                 visible: root.selectedNode && (root.selectedNode.objects || []).length > 0
@@ -649,6 +747,7 @@ Item {
             Label { Layout.fillWidth: true; Layout.preferredWidth: sectorDetailPanel.width - 20; text: root.selectedNode ? "OBSERVED BY PROBES · " + ((root.selectedNode.probeIds || []).join(", ") || "NONE") + (root.selectedNode.lastVisitedAt ? "    LAST VISIT · " + root.selectedNode.lastVisitedAt : "") : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {
                 Label { Layout.fillWidth: true; text: root.selectedNode ? "KNOWLEDGE " + String(root.selectedNode.knowledgeLevel).toUpperCase() + " · " + Math.round(root.selectedNode.confidence * 100) + "% CONFIDENCE" : ""; color: Constants.mutedTextColor; font.family: Constants.technicalFont; font.pixelSize: 12 }
+                Button { text: "USE FOR TRAVEL"; enabled: root.selectedNode !== null; onClicked: if (root.selectedNode) root.travelRequested(root.selectedNode.x, root.selectedNode.y, root.selectedNode.z) }
                 Button { text: "SCAN / REFRESH"; enabled: root.selectedNode !== null; onClicked: if (root.selectedNode) root.scanRequested(root.selectedNode.x, root.selectedNode.y, root.selectedNode.z) }
             }
         }

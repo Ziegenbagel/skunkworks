@@ -17,6 +17,7 @@ class CapabilityDispatcher:
             CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,
             CommandType.MANNY_REPAIR: self._manny_repair,
             CommandType.MOVE_PROBE: self._move_probe,
+            CommandType.CANCEL_PROBE_MOVE: self._cancel_probe_move,
         }
         try:
             handler = handlers[command.type]
@@ -82,3 +83,6 @@ class CapabilityDispatcher:
             command.probe_id,
             command.payload["target"],
         )
+
+    def _cancel_probe_move(self, command):
+        return self.capabilities.probes.cancel_move(command.probe_id)

@@ -11,7 +11,7 @@ from pathlib import Path
 from src.application.paths import application_paths
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 class DataEngine:
@@ -21,12 +21,16 @@ class DataEngine:
     # one process. Share the last persisted sector/resource signature so each
     # worker does not append the same large snapshot again.
     _shared_world_history_signatures = {}
+    # Fleet automation creates short-lived DataEngine instances. Cartography
+    # is process-wide state backed by one database, so rebuilding the same
+    # large GalaxyMap once per worker wastes CPU and retains duplicate scene
+    # data until garbage collection catches up.
+    _shared_galaxy_caches = {}
 
     def __init__(self, path=None):
         self.path = Path(path) if path is not None else application_paths().database
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._galaxy_cache = None
-        self._galaxy_cache_built_at = 0.0
+        self._galaxy_cache_key = str(self.path.resolve())
         # WAL mode is persistent database state. Configuring it on every
         # short-lived read connection takes a write lock and turns otherwise
         # tiny preference/history lookups into multi-second stalls when the UI
@@ -37,6 +41,7 @@ class DataEngine:
         with closing(sqlite3.connect(self.path)) as connection:
             connection.execute("PRAGMA journal_mode = WAL")
         self._migrate()
+        self.run_daily_report_retention()
         self.run_due_maintenance()
 
     def set_preference(self, key, value):
@@ -601,7 +606,7 @@ class DataEngine:
             (int(probe_id), max(1, int(limit))),
         )
 
-    def compact_history(self, retain_high_resolution_days=30, *, vacuum=False):
+    def compact_history(self, retain_high_resolution_days=7, *, vacuum=False):
         """Downsample old telemetry while preserving every current state.
 
         Recent telemetry remains untouched. Older probe and resource history
@@ -693,6 +698,23 @@ class DataEngine:
             "vacuumed": bool(vacuum),
         }
 
+    def compact_legacy_history_once(self):
+        """Downsample pre-deduplication telemetry once after upgrading.
+
+        The refresh-signature fix stops new duplicate rows, but it cannot
+        remove the recent backlog produced by older releases. Preserve seven
+        days at full resolution and one daily sample thereafter. SQLite may
+        reuse the freed pages immediately; an exclusive VACUUM remains an
+        explicit maintenance operation so startup never blocks live control.
+        """
+
+        key = "legacy_history_compaction_v1"
+        if self.get_preference(key) == "complete":
+            return None
+        result = self.compact_history(7)
+        self.set_preference(key, "complete")
+        return result
+
     def run_due_maintenance(self, interval_days=7):
         """Downsample history at most weekly without an exclusive vacuum.
 
@@ -701,6 +723,7 @@ class DataEngine:
         work so only the first instance pays the bounded startup cost.
         """
 
+        legacy_result = self.compact_legacy_history_once()
         key = "last_history_compaction_at"
         now = datetime.now(UTC)
         interval = timedelta(days=max(1, int(interval_days)))
@@ -712,7 +735,7 @@ class DataEngine:
             if row:
                 try:
                     if now - datetime.fromisoformat(row["value"]) < interval:
-                        return None
+                        return legacy_result
                 except ValueError:
                     pass
             connection.execute(
@@ -725,7 +748,8 @@ class DataEngine:
                 """,
                 (key, now.isoformat(), now.isoformat()),
             )
-        return self.compact_history()
+        result = self.compact_history()
+        return result if result is not None else legacy_result
 
     def integrity_report(self):
         """Return non-mutating SQLite integrity and foreign-key results."""
@@ -1038,6 +1062,80 @@ class DataEngine:
                 (report_id, title, kind, content, self._now()),
             )
 
+    def set_archive_report_favorite(self, report_id, favorited):
+        """Persist operator protection for one local report."""
+
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE archive_reports SET favorited = ? WHERE id = ?",
+                (int(bool(favorited)), str(report_id)),
+            )
+        return cursor.rowcount > 0
+
+    def delete_archive_report(self, report_id):
+        """Delete one explicitly selected local report."""
+
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "DELETE FROM archive_reports WHERE id = ?", (str(report_id),),
+            )
+        return cursor.rowcount > 0
+
+    def delete_expired_daily_reports(self, retention_days=30, *, now=None):
+        """Remove old unfavorited daily reports and preserve every other archive."""
+
+        now = now or datetime.now().astimezone()
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, created_at FROM archive_reports
+                WHERE kind = 'daily_probe_report'
+                  AND favorited = 0
+                """,
+            ).fetchall()
+            expired_ids = [
+                row["id"] for row in rows
+                if self.daily_report_deletion_at(
+                    row["id"], row["created_at"], retention_days,
+                    timezone=now.tzinfo,
+                ) <= now
+            ]
+            if expired_ids:
+                connection.executemany(
+                    "DELETE FROM archive_reports WHERE id = ?",
+                    ((report_id,) for report_id in expired_ids),
+                )
+        return len(expired_ids)
+
+    @staticmethod
+    def daily_report_deletion_at(
+        report_id, created_at, retention_days=30, *, timezone=None,
+    ):
+        """Return the local 17:00 retention boundary for one daily report."""
+
+        timezone = timezone or datetime.now().astimezone().tzinfo
+        try:
+            report_day = datetime.strptime(
+                str(report_id).rsplit(":", 1)[-1], "%Y-%m-%d",
+            ).date()
+            created = datetime.combine(report_day, datetime.min.time(), timezone)
+        except (TypeError, ValueError):
+            created = datetime.fromisoformat(str(created_at)).astimezone(timezone)
+        return (created + timedelta(days=max(1, int(retention_days)))).replace(
+            hour=17, minute=0, second=0, microsecond=0,
+        )
+
+    def run_daily_report_retention(self, retention_days=30):
+        """Apply report retention at most once per UTC day per data store."""
+
+        key = "last_daily_report_retention_date"
+        today = datetime.now(UTC).date().isoformat()
+        if self.get_preference(key) == today:
+            return None
+        removed = self.delete_expired_daily_reports(retention_days)
+        self.set_preference(key, today)
+        return removed
+
     def archive_reports(self):
         return self._rows(
             "SELECT * FROM archive_reports ORDER BY created_at DESC, id", ()
@@ -1054,17 +1152,18 @@ class DataEngine:
         from src.intelligence.galaxy import GalaxyMapBuilder
 
         now = time.monotonic()
+        cached = self._shared_galaxy_caches.get(self._galaxy_cache_key)
         if (
-            self._galaxy_cache is not None
+            cached is not None
             and (
                 max_age_seconds is None
                 or (
                     max_age_seconds > 0
-                    and now - self._galaxy_cache_built_at < max_age_seconds
+                    and now - cached[0] < max_age_seconds
                 )
             )
         ):
-            return self._galaxy_cache
+            return cached[1]
 
         fleet_history = {
             "visitedSectors": [
@@ -1115,13 +1214,11 @@ class DataEngine:
                 probe_id=row["probe_id"],
             )
 
-        self._galaxy_cache = galaxy
-        self._galaxy_cache_built_at = now
+        self._shared_galaxy_caches[self._galaxy_cache_key] = (now, galaxy)
         return galaxy
 
     def _invalidate_galaxy_cache(self):
-        self._galaxy_cache = None
-        self._galaxy_cache_built_at = 0.0
+        self._shared_galaxy_caches.pop(self._galaxy_cache_key, None)
 
     def schema_version(self):
         with self._connect() as connection:
@@ -1319,10 +1416,20 @@ class DataEngine:
                     title TEXT NOT NULL,
                     kind TEXT NOT NULL,
                     content TEXT NOT NULL,
-                    created_at TEXT NOT NULL
+                    created_at TEXT NOT NULL,
+                    favorited INTEGER NOT NULL DEFAULT 0
                 );
                 """
             )
+            report_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(archive_reports)")
+            }
+            if "favorited" not in report_columns:
+                connection.execute(
+                    "ALTER TABLE archive_reports "
+                    "ADD COLUMN favorited INTEGER NOT NULL DEFAULT 0"
+                )
             connection.execute(
                 """
                 INSERT OR IGNORE INTO schema_migrations (

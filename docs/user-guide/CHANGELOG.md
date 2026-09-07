@@ -1,5 +1,17 @@
 # Operator Manual Revision History
 
+## 1.7 — 2026-09-07
+
+- Prepared the operator manual for Skunkworks 1.1 with Normal, Low Power,
+  Auto, and Scheduled operating profiles and reliable in-app and desktop
+  notification behavior.
+- Replaced the obsolete game-Logbook reporting instructions with local Daily
+  Reports, favorites, 30-day retention, Industrial Analysis, and searchable,
+  filterable, sortable Operational Archive guidance.
+- Documented inventory filters, cumulative probe assembly targets, manual
+  upgrade requirements, installed upgrade visibility, habitable-planet map
+  filtering, Others vessel presentation, and Relativistic Path Clearing.
+
 ## 1.6 — 2026-09-05
 
 - Added reviewed support for Others mothership wreck inspection and mining,

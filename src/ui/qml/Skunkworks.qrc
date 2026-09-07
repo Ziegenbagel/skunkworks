@@ -89,6 +89,7 @@
         <file>components/InventoryWorkspace.qml</file>
         <file>components/LogbookWorkspace.qml</file>
         <file>components/CommunicationsWorkspace.qml</file>
+        <file>components/ReportsWorkspace.qml</file>
         <file>components/ManualControlWorkspace.qml</file>
         <file>components/MapObjectMarker.qml</file>
         <file>components/MetricTile.qml</file>

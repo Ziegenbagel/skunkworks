@@ -5,8 +5,11 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: window
     property var backend: null
+    property string foregroundNotificationTitle: ""
+    property string foregroundNotificationMessage: ""
+    property var foregroundNotificationQueue: []
     readonly property bool hasLiveSnapshot: window.backend !== null
-        && Object.keys(window.backend.dashboard || ({})).length > 0
+        && Object.keys(window.backend.presentationDashboard || ({})).length > 0
     width: Constants.width
     height: Constants.height
     minimumWidth: Constants.minimumWidth
@@ -27,7 +30,8 @@ ApplicationWindow {
         id: missionControl
         anchors.fill: parent
         liveMode: window.backend !== null
-        dashboardData: window.backend ? window.backend.dashboard : ({})
+        dashboardData: window.backend ? window.backend.presentationDashboard : ({})
+        eventLoopDiagnostics: window.backend ? window.backend.eventLoopDiagnostics : ({})
         availableProbes: window.backend ? window.backend.availableProbes : previewProbes
         focusedProbeId: window.backend ? window.backend.focusedProbeId : availableProbes[0].id
         refreshing: window.backend ? window.backend.refreshing : false
@@ -35,6 +39,57 @@ ApplicationWindow {
         emergencyStopActive: window.backend ? window.backend.emergencyStopActive : false
         visible: !startupOverlay.visible
         onCombatControlsRequested: if (window.backend) window.backend.setActiveSection("MANUAL CONTROL")
+        onUiActivityReported: (section, activity) => {
+            if (window.backend)
+                window.backend.reportUiActivity(section, activity);
+        }
+    }
+
+    Connections {
+        target: window.backend
+        function onDesktopNotificationRequested(title, message) {
+            if (window.active && window.visibility !== Window.Minimized) {
+                if (window.foregroundNotificationTitle.length > 0) {
+                    window.foregroundNotificationQueue = window.foregroundNotificationQueue.concat([{"title": title, "message": message}]);
+                } else {
+                    window.showNextForegroundNotification(title, message);
+                }
+            }
+        }
+    }
+    function showNextForegroundNotification(title, message) {
+        window.foregroundNotificationTitle = String(title || "");
+        window.foregroundNotificationMessage = String(message || "");
+        foregroundNotificationTimer.restart();
+    }
+    function dismissForegroundNotification() {
+        foregroundNotificationTimer.stop();
+        if (window.foregroundNotificationQueue.length > 0) {
+            const next = window.foregroundNotificationQueue[0];
+            window.foregroundNotificationQueue = window.foregroundNotificationQueue.slice(1);
+            window.showNextForegroundNotification(next.title, next.message);
+        } else {
+            window.foregroundNotificationTitle = "";
+            window.foregroundNotificationMessage = "";
+        }
+    }
+    Timer { id: foregroundNotificationTimer; interval: 8000; onTriggered: window.dismissForegroundNotification() }
+    Rectangle {
+        id: foregroundNotificationBanner
+        z: 870
+        visible: window.foregroundNotificationTitle.length > 0
+        anchors.top: parent.top; anchors.topMargin: 88; anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width - 48, 900); height: 78
+        color: Constants.raisedColor; border.color: Constants.cyanColor; border.width: 2; radius: 4
+        RowLayout {
+            anchors.fill: parent; anchors.margins: 12; spacing: 12
+            ColumnLayout {
+                Layout.fillWidth: true; spacing: 3
+                Label { Layout.fillWidth: true; text: window.foregroundNotificationTitle.toUpperCase(); color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; elide: Text.ElideRight }
+                Label { Layout.fillWidth: true; text: window.foregroundNotificationMessage; color: Constants.textColor; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
+            }
+            Button { text: window.foregroundNotificationQueue.length > 0 ? "NEXT (" + window.foregroundNotificationQueue.length + ")" : "DISMISS"; onClicked: window.dismissForegroundNotification() }
+        }
     }
 
     Rectangle {
@@ -268,6 +323,7 @@ ApplicationWindow {
                     height: parent.height
                     color: Constants.cyanColor
                     SequentialAnimation on x {
+                        running: startupOverlay.visible
                         loops: Animation.Infinite
                         NumberAnimation { from: 0; to: 270; duration: 900; easing.type: Easing.InOutQuad }
                         NumberAnimation { from: 270; to: 0; duration: 900; easing.type: Easing.InOutQuad }
@@ -368,6 +424,13 @@ ApplicationWindow {
     Connections {
         target: missionControl.navigationWorkspaceControl
 
+        function onNavigationSectionRequested(section) {
+            AudioManager.play("navigate");
+            missionControl.currentNavigation = section;
+            if (window.backend)
+                window.backend.setActiveSection(section);
+        }
+
         function onProbeSelected(probeId) {
             AudioManager.play("select");
             if (window.backend)
@@ -380,6 +443,24 @@ ApplicationWindow {
             AudioManager.play("save");
             if (window.backend)
                 window.backend.saveAutomationSettings(settings);
+        }
+
+        function onOperatingProfileSaveRequested(name, idleMinutes, schedule) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.saveOperatingProfile(name, idleMinutes, schedule);
+        }
+
+        function onNotificationPolicySaveRequested(policy) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.saveNotificationPolicy(policy);
+        }
+
+        function onTestNotificationRequested() {
+            AudioManager.play("select");
+            if (window.backend)
+                window.backend.sendTestNotification();
         }
 
         function onShutdownRequested() {
@@ -673,6 +754,16 @@ ApplicationWindow {
         function onLogbookPageOpenRequested(pageId) {
             AudioManager.play("select");
             if (window.backend) window.backend.loadLogbookPage(pageId);
+        }
+
+        function onReportDeleteRequested(reportId) {
+            AudioManager.play("warning");
+            if (window.backend) window.backend.deleteLocalReport(reportId);
+        }
+
+        function onReportFavoriteChanged(reportId, favorited) {
+            AudioManager.play("save");
+            if (window.backend) window.backend.setLocalReportFavorite(reportId, favorited);
         }
 
         function onOperatorManualRequested() {

@@ -109,6 +109,59 @@ class DesiredStateTests(unittest.TestCase):
         self.assertEqual(travel.constraints, ())
         self.assertTrue(travel.workflow_authorized)
 
+    def test_auto_travel_cancels_preparing_jump_when_manny_is_not_aboard(self):
+        state = DesiredState(
+            travel=TravelGoal(SectorCoordinates(1, 1, 0)),
+        )
+        operations = build_operations()
+        operations.world.probe["movement"] = {"status": "preparing"}
+        operations.world.mannies["mannies"][0].update({
+            "currentTask": {"type": "mining"},
+            "canReceiveOrders": False,
+            "location": {"type": "sector"},
+        })
+
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+
+        self.assertEqual(travel.action, "Cancel Automatic Travel")
+        self.assertTrue(travel.workflow_authorized)
+        self.assertEqual(travel.constraints, ())
+
+    def test_auto_travel_allows_recovery_trip_to_missing_manny_sector(self):
+        destination = SectorCoordinates(1, 1, 0)
+        state = DesiredState(travel=TravelGoal(destination))
+        operations = build_operations()
+        operations.world.mannies["mannies"][0].update({
+            "currentTask": None,
+            "canReceiveOrders": False,
+            "location": {
+                "type": "sector",
+                "sector": {"relative": {"x": 1, "y": 1, "z": 0}},
+            },
+        })
+
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+
+        self.assertEqual(travel.action, "Move Probe")
+        self.assertNotIn("mannies_not_aboard", travel.constraints)
+        self.assertNotIn("mannies_unavailable_for_travel", travel.constraints)
+
+        operations.world.probe["status"] = "preparing"
+        operations.world.probe["movement"] = {
+            "status": "preparing", "target": {"x": 1, "y": 1, "z": 0},
+        }
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+        self.assertNotEqual(travel.action, "Cancel Automatic Travel")
+
     def test_auto_travel_waits_before_leaving_scut_coverage(self):
         destination = SectorCoordinates(2, 2, 0)
         state = DesiredState(travel=TravelGoal(destination))
@@ -278,11 +331,22 @@ class DesiredStateTests(unittest.TestCase):
             DesiredState(fleet=(FleetGoal("deuterium_tanker", 1, priority=4),)),
         ).tasks()
 
-        tanker = next(task for task in tasks if task.category == "fleet_assembly")
-        self.assertEqual(tanker.action, "Prepare Manufacturing")
-        self.assertEqual(tanker.target, "deuterium_engine")
-        self.assertIn("tanker goal", tanker.reason)
-        self.assertEqual(tanker.priority, 4)
+        summary = next(
+            task for task in tasks
+            if task.category == "fleet_assembly"
+            and task.target == "deuterium_tanker"
+        )
+        component = next(
+            task for task in tasks
+            if task.category == "fleet_assembly"
+            and task.target == "deuterium_engine"
+        )
+        self.assertEqual(summary.action, "Prepare Probe Assembly")
+        self.assertIn("Next assembly kit", summary.reason)
+        self.assertEqual(component.action, "Prepare Manufacturing")
+        self.assertIn("tanker goal", component.reason)
+        self.assertEqual(summary.priority, 4)
+        self.assertEqual(component.priority, 4)
 
     def test_round_trips_all_goal_types(self):
         state = DesiredState(

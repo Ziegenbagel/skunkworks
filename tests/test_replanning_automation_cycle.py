@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from src.execution import Command, CommandType, ExecutionMode, ExecutionPolicy, PreparedCommand
 from src.execution.runtime import ExecutionResult
+from src.planner.desired_state import DesiredState, FuelGoal
 from src.planner.task import Task
 from src.ui.controller import MissionControlDataService
 
@@ -73,6 +74,22 @@ def test_preflight_refresh_reuses_immediate_dispatch_burst_snapshot():
     with patch("src.ui.controller.time.monotonic", return_value=20.0):
         service._preflight_operations_cached_at = 18.0
         assert service._refresh_operations(7) is cached
+
+
+def test_reserve_tanker_role_adds_refill_to_full_mining_goal():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service.data_engine = SimpleNamespace(fleet_roles=lambda _kind: ({
+        "asset_id": 7, "role": "deuterium_reserve",
+    },))
+    desired = DesiredState(fuel=FuelGoal(minimum_percent=20, priority=5))
+    operations = SimpleNamespace(
+        world=SimpleNamespace(probe={"model": "deuterium_tanker"}),
+    )
+    effective = service._apply_probe_role_goals(desired, operations, 7)
+
+    assert effective.fuel.minimum_percent == 100
+    assert effective.fuel.priority == 2
+    assert desired.fuel.minimum_percent == 20
 
 
 def test_automatic_cycle_replans_after_each_successful_order():

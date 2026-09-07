@@ -16,6 +16,7 @@ Item {
     property alias hoverEnabled: preferences.hoverEnabled
     property alias muted: preferences.muted
     readonly property bool musicPlaying: musicPlayer.playbackState === MediaPlayer.PlayingState
+    readonly property url navigationEffectSource: Qt.resolvedUrl("../../assets/audio/sfx/button/soft-ui-button-click.ogg")
 
     Settings {
         id: preferences
@@ -48,6 +49,10 @@ Item {
         // AudioOutput were silent on the macOS AVFoundation backend.
         id: effectPlayer
         audioOutput: effectsOutput
+        // Navigation is the dominant effect. Preload it once and do not assign
+        // the same source again on every tab click: AVFoundation can perform a
+        // multi-second synchronous media teardown/reload on source assignment.
+        source: root.navigationEffectSource
     }
 
     function startMusic() {
@@ -73,7 +78,10 @@ Item {
         };
         const nextSource = Qt.resolvedUrl(sources[eventName] || sources.press);
         effectPlayer.stop();
-        effectPlayer.source = nextSource;
+        if (String(effectPlayer.source) !== String(nextSource))
+            effectPlayer.source = nextSource;
+        else
+            effectPlayer.position = 0;
         effectPlayer.play();
     }
     function hover() {

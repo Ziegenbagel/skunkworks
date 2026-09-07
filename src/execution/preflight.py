@@ -37,6 +37,8 @@ class PreflightValidator:
             blockers.extend(
                 self._move_blockers(command)
             )
+        if command.type == CommandType.CANCEL_PROBE_MOVE:
+            blockers.extend(self._cancel_move_blockers())
 
         if command.type in {
             CommandType.MANNY_CRAFT,
@@ -122,6 +124,10 @@ class PreflightValidator:
             )
             if blocker != "already_at_destination"
         )
+        if command.metadata.get("workflowAuthorized", False):
+            blockers.extend(
+                self.operations.travel.automatic_manny_departure_blockers(coordinates)
+            )
         if command.metadata.get("requireScutCoverage"):
             origin = self.operations.travel.current_sector()
             if origin is not None and (
@@ -132,3 +138,16 @@ class PreflightValidator:
             ):
                 blockers.append("route_leaves_scut_coverage")
         return tuple(dict.fromkeys(blockers))
+
+    def _cancel_move_blockers(self):
+        movement = self.operations.world.probe.get("movement") or {}
+        phase = str(
+            movement.get("phase") or movement.get("status") or ""
+        ).casefold()
+        blockers = []
+        if phase != "preparing":
+            blockers.append("movement_not_cancellable")
+        target = self.operations.travel.active_movement_target()
+        if not self.operations.travel.automatic_manny_departure_blockers(target):
+            blockers.append("all_mannies_aboard")
+        return tuple(blockers)

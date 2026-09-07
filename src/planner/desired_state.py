@@ -112,7 +112,7 @@ class TravelGoal:
 
 @dataclass(frozen=True)
 class FleetGoal:
-    """Desired assembled fleet size by probe model."""
+    """Cumulative number of probes this probe should assemble by model."""
 
     model: str
     quantity: int

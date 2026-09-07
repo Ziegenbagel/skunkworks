@@ -161,35 +161,18 @@ def test_new_manny_appends_to_sequence_even_when_its_id_sorts_first():
 
 
 def test_refresh_detects_unseen_manny_without_waiting_for_periodic_audit():
-    controller = MissionControlController.__new__(MissionControlController)
-    controller._focused_probe_id = 1
-    controller.settings_engine = _Preferences()
-    controller.settings_engine.set_preference(
-        "probe_manny_naming_seen:1", '["m1", "m2"]',
+    unseen = MissionControlDataService._unseen_manny_ids_from_rows(
+        [{"id": "m1"}, {"id": "m2"}, {"id": "m3"}],
+        ["m1", "m2"],
     )
-
-    unseen = controller._unseen_manny_ids({
-        "focusedProbeId": 1,
-        "inventoryManagement": {
-            "mannies": [{"id": "m1"}, {"id": "m2"}, {"id": "m3"}],
-        },
-    })
 
     assert unseen == ("m3",)
 
 
 def test_refresh_uses_nested_focus_id_during_startup():
-    controller = MissionControlController.__new__(MissionControlController)
-    controller._focused_probe_id = -1
-    controller.settings_engine = _Preferences()
-    controller.settings_engine.set_preference(
-        "probe_manny_naming_seen:644", '["m1"]',
+    unseen = MissionControlDataService._unseen_manny_ids_from_rows(
+        [{"id": "m1"}, {"id": "m2"}], ["m1"],
     )
-
-    unseen = controller._unseen_manny_ids({
-        "focus": {"probeId": 644, "name": "Hub"},
-        "inventoryManagement": {"mannies": [{"id": "m1"}, {"id": "m2"}]},
-    })
 
     assert unseen == ("m2",)
 

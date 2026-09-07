@@ -20,6 +20,7 @@ class TaskCommandTranslator:
             "Mine Resource": self._mine,
             "Mine Deuterium": self._mine,
             "Move Probe": self._move,
+            "Cancel Automatic Travel": self._cancel_move,
             "Assemble Probe": self._assemble_probe,
             "Repair Probe": self._repair,
             "Transfer Deuterium": self._transfer_deuterium,
@@ -27,6 +28,17 @@ class TaskCommandTranslator:
         }.get(task.action)
 
         return handler(task) if handler is not None else None
+
+    def _cancel_move(self, task):
+        return Command(
+            type=CommandType.CANCEL_PROBE_MOVE,
+            probe_id=self.probe_id,
+            payload={},
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+            metadata={"workflowAuthorized": bool(task.workflow_authorized)},
+        )
 
     def _refill_deuterium_tank(self, task):
         manny = self._claim_idle_manny()
@@ -40,7 +52,10 @@ class TaskCommandTranslator:
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
-            metadata={"workflowAuthorized": bool(task.workflow_authorized)},
+            metadata={
+                "workflowAuthorized": bool(task.workflow_authorized),
+                "mannyName": manny.get("name") or "Manny",
+            },
         )
 
     def _transfer_deuterium(self, task):
@@ -62,6 +77,7 @@ class TaskCommandTranslator:
                 "resource": "deuterium",
                 "transportTransfer": True,
                 "workflowAuthorized": bool(task.workflow_authorized),
+                "mannyName": manny.get("name") or "Manny",
             },
         )
 
@@ -77,6 +93,7 @@ class TaskCommandTranslator:
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
+            metadata={"mannyName": manny.get("name") or "Manny"},
         )
 
     def _craft(self, task):
@@ -134,6 +151,8 @@ class TaskCommandTranslator:
                 # Identities distinguish the legitimate replacement order from
                 # the earlier successful command without weakening retries.
                 "outputItemIds": output_item_ids,
+                **({"mannyName": manny.get("name") or "Manny"}
+                   if command_type == CommandType.MANNY_CRAFT else {}),
             },
         )
 
@@ -171,6 +190,9 @@ class TaskCommandTranslator:
         api_target_amount = round(target_amount / unit_scale, 4)
         trips = max(1, int((target_amount / (trip_capacity * unit_scale)) + 0.999999))
         target_container = self._preferred_mining_container(task.target, resource_type)
+        sector = (
+            (self.operations.world.probe.get("sector") or {}).get("relative") or {}
+        )
 
         payload = {
             "objectId": task.target,
@@ -198,11 +220,20 @@ class TaskCommandTranslator:
                 "plannedMiningWorkers": planned_workers,
                 "backgroundWork": bool(task.background_work),
                 "remainingAmount": max(0, round(float(task.quantity) - target_amount, 3)),
+                "mannyName": manny.get("name") or "Manny",
+                "sector": {
+                    axis: sector.get(axis) for axis in ("x", "y", "z")
+                    if sector.get(axis) is not None
+                },
             },
         )
 
     def _preferred_mining_container(self, asteroid_id, resource_type):
         """Prefer a resource-routed detached depot, then an unassigned empty one."""
+        # Deuterium mining refills the probe's tank. A detached storage object
+        # is not a valid destination for that API operation.
+        if resource_type == "deuterium":
+            return None
         candidates = []
         for container in self.operations.containers.detached():
             if self.operations.containers.free_capacity(container) <= 0:
@@ -247,7 +278,10 @@ class TaskCommandTranslator:
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
-            metadata={"model": "deuterium_tanker", "durationSeconds": 10800},
+            metadata={
+                "model": "deuterium_tanker", "durationSeconds": 10800,
+                "mannyName": manny.get("name") or "Manny",
+            },
         )
 
     def _move(self, task):

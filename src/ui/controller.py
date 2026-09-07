@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import traceback
+import hashlib
 import json
+import logging
 import random
 import re
 import sys
@@ -12,7 +14,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 import requests
-from PySide6.QtCore import QCoreApplication, QObject, Property, QRunnable, QThreadPool, QTimer, QUrl, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QEvent, QObject, Property, QRunnable, QThreadPool, QTimer, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 
 from src.api.capabilities import GameCapabilities
@@ -29,6 +31,7 @@ from src.application.probe_selector import ProbeSelector
 from src.data import DataEngine
 from src.intelligence.world_builder import WorldBuilder
 from src.operations.operations import Operations
+from src.operations.manufacturing import ManufacturingService
 from src.operations.logistics import FleetRoleService, TankerLogisticsService
 from src.operations import OperationFactory, OperationStore, RoundTripTransportPlan
 from src.presentation import MissionControlViewModelBuilder
@@ -52,6 +55,18 @@ from src.execution import (
 from src.execution.policy import ExecutionPolicyStore
 from src.diagnostics import diagnostic_log_directory, log_handled_error
 from src.reporting import DailyProbeReportService
+from src.application.operating_profile import (
+    PROFILES,
+    load_operating_profile,
+    load_operating_profile_idle_minutes,
+    load_operating_profile_schedule,
+    resolve_effective_operating_profile,
+    resolve_scheduled_operating_profile,
+    save_operating_profile,
+    save_operating_profile_idle_minutes,
+    save_operating_profile_schedule,
+)
+from src.application.notifications import NotificationCoordinator, load_policy, save_policy
 
 
 class ManualCraftReservationConflict(ValueError):
@@ -107,7 +122,7 @@ class MissionControlDataService:
     def load(
         self, probe_id=None, include_archival=True, progress=None,
         prefer_cached_fleet=False, priority_section=None,
-        priority_progress=None,
+        priority_progress=None, archival_sync_seconds=300,
     ):
         report = progress or (lambda percent, label: None)
         load_started = time.monotonic()
@@ -166,7 +181,10 @@ class MissionControlDataService:
         report(42, "Loading sector and inventory")
         world = self._build_world(player, probe_data, probe, selected, None)
         if selected.get("isReachable", True):
-            if int(self.api_version or 0) >= 128:
+            if (
+                int(self.api_version or 0) >= 128
+                and not self._probe_is_in_active_travel(world.probe)
+            ):
                 world.sector["autonomousUnits"] = timed(
                     "autonomousUnits",
                     lambda: self._autonomous_units(selected["id"]),
@@ -184,7 +202,7 @@ class MissionControlDataService:
         should_sync_history = (
             include_archival
             and bool(selected.get("isDefault"))
-            and now - self._history_sync_at.get(selected_id, 0) >= 300
+            and now - self._history_sync_at.get(selected_id, 0) >= max(60, int(archival_sync_seconds))
         )
         if should_sync_history:
             report(62, "Synchronizing fleet history")
@@ -284,7 +302,7 @@ class MissionControlDataService:
         for option in options:
             if option["id"] == selected["id"]:
                 option["sectorLabel"] = dashboard["focus"]["sectorLabel"]
-                option["status"] = dashboard["focus"]["status"]
+                option["status"] = self._probe_display_status(dashboard["focus"])
                 option["model"] = dashboard["focus"]["model"]
         dashboard["probeOptions"] = options
         default_probe = next(
@@ -306,6 +324,24 @@ class MissionControlDataService:
         }
         dashboard["syncFailures"] = sync_failures
         dashboard["emergencyStopActive"] = self.data_engine.emergency_stop_active()
+        dashboard["combatSafety"] = {
+            "emergencyMissileEscapeEnabled": self.data_engine.get_preference(
+                f"emergency_missile_escape:{selected_id}", "false",
+            ) == "true",
+            "handledMissileIds": self._preference_json_list(
+                f"emergency_missile_escape_handled:{selected_id}",
+            ),
+            "targetedMannyRecallEnabled": self.data_engine.get_preference(
+                f"targeted_manny_recall:{selected_id}", "false",
+            ) == "true",
+            "handledTargetedMannyAlertIds": self._preference_json_list(
+                f"targeted_manny_recall_handled:{selected_id}",
+            ),
+        }
+        dashboard["unseenMannyIds"] = self._unseen_manny_ids_from_rows(
+            dashboard.get("inventoryManagement", {}).get("mannies", ()),
+            self._preference_json_list(f"probe_manny_naming_seen:{selected_id}"),
+        )
         if self._last_scan_result is not None:
             dashboard.setdefault("navigation", {})["scanResult"] = self._last_scan_result
         desired_state = DesiredStateStore(self.data_engine).load(selected["id"])
@@ -330,24 +366,29 @@ class MissionControlDataService:
                 **{key: dashboard[key] for key in priority_keys if key in dashboard},
             })
         automation = desired_state.to_dict()
-        probes = world.fleet.get("probes", ()) if getattr(world, "fleet", None) else (probe,)
-        model_counts = {}
-        for fleet_probe in probes:
-            model = fleet_probe.get("model", "generic")
-            model_counts[model] = model_counts.get(model, 0) + 1
+        from src.planner.assembly import (
+            active_probe_assembly_count, recorded_probe_assembly_count,
+        )
+        assembly_counts = {
+            goal.model: max(
+                recorded_probe_assembly_count(operations, goal.model),
+                active_probe_assembly_count(operations, goal.model),
+            )
+            for goal in desired_state.fleet
+        }
         automation["fleetStatus"] = [
             {
                 "model": goal.model,
-                "current": model_counts.get(goal.model, 0),
+                "current": assembly_counts.get(goal.model, 0),
                 "target": goal.quantity,
-                "shortage": max(0, goal.quantity - model_counts.get(goal.model, 0)),
+                "shortage": max(0, goal.quantity - assembly_counts.get(goal.model, 0)),
                 "priority": goal.priority,
             }
             for goal in desired_state.fleet
         ]
         live_target_status = []
         for goal in desired_state.fleet:
-            current = model_counts.get(goal.model, 0)
+            current = assembly_counts.get(goal.model, 0)
             remaining = max(0, goal.quantity - current)
             live_target_status.append({
                 "category": "FLEET",
@@ -355,7 +396,7 @@ class MissionControlDataService:
                 "priority": goal.priority,
                 "met": remaining == 0,
                 "statusText": (
-                    f"{current} current / {goal.quantity} target · "
+                    f"{current} assembled by this probe / {goal.quantity} cumulative target · "
                     f"{remaining} remaining to assemble"
                 ),
             })
@@ -433,6 +474,10 @@ class MissionControlDataService:
             except (TypeError, ValueError, json.JSONDecodeError):
                 role_settings = {}
             automation["probeRoleSettings"][str(row["asset_id"])] = role_settings
+        probes = (
+            world.fleet.get("probes", ())
+            if getattr(world, "fleet", None) else (probe,)
+        )
         reserve_sources = FleetRoleService(self.data_engine).deuterium_sources(probes)
         automation["deuteriumSources"] = reserve_sources
         automation["availableReserveDeuterium"] = sum(
@@ -508,11 +553,16 @@ class MissionControlDataService:
             "displayName": improvement.get("name") or str(improvement.get("id", "")).replace("_", " ").title(),
             "description": improvement.get("description", ""),
             "durationSeconds": int(improvement.get("durationSeconds", 0) or 0),
-            "ingredients": tuple(improvement.get("ingredients", ())),
+            "ingredients": self._improvement_ingredients_view(
+                world, self.recipes, improvement,
+            ),
         } for improvement in improvements_response.get("improvements", ())
           if improvement.get("available", False)
           and not improvement.get("done", False)
           and improvement.get("installableOnProbe", True))
+        dashboard["activeProbeImprovements"] = self._active_probe_improvements_view(
+            improvements_response,
+        )
         owned_probe_ids = {
             int(item.get("id")) for item in probe_data.get("probes", ())
             if item.get("id") is not None
@@ -536,18 +586,27 @@ class MissionControlDataService:
             } for response in world.hazard_context.get("scutNetworks", ())
               if (network := response.get("network") or {}).get("id") is not None),
         }
-        if include_archival and bool(selected.get("isDefault")):
-            daily_result = {"created": [], "failures": []}
-            if self.data_engine.get_preference("auto_game_logbook", "false") == "true":
-                daily_result = DailyProbeReportService(self.data_engine).generate_due(
-                    probe_data.get("probes", ()),
-                    automation["probeRoles"],
-                    lambda candidate_id, payload: self.capabilities.probes.create_logbook_page(
-                        candidate_id, payload
-                    ),
+        daily_result = {"created": [], "failures": []}
+        if (
+            bool(selected.get("isDefault"))
+            and self.data_engine.get_preference(
+                "auto_daily_reports",
+                self.data_engine.get_preference("auto_game_logbook", "false"),
+            ) == "true"
+        ):
+            # Local report generation uses retained SQLite evidence only. It
+            # remains eligible when API-budget pressure defers archival reads.
+            daily_result = DailyProbeReportService(self.data_engine).generate_local_due(
+                probe_data.get("probes", ()), automation["probeRoles"],
+            )
+            if daily_result["created"]:
+                dashboard["reports"] = MissionControlViewModelBuilder(
+                    self._operations, self.data_engine,
+                )._reports(
+                    self.data_engine.archive_reports(),
+                    dashboard.get("actions", ()), dashboard.get("operations", ()),
                 )
-                if daily_result["created"]:
-                    self._logbook_cache.clear()
+        if include_archival and bool(selected.get("isDefault")):
             cached_logbook = self._logbook_cache.get(selected_id)
             if cached_logbook is None or now - cached_logbook[0] >= 300:
                 cached_logbook = (
@@ -556,13 +615,13 @@ class MissionControlDataService:
                 )
                 self._logbook_cache[selected_id] = cached_logbook
             dashboard["logbook"] = cached_logbook[1]
-            dashboard["logbook"]["dailyReportFailures"] = daily_result["failures"]
         else:
             cached_logbook = self._logbook_cache.get(selected_id)
             if cached_logbook is None or now - cached_logbook[0] >= 300:
                 cached_logbook = (now, self.logbook_view(selected_id, (selected,)))
                 self._logbook_cache[selected_id] = cached_logbook
             dashboard["logbook"] = cached_logbook[1]
+        dashboard["logbook"]["dailyReportFailures"] = daily_result["failures"]
         timings["displayData"] = round(
             time.monotonic() - display_data_started, 3,
         )
@@ -571,9 +630,110 @@ class MissionControlDataService:
             "elapsedSeconds": timings["total"],
             "stages": timings,
             "reusedFleetIndex": reused_fleet_index,
+            "archivalHistoryState": (
+                "synchronized" if should_sync_history
+                else "deferred" if include_archival and bool(selected.get("isDefault"))
+                else "not_requested"
+            ),
+            "archivalSyncSeconds": max(60, int(archival_sync_seconds)),
+            "apiRequestBudget": dict(getattr(self.client, "rate_limit", {}) or {}),
+            "backgroundApiWorkAllowed": bool(
+                getattr(self.client, "background_budget_available", lambda: True)()
+            ),
+        }
+        # Stable worker-computed revisions let QML keep large section models
+        # when an unrelated part of the dashboard changes.  Hashing belongs
+        # here, not in a GUI-thread property handler.
+        revision_groups = {
+            "production": ("production",),
+            "manualControl": (
+                "automationRuntime", "blueprintSharing", "combatSafety",
+                "crafting", "inventoryManagement", "probe",
+                "probeImprovements", "activeProbeImprovements", "automation",
+            ),
+            "settings": (
+                "automation", "automationRuntime", "credentials",
+                "focus", "refreshDiagnostics",
+            ),
+            "navigation": ("navigation", "travelPreview", "automation", "focus"),
+            "resources": ("resourceLedger",),
+            "fleet": ("probe", "inventoryManagement", "automation"),
+            "safety": ("alerts", "terminalRecovery"),
+            "communications": ("communications", "logbook", "reports"),
+        }
+        dashboard["sectionRevisions"] = {
+            name: hashlib.sha1(json.dumps(
+                {key: dashboard.get(key) for key in keys},
+                sort_keys=True, default=str,
+            ).encode("utf-8")).hexdigest()
+            for name, keys in revision_groups.items()
         }
         report(100, "Mission control ready")
         return dashboard
+
+    @staticmethod
+    def _improvement_ingredients_view(world, recipes, improvement):
+        """Describe upgrade inputs and live stored availability for the UI."""
+
+        inventory = (world.probe.get("inventory") or {})
+        resource_amounts = {
+            str(stock.get("type")): sum(
+                float(placement.get("amount", 0) or 0)
+                for placement in (stock.get("containers") or ())
+            ) if stock.get("containers") else float(stock.get("amount", 0) or 0)
+            for stock in (inventory.get("resourceStocks") or ())
+        }
+        manufacturing = ManufacturingService(world, recipes)
+        result = []
+        for ingredient in improvement.get("ingredients", ()):
+            item = dict(ingredient)
+            ingredient_type = str(item.get("type") or "unknown")
+            kind = str(item.get("kind") or "item")
+            required = float(item.get("quantity", 0) or 0)
+            available = (
+                resource_amounts.get(ingredient_type, 0.0)
+                if kind == "resource"
+                else float(manufacturing.inventory_count(
+                    ingredient_type, include_active=False,
+                ))
+            )
+            recipe = recipes.get(ingredient_type) or {}
+            item.update({
+                "name": recipe.get("name") or ingredient_type.replace("_", " ").title(),
+                "available": available,
+                "sufficient": available >= required,
+            })
+            result.append(item)
+        return tuple(result)
+
+    @staticmethod
+    def _active_probe_improvements_view(response):
+        """Present completed, probe-installable improvements for the focused probe."""
+        return tuple({
+            "id": improvement.get("id"),
+            "displayName": (
+                improvement.get("name")
+                or str(improvement.get("id", "")).replace("_", " ").title()
+            ),
+            "description": improvement.get("description", ""),
+        } for improvement in response.get("improvements", ())
+          if improvement.get("done", False)
+          and improvement.get("installableOnProbe", True))
+
+    def _preference_json_list(self, key):
+        try:
+            value = json.loads(self.data_engine.get_preference(key, "[]") or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return ()
+        return tuple(str(item) for item in value)
+
+    @staticmethod
+    def _unseen_manny_ids_from_rows(rows, seen):
+        seen_ids = {str(value) for value in seen}
+        return tuple(
+            str(item.get("id")) for item in rows or ()
+            if item.get("id") is not None and str(item.get("id")) not in seen_ids
+        )
 
     def _autonomous_units(self, probe_id):
         """Read every v128 page without allowing a broken cursor to loop."""
@@ -587,10 +747,14 @@ class MissionControlDataService:
                     probe_id, limit=500, cursor=cursor,
                 )
             except requests.HTTPError as error:
-                # OpenAPI explicitly permits a transient 503 for this optional
-                # observation. Core probe/sector telemetry remains valid, so
-                # do not turn that auxiliary outage into a frozen dashboard.
-                if error.response is None or error.response.status_code != 503:
+                # The observation is optional local-sector telemetry. The API
+                # returns 404 while some probes are traveling and explicitly
+                # permits transient 503 responses. Neither invalidates core
+                # probe telemetry or the operator's probe selection.
+                if (
+                    error.response is None
+                    or error.response.status_code not in {404, 503}
+                ):
                     raise
                 break
             units.extend(response.get("autonomousUnits", ()) or ())
@@ -600,6 +764,18 @@ class MissionControlDataService:
             seen_cursors.add(next_cursor)
             cursor = next_cursor
         return tuple(units)
+
+    @staticmethod
+    def _probe_is_in_active_travel(probe):
+        movement = probe.get("movement") or probe.get("travel") or {}
+        status = str(
+            movement.get("phase") or movement.get("status")
+            or probe.get("status", "")
+        ).strip().casefold()
+        return status in {
+            "preparing", "accelerating", "cruising", "decelerating",
+            "traveling", "moving", "in_transit",
+        }
 
     @staticmethod
     def _app_version():
@@ -641,7 +817,7 @@ class MissionControlDataService:
             "pages": summaries,
             "focusedProbeId": probe_id,
             "failures": failures,
-            "autoLoggingEnabled": self.data_engine.get_preference("auto_game_logbook", "false") == "true",
+            "autoLoggingEnabled": self.data_engine.get_preference("auto_daily_reports", self.data_engine.get_preference("auto_game_logbook", "false")) == "true",
             "newDailyReportCount": sum(1 for item in summaries if item.get("isNewDailyReport")),
         }
 
@@ -699,6 +875,9 @@ class MissionControlDataService:
             tasks = ()
         else:
             desired = DesiredStateStore(self.data_engine).load(probe_id)
+            desired = self._apply_probe_role_goals(
+                desired, operations, probe_id,
+            )
             desired = self._reconcile_completed_autonomous_travel(
                 operations,
                 probe_id,
@@ -763,6 +942,35 @@ class MissionControlDataService:
             } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
         }
+
+    def _apply_probe_role_goals(self, desired, operations, probe_id):
+        """Add operational goals implied by a probe's assigned fleet role."""
+        if not hasattr(self.data_engine, "fleet_roles"):
+            return desired
+        role = next((
+            row["role"] for row in FleetRoleService(self.data_engine).all("probe")
+            if int(row["asset_id"]) == int(probe_id)
+        ), None)
+        if (
+            role != "deuterium_reserve"
+            or str(
+                getattr(getattr(operations, "world", None), "probe", {}).get(
+                    "model", "",
+                )
+            ) != "deuterium_tanker"
+        ):
+            return desired
+        # A reserve tanker needs surplus before it can refill the next probe in
+        # its chain. Its saved fuel target remains the operator's baseline, but
+        # this role adds an effective refill-to-full goal while assigned.
+        return replace(
+            desired,
+            fuel=replace(
+                desired.fuel,
+                minimum_percent=100,
+                priority=min(desired.fuel.priority, 2),
+            ),
+        )
 
     @staticmethod
     def _dispatch_order(task):
@@ -2123,7 +2331,7 @@ class MissionControlDataService:
             self._selected_probe_id, item_id, amount, container_id,
         )
 
-    def inventory_manny_action(self, action, manny_id, payload):
+    def inventory_manny_action(self, action, manny_id, payload, probe_id=None):
         allowed = {
             "detach-storage-container",
             "drop-storage-container",
@@ -2155,7 +2363,8 @@ class MissionControlDataService:
                 raise ValueError("Select a valid same-sector target probe.")
             payload["targetProbeId"] = target_probe_id
         return self.capabilities.mannies.start_task(
-            self._selected_probe_id, manny_id, action, payload,
+            int(probe_id) if probe_id is not None else self._selected_probe_id,
+            manny_id, action, payload,
         )
 
     def manual_craft(self, recipe_id, manny_id, override_reservations=False):
@@ -2469,6 +2678,19 @@ class MissionControlDataService:
         }
 
     @staticmethod
+    def _probe_display_status(probe):
+        """Normalize stationary arrival telemetry for operator-facing lists."""
+        movement = probe.get("movement") or probe.get("travel") or {}
+        status = (
+            movement.get("phase") or movement.get("status")
+            or probe.get("status", "unknown")
+        )
+        normalized = str(status or "unknown").strip().casefold()
+        # The fleet API may retain ARRIVED as the final phase for weeks. It is
+        # a completed transition, not a continuing operational state.
+        return "idle" if normalized == "arrived" else normalized
+
+    @staticmethod
     def _probe_option(probe):
         sector = probe.get("sector") or {}
         coordinates = sector.get("relative") or sector.get("relativeCoordinates") or {}
@@ -2483,7 +2705,7 @@ class MissionControlDataService:
             "id": int(probe["id"]),
             "name": probe.get("name", f"Probe {probe['id']}"),
             "model": probe.get("model", "generic"),
-            "status": (probe.get("movement") or probe.get("travel") or {}).get("phase") or (probe.get("movement") or probe.get("travel") or {}).get("status") or probe.get("status", "unknown"),
+            "status": MissionControlDataService._probe_display_status(probe),
             "sectorLabel": label,
             "isReachable": probe.get("isReachable", True),
             "isDefault": probe.get("isDefault", False),
@@ -2725,6 +2947,7 @@ class MissionControlDataService:
 class _WorkerSignals(QObject):
     succeeded = Signal(object)
     failed = Signal(str)
+    call_failed = Signal(object)
     progress = Signal(int, str)
     priority = Signal(object)
     probe_completed = Signal(object)
@@ -2743,7 +2966,7 @@ def _safe_emit(signal, *args):
 class _RefreshWorker(QRunnable):
     def __init__(
         self, service, probe_id, prefer_cached_fleet=False,
-        include_archival=True, priority_section=None,
+        include_archival=True, priority_section=None, archival_sync_seconds=300,
     ):
         super().__init__()
         self.service = service
@@ -2751,12 +2974,16 @@ class _RefreshWorker(QRunnable):
         self.prefer_cached_fleet = prefer_cached_fleet
         self.include_archival = include_archival
         self.priority_section = priority_section
+        self.archival_sync_seconds = archival_sync_seconds
         self.signals = _WorkerSignals()
 
     def run(self):
         try:
+            if self.service is None:
+                self.service = MissionControlDataService()
             load_options = {
                 "prefer_cached_fleet": self.prefer_cached_fleet,
+                "archival_sync_seconds": self.archival_sync_seconds,
                 "progress": lambda value, message: _safe_emit(
                     self.signals.progress, value, message,
                 ),
@@ -2829,6 +3056,23 @@ class _CompatibilityWorker(QRunnable):
         })
 
 
+class _BackgroundCallWorker(QRunnable):
+    """Run one controller-triggered call without occupying Qt's UI thread."""
+
+    def __init__(self, callback):
+        super().__init__()
+        self.callback = callback
+        self.signals = _WorkerSignals()
+
+    def run(self):
+        try:
+            result = self.callback()
+        except Exception as error:
+            _safe_emit(self.signals.call_failed, error)
+            return
+        _safe_emit(self.signals.succeeded, result)
+
+
 class _FleetNamingWorker(QRunnable):
     def __init__(self, probe_id, probe_name, policy, apply_existing, service_factory=MissionControlDataService):
         super().__init__()
@@ -2869,12 +3113,27 @@ class _FleetAutomationWorker(QRunnable):
             # initialized recipes and the 30-second fleet index cache instead
             # of repeating account-wide API work once per probe.
             service = self.service_factory()
-            for probe_id in self.probe_ids:
+            for index, probe_id in enumerate(self.probe_ids):
                 policy = ExecutionPolicyStore().load(probe_id)
                 if not (
                     policy.mode == ExecutionMode.AUTOMATIC
                     and policy.live_execution_enabled
                 ):
+                    continue
+                budget_check = getattr(
+                    getattr(service, "client", None),
+                    "background_budget_available", None,
+                )
+                if index > 0 and budget_check is not None and not budget_check():
+                    probe_result = {
+                        "probeId": probe_id,
+                        "result": {
+                            "status": "deferred",
+                            "reason": "account_api_budget_reserved",
+                        },
+                    }
+                    results.append(probe_result)
+                    _safe_emit(self.signals.probe_completed, probe_result)
                     continue
                 try:
                     service.load(
@@ -2895,6 +3154,31 @@ class _FleetAutomationWorker(QRunnable):
             _safe_emit(self.signals.failed, str(error) or type(error).__name__)
             return
         _safe_emit(self.signals.succeeded, results)
+
+
+class _FleetEligibilityWorker(QRunnable):
+    """Read fleet policy files away from the Qt UI thread."""
+
+    def __init__(self, probe_ids):
+        super().__init__()
+        self.probe_ids = tuple(int(value) for value in probe_ids)
+        self.signals = _WorkerSignals()
+
+    def run(self):
+        try:
+            eligible = []
+            for probe_id in self.probe_ids:
+                policy = ExecutionPolicyStore().load(probe_id)
+                if (
+                    policy.mode == ExecutionMode.AUTOMATIC
+                    and policy.live_execution_enabled
+                ):
+                    eligible.append(probe_id)
+        except Exception as error:
+            traceback.print_exc()
+            _safe_emit(self.signals.failed, str(error) or type(error).__name__)
+            return
+        _safe_emit(self.signals.succeeded, eligible)
 
 
 class _AutomationCycleWorker(QRunnable):
@@ -3047,6 +3331,7 @@ class MissionControlController(QObject):
 
     shuttingDownChanged = Signal()
     dashboardChanged = Signal()
+    presentationDashboardChanged = Signal()
     availableProbesChanged = Signal()
     focusedProbeIdChanged = Signal()
     refreshingChanged = Signal()
@@ -3059,12 +3344,18 @@ class MissionControlController(QObject):
     loadingProgressChanged = Signal()
     manualCraftOverrideChanged = Signal()
     operationNoticeChanged = Signal()
+    operatingProfileChanged = Signal()
+    notificationPolicyChanged = Signal()
+    notificationDeliveryChanged = Signal()
+    eventLoopDiagnosticsChanged = Signal()
+    desktopNotificationRequested = Signal(str, str)
 
     def __init__(self, service=None, thread_pool=None, settings_engine=None, credential_store=None):
         super().__init__()
         self.service = service
         self.thread_pool = thread_pool or QThreadPool.globalInstance()
         self._dashboard = {}
+        self._section_revision_counter = 0
         self._available_probes = []
         self._probe_snapshot_cache = {}
         self._dashboard_cache = {}
@@ -3073,14 +3364,69 @@ class MissionControlController(QObject):
         self._error = ""
         self._error_context = ""
         self._manual_craft_override = {}
+        self._manual_mining_queue = []
+        self._manual_mining_worker = None
+        self._manual_mining_accepted_orders = []
+        self._manual_craft_queue = []
+        self._manual_craft_worker = None
+        self._manual_craft_accepted_orders = []
+        # A refresh that started before a successful DELETE can finish after it
+        # and carry the old server listing (or a five-minute cached listing).
+        # Keep accepted deletions as controller-owned claims so that stale
+        # dashboard payloads cannot resurrect pages during this session.
+        self._accepted_logbook_deletions = set()
         self._operation_notice = ""
+        self._event_loop_diagnostics = {
+            "stallCount": 0, "lastStallMs": 0, "maximumStallMs": 0,
+            "stallsSinceRefresh": 0, "lastDashboardSettleMs": 0,
+            "lastAttribution": "STARTUP", "recentStalls": [],
+        }
+        self._event_loop_refresh_baseline = 0
+        self._event_loop_last_sample = time.monotonic()
+        self._ui_activity = {
+            "section": "MISSION CONTROL", "activity": "startup",
+            "at": self._event_loop_last_sample,
+        }
+        self._dashboard_signal_at = 0.0
+        self._dashboard_generation = 0
+        self._event_loop_timer = QTimer(self)
+        self._event_loop_timer.setInterval(100)
+        self._event_loop_timer.timeout.connect(self._sample_event_loop)
+        self._event_loop_timer.start()
+        self.dashboardChanged.connect(self._note_dashboard_changed)
+        self.dashboardChanged.connect(self.presentationDashboardChanged.emit)
         self._emergency_stop = False
         self._worker = None
         self._pending_probe_id = None
         self._refresh_target_id = None
         self._active_section = "MISSION CONTROL"
         self._refresh_previous_idle_manny_ids = set()
+        self._refresh_previous_ready_move_fingerprints = set()
         self.settings_engine = settings_engine or (service.data_engine if service is not None and hasattr(service, "data_engine") else DataEngine())
+        self._selected_operating_profile = load_operating_profile(self.settings_engine)
+        self._operating_profile_idle_minutes = load_operating_profile_idle_minutes(
+            self.settings_engine
+        )
+        self._operating_profile_schedule = load_operating_profile_schedule(
+            self.settings_engine
+        )
+        self._last_operator_activity = time.monotonic()
+        self._operating_profile = PROFILES["normal"] if self._selected_operating_profile.name in {"auto", "scheduled"} else self._selected_operating_profile
+        self._operating_profile_schedule_status = "waiting"
+        if self._selected_operating_profile.name == "scheduled":
+            self._operating_profile, self._operating_profile_schedule_status = (
+                resolve_scheduled_operating_profile(self._operating_profile_schedule)
+            )
+        self._notification_policy = load_policy(self.settings_engine)
+        self._notification_delivery = {
+            "available": False,
+            "supportsMessages": False,
+            "detail": "CHECKING DESKTOP NOTIFICATION SUPPORT",
+        }
+        self._notification_coordinator = NotificationCoordinator(self.settings_engine)
+        self._notifications_primed = False
+        self._notification_worker = None
+        self._pending_notification_dashboards = []
         self.credential_store = credential_store or CredentialStore()
         self._credential_message = ""
         self._startup_loading = True
@@ -3104,6 +3450,13 @@ class MissionControlController(QObject):
         self._automation_timer.setSingleShot(False)
         self._automation_timer.setInterval(60_000)
         self._automation_timer.timeout.connect(self._automation_tick)
+        self._auto_profile_timer = QTimer(self)
+        self._auto_profile_timer.setInterval(5_000)
+        self._auto_profile_timer.timeout.connect(self._evaluate_auto_operating_profile)
+        self._auto_profile_timer.start()
+        application = QCoreApplication.instance()
+        if application is not None:
+            application.installEventFilter(self)
         self._automation_after_refresh = False
         self._automation_tick_pending = False
         self._manual_automation_cycle_pending = False
@@ -3112,8 +3465,9 @@ class MissionControlController(QObject):
         # authoritative dashboard has loaded.
         self._initial_automation_cycle_pending = True
         self._fleet_automation_worker = None
+        self._fleet_eligibility_worker = None
         self._fleet_automation_cursor = 0
-        self._maximum_probes_per_fleet_cycle = 4
+        self._maximum_probes_per_fleet_cycle = self._operating_profile.background_probes_per_cycle
         self._automation_cycle_worker = None
         self._emergency_escape_worker = None
         self._targeted_manny_recall_worker = None
@@ -3128,6 +3482,10 @@ class MissionControlController(QObject):
         self._retry_timer.timeout.connect(self._retry_rate_limited_refresh)
         self._retry_probe_id = None
         self._naming_worker = None
+        self._background_calls = {}
+        self._onboarding_required = (
+            self.settings_engine.get_preference("onboarding_complete") != "true"
+        )
         self._naming_last_audit = 0.0
         self._shutting_down = False
         self._shutdown_poll_timer = QTimer(self)
@@ -3137,6 +3495,147 @@ class MissionControlController(QObject):
     @Property("QVariantMap", notify=dashboardChanged)
     def dashboard(self):
         return self._dashboard
+
+    @Property("QVariantMap", notify=presentationDashboardChanged)
+    def presentationDashboard(self):
+        """Return only accepted data used by the currently visible workspace."""
+        if not self._dashboard:
+            return {}
+        common_keys = {
+            "alerts", "apiVersion", "appVersion", "compatibility",
+            "connection", "connectionLabel", "focus", "notificationDelivery",
+            "notificationPolicy", "operatingProfile", "sectionRevisions",
+        }
+        section_keys = {
+            "MISSION CONTROL": {
+                "fleet", "health", "logbook", "planetaryResources", "probe",
+                "production", "resources", "sector", "sectorResources",
+            },
+            "FLEET": {"automation", "inventoryManagement", "probe"},
+            "GALAXY MAP": {"galaxy"},
+            "NAVIGATION": {"automation", "navigation", "travelPreview"},
+            "RESOURCES": {"resourceLedger"},
+            "MISSIONS": {"missions"},
+            "PRODUCTION": {"production"},
+            "SAFETY": {"terminalRecovery"},
+            "COMMUNICATIONS": {"communications", "logbook", "reports"},
+            "MANUAL CONTROL": {
+                "automation", "automationRuntime", "blueprintSharing",
+                "combatSafety", "crafting", "inventoryManagement", "probe",
+                "probeImprovements", "activeProbeImprovements",
+            },
+            "SETTINGS": {
+                "automation", "automationRuntime", "credentials",
+                "defaultProbeId", "refreshDiagnostics",
+            },
+        }
+        keys = common_keys | section_keys.get(self._active_section, set())
+        return {key: self._dashboard[key] for key in keys if key in self._dashboard}
+
+    def _touch_section_revisions(self, *names):
+        """Invalidate only presentation sections changed on the GUI thread."""
+        if not self._dashboard:
+            return
+        revisions = dict(self._dashboard.get("sectionRevisions", {}))
+        for name in names:
+            self._section_revision_counter += 1
+            revisions[str(name)] = f"local-{self._section_revision_counter}"
+        self._dashboard["sectionRevisions"] = revisions
+
+    @Property("QVariantMap", notify=eventLoopDiagnosticsChanged)
+    def eventLoopDiagnostics(self):
+        return self._event_loop_diagnostics
+
+    def _sample_event_loop(self):
+        now = time.monotonic()
+        elapsed = now - self._event_loop_last_sample
+        self._event_loop_last_sample = now
+        stall = elapsed - 0.1
+        # Ignore ordinary timer jitter and machine sleep. The latter is not a
+        # Skunkworks render stall and would make the diagnostic misleading.
+        if stall < 0.1 or elapsed > 5.0:
+            return
+        stall_ms = int(round(stall * 1000))
+        activity_age_ms = max(0, int(round(
+            (now - float(self._ui_activity.get("at", now))) * 1000
+        )))
+        dashboard_age_ms = (
+            max(0, int(round((now - self._dashboard_signal_at) * 1000)))
+            if self._dashboard_signal_at else -1
+        )
+        attribution = (
+            f"{self._ui_activity.get('section', self._active_section)} · "
+            f"{self._ui_activity.get('activity', 'unknown')} · "
+            f"ACTIVITY +{activity_age_ms} MS"
+        )
+        event = {
+            "durationMs": stall_ms,
+            "section": str(self._ui_activity.get("section", self._active_section)),
+            "activity": str(self._ui_activity.get("activity", "unknown")),
+            "activityAgeMs": activity_age_ms,
+            "dashboardAgeMs": dashboard_age_ms,
+            "dashboardGeneration": self._dashboard_generation,
+            "refreshing": bool(self._refreshing),
+        }
+        recent = list(self._event_loop_diagnostics.get("recentStalls", ()))
+        recent.append(event)
+        recent = recent[-12:]
+        self._event_loop_diagnostics = {
+            "stallCount": int(self._event_loop_diagnostics["stallCount"]) + 1,
+            "lastStallMs": stall_ms,
+            "maximumStallMs": max(
+                int(self._event_loop_diagnostics["maximumStallMs"]), stall_ms,
+            ),
+            "stallsSinceRefresh": (
+                int(self._event_loop_diagnostics["stallCount"]) + 1
+                - self._event_loop_refresh_baseline
+            ),
+            "lastDashboardSettleMs": int(
+                self._event_loop_diagnostics.get("lastDashboardSettleMs", 0)
+            ),
+            "lastAttribution": attribution,
+            "recentStalls": recent,
+        }
+        if stall_ms >= 500:
+            logging.getLogger("skunkworks").warning(
+                "UI event-loop stall | duration_ms=%s | section=%s | activity=%s "
+                "| activity_age_ms=%s | dashboard_age_ms=%s | generation=%s "
+                "| refreshing=%s",
+                stall_ms, event["section"], event["activity"], activity_age_ms,
+                dashboard_age_ms, self._dashboard_generation, self._refreshing,
+            )
+        self.eventLoopDiagnosticsChanged.emit()
+
+    def _note_dashboard_changed(self):
+        self._dashboard_generation += 1
+        self._dashboard_signal_at = time.monotonic()
+        self._ui_activity = {
+            "section": self._active_section,
+            "activity": "dashboard-signal",
+            "at": self._dashboard_signal_at,
+        }
+
+    @Slot(str, str)
+    def reportUiActivity(self, section, activity):
+        now = time.monotonic()
+        section = str(section or self._active_section).upper()
+        activity = str(activity or "unknown")
+        self._ui_activity = {"section": section, "activity": activity, "at": now}
+        if activity != "dashboard-settled" or not self._dashboard_signal_at:
+            return
+        settle_ms = max(0, int(round((now - self._dashboard_signal_at) * 1000)))
+        if settle_ms == int(self._event_loop_diagnostics.get("lastDashboardSettleMs", 0)):
+            return
+        self._event_loop_diagnostics = {
+            **self._event_loop_diagnostics,
+            "lastDashboardSettleMs": settle_ms,
+        }
+        if settle_ms >= 500:
+            logging.getLogger("skunkworks").warning(
+                "Dashboard UI settle | duration_ms=%s | section=%s | generation=%s",
+                settle_ms, section, self._dashboard_generation,
+            )
+        self.eventLoopDiagnosticsChanged.emit()
 
     @Property("QVariantList", notify=availableProbesChanged)
     def availableProbes(self):
@@ -3153,6 +3652,11 @@ class MissionControlController(QObject):
         self._shutting_down = True
         self.shuttingDownChanged.emit()
         self._automation_timer.stop()
+        self._auto_profile_timer.stop()
+        self._event_loop_timer.stop()
+        application = QCoreApplication.instance()
+        if application is not None:
+            application.removeEventFilter(self)
         self._compatibility_timer.stop()
         self._retry_timer.stop()
         self._startup_watchdog.stop()
@@ -3215,7 +3719,7 @@ class MissionControlController(QObject):
 
     @Property(bool, notify=onboardingChanged)
     def onboardingRequired(self):
-        return self.settings_engine.get_preference("onboarding_complete") != "true"
+        return self._onboarding_required
 
     @Property(str, notify=credentialMessageChanged)
     def credentialMessage(self):
@@ -3224,6 +3728,182 @@ class MissionControlController(QObject):
     @Property(str, notify=operationNoticeChanged)
     def operationNotice(self):
         return getattr(self, "_operation_notice", "")
+
+    @Property("QVariantMap", notify=operatingProfileChanged)
+    def operatingProfile(self):
+        return self._operating_profile_payload()
+
+    @Property("QVariantMap", notify=notificationPolicyChanged)
+    def notificationPolicy(self):
+        return dict(self._notification_policy)
+
+    @Property("QVariantMap", notify=notificationDeliveryChanged)
+    def notificationDelivery(self):
+        return dict(self._notification_delivery)
+
+    @Slot(bool, bool, str)
+    def configureNotificationDelivery(self, available, supports_messages, detail):
+        delivery = {
+            "available": bool(available),
+            "supportsMessages": bool(supports_messages),
+            "detail": str(detail or "DESKTOP NOTIFICATION STATUS UNAVAILABLE"),
+        }
+        if delivery == self._notification_delivery:
+            return
+        self._notification_delivery = delivery
+        self.notificationDeliveryChanged.emit()
+        self._apply_local_policy_to_dashboard()
+
+    @Slot()
+    def sendTestNotification(self):
+        if not self._notification_policy.get("enabled"):
+            self._set_operation_notice("ENABLE AND SAVE DESKTOP NOTIFICATIONS FIRST")
+            return
+        if not (
+            self._notification_delivery.get("available")
+            and self._notification_delivery.get("supportsMessages")
+        ):
+            self._set_operation_notice("DESKTOP NOTIFICATIONS UNAVAILABLE · SEE SETTINGS STATUS")
+            return
+        self.desktopNotificationRequested.emit(
+            "Skunkworks test notification",
+            "Desktop notification delivery was requested successfully.",
+        )
+        self._set_operation_notice("TEST NOTIFICATION REQUESTED · CHECK NOTIFICATION CENTER")
+
+    @Slot(str, int, "QVariantMap")
+    def saveOperatingProfile(self, name, idle_minutes=10, schedule=None):
+        self._run_background_call(
+            "settings",
+            lambda: (
+                save_operating_profile(self.settings_engine, name),
+                save_operating_profile_idle_minutes(
+                    self.settings_engine, idle_minutes,
+                ),
+                save_operating_profile_schedule(
+                    self.settings_engine, self._qt_safe(schedule or {}),
+                ),
+            ),
+            self._accept_operating_profile_save,
+            pending_message="SAVING OPERATING PROFILE",
+        )
+
+    def _accept_operating_profile_save(self, result):
+        (
+            self._selected_operating_profile,
+            self._operating_profile_idle_minutes,
+            self._operating_profile_schedule,
+        ) = result
+        self._last_operator_activity = time.monotonic()
+        if self._selected_operating_profile.name == "scheduled":
+            effective, self._operating_profile_schedule_status = (
+                resolve_scheduled_operating_profile(self._operating_profile_schedule)
+            )
+        else:
+            effective = PROFILES["normal"] if self._selected_operating_profile.name == "auto" else self._selected_operating_profile
+        effective_changed = self._set_effective_operating_profile(effective)
+        if not effective_changed:
+            self.operatingProfileChanged.emit()
+            self._apply_local_policy_to_dashboard()
+        self._set_operation_notice("OPERATING PROFILE SAVED")
+
+    def _operating_profile_payload(self):
+        payload = self._operating_profile.payload()
+        payload["name"] = self._selected_operating_profile.name
+        payload["effective_name"] = self._operating_profile.name
+        payload["idle_minutes"] = self._operating_profile_idle_minutes
+        payload["schedule"] = dict(self._operating_profile_schedule)
+        payload["schedule_status"] = self._operating_profile_schedule_status
+        payload["cosmetic_tick_ms"] = (
+            10_000 if self._operating_profile.name == "low_usage" else 1_000
+        )
+        return payload
+
+    def _set_effective_operating_profile(self, profile):
+        if profile == self._operating_profile:
+            return False
+        self._operating_profile = profile
+        self._maximum_probes_per_fleet_cycle = profile.background_probes_per_cycle
+        self.operatingProfileChanged.emit()
+        self._apply_local_policy_to_dashboard()
+        return True
+
+    def _evaluate_auto_operating_profile(self):
+        if self._selected_operating_profile.name == "scheduled":
+            target, status = resolve_scheduled_operating_profile(
+                self._operating_profile_schedule,
+            )
+            status_changed = status != self._operating_profile_schedule_status
+            self._operating_profile_schedule_status = status
+            effective_changed = self._set_effective_operating_profile(target)
+            if effective_changed or status_changed:
+                self._set_operation_notice(
+                    "SCHEDULED PROFILE · LOW POWER"
+                    if target.name == "low_usage"
+                    else f"SCHEDULED PROFILE · NORMAL · {status.upper()}"
+                )
+                if status_changed and not effective_changed:
+                    self.operatingProfileChanged.emit()
+                    self._apply_local_policy_to_dashboard()
+            return
+        if self._selected_operating_profile.name != "auto":
+            return
+        idle_seconds = max(0.0, time.monotonic() - self._last_operator_activity)
+        target = resolve_effective_operating_profile(
+            self._selected_operating_profile,
+            idle_seconds,
+            self._operating_profile_idle_minutes,
+        )
+        if self._set_effective_operating_profile(target):
+            self._set_operation_notice(
+                "AUTO PROFILE · LOW POWER"
+                if target.name == "low_usage"
+                else "AUTO PROFILE · NORMAL"
+            )
+
+    def _record_operator_activity(self):
+        self._last_operator_activity = time.monotonic()
+        if (
+            self._selected_operating_profile.name == "auto"
+            and self._operating_profile.name == "low_usage"
+        ):
+            self._set_effective_operating_profile(PROFILES["normal"])
+            self._set_operation_notice("AUTO PROFILE · NORMAL")
+
+    def eventFilter(self, watched, event):
+        if event.type() in {
+            QEvent.Type.KeyPress,
+            QEvent.Type.MouseButtonPress,
+            QEvent.Type.MouseButtonDblClick,
+            QEvent.Type.MouseMove,
+            QEvent.Type.Wheel,
+            QEvent.Type.TouchBegin,
+        }:
+            self._record_operator_activity()
+        return super().eventFilter(watched, event)
+
+    @Slot("QVariantMap")
+    def saveNotificationPolicy(self, policy):
+        payload = dict(policy or {})
+        self._run_background_call(
+            "settings", lambda: save_policy(self.settings_engine, payload),
+            self._accept_notification_policy_save,
+            pending_message="SAVING NOTIFICATION SETTINGS",
+        )
+
+    def _accept_notification_policy_save(self, policy):
+        self._notification_policy = policy
+        self.notificationPolicyChanged.emit()
+        self._set_operation_notice("DESKTOP NOTIFICATION SETTINGS SAVED")
+        self._apply_local_policy_to_dashboard()
+
+    def _apply_local_policy_to_dashboard(self):
+        if not self._dashboard:
+            return
+        self._dashboard["operatingProfile"] = self._operating_profile_payload()
+        self._dashboard["notificationPolicy"] = dict(self._notification_policy)
+        self._dashboard["notificationDelivery"] = dict(self._notification_delivery)
+        self.dashboardChanged.emit()
 
     def _set_operation_notice(self, message):
         message = str(message or "")
@@ -3245,6 +3925,74 @@ class MissionControlController(QObject):
             else:
                 timer.stop()
 
+    def _run_background_call(
+        self, key, callback, on_success=None, *, pending_message="WORKING",
+        error_formatter=None, on_failure=None,
+    ):
+        """Dispatch slow API/persistence work and marshal completion to Qt."""
+        if key in self._background_calls:
+            self._set_operation_notice(pending_message + " · ALREADY IN PROGRESS")
+            return False
+        worker = _BackgroundCallWorker(callback)
+        worker.signals.succeeded.connect(
+            lambda result, worker=worker: self._finish_background_call(
+                key, worker, result, on_success,
+            )
+        )
+        worker.signals.call_failed.connect(
+            lambda error, worker=worker: self._fail_background_call(
+                key, worker, error, error_formatter,
+                on_failure,
+            )
+        )
+        self._background_calls[key] = worker
+        self._set_error("")
+        self._set_operation_notice(pending_message)
+        self.thread_pool.start(worker)
+        return True
+
+    def _finish_background_call(self, key, worker, result, on_success):
+        if self._background_calls.get(key) is not worker:
+            return
+        self._background_calls.pop(key, None)
+        if on_success is not None:
+            on_success(result)
+
+    def _fail_background_call(
+        self, key, worker, error, error_formatter, on_failure,
+    ):
+        if self._background_calls.get(key) is not worker:
+            return
+        self._background_calls.pop(key, None)
+        if on_failure is not None:
+            on_failure(error)
+            return
+        message = error_formatter(error) if error_formatter else str(error) or type(error).__name__
+        self._set_error(message)
+        self._set_operation_notice("")
+        if key == "command":
+            self._queue_command_failure_notification(message)
+
+    def _command_accepted(
+        self, result=None, success_message="ORDER ACCEPTED · SYNCING",
+        *, refresh=True,
+    ):
+        self._set_error("")
+        self._set_operation_notice(success_message)
+        notification_result = dict(result or {})
+        notification_result.setdefault("status", "accepted")
+        notification_result.setdefault("accepted", True)
+        notification_result.setdefault("message", success_message)
+        if not notification_result.get("fingerprint") and not notification_result.get("commandId"):
+            notification_result["notificationEventId"] = time.time_ns()
+        self._queue_terminal_notification(notification_result)
+        if refresh and not self._refreshing:
+            self._start_refresh(
+                self._focused_probe_id,
+                prefer_cached_fleet=True,
+                include_archival=False,
+            )
+
     @Slot()
     def start(self):
         if self.onboardingRequired:
@@ -3263,11 +4011,13 @@ class MissionControlController(QObject):
 
     @Slot(str)
     def saveApiKey(self, api_key):
-        try:
-            self.credential_store.save(api_key)
-        except Exception as error:
-            self._set_credential_message(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "credentials", lambda: self.credential_store.save(str(api_key)),
+            self._accept_api_key_save, on_failure=self._reject_credential_action,
+            pending_message="SAVING API KEY SECURELY",
+        )
+
+    def _accept_api_key_save(self, _result):
         self.service = None
         self.credentialsChanged.emit()
         self._set_credential_message("API key saved securely in the operating-system credential vault.")
@@ -3280,13 +4030,22 @@ class MissionControlController(QObject):
         if not api_key:
             self._set_credential_message("Save an API key before testing the connection.")
             return
-        try:
+        def test_connection():
             client = GameClient(api_key=api_key)
             version = client.ensure_compatible_api()
             player = client.get_player().get("player", {})
-        except Exception as error:
-            self._set_credential_message("Connection failed: " + (str(error) or type(error).__name__))
-            return
+            return version, player
+
+        self._run_background_call(
+            "credentials", test_connection, self._accept_api_key_test,
+            on_failure=lambda error: self._reject_credential_action(
+                error, "Connection failed: ",
+            ),
+            pending_message="TESTING API CONNECTION",
+        )
+
+    def _accept_api_key_test(self, result):
+        version, player = result
         self._set_credential_message(
             f"Connection verified · API v{version} · {player.get('displayName') or player.get('name') or 'account authenticated'}"
         )
@@ -3294,29 +4053,52 @@ class MissionControlController(QObject):
 
     @Slot()
     def removeApiKey(self):
-        try:
-            self.credential_store.delete()
-        except Exception as error:
-            self._set_credential_message(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "credentials", self.credential_store.delete,
+            self._accept_api_key_remove, on_failure=self._reject_credential_action,
+            pending_message="REMOVING STORED API KEY",
+        )
+
+    def _accept_api_key_remove(self, _result):
         self.service = None
         self.credentialsChanged.emit()
         self._set_credential_message("Stored API key removed.")
         self._update_credential_dashboard()
+
+    def _reject_credential_action(self, error, prefix=""):
+        self._set_credential_message(prefix + (str(error) or type(error).__name__))
+        self._set_operation_notice("")
 
     @Slot()
     def completeOnboarding(self):
         if not self.credentialConfigured:
             self._set_credential_message("An API key is required before setup can finish.")
             return
-        self.settings_engine.set_preference("onboarding_complete", "true")
+        self._run_background_call(
+            "onboarding",
+            lambda: self.settings_engine.set_preference(
+                "onboarding_complete", "true",
+            ),
+            lambda _result: self._accept_onboarding_state(False, refresh=True),
+            pending_message="SAVING SETUP",
+        )
+
+    def _accept_onboarding_state(self, required, refresh=False):
+        self._onboarding_required = bool(required)
         self.onboardingChanged.emit()
-        self.refresh()
+        if refresh:
+            self.refresh()
 
     @Slot()
     def resetOnboarding(self):
-        self.settings_engine.set_preference("onboarding_complete", "false")
-        self.onboardingChanged.emit()
+        self._run_background_call(
+            "onboarding",
+            lambda: self.settings_engine.set_preference(
+                "onboarding_complete", "false",
+            ),
+            lambda _result: self._accept_onboarding_state(True),
+            pending_message="RESETTING SETUP",
+        )
 
     def _open_document(self, relative_path):
         roots = [Path(__file__).resolve().parents[2], Path(sys.executable).resolve().parent]
@@ -3359,12 +4141,16 @@ class MissionControlController(QObject):
         if self.service is None:
             self._set_error("Refresh live account data before configuring automation.")
             return
-        try:
-            runtime = self.service.save_execution_policy(self._qt_safe(value))
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        payload = self._qt_safe(value)
+        self._run_background_call(
+            "settings", lambda: self.service.save_execution_policy(payload),
+            self._accept_execution_policy_save,
+            pending_message="SAVING EXECUTION POLICY",
+        )
+
+    def _accept_execution_policy_save(self, runtime):
         self._dashboard["automationRuntime"] = self._qt_safe(runtime)
+        self._touch_section_revisions("manualControl", "settings")
         self._configure_automation_timer(runtime)
         self._set_error("")
         self._set_operation_notice("EXECUTION POLICY SAVED")
@@ -3420,9 +4206,12 @@ class MissionControlController(QObject):
     @Slot(str, bool)
     def approveAutomationCommand(self, fingerprint, risk_acknowledged=False):
         if risk_acknowledged and self._is_queued_travel_command(fingerprint):
-            try:
+            probe_id = self._focused_probe_id
+
+            def persist_travel_consent():
                 store = DesiredStateStore(self.service.data_engine)
-                current = store.load(self._focused_probe_id)
+                current = store.load(probe_id)
+                updated_travel = False
                 if current.travel is not None:
                     store.save(
                         replace(
@@ -3432,13 +4221,9 @@ class MissionControlController(QObject):
                                 risk_acknowledged=True,
                             ),
                         ),
-                        self._focused_probe_id,
+                        probe_id,
                     )
-                    automation = dict(self._dashboard.get("automation", {}))
-                    target = dict(automation.get("travelTarget", {}))
-                    target["riskAcknowledged"] = True
-                    automation["travelTarget"] = target
-                    self._dashboard["automation"] = automation
+                    updated_travel = True
                 # Transport legs are regenerated as the durable operation
                 # advances. Persist consent on that operation so destination,
                 # return, and later circuit legs do not ask again unless the
@@ -3448,7 +4233,7 @@ class MissionControlController(QObject):
                     if (
                         operation.metadata.get("template") == "round_trip_transport"
                         and operation.state.value == "active"
-                        and int(operation.probe_id or -1) == int(self._focused_probe_id)
+                        and int(operation.probe_id or -1) == int(probe_id)
                     ):
                         cycle = dict(operation.metadata.get("cycle") or {})
                         cycle["riskAcknowledged"] = True
@@ -3457,9 +4242,28 @@ class MissionControlController(QObject):
                             metadata={**operation.metadata, "cycle": cycle},
                         ))
                         break
-            except Exception as error:
-                self._set_error(str(error) or type(error).__name__)
-                return
+                return updated_travel
+
+            self._run_background_call(
+                "automation-approval", persist_travel_consent,
+                lambda updated: self._accept_automation_travel_consent(
+                    fingerprint, risk_acknowledged, updated,
+                ),
+                pending_message="SAVING TRAVEL RISK APPROVAL",
+            )
+            return
+        self._start_automation_cycle(fingerprint, risk_acknowledged)
+
+    def _accept_automation_travel_consent(
+        self, fingerprint, risk_acknowledged, updated_travel,
+    ):
+        if updated_travel:
+            automation = dict(self._dashboard.get("automation", {}))
+            target = dict(automation.get("travelTarget", {}))
+            target["riskAcknowledged"] = True
+            automation["travelTarget"] = target
+            self._dashboard["automation"] = automation
+            self.dashboardChanged.emit()
         self._start_automation_cycle(fingerprint, risk_acknowledged)
 
     def _is_queued_travel_command(self, fingerprint):
@@ -3490,6 +4294,7 @@ class MissionControlController(QObject):
         runtime = dict(self._dashboard.get("automationRuntime", {}))
         runtime["lastResult"] = self._qt_safe(result)
         self._dashboard["automationRuntime"] = runtime
+        self._queue_notification_processing(self._dashboard)
         self.dashboardChanged.emit()
         self._start_refresh(self._focused_probe_id)
 
@@ -3497,23 +4302,9 @@ class MissionControlController(QObject):
     def _reject_automation_cycle(self, message):
         self._automation_cycle_worker = None
         self._set_error("Automation cycle failed: " + message)
-
-    def _run_automation(self, fingerprint, risk_acknowledged):
-        if self.service is None or self._refreshing or not self._api_compatible:
-            if not self._api_compatible:
-                self._set_error("Automation is paused until the current game API version has been reviewed.")
-            return
-        try:
-            result = self.service.run_automation_cycle(fingerprint, risk_acknowledged)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
-        runtime = dict(self._dashboard.get("automationRuntime", {}))
-        runtime["lastResult"] = self._qt_safe(result)
-        self._dashboard["automationRuntime"] = runtime
-        self.dashboardChanged.emit()
-        if result.get("status") in {"succeeded", "cancelled", "failed", "expired"}:
-            self._start_refresh(self._focused_probe_id)
+        self._queue_command_failure_notification(
+            message, command_type="automation_cycle",
+        )
 
     def _automation_tick(self):
         # A repeating QTimer should remain active, but explicitly self-heal if
@@ -3528,7 +4319,10 @@ class MissionControlController(QObject):
             # immediate follow-up cycle when the controller becomes idle.
             self._automation_tick_pending = True
             return
-        if self._fleet_automation_worker is not None:
+        if (
+            self._fleet_automation_worker is not None
+            or self._fleet_eligibility_worker is not None
+        ):
             # Do not overlap a second full refresh with account-wide planning.
             # Both paths read the same rate-limited game endpoints and local
             # database; contention made the nominally responsive refresh take
@@ -3553,6 +4347,7 @@ class MissionControlController(QObject):
         if (
             self._refreshing
             or self._fleet_automation_worker is not None
+            or self._fleet_eligibility_worker is not None
             or self._automation_cycle_worker is not None
         ):
             self._automation_tick_pending = True
@@ -3560,11 +4355,16 @@ class MissionControlController(QObject):
         probe_ids = [item.get("id") for item in self._available_probes if item.get("id")]
         if not probe_ids and self._focused_probe_id >= 0:
             probe_ids = [self._focused_probe_id]
-        eligible = []
-        for probe_id in probe_ids:
-            policy = ExecutionPolicyStore().load(int(probe_id))
-            if policy.mode == ExecutionMode.AUTOMATIC and policy.live_execution_enabled:
-                eligible.append(int(probe_id))
+        worker = _FleetEligibilityWorker(probe_ids)
+        worker.signals.succeeded.connect(self._accept_fleet_eligibility)
+        worker.signals.failed.connect(self._reject_fleet_eligibility)
+        self._fleet_eligibility_worker = worker
+        self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_fleet_eligibility(self, eligible):
+        self._fleet_eligibility_worker = None
+        eligible = [int(value) for value in eligible]
         if not eligible:
             return
         if self._focused_probe_id in eligible:
@@ -3594,6 +4394,11 @@ class MissionControlController(QObject):
         self._fleet_automation_worker = worker
         self.thread_pool.start(worker)
 
+    @Slot(str)
+    def _reject_fleet_eligibility(self, message):
+        self._fleet_eligibility_worker = None
+        self._set_error("Fleet automation policy check failed: " + message)
+
     @Slot(object)
     def _accept_fleet_automation_probe(self, item):
         """Publish focused-probe assignments while the fleet cycle continues."""
@@ -3604,6 +4409,7 @@ class MissionControlController(QObject):
         runtime = dict(self._dashboard.get("automationRuntime", {}))
         runtime["lastResult"] = self._qt_safe(result)
         self._dashboard["automationRuntime"] = runtime
+        self._queue_notification_processing(self._dashboard)
 
         command_results = result.get("results") or (result,)
         claimed = {
@@ -3628,13 +4434,14 @@ class MissionControlController(QObject):
                         ),
                     })
                 production.append(updated)
-            self._dashboard["production"] = tuple(production)
+            self._dashboard["production"] = production
             inventory = dict(self._dashboard.get("inventoryManagement", {}))
-            inventory["idleMannies"] = tuple(
+            inventory["idleMannies"] = [
                 row for row in inventory.get("idleMannies", ())
                 if str(row.get("id")) not in claimed
-            )
+            ]
             self._dashboard["inventoryManagement"] = inventory
+        self._touch_section_revisions("production", "manualControl")
         self.dashboardChanged.emit()
 
     def _ensure_automation_heartbeat(self):
@@ -3662,6 +4469,9 @@ class MissionControlController(QObject):
         if focused_result is not None:
             runtime["lastResult"] = self._qt_safe(focused_result)
         self._dashboard["automationRuntime"] = runtime
+        if focused_result is not None:
+            self._queue_notification_processing(self._dashboard)
+        self._touch_section_revisions("manualControl", "settings")
         self.dashboardChanged.emit()
         # Every scheduled cycle is followed by an authoritative focused-probe
         # refresh, including idle cycles, so queue/readiness changes appear in
@@ -3786,7 +4596,11 @@ class MissionControlController(QObject):
     @Slot(str)
     def setActiveSection(self, section):
         """Tell refresh workers which visible screen should become live first."""
-        self._active_section = str(section or "MISSION CONTROL").upper()
+        active_section = str(section or "MISSION CONTROL").upper()
+        if active_section == self._active_section:
+            return
+        self._active_section = active_section
+        self.presentationDashboardChanged.emit()
 
     @Slot(int)
     def selectProbe(self, probe_id):
@@ -3822,33 +4636,52 @@ class MissionControlController(QObject):
 
     @Slot(bool)
     def setEmergencyStop(self, active):
-        if self.service is None:
-            try:
-                self.service = MissionControlDataService()
-            except Exception as error:
-                self._set_error(str(error) or type(error).__name__)
-                return
-        self.service.data_engine.set_emergency_stop(active)
         if active != self._emergency_stop:
             self._emergency_stop = active
             self.emergencyStopChanged.emit()
+        # The UI safety state changes synchronously; persistence cannot be
+        # allowed to delay the Stop control behind a busy SQLite writer.
+        self._run_background_call(
+            "emergency-stop",
+            lambda: self.settings_engine.set_emergency_stop(active),
+            pending_message=(
+                "AUTOMATION STOPPED · SAVING"
+                if active else "AUTOMATION RESUMED · SAVING"
+            ),
+        )
 
     @Slot("QVariantMap")
     def saveAutomationSettings(self, settings):
-        if self.service is None:
-            self.service = MissionControlDataService()
-        try:
-            state = DesiredState.from_dict(self._qt_safe(settings))
-            DesiredStateStore(self.service.data_engine).save(
+        payload = self._qt_safe(settings)
+
+        def save():
+            data_engine = (
+                self.service.data_engine
+                if self.service is not None else self.settings_engine
+            )
+            state = DesiredState.from_dict(payload)
+            DesiredStateStore(data_engine).save(
                 state, self._focused_probe_id,
             )
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+            runtime = (
+                self.service.automation_view()
+                if self.service is not None else {
+                    "mode": ExecutionMode.OBSERVE.value,
+                    "liveExecutionEnabled": False,
+                }
+            )
+            return state, runtime
+
+        self._run_background_call(
+            "settings", save, self._accept_automation_settings_save,
+            pending_message="SAVING AUTOMATION TARGETS",
+        )
+
+    def _accept_automation_settings_save(self, result):
+        state, runtime = result
         automation = dict(self._dashboard.get("automation", {}))
         automation.update(self._qt_safe(state.to_dict()))
         self._dashboard["automation"] = automation
-        runtime = self.service.automation_view()
         self._dashboard["automationRuntime"] = self._qt_safe(runtime)
         self._configure_automation_timer(runtime)
         self._set_error("")
@@ -3870,23 +4703,105 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before queuing a manual build.")
             return
-        try:
-            self.service.manual_craft(recipe_id, manny_id)
-        except ManualCraftReservationConflict as error:
+        manny_id = str(manny_id or "")
+        idle = next((
+            dict(item) for item in self._dashboard.get("crafting", {}).get(
+                "idleMannies", (),
+            )
+            if str(item.get("id")) == manny_id
+        ), None)
+        if idle is None:
+            self._set_error("Select an idle Manny that is not already queued.")
+            return
+        production_row = next((
+            dict(item) for item in self._dashboard.get("production", ())
+            if str(item.get("id")) == manny_id
+        ), None)
+        self._manual_craft_queue.append({
+            "probeId": self._focused_probe_id,
+            "recipeId": str(recipe_id),
+            "mannyId": manny_id,
+            "idleManny": idle,
+            "productionRow": production_row,
+        })
+        self._mark_manual_manny_pending(
+            manny_id,
+            name="Manual build queued · awaiting send",
+            display_suffix="BUILD ORDER QUEUED",
+            detail_status="Manual build queued for background dispatch",
+        )
+        self._set_error("")
+        if self._manual_craft_worker is None:
+            self._start_next_manual_craft_order()
+        else:
+            self._set_manual_craft_queue_notice()
+
+    def _set_manual_craft_queue_notice(self):
+        accepted = len(self._manual_craft_accepted_orders)
+        total = len(self._manual_craft_queue) + accepted
+        sending = 1 if self._manual_craft_worker is not None else 0
+        waiting = max(0, len(self._manual_craft_queue) - sending)
+        self._set_operation_notice(
+            f"MANUAL CRAFTING · {total} PENDING SYNC · {accepted} ACCEPTED · "
+            f"{sending} SENDING · {waiting} WAITING"
+        )
+
+    def _start_next_manual_craft_order(self):
+        if self._manual_craft_worker is not None or not self._manual_craft_queue:
+            return
+        order = self._manual_craft_queue[0]
+        worker = _BackgroundCallWorker(
+            lambda: self.service.manual_craft(
+                order["recipeId"], order["mannyId"],
+            )
+        )
+        worker.signals.succeeded.connect(
+            lambda result, worker=worker: self._accept_queued_craft_order(
+                worker, result,
+            )
+        )
+        worker.signals.call_failed.connect(
+            lambda error, worker=worker: self._reject_queued_craft_order(
+                worker, error,
+            )
+        )
+        self._manual_craft_worker = worker
+        self._set_manual_craft_queue_notice()
+        self.thread_pool.start(worker)
+
+    def _accept_queued_craft_order(self, worker, _result):
+        if self._manual_craft_worker is not worker:
+            return
+        order = self._manual_craft_queue.pop(0)
+        self._manual_craft_worker = None
+        self._manual_craft_accepted_orders.append(order)
+        self._set_manual_craft_queue_notice()
+        self._start_next_manual_craft_order()
+
+    def _reject_queued_craft_order(self, worker, error):
+        if self._manual_craft_worker is not worker:
+            return
+        order = self._manual_craft_queue.pop(0)
+        self._manual_craft_worker = None
+        if int(order["probeId"]) == int(self._focused_probe_id):
+            self._restore_rejected_manual_manny(order)
+        if isinstance(error, ManualCraftReservationConflict):
             self._manual_craft_override = {
-                "probeId": self._focused_probe_id,
-                "recipeId": recipe_id,
-                "mannyId": manny_id,
+                "probeId": order["probeId"],
+                "recipeId": order["recipeId"],
+                "mannyId": order["mannyId"],
                 "message": str(error),
             }
             self.manualCraftOverrideChanged.emit()
             self._set_error("")
-            return
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
-        self._set_error("")
-        self._start_refresh(self._focused_probe_id)
+        else:
+            message = str(error) or type(error).__name__
+            self._set_error(message)
+            self._queue_command_failure_notification(
+                message, command_type="manny_craft",
+            )
+        self._set_manual_craft_queue_notice()
+        self._start_next_manual_craft_order()
 
     @Slot()
     def overrideManualCraft(self):
@@ -3897,22 +4812,41 @@ class MissionControlController(QObject):
             self._clear_manual_craft_override()
             self._set_error("The focused probe changed. Queue the manual build again.")
             return
-        try:
-            self.service.manual_craft(
+        self._run_background_call(
+            "command", lambda: self.service.manual_craft(
                 str(pending.get("recipeId", "")),
                 str(pending.get("mannyId", "")),
                 override_reservations=True,
-            )
-        except Exception as error:
-            self._clear_manual_craft_override()
-            self._set_error(
-                "MANUAL BUILD REJECTED · " + self._http_error_message(error),
-                context="command",
-            )
-            return
+            ), self._accept_manual_craft_override,
+            on_failure=self._reject_manual_craft_override,
+            pending_message="SENDING OVERRIDE BUILD ORDER",
+        )
+
+    def _accept_manual_craft_override(self, result):
+        pending = dict(self._manual_craft_override)
         self._clear_manual_craft_override()
-        self._set_error("")
-        self._start_refresh(self._focused_probe_id)
+        manny_id = str(pending.get("mannyId", ""))
+        if manny_id:
+            self._mark_manual_manny_pending(
+                manny_id,
+                name="Manual override build accepted · sync queued",
+                display_suffix="BUILD ACCEPTED · SYNC QUEUED",
+                detail_status="Manual override build accepted",
+            )
+            self._manual_craft_accepted_orders.append(pending)
+        self._command_accepted(
+            result, "BUILD ACCEPTED · SYNC QUEUED FOR SCHEDULED REFRESH",
+            refresh=False,
+        )
+        self._set_manual_craft_queue_notice()
+
+    def _reject_manual_craft_override(self, error):
+        self._clear_manual_craft_override()
+        self._set_error(
+            "MANUAL BUILD REJECTED · " + self._http_error_message(error),
+            context="command",
+        )
+        self._set_operation_notice("")
 
     @Slot()
     def cancelManualCraftOverride(self):
@@ -3931,13 +4865,10 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before ordering repairs.")
             return
-        try:
-            self.service.manual_repair(manny_id, integrity_percent)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
-        self._set_error("")
-        self._start_refresh(self._focused_probe_id)
+        self._run_background_call(
+            "command", lambda: self.service.manual_repair(manny_id, integrity_percent),
+            self._command_accepted, pending_message="SENDING REPAIR ORDER",
+        )
 
     @Slot(str, str)
     def queueManualUpgrade(self, manny_id, improvement_id):
@@ -3946,13 +4877,10 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before ordering an upgrade.")
             return
-        try:
-            self.service.manual_upgrade(manny_id, improvement_id)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
-        self._set_error("")
-        self._start_refresh(self._focused_probe_id)
+        self._run_background_call(
+            "command", lambda: self.service.manual_upgrade(manny_id, improvement_id),
+            self._command_accepted, pending_message="SENDING UPGRADE ORDER",
+        )
 
     @Slot(str, str, "QVariantList")
     def queueManualProbeAssembly(self, manny_id, model, container_ids):
@@ -3972,17 +4900,23 @@ class MissionControlController(QObject):
 
     @Slot(int, str)
     def assignProbeRole(self, probe_id, role):
-        if self.service is None:
-            self.service = MissionControlDataService()
         default_probe_id = self._dashboard.get("defaultProbeId")
         if default_probe_id is None or int(self._focused_probe_id) != int(default_probe_id):
             self._set_error("Probe roles can only be managed while the main/default probe is focused.")
             return
-        try:
-            FleetRoleService(self.service.data_engine).assign("probe", probe_id, role)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "settings",
+            lambda: FleetRoleService(
+                self.service.data_engine
+                if self.service is not None else self.settings_engine
+            ).assign(
+                "probe", probe_id, role,
+            ),
+            lambda _result: self._accept_probe_role(probe_id, role),
+            pending_message="SAVING PROBE ROLE",
+        )
+
+    def _accept_probe_role(self, probe_id, role):
         automation = dict(self._dashboard.get("automation", {}))
         roles = dict(automation.get("probeRoles", {}))
         roles[str(probe_id)] = role
@@ -3992,19 +4926,27 @@ class MissionControlController(QObject):
 
     @Slot(int, "QVariantMap")
     def saveProbeRoleSettings(self, probe_id, settings):
-        if self.service is None:
-            self.service = MissionControlDataService()
-        roles = FleetRoleService(self.service.data_engine)
-        row = next((dict(item) for item in roles.all("probe")
-                    if int(item["asset_id"]) == int(probe_id)), None)
-        if row is None:
-            self._set_error("Assign this probe a role before saving role settings.")
-            return
-        try:
-            roles.assign("probe", probe_id, row["role"], metadata=dict(settings))
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        payload = dict(settings)
+
+        def save():
+            roles = FleetRoleService(
+                self.service.data_engine
+                if self.service is not None else self.settings_engine
+            )
+            row = next((dict(item) for item in roles.all("probe")
+                        if int(item["asset_id"]) == int(probe_id)), None)
+            if row is None:
+                raise ValueError("Assign this probe a role before saving role settings.")
+            roles.assign("probe", probe_id, row["role"], metadata=payload)
+            return payload
+
+        self._run_background_call(
+            "settings", save,
+            lambda saved: self._accept_probe_role_settings(probe_id, saved),
+            pending_message="SAVING PROBE ROLE SETTINGS",
+        )
+
+    def _accept_probe_role_settings(self, probe_id, settings):
         automation = dict(self._dashboard.get("automation", {}))
         role_settings = dict(automation.get("probeRoleSettings", {}))
         role_settings[str(probe_id)] = dict(settings)
@@ -4019,13 +4961,14 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before planning travel.")
             return
-        try:
-            preview = self.service.preview_travel(
+        self._run_background_call(
+            "travel-preview", lambda: self.service.preview_travel(
                 self._focused_probe_id, {"x": x, "y": y, "z": z}, route_mode,
-            )
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+            ), self._accept_travel_preview,
+            pending_message="CALCULATING TRAVEL ROUTE",
+        )
+
+    def _accept_travel_preview(self, preview):
         self._dashboard["travelPreview"] = self._qt_safe(preview)
         self._set_error("")
         self.dashboardChanged.emit()
@@ -4038,14 +4981,17 @@ class MissionControlController(QObject):
         if not preview or self.service is None:
             self._set_error("Preview a route before confirming travel.")
             return
-        try:
-            self.service.execute_travel(preview, risk_acknowledged)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "command",
+            lambda: self.service.execute_travel(preview, risk_acknowledged),
+            self._accept_manual_travel,
+            pending_message="SENDING TRAVEL ORDER",
+        )
+
+    def _accept_manual_travel(self, result):
         self._dashboard["travelPreview"] = {}
         self.dashboardChanged.emit()
-        self._start_refresh(self._focused_probe_id)
+        self._command_accepted(result)
 
     @Slot()
     def cancelTravel(self):
@@ -4054,13 +5000,11 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before cancelling movement.")
             return
-        try:
-            self.service.cancel_travel(self._focused_probe_id)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
-        self._set_error("")
-        self._start_refresh(self._focused_probe_id)
+        probe_id = self._focused_probe_id
+        self._run_background_call(
+            "command", lambda: self.service.cancel_travel(probe_id),
+            self._command_accepted, pending_message="SENDING TRAVEL CANCELLATION",
+        )
 
     @Slot(int, int, int)
     def scanSector(self, x, y, z):
@@ -4069,11 +5013,12 @@ class MissionControlController(QObject):
         if self.service is None:
             self._set_error("Refresh live account data before scanning.")
             return
-        try:
-            result = self.service.scan_sector({"x": x, "y": y, "z": z})
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "command", lambda: self.service.scan_sector({"x": x, "y": y, "z": z}),
+            self._accept_sector_scan, pending_message="SCANNING SECTOR",
+        )
+
+    def _accept_sector_scan(self, result):
         navigation = dict(self._dashboard.get("navigation", {}))
         navigation["scanResult"] = self._qt_safe(result)
         self._dashboard["navigation"] = navigation
@@ -4092,8 +5037,7 @@ class MissionControlController(QObject):
                     "Generated by Skunkworks because automatic game-logbook reporting is enabled."
                 ),
             )
-        if not self._refreshing:
-            self._start_refresh(self._focused_probe_id)
+        self._command_accepted(result, "SECTOR SCAN ACCEPTED · SYNCING")
 
     @Slot()
     def scanNeighboringSectors(self):
@@ -4102,31 +5046,47 @@ class MissionControlController(QObject):
         if self.service is None:
             self._set_error("Refresh live account data before scanning.")
             return
-        try:
-            result = self.service.scan_neighboring_sectors()
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "command", self.service.scan_neighboring_sectors,
+            self._accept_neighbor_scan, pending_message="SCANNING NEIGHBORING SECTORS",
+        )
+
+    def _accept_neighbor_scan(self, result):
         navigation = dict(self._dashboard.get("navigation", {}))
         navigation["scanResult"] = self._qt_safe(result)
         self._dashboard["navigation"] = navigation
         self._set_error("")
         self.dashboardChanged.emit()
-        if not self._refreshing:
-            self._start_refresh(self._focused_probe_id)
+        self._command_accepted(result, "NEIGHBOR SCAN ACCEPTED · SYNCING")
 
     def _maybe_auto_log(self, report_key, title, content):
-        if self.settings_engine.get_preference("auto_game_logbook", "false") != "true":
-            return
-        preference_key = f"auto_log_written:{self._focused_probe_id}:{report_key}"
-        if self.settings_engine.get_preference(preference_key, "false") == "true":
-            return
-        try:
+        probe_id = self._focused_probe_id
+        preference_key = f"auto_log_written:{probe_id}:{report_key}"
+
+        def write_report():
+            if self.settings_engine.get_preference(
+                "auto_game_logbook", "false",
+            ) != "true":
+                return False
+            if self.settings_engine.get_preference(
+                preference_key, "false",
+            ) == "true":
+                return False
             self.service.create_logbook_page({"title": title[:120], "content": content[:20000]})
-        except Exception as error:
-            self._set_error("Automatic logbook report failed: " + (str(error) or type(error).__name__))
-            return
-        self.settings_engine.set_preference(preference_key, "true")
+            self.settings_engine.set_preference(preference_key, "true")
+            return True
+
+        self._run_background_call(
+            "auto-log", write_report,
+            lambda written: self._set_operation_notice(
+                "AUTOMATIC LOGBOOK REPORT SAVED" if written else "",
+            ),
+            pending_message="WRITING AUTOMATIC LOGBOOK REPORT",
+            error_formatter=lambda error: (
+                "Automatic logbook report failed: "
+                + (str(error) or type(error).__name__)
+            ),
+        )
 
     @Slot(int, int, int, str, bool, bool)
     def setAutonomousTravelTarget(
@@ -4136,11 +5096,13 @@ class MissionControlController(QObject):
         if self.service is None:
             self._set_error("Refresh live account data before setting automation.")
             return
-        try:
+        route_mode = str(route_mode or "segmented").strip().lower()
+
+        def save():
             preview = self.service.preview_travel(
                 self._focused_probe_id,
                 {"x": x, "y": y, "z": z},
-                str(route_mode or "segmented").strip().lower(),
+                route_mode,
             )
             if preview.get("routeLeavesScutCoverage"):
                 if not scut_exit_acknowledged:
@@ -4163,22 +5125,34 @@ class MissionControlController(QObject):
                 maximum_safe_hop_distance=current.maximum_safe_hop_distance,
                 travel=TravelGoal(
                     SectorCoordinates(x, y, z),
-                    route_mode=str(route_mode or "segmented").strip().lower(),
+                    route_mode=route_mode,
                     risk_acknowledged=bool(risk_acknowledged),
                     scut_exit_acknowledged=bool(scut_exit_acknowledged),
                 ),
                 fleet=current.fleet,
             )
             store.save(state, self._focused_probe_id)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+            return preview
+
+        self._run_background_call(
+            "settings", save,
+            lambda _preview: self._accept_autonomous_travel_target(
+                x, y, z, route_mode, risk_acknowledged,
+                scut_exit_acknowledged,
+            ),
+            pending_message="SAVING AUTO-TRAVEL DESTINATION",
+        )
+
+    def _accept_autonomous_travel_target(
+        self, x, y, z, route_mode, risk_acknowledged,
+        scut_exit_acknowledged,
+    ):
         automation = dict(self._dashboard.get("automation", {}))
         automation["travelTarget"] = {
             "x": x,
             "y": y,
             "z": z,
-            "routeMode": str(route_mode or "segmented").strip().lower(),
+            "routeMode": route_mode,
             "riskAcknowledged": bool(risk_acknowledged),
             "scutExitAcknowledged": bool(scut_exit_acknowledged),
         }
@@ -4201,7 +5175,7 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Refresh live account data before changing automation.")
             return
-        try:
+        def cancel():
             store = DesiredStateStore(self.service.data_engine)
             current = store.load(self._focused_probe_id)
             state = DesiredState(
@@ -4216,9 +5190,12 @@ class MissionControlController(QObject):
                 fleet=current.fleet,
             )
             store.save(state, self._focused_probe_id)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "settings", cancel, self._accept_autonomous_travel_cancel,
+            pending_message="REMOVING AUTO-TRAVEL DESTINATION",
+        )
+
+    def _accept_autonomous_travel_cancel(self, _result):
         automation = dict(self._dashboard.get("automation", {}))
         automation["travelTarget"] = None
         self._dashboard["automation"] = automation
@@ -4230,11 +5207,14 @@ class MissionControlController(QObject):
         if self.service is None:
             self._set_error("Refresh live account data before creating a transport cycle.")
             return
-        try:
-            operation = self.service.save_transport_cycle(self._qt_safe(value))
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        payload = self._qt_safe(value)
+        self._run_background_call(
+            "settings", lambda: self.service.save_transport_cycle(payload),
+            self._accept_transport_cycle_save,
+            pending_message="SAVING ROUND-TRIP OPERATION",
+        )
+
+    def _accept_transport_cycle_save(self, operation):
         automation = dict(self._dashboard.get("automation", {}))
         cycles = list(automation.get("transportCycles", ()))
         cycles.append(self._qt_safe(operation))
@@ -4249,11 +5229,15 @@ class MissionControlController(QObject):
         if self.service is None:
             self._set_error("Refresh live account data before starting a transport cycle.")
             return
-        try:
-            operation = self.service.start_transport_cycle(operation_id)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "settings", lambda: self.service.start_transport_cycle(operation_id),
+            lambda operation: self._accept_transport_cycle_start(
+                operation_id, operation,
+            ),
+            pending_message="STARTING TRANSPORT OPERATION",
+        )
+
+    def _accept_transport_cycle_start(self, operation_id, operation):
         automation = dict(self._dashboard.get("automation", {}))
         automation["transportCycles"] = [
             self._qt_safe(operation) if item.get("id") == operation_id else item
@@ -4270,26 +5254,34 @@ class MissionControlController(QObject):
             and "move_probe" in runtime.get("allowedCommandTypes", ())
         ):
             self._automation_after_refresh = True
-        self._start_refresh(self._focused_probe_id)
+        self._command_accepted(operation, "TRANSPORT OPERATION STARTED · SYNCING")
 
     @Slot(str)
     def deleteTransportCycle(self, operation_id):
         if self.service is None:
             self._set_error("Refresh live account data before removing a transport cycle.")
             return
-        try:
+        def delete():
             self.service.delete_transport_cycle(operation_id)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+            return DesiredStateStore(
+                self.service.data_engine,
+            ).load(self._focused_probe_id).to_dict().get("travelTarget")
+
+        self._run_background_call(
+            "settings", delete,
+            lambda travel_target: self._accept_transport_cycle_delete(
+                operation_id, travel_target,
+            ),
+            pending_message="REMOVING TRANSPORT OPERATION",
+        )
+
+    def _accept_transport_cycle_delete(self, operation_id, travel_target):
         automation = dict(self._dashboard.get("automation", {}))
         automation["transportCycles"] = [
             item for item in automation.get("transportCycles", ())
             if item.get("id") != operation_id
         ]
-        automation["travelTarget"] = DesiredStateStore(
-            self.service.data_engine,
-        ).load(self._focused_probe_id).to_dict().get("travelTarget")
+        automation["travelTarget"] = travel_target
         self._dashboard["automation"] = automation
         self._set_error("")
         self.dashboardChanged.emit()
@@ -4301,11 +5293,15 @@ class MissionControlController(QObject):
                 "Refresh live account data before pausing a transport route."
             )
             return
-        try:
-            operation = self.service.pause_transport_cycle(operation_id)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "settings", lambda: self.service.pause_transport_cycle(operation_id),
+            lambda operation: self._accept_transport_cycle_pause(
+                operation_id, operation,
+            ),
+            pending_message="PAUSING TRANSPORT OPERATION",
+        )
+
+    def _accept_transport_cycle_pause(self, operation_id, operation):
         automation = dict(self._dashboard.get("automation", {}))
         automation["transportCycles"] = [
             self._qt_safe(operation) if item.get("id") == operation_id else item
@@ -4316,29 +5312,211 @@ class MissionControlController(QObject):
         self._set_error("")
         self.dashboardChanged.emit()
 
-    def _inventory_mutation(self, callback, success_message=""):
+    def _inventory_mutation(
+        self, callback, success_message="", *, defer_refresh=False,
+        claimed_manny_id=None,
+    ):
         if not self._require_manual_control():
             return
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Refresh a focused probe before changing inventory.")
             return
-        try:
-            callback()
-        except Exception as error:
-            self._set_error(self._inventory_error_message(error))
+        self._run_background_call(
+            "command", callback,
+            lambda result: self._accept_inventory_mutation(
+                result,
+                success_message or "ORDER ACCEPTED · SYNCING",
+                defer_refresh=defer_refresh,
+                claimed_manny_id=claimed_manny_id,
+            ),
+            pending_message="SENDING MANUAL ORDER",
+            error_formatter=self._inventory_error_message,
+        )
+
+    def _accept_inventory_mutation(
+        self, result, success_message, *, defer_refresh=False,
+        claimed_manny_id=None,
+    ):
+        if claimed_manny_id not in {None, ""}:
+            self._mark_manual_manny_pending(str(claimed_manny_id))
+        self._command_accepted(
+            result,
+            (
+                "ORDER ACCEPTED · SYNC QUEUED FOR SCHEDULED REFRESH"
+                if defer_refresh else success_message
+            ),
+            refresh=not defer_refresh,
+        )
+
+    def _mark_manual_manny_pending(
+        self, manny_id, *, name="Manual order accepted · sync queued",
+        display_suffix="ORDER ACCEPTED · SYNC QUEUED",
+        detail_status="Manual order accepted",
+    ):
+        inventory = dict(self._dashboard.get("inventoryManagement", {}))
+        inventory["idleMannies"] = [
+            item for item in inventory.get("idleMannies", ())
+            if str(item.get("id")) != manny_id
+        ]
+        self._dashboard["inventoryManagement"] = inventory
+        crafting = dict(self._dashboard.get("crafting", {}))
+        crafting["idleMannies"] = [
+            item for item in crafting.get("idleMannies", ())
+            if str(item.get("id")) != manny_id
+        ]
+        self._dashboard["crafting"] = crafting
+        production = []
+        for row in self._dashboard.get("production", ()):
+            if str(row.get("id")) != manny_id:
+                production.append(row)
+                continue
+            asset = row.get("asset", "Manny")
+            production.append({
+                **row,
+                "taskType": "dispatch_pending",
+                "name": name,
+                "displayText": f"{asset} · {display_suffix}",
+                "detailText": (
+                    f"Asset: {asset}\nStatus: {detail_status}\n"
+                    "Authoritative task details will appear at the next scheduled refresh."
+                ),
+            })
+        self._dashboard["production"] = production
+        self._touch_section_revisions("production", "manualControl")
+        self.dashboardChanged.emit()
+
+    def _queue_manual_mining_order(self, manny_id, payload):
+        if not self._require_manual_control():
             return
+        if self.service is None or self._focused_probe_id < 0:
+            self._set_error("Refresh a focused probe before queuing mining.")
+            return
+        manny_id = str(manny_id or "")
+        idle = next((
+            dict(item)
+            for item in self._dashboard.get("inventoryManagement", {}).get(
+                "idleMannies", (),
+            )
+            if str(item.get("id")) == manny_id
+        ), None)
+        if idle is None:
+            self._set_error("Select an idle Manny that is not already queued.")
+            return
+        production_row = next((
+            dict(item) for item in self._dashboard.get("production", ())
+            if str(item.get("id")) == manny_id
+        ), None)
+        self._manual_mining_queue.append({
+            "probeId": self._focused_probe_id,
+            "mannyId": manny_id,
+            "payload": self._qt_safe(payload),
+            "idleManny": idle,
+            "productionRow": production_row,
+        })
+        self._mark_manual_manny_pending(
+            manny_id,
+            name="Manual mining order queued · awaiting send",
+            display_suffix="MINING ORDER QUEUED",
+            detail_status="Manual mining order queued for background dispatch",
+        )
         self._set_error("")
-        if success_message:
-            self._set_operation_notice(success_message)
-        self._start_refresh(self._focused_probe_id)
+        if self._manual_mining_worker is None:
+            self._start_next_manual_mining_order()
+        else:
+            self._set_manual_mining_queue_notice()
+
+    def _set_manual_mining_queue_notice(self):
+        accepted = len(self._manual_mining_accepted_orders)
+        total = len(self._manual_mining_queue) + accepted
+        sending = 1 if self._manual_mining_worker is not None else 0
+        waiting = max(0, len(self._manual_mining_queue) - sending)
+        self._set_operation_notice(
+            f"MANUAL MINING · {total} PENDING SYNC · {accepted} ACCEPTED · "
+            f"{sending} SENDING · {waiting} WAITING"
+        )
+
+    def _start_next_manual_mining_order(self):
+        if self._manual_mining_worker is not None or not self._manual_mining_queue:
+            return
+        order = self._manual_mining_queue[0]
+        worker = _BackgroundCallWorker(
+            lambda: self.service.inventory_manny_action(
+                "mine", order["mannyId"], order["payload"],
+                probe_id=order["probeId"],
+            )
+        )
+        worker.signals.succeeded.connect(
+            lambda result, worker=worker: self._accept_queued_mining_order(
+                worker, result,
+            )
+        )
+        worker.signals.call_failed.connect(
+            lambda error, worker=worker: self._reject_queued_mining_order(
+                worker, error,
+            )
+        )
+        self._manual_mining_worker = worker
+        self._set_manual_mining_queue_notice()
+        self.thread_pool.start(worker)
+
+    def _accept_queued_mining_order(self, worker, _result):
+        if self._manual_mining_worker is not worker:
+            return
+        order = self._manual_mining_queue.pop(0)
+        self._manual_mining_worker = None
+        self._manual_mining_accepted_orders.append(order)
+        self._set_manual_mining_queue_notice()
+        self._start_next_manual_mining_order()
+
+    def _reject_queued_mining_order(self, worker, error):
+        if self._manual_mining_worker is not worker:
+            return
+        order = self._manual_mining_queue.pop(0)
+        self._manual_mining_worker = None
+        if int(order["probeId"]) == int(self._focused_probe_id):
+            self._restore_rejected_manual_manny(order)
+        message = self._inventory_error_message(error)
+        self._set_error(message, context="command")
+        self._queue_command_failure_notification(
+            message, command_type="manny_mine",
+        )
+        self._set_operation_notice(
+            f"MINING ORDER REJECTED · {len(self._manual_mining_queue)} STILL QUEUED"
+        )
+        self._start_next_manual_mining_order()
+
+    def _restore_rejected_manual_manny(self, order):
+        inventory = dict(self._dashboard.get("inventoryManagement", {}))
+        idle = list(inventory.get("idleMannies", ()))
+        if not any(str(item.get("id")) == order["mannyId"] for item in idle):
+            idle.append(order["idleManny"])
+        inventory["idleMannies"] = idle
+        self._dashboard["inventoryManagement"] = inventory
+        crafting = dict(self._dashboard.get("crafting", {}))
+        crafting_idle = list(crafting.get("idleMannies", ()))
+        if not any(str(item.get("id")) == order["mannyId"] for item in crafting_idle):
+            crafting_idle.append(order["idleManny"])
+        crafting["idleMannies"] = crafting_idle
+        self._dashboard["crafting"] = crafting
+        if order.get("productionRow") is not None:
+            self._dashboard["production"] = [
+                order["productionRow"]
+                if str(item.get("id")) == order["mannyId"] else item
+                for item in self._dashboard.get("production", ())
+            ]
+        self._touch_section_revisions("production", "manualControl")
+        self.dashboardChanged.emit()
 
     def _require_manual_control(self):
         """Observe Only is a hard read-only boundary for operator commands."""
         if self._focused_probe_id < 0:
             self._set_error("Select and refresh a probe before issuing a manual command.")
             return False
-        policy = ExecutionPolicyStore().load(self._focused_probe_id)
-        if policy.mode == ExecutionMode.OBSERVE:
+        runtime = self._dashboard.get("automationRuntime", {})
+        if (
+            runtime.get("mode", ExecutionMode.OBSERVE.value)
+            == ExecutionMode.OBSERVE.value
+        ):
             self._set_error(
                 "OBSERVE ONLY · Manual game commands are disabled. Select "
                 "Require Approval or Automatic execution mode to use manual control."
@@ -4487,9 +5665,14 @@ class MissionControlController(QObject):
 
     @Slot(str, str, "QVariantMap")
     def runInventoryMannyAction(self, action, manny_id, payload):
-        self._inventory_mutation(lambda: self.service.inventory_manny_action(
-            action, manny_id, self._qt_safe(payload),
-        ))
+        if str(action) == "mine":
+            self._queue_manual_mining_order(manny_id, payload)
+            return
+        self._inventory_mutation(
+            lambda: self.service.inventory_manny_action(
+                action, manny_id, self._qt_safe(payload),
+            ),
+        )
 
     @Slot(str, "QVariantMap")
     def launchAsteroidTrajectory(self, asteroid_id, payload):
@@ -4508,12 +5691,32 @@ class MissionControlController(QObject):
         if self._focused_probe_id < 0:
             self._set_error("Select a focused probe before changing combat safety.")
             return
-        self.settings_engine.set_preference(
-            f"emergency_missile_escape:{self._focused_probe_id}",
-            "true" if enabled else "false",
+        probe_id = self._focused_probe_id
+        value = "true" if enabled else "false"
+
+        def persist():
+            key = f"emergency_missile_escape:{probe_id}"
+            self.settings_engine.set_preference(key, value)
+            if (
+                self.service is not None
+                and self.service.data_engine is not self.settings_engine
+            ):
+                self.service.data_engine.set_preference(key, value)
+
+        self._run_background_call(
+            "combat-safety-settings",
+            persist,
+            lambda _result: self._accept_emergency_escape_setting(
+                probe_id, bool(enabled),
+            ),
+            pending_message="SAVING COMBAT SAFETY SETTING",
         )
+
+    def _accept_emergency_escape_setting(self, probe_id, enabled):
+        if probe_id != self._focused_probe_id:
+            return
         combat = dict(self._dashboard.get("combatSafety", {}))
-        combat["emergencyMissileEscapeEnabled"] = bool(enabled)
+        combat["emergencyMissileEscapeEnabled"] = enabled
         self._dashboard["combatSafety"] = combat
         self.dashboardChanged.emit()
         self._set_operation_notice(
@@ -4527,12 +5730,32 @@ class MissionControlController(QObject):
         if self._focused_probe_id < 0:
             self._set_error("Select a focused probe before changing Manny safety.")
             return
-        self.settings_engine.set_preference(
-            f"targeted_manny_recall:{self._focused_probe_id}",
-            "true" if enabled else "false",
+        probe_id = self._focused_probe_id
+        value = "true" if enabled else "false"
+
+        def persist():
+            key = f"targeted_manny_recall:{probe_id}"
+            self.settings_engine.set_preference(key, value)
+            if (
+                self.service is not None
+                and self.service.data_engine is not self.settings_engine
+            ):
+                self.service.data_engine.set_preference(key, value)
+
+        self._run_background_call(
+            "targeted-manny-safety-settings",
+            persist,
+            lambda _result: self._accept_targeted_manny_recall_setting(
+                probe_id, bool(enabled),
+            ),
+            pending_message="SAVING TARGETED MANNY SAFETY SETTING",
         )
+
+    def _accept_targeted_manny_recall_setting(self, probe_id, enabled):
+        if probe_id != self._focused_probe_id:
+            return
         combat = dict(self._dashboard.get("combatSafety", {}))
-        combat["targetedMannyRecallEnabled"] = bool(enabled)
+        combat["targetedMannyRecallEnabled"] = enabled
         self._dashboard["combatSafety"] = combat
         self.dashboardChanged.emit()
         self._set_operation_notice(
@@ -4544,28 +5767,41 @@ class MissionControlController(QObject):
     @Slot(str, bool)
     def setUnusualMiningTargetApproval(self, target_id, approved):
         target_id = str(target_id or "")
-        if not target_id or self._focused_probe_id < 0:
+        if not target_id or self._focused_probe_id < 0 or self.service is None:
             self._set_error("Select a focused unusual resource target.")
             return
-        key = f"approved_unusual_mining_targets:{self._focused_probe_id}"
-        try:
-            values = set(json.loads(self.settings_engine.get_preference(key, "[]") or "[]"))
-        except (TypeError, ValueError, json.JSONDecodeError):
-            values = set()
-        if approved:
-            values.add(target_id)
-        else:
-            values.discard(target_id)
-        serialized = json.dumps(sorted(values))
-        self.settings_engine.set_preference(key, serialized)
-        if self.service is not None and self.service.data_engine is not self.settings_engine:
-            self.service.data_engine.set_preference(key, serialized)
+        probe_id = self._focused_probe_id
+
+        def persist():
+            result = self.service.set_unusual_mining_target_approval(
+                target_id, approved,
+            )
+            if self.service.data_engine is not self.settings_engine:
+                key = f"approved_unusual_mining_targets:{probe_id}"
+                self.settings_engine.set_preference(
+                    key, self.service.data_engine.get_preference(key, "[]"),
+                )
+            return result
+
+        self._run_background_call(
+            "mining-target-approval", persist,
+            lambda _result: self._accept_unusual_mining_target_approval(
+                probe_id, target_id, bool(approved),
+            ),
+            pending_message="SAVING MINING AUTOMATION APPROVAL",
+        )
+
+    def _accept_unusual_mining_target_approval(
+        self, probe_id, target_id, approved,
+    ):
+        if probe_id != self._focused_probe_id:
+            return
         ledger = dict(self._dashboard.get("resourceLedger", {}))
-        ledger["rows"] = tuple(
-            {**row, "automationApproved": bool(approved)}
+        ledger["rows"] = [
+            {**row, "automationApproved": approved}
             if str(row.get("objectId")) == target_id else row
             for row in ledger.get("rows", ())
-        )
+        ]
         self._dashboard["resourceLedger"] = ledger
         self.dashboardChanged.emit()
         self._set_error("")
@@ -4593,13 +5829,10 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Refresh a focused probe before using communications.")
             return
-        try:
-            callback()
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
-        self._set_error("")
-        self._start_refresh(self._focused_probe_id)
+        self._run_background_call(
+            "command", callback, self._command_accepted,
+            pending_message="SENDING COMMUNICATION",
+        )
 
     @Slot(str, str)
     def createLogbookPage(self, title, content):
@@ -4632,11 +5865,13 @@ class MissionControlController(QObject):
     def loadLogbookPage(self, page_id):
         if self.service is None:
             return
-        try:
-            page = self.service.get_logbook_page(page_id)
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "logbook-load", lambda: self.service.get_logbook_page(page_id),
+            lambda page: self._accept_logbook_page(page_id, page),
+            pending_message="LOADING LOGBOOK PAGE",
+        )
+
+    def _accept_logbook_page(self, page_id, page):
         logbook = dict(self._dashboard.get("logbook", {}))
         pages = [
             {**item, **self._qt_safe(page), "isNewDailyReport": False}
@@ -4657,15 +5892,20 @@ class MissionControlController(QObject):
         if self.service is None or self._focused_probe_id < 0:
             self._set_error("Refresh a focused probe before editing its logbook.")
             return
-        try:
-            response = callback()
-        except Exception as error:
-            self._set_error(str(error) or type(error).__name__)
-            return
+        self._run_background_call(
+            "command", callback,
+            lambda response: self._accept_logbook_mutation(
+                response, action, page_id, payload,
+            ),
+            pending_message="SAVING LOGBOOK CHANGES",
+        )
+
+    def _accept_logbook_mutation(self, response, action, page_id, payload):
         self._set_error("")
         logbook = dict(self._dashboard.get("logbook", {}))
         pages = list(logbook.get("pages", ()))
         if action == "delete":
+            self._accepted_logbook_deletions.add(int(page_id))
             pages = [item for item in pages if int(item.get("id", -1)) != int(page_id)]
         elif action == "update":
             pages = [
@@ -4695,14 +5935,157 @@ class MissionControlController(QObject):
             self._set_operation_notice("LOGBOOK CHANGES SAVED")
         self.dashboardChanged.emit()
 
+    def _suppress_accepted_logbook_deletions(self, dashboard):
+        """Prevent an older refresh payload from undoing an accepted delete."""
+
+        if not self._accepted_logbook_deletions or "logbook" not in dashboard:
+            return
+        logbook = dict(dashboard.get("logbook", {}))
+        pages = [
+            item for item in logbook.get("pages", ())
+            if int(item.get("id", -1)) not in self._accepted_logbook_deletions
+        ]
+        logbook["pages"] = pages
+        logbook["newDailyReportCount"] = sum(
+            1 for item in pages if item.get("isNewDailyReport")
+        )
+        dashboard["logbook"] = logbook
+
     @Slot(bool)
     def setAutoLogbookEnabled(self, enabled):
-        self.settings_engine.set_preference("auto_game_logbook", "true" if enabled else "false")
-        if self.service is not None:
-            self.service.data_engine.set_preference("auto_game_logbook", "true" if enabled else "false")
         logbook = dict(self._dashboard.get("logbook", {}))
         logbook["autoLoggingEnabled"] = enabled
         self._dashboard["logbook"] = logbook
+        self.dashboardChanged.emit()
+        value = "true" if enabled else "false"
+
+        def persist():
+            self.settings_engine.set_preference("auto_daily_reports", value)
+            if self.service is not None:
+                self.service.data_engine.set_preference("auto_daily_reports", value)
+
+        self._run_background_call(
+            "settings", persist,
+            pending_message="SAVING DAILY REPORT SETTING",
+        )
+
+    def _local_report_engine(self):
+        if self.service is not None and hasattr(self.service, "data_engine"):
+            return self.service.data_engine
+        return self.settings_engine
+
+    @Slot(str)
+    def deleteLocalReport(self, report_id):
+        report_id = str(report_id or "")
+        if not report_id:
+            return
+        removed = self._remove_local_report_from_dashboard(report_id)
+        if not removed["daily"] and not removed["archive"]:
+            self._set_operation_notice("LOCAL REPORT ALREADY REMOVED")
+            return
+        started = self._run_background_call(
+            f"report-delete:{report_id}",
+            lambda: self._local_report_engine().delete_archive_report(report_id),
+            lambda _deleted: self._set_operation_notice("LOCAL REPORT DELETED"),
+            pending_message="DELETING LOCAL REPORT",
+            on_failure=lambda error: self._restore_local_report_after_failure(
+                removed, error,
+            ),
+        )
+        if not started:
+            self._restore_local_report_after_failure(
+                removed, "Local report deletion is already in progress.",
+            )
+
+    def _remove_local_report_from_dashboard(self, report_id):
+        reports = dict(self._dashboard.get("reports", {}))
+        daily = list(reports.get("daily", ()))
+        archive = list(reports.get("archive", ()))
+        removed = {
+            "daily": [
+                (index, row) for index, row in enumerate(daily)
+                if str(row.get("id", "")) == report_id
+            ],
+            "archive": [
+                (index, row) for index, row in enumerate(archive)
+                if str(row.get("reportId", "")) == report_id
+            ],
+        }
+        reports["daily"] = [
+            row for row in daily if str(row.get("id", "")) != report_id
+        ]
+        reports["archive"] = [
+            row for row in archive
+            if str(row.get("reportId", "")) != report_id
+        ]
+        self._dashboard["reports"] = self._qt_safe(reports)
+        self._touch_section_revisions("communications")
+        self.dashboardChanged.emit()
+        return removed
+
+    def _restore_local_report_after_failure(self, removed, error):
+        reports = dict(self._dashboard.get("reports", {}))
+        for key in ("daily", "archive"):
+            rows = list(reports.get(key, ()))
+            for index, row in removed.get(key, ()):
+                rows.insert(min(int(index), len(rows)), row)
+            reports[key] = rows
+        self._dashboard["reports"] = self._qt_safe(reports)
+        self._touch_section_revisions("communications")
+        self.dashboardChanged.emit()
+        self._set_error(str(error) or "The local report could not be deleted.")
+        self._set_operation_notice("")
+
+    @Slot(str, bool)
+    def setLocalReportFavorite(self, report_id, favorited):
+        report_id = str(report_id or "")
+        if not report_id:
+            return
+        self._run_background_call(
+            "settings",
+            lambda: self._local_report_engine().set_archive_report_favorite(
+                report_id, favorited,
+            ),
+            lambda updated: self._accept_local_report_mutation(
+                report_id, "favorite", bool(updated), bool(favorited),
+            ),
+            pending_message="SAVING REPORT FAVORITE",
+        )
+
+    def _accept_local_report_mutation(
+        self, report_id, action, succeeded, favorited,
+    ):
+        if not succeeded:
+            self._set_error("That local report is no longer available.")
+            return
+        reports = dict(self._dashboard.get("reports", {}))
+        if action == "delete":
+            reports["daily"] = [
+                row for row in reports.get("daily", ())
+                if str(row.get("id", "")) != report_id
+            ]
+            reports["archive"] = [
+                row for row in reports.get("archive", ())
+                if str(row.get("reportId", "")) != report_id
+            ]
+            self._set_operation_notice("LOCAL REPORT DELETED")
+        else:
+            reports["daily"] = [
+                {**row, "favorited": favorited}
+                if str(row.get("id", "")) == report_id else row
+                for row in reports.get("daily", ())
+            ]
+            reports["archive"] = [
+                {**row, "favorited": favorited}
+                if str(row.get("reportId", "")) == report_id else row
+                for row in reports.get("archive", ())
+            ]
+            self._set_operation_notice(
+                "REPORT FAVORITED" if favorited else "REPORT FAVORITE REMOVED"
+            )
+        self._dashboard["reports"] = self._qt_safe(reports)
+        self._touch_section_revisions("communications")
+        self._set_error("")
         self.dashboardChanged.emit()
 
     def _start_refresh(
@@ -4710,6 +6093,25 @@ class MissionControlController(QObject):
     ):
         if self._refreshing:
             return
+        budget_check = getattr(
+            getattr(self.service, "client", None),
+            "background_budget_available", None,
+        )
+        if include_archival and budget_check is not None and not budget_check():
+            include_archival = False
+        self._event_loop_refresh_baseline = int(
+            self._event_loop_diagnostics.get("stallCount", 0)
+        )
+        self._event_loop_diagnostics = {
+            **self._event_loop_diagnostics,
+            "stallsSinceRefresh": 0,
+        }
+        self._ui_activity = {
+            "section": self._active_section,
+            "activity": "refresh-started",
+            "at": time.monotonic(),
+        }
+        self.eventLoopDiagnosticsChanged.emit()
         # Preserve the pre-refresh actionable set before an early selected-tab
         # payload replaces it. This lets the completed refresh distinguish a
         # real task completion from a Manny that was already idle.
@@ -4720,23 +6122,24 @@ class MissionControlController(QObject):
             )
             if item.get("id") is not None
         }
+        self._refresh_previous_ready_move_fingerprints = {
+            str(item.get("fingerprint"))
+            for item in self._dashboard.get("automationRuntime", {}).get(
+                "queue", (),
+            )
+            if item.get("type") == CommandType.MOVE_PROBE.value
+            and item.get("disposition") == "ready"
+            and item.get("fingerprint") not in {None, ""}
+        }
         self._set_refreshing(True)
         self._set_error("")
-        if self.service is None:
-            try:
-                self.service = MissionControlDataService()
-            except Exception as error:
-                self._set_error(str(error) or type(error).__name__)
-                self._set_refreshing(False)
-                self._startup_watchdog.stop()
-                self._set_startup_loading(False)
-                return
         self._refresh_target_id = probe_id
         worker = _RefreshWorker(
             self.service, probe_id,
             prefer_cached_fleet=prefer_cached_fleet,
             include_archival=include_archival,
             priority_section=self._active_section,
+            archival_sync_seconds=self._operating_profile.archival_sync_seconds,
         )
         worker.signals.succeeded.connect(self._accept_dashboard)
         worker.signals.failed.connect(self._reject_dashboard)
@@ -4748,6 +6151,7 @@ class MissionControlController(QObject):
     @Slot(object)
     def _accept_priority_dashboard(self, payload):
         """Expose selected-tab telemetry while the complete refresh continues."""
+        self._suppress_accepted_logbook_deletions(payload)
         focus = dict(payload.get("focus", {}))
         probe_id = int(focus.get("probeId", -1))
         requested = self._refresh_target_id
@@ -4776,6 +6180,9 @@ class MissionControlController(QObject):
 
     @Slot(object)
     def _accept_dashboard(self, payload):
+        self._suppress_accepted_logbook_deletions(payload)
+        if self.service is None and self._worker is not None:
+            self.service = self._worker.service
         if self._retry_timer.isActive():
             self._retry_timer.stop()
         self._retry_probe_id = None
@@ -4789,20 +6196,21 @@ class MissionControlController(QObject):
             "source": self.credentialSource,
             "message": self.credentialMessage,
         }
-        focus_probe_id = int((payload.get("focus") or {}).get("probeId", -1))
-        payload["combatSafety"] = {
-            "emergencyMissileEscapeEnabled": self.settings_engine.get_preference(
-                f"emergency_missile_escape:{focus_probe_id}", "false",
-            ) == "true",
-            "targetedMannyRecallEnabled": self.settings_engine.get_preference(
-                f"targeted_manny_recall:{focus_probe_id}", "false",
-            ) == "true",
-        }
         self._dashboard = payload
-        if previous_last_result is not None:
+        self._dashboard["operatingProfile"] = self._operating_profile_payload()
+        self._dashboard["notificationPolicy"] = dict(self._notification_policy)
+        self._dashboard["notificationDelivery"] = dict(self._notification_delivery)
+        if (
+            previous_last_result is not None
+            and not self._dashboard.get("automationRuntime", {}).get("lastResult")
+        ):
             runtime = dict(self._dashboard.get("automationRuntime", {}))
             runtime["lastResult"] = previous_last_result
             self._dashboard["automationRuntime"] = runtime
+        self._queue_notification_processing(
+            self._dashboard, prime=not self._notifications_primed,
+        )
+        self._notifications_primed = True
         self._api_compatible = True
         server_version = int(payload.get("apiVersion") or MAXIMUM_API_VERSION)
         reviewed = api_is_reviewed(server_version)
@@ -4843,20 +6251,40 @@ class MissionControlController(QObject):
         newly_actionable_mannies = (
             current_idle_manny_ids - self._refresh_previous_idle_manny_ids
         )
+        current_ready_move_fingerprints = {
+            str(item.get("fingerprint"))
+            for item in focused_runtime.get("queue", ())
+            if item.get("type") == CommandType.MOVE_PROBE.value
+            and item.get("disposition") == "ready"
+            and item.get("fingerprint") not in {None, ""}
+        }
+        newly_ready_moves = (
+            current_ready_move_fingerprints
+            - self._refresh_previous_ready_move_fingerprints
+        )
         if (
-            newly_actionable_mannies
+            (newly_actionable_mannies or newly_ready_moves)
             and focused_runtime.get("mode") == ExecutionMode.AUTOMATIC.value
             and focused_runtime.get("liveExecutionEnabled")
         ):
             # Sector refresh may be what causes the game to reconcile an
-            # overdue return to idle. Do not leave that newly-ready Manny
-            # waiting for the next one-minute heartbeat: run the same bounded,
-            # allowlisted and safety-reviewed fleet cycle immediately.
+            # overdue return to idle, while planner reconciliation may be the
+            # first place a durable move visibly changes from blocked to ready.
+            # Do not leave either transition waiting for another heartbeat.
             self._automation_after_refresh = True
         naming_policy = payload.get("automation", {}).get("namingPolicy", {})
         accepted_focus = dict(payload.get("focus", {}))
         accepted_probe_id = int(accepted_focus.get("probeId", -1))
-        unseen_mannies = self._unseen_manny_ids(payload)
+        if accepted_probe_id >= 0:
+            self._manual_mining_accepted_orders = [
+                order for order in self._manual_mining_accepted_orders
+                if int(order["probeId"]) != accepted_probe_id
+            ]
+            self._manual_craft_accepted_orders = [
+                order for order in self._manual_craft_accepted_orders
+                if int(order["probeId"]) != accepted_probe_id
+            ]
+        unseen_mannies = tuple(payload.get("unseenMannyIds", ()))
         if (
             naming_policy.get("enabled")
             and accepted_probe_id > 0
@@ -4917,6 +6345,7 @@ class MissionControlController(QObject):
                 ):
                     if telemetry_key in focus:
                         item[telemetry_key] = focus[telemetry_key]
+            item["status"] = MissionControlDataService._probe_display_status(item)
             self._probe_snapshot_cache[probe_id] = dict(item)
         # The account fleet endpoint may omit coordinates for non-focused
         # probes. Reconstruct same-sector transfer choices from the last
@@ -4985,17 +6414,74 @@ class MissionControlController(QObject):
         self._arm_targeted_manny_recall()
         self._finish_refresh()
 
+    def _queue_notification_processing(self, dashboard, prime=False):
+        snapshot = dict(dashboard)
+        if self._notification_worker is not None:
+            self._pending_notification_dashboards.append((snapshot, bool(prime)))
+            return
+        worker = _BackgroundCallWorker(
+            lambda: self._notification_coordinator.take_new(
+                snapshot, self._notification_policy, prime=prime,
+            )
+        )
+        worker.signals.succeeded.connect(self._accept_notification_processing)
+        worker.signals.call_failed.connect(self._reject_notification_processing)
+        self._notification_worker = worker
+        self.thread_pool.start(worker)
+
+    @Slot(object)
+    def _accept_notification_processing(self, fresh_notifications):
+        self._notification_worker = None
+        for notification in fresh_notifications:
+            logging.getLogger("skunkworks").info(
+                "Desktop notification requested | category=%s | severity=%s",
+                notification.category, notification.severity,
+            )
+            self.desktopNotificationRequested.emit(
+                notification.title, notification.message,
+            )
+        pending = self._pending_notification_dashboards.pop(0) if self._pending_notification_dashboards else None
+        if pending is not None:
+            dashboard, prime = pending
+            self._queue_notification_processing(dashboard, prime=prime)
+
+    def _reject_notification_processing(self, _error):
+        self._notification_worker = None
+        pending = self._pending_notification_dashboards.pop(0) if self._pending_notification_dashboards else None
+        if pending is not None:
+            dashboard, prime = pending
+            self._queue_notification_processing(dashboard, prime=prime)
+
+    def _queue_terminal_notification(self, result):
+        """Submit a terminal result at the boundary where the UI accepts it."""
+
+        snapshot = dict(self._dashboard)
+        runtime = dict(snapshot.get("automationRuntime", {}))
+        runtime["lastResult"] = self._qt_safe(result)
+        snapshot["automationRuntime"] = runtime
+        self._queue_notification_processing(snapshot)
+
+    def _queue_command_failure_notification(
+        self, message, *, command_type="manual_command",
+    ):
+        self._queue_terminal_notification({
+            "status": "failed",
+            "commandType": command_type,
+            "message": str(message or "Command failed"),
+            "notificationEventId": time.time_ns(),
+        })
+
     def _arm_emergency_missile_escape(self):
         if self._emergency_stop or self._emergency_escape_worker is not None:
             return
         if not self._dashboard.get("combatSafety", {}).get("emergencyMissileEscapeEnabled"):
             return
         missiles = self._dashboard.get("inventoryManagement", {}).get("targetedMissiles", ())
-        handled_key = f"emergency_missile_escape_handled:{self._focused_probe_id}"
-        try:
-            handled = set(json.loads(self.settings_engine.get_preference(handled_key, "[]") or "[]"))
-        except (TypeError, ValueError, json.JSONDecodeError):
-            handled = set()
+        handled = {
+            str(value) for value in self._dashboard.get("combatSafety", {}).get(
+                "handledMissileIds", (),
+            )
+        }
         pending = [str(item.get("id")) for item in missiles if str(item.get("id")) not in handled]
         if not pending:
             return
@@ -5011,18 +6497,44 @@ class MissionControlController(QObject):
         self._emergency_escape_worker = None
         if result.get("status") != "launched":
             return
-        key = f"emergency_missile_escape_handled:{self._focused_probe_id}"
-        try:
-            handled = set(json.loads(self.settings_engine.get_preference(key, "[]") or "[]"))
-        except (TypeError, ValueError, json.JSONDecodeError):
-            handled = set()
+        probe_id = self._focused_probe_id
+        key = f"emergency_missile_escape_handled:{probe_id}"
+        handled = {
+            str(value) for value in self._dashboard.get("combatSafety", {}).get(
+                "handledMissileIds", (),
+            )
+        }
         handled.update(str(value) for value in result.get("missileIds", ()))
-        self.settings_engine.set_preference(key, json.dumps(sorted(handled)[-100:]))
         target = result.get("target") or {}
         self._set_operation_notice(
             f"EMERGENCY ESCAPE ACCEPTED · FCC {target.get('x')} / {target.get('y')} / {target.get('z')} · SYNCING"
         )
-        self._start_refresh(self._focused_probe_id)
+        retained = tuple(sorted(handled)[-100:])
+
+        def persist():
+            serialized = json.dumps(retained)
+            self.settings_engine.set_preference(key, serialized)
+            if (
+                self.service is not None
+                and self.service.data_engine is not self.settings_engine
+            ):
+                self.service.data_engine.set_preference(key, serialized)
+
+        self._run_background_call(
+            "emergency-escape-state",
+            persist,
+            lambda _saved: self._accept_emergency_escape_state(
+                probe_id, retained,
+            ),
+            pending_message="EMERGENCY ESCAPE ACCEPTED · SAVING SAFETY STATE",
+        )
+
+    def _accept_emergency_escape_state(self, probe_id, handled):
+        if probe_id == self._focused_probe_id:
+            combat = dict(self._dashboard.get("combatSafety", {}))
+            combat["handledMissileIds"] = handled
+            self._dashboard["combatSafety"] = combat
+        self._start_refresh(probe_id)
 
     @Slot(str)
     def _reject_emergency_missile_escape(self, message):
@@ -5038,11 +6550,11 @@ class MissionControlController(QObject):
             item for item in self._dashboard.get("alerts", ())
             if item.get("remoteMannyLaserTargeted")
         ]
-        key = f"targeted_manny_recall_handled:{self._focused_probe_id}"
-        try:
-            handled = set(json.loads(self.settings_engine.get_preference(key, "[]") or "[]"))
-        except (TypeError, ValueError, json.JSONDecodeError):
-            handled = set()
+        handled = {
+            str(value) for value in self._dashboard.get("combatSafety", {}).get(
+                "handledTargetedMannyAlertIds", (),
+            )
+        }
         pending = [
             str(item.get("id")) for item in alerts
             if str(item.get("id")) not in handled
@@ -5061,49 +6573,48 @@ class MissionControlController(QObject):
         self._targeted_manny_recall_worker = None
         if result.get("status") != "recalled":
             return
-        key = f"targeted_manny_recall_handled:{self._focused_probe_id}"
-        try:
-            handled = set(json.loads(self.settings_engine.get_preference(key, "[]") or "[]"))
-        except (TypeError, ValueError, json.JSONDecodeError):
-            handled = set()
+        probe_id = self._focused_probe_id
+        key = f"targeted_manny_recall_handled:{probe_id}"
+        handled = {
+            str(value) for value in self._dashboard.get("combatSafety", {}).get(
+                "handledTargetedMannyAlertIds", (),
+            )
+        }
         handled.update(str(value) for value in result.get("alertIds", ()))
-        self.settings_engine.set_preference(key, json.dumps(sorted(handled)[-100:]))
+        retained = tuple(sorted(handled)[-100:])
         self._set_operation_notice(
             f"{result.get('mannyName', 'MANNY')} RECALL ACCEPTED · SYNCING"
         )
-        self._start_refresh(self._focused_probe_id)
+
+        def persist():
+            serialized = json.dumps(retained)
+            self.settings_engine.set_preference(key, serialized)
+            if (
+                self.service is not None
+                and self.service.data_engine is not self.settings_engine
+            ):
+                self.service.data_engine.set_preference(key, serialized)
+
+        self._run_background_call(
+            "targeted-manny-recall-state",
+            persist,
+            lambda _saved: self._accept_targeted_manny_recall_state(
+                probe_id, retained,
+            ),
+            pending_message="TARGETED MANNY RECALL ACCEPTED · SAVING SAFETY STATE",
+        )
+
+    def _accept_targeted_manny_recall_state(self, probe_id, handled):
+        if probe_id == self._focused_probe_id:
+            combat = dict(self._dashboard.get("combatSafety", {}))
+            combat["handledTargetedMannyAlertIds"] = handled
+            self._dashboard["combatSafety"] = combat
+        self._start_refresh(probe_id)
 
     @Slot(str)
     def _reject_targeted_manny_recall(self, message):
         self._targeted_manny_recall_worker = None
         self._set_error("TARGETED MANNY RECALL NOT SENT · " + message)
-
-    def _unseen_manny_ids(self, payload):
-        """Return focused-probe Mannys absent from its persisted naming history."""
-
-        probe_id = int(
-            payload.get("focus", {}).get(
-                "probeId",
-                payload.get("focusedProbeId", self._focused_probe_id),
-            )
-        )
-        if probe_id <= 0:
-            return ()
-        try:
-            seen = json.loads(
-                self.settings_engine.get_preference(
-                    f"probe_manny_naming_seen:{probe_id}", "[]",
-                ) or "[]"
-            )
-        except (TypeError, ValueError, json.JSONDecodeError):
-            seen = []
-        seen_ids = {str(value) for value in seen}
-        current = payload.get("inventoryManagement", {}).get("mannies", ())
-        return tuple(
-            str(item.get("id")) for item in current
-            if item.get("id") is not None and str(item.get("id")) not in seen_ids
-        )
-
     @Slot(object)
     def _accept_fleet_naming_audit(self, result):
         self._naming_worker = None
@@ -5184,7 +6695,10 @@ class MissionControlController(QObject):
             )
             return
         if self._automation_tick_pending:
-            if self._fleet_automation_worker is not None:
+            if (
+                self._fleet_automation_worker is not None
+                or self._fleet_eligibility_worker is not None
+            ):
                 # The heartbeat has already refreshed focused telemetry while
                 # the isolated fleet worker continues.  Its completion will
                 # clear the pending marker and refresh once more.
