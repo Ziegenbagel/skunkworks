@@ -2,6 +2,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -25,7 +26,7 @@ class DataEngineTests(unittest.TestCase):
 
     def test_existing_report_archive_gains_durable_favorite_column(self):
         legacy_path = Path(self.temporary.name) / "legacy.sqlite3"
-        with sqlite3.connect(legacy_path) as connection:
+        with closing(sqlite3.connect(legacy_path)) as connection:
             connection.executescript(
                 """
                 CREATE TABLE schema_migrations (
@@ -51,6 +52,8 @@ class DataEngineTests(unittest.TestCase):
         report = dict(migrated.archive_reports()[0])
         self.assertEqual(migrated.schema_version(), 5)
         self.assertEqual(report["favorited"], 0)
+        legacy_path.unlink()
+        self.assertFalse(legacy_path.exists())
 
     def test_daily_report_retention_preserves_favorites_and_other_archives(self):
         self.engine.save_archive_report(

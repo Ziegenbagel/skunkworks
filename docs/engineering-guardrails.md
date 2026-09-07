@@ -714,6 +714,9 @@ Every SQLite connection must also be closed explicitly. A
 `sqlite3.Connection` context manager controls transactions but does not close
 the connection; relying on garbage collection leaves database and partial
 backup files locked on Windows and prevents atomic replacement or cleanup.
+This includes connections opened by migration fixtures: a cross-platform
+migration test must be able to delete its database immediately after the last
+operation, without waiting for garbage collection.
 
 ### Packaged resources and user state never share a location
 
