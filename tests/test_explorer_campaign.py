@@ -132,8 +132,10 @@ def test_explorer_treats_display_precision_resource_floor_as_satisfied():
         world=SimpleNamespace(probe={
             "fuel": {"deuterium": 20.0, "maxDeuterium": 100.0},
         }),
+        probes=SimpleNamespace(fuel_percent=lambda: 20.0),
+        mining=SimpleNamespace(active_commitments=lambda: {}),
         inventory=SimpleNamespace(
-            resource_amount=lambda resource: 1.9999999 if resource == "metals" else 0,
+            reserve_shortages=lambda _goals: {"metals": 0.0},
         ),
     )
     desired = DesiredState(
@@ -149,7 +151,9 @@ def test_explorer_interrupts_only_when_resource_is_genuinely_below_floor():
         world=SimpleNamespace(probe={
             "fuel": {"deuterium": 19.99, "maxDeuterium": 100.0},
         }),
-        inventory=SimpleNamespace(resource_amount=lambda _resource: 2.0),
+        probes=SimpleNamespace(fuel_percent=lambda: 19.99),
+        mining=SimpleNamespace(active_commitments=lambda: {}),
+        inventory=SimpleNamespace(reserve_shortages=lambda _goals: {}),
     )
     desired = DesiredState(
         fuel=FuelGoal(minimum_percent=20),
@@ -160,7 +164,8 @@ def test_explorer_interrupts_only_when_resource_is_genuinely_below_floor():
     )
 
     ops.world.probe["fuel"]["deuterium"] = 20.0
-    ops.inventory.resource_amount = lambda _resource: 1.9998
+    ops.probes.fuel_percent = lambda: 20.0
+    ops.inventory.reserve_shortages = lambda _goals: {"metals": 0.002}
     assert MissionControlDataService._explorer_resource_need(ops, desired) == (
         "metals", 2,
     )
