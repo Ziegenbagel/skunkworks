@@ -31,6 +31,9 @@ remains the record for internal implementation work.
 - Clarified Explorer frontier accounting so fleet visits—not scans or scan
   confidence—mark sectors explored; scanned-but-unvisited sectors remain valid
   destinations and are preferred over unknown candidates at equal distance.
+- Stopped automatic Explorer hops from repeatedly requesting predicted-arrival
+  integrity approval while live durability remains above the configured repair
+  trigger; reaching the trigger still blocks travel until repair completes.
 
 ### Internal release support
 

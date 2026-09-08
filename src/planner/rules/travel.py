@@ -1,5 +1,7 @@
 """Desired destination and FCC route planning."""
 
+from dataclasses import replace
+
 from src.planner.priorities import NORMAL
 from src.planner.task import Task
 
@@ -90,6 +92,23 @@ def plan(operations, desired_state) -> list[Task]:
         if route
         else None
     )
+    next_hop_hazards = (
+        next_hop_assessment.hazards
+        if next_hop_assessment is not None
+        else ()
+    )
+    if repair.trigger_percent > 0 and integrity > repair.trigger_percent:
+        # The repair trigger is the operator's durable boundary for automatic
+        # movement. A predicted next-hop crossing remains visible, but asking
+        # for a second risk approval on every hop defeats that policy. Once
+        # live integrity actually reaches the trigger, the blocker above holds
+        # travel until repair reaches its configured target.
+        next_hop_hazards = tuple(
+            replace(hazard, acknowledgement_recommended=False)
+            if hazard.code == "arrival_integrity_low"
+            else hazard
+            for hazard in next_hop_hazards
+        )
     distance = len(route)
     route_name = (
         assessment.recommended.name
@@ -125,11 +144,7 @@ def plan(operations, desired_state) -> list[Task]:
             constraints=blockers,
             destination=target,
             route=route,
-            hazards=(
-                next_hop_assessment.hazards
-                if next_hop_assessment is not None
-                else ()
-            ),
+            hazards=next_hop_hazards,
             require_scut_coverage=(
                 not desired_state.travel.scut_exit_acknowledged
             ),

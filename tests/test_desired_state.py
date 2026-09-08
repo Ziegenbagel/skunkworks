@@ -162,6 +162,34 @@ class DesiredStateTests(unittest.TestCase):
         )
         self.assertNotEqual(travel.action, "Cancel Automatic Travel")
 
+    def test_auto_travel_uses_actual_repair_trigger_instead_of_repeated_prediction_approval(self):
+        operations = build_operations()
+        operations.world.probe["systems"] = {"integrityPercent": 50.8}
+        state = DesiredState(
+            travel=TravelGoal(SectorCoordinates(1, 1, 0)),
+            repair=RepairGoal(trigger_percent=50, target_percent=100),
+        )
+
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+        integrity_warning = next(
+            hazard for hazard in travel.hazards
+            if hazard.code == "arrival_integrity_low"
+        )
+
+        self.assertEqual(travel.action, "Move Probe")
+        self.assertFalse(integrity_warning.acknowledgement_recommended)
+
+        operations.world.probe["systems"]["integrityPercent"] = 50
+        travel = next(
+            task for task in Planner(operations, state).tasks()
+            if task.category == "travel"
+        )
+        self.assertEqual(travel.action, "Prepare Probe Travel")
+        self.assertIn("repair_required_before_travel", travel.constraints)
+
     def test_auto_travel_waits_before_leaving_scut_coverage(self):
         destination = SectorCoordinates(2, 2, 0)
         state = DesiredState(travel=TravelGoal(destination))

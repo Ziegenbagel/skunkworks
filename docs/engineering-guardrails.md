@@ -1032,6 +1032,14 @@ visit history proves that an owned probe physically reached it. At equal route
 distance, a scanned-but-unvisited candidate may be preferred because its known
 objects make the choice more explainable; it remains an exploration visit.
 
+For automatic travel with automatic repair enabled, the configured repair
+trigger is the durable integrity boundary. Predicted next-hop arrival below the
+travel warning threshold remains visible but does not demand repeated secondary
+risk approval while live integrity is still above the repair trigger. At or
+below the trigger, travel is blocked until live repair reaches the configured
+target. Other hazards—including collision, container, SCUT, black-hole, fuel,
+and Manny risks—retain their independent approval or blocking behavior.
+
 Before modifying a shared path:
 
 1. Identify every guardrail it touches.
