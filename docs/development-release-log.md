@@ -33,7 +33,8 @@ remains the record for internal implementation work.
   destinations and are preferred over unknown candidates at equal distance.
 - Stopped automatic Explorer hops from repeatedly requesting predicted-arrival
   integrity approval while live durability remains above the configured repair
-  trigger; reaching the trigger still blocks travel until repair completes.
+  trigger, including during authoritative execution preflight; reaching the
+  trigger still blocks travel until repair completes.
 
 ### Internal release support
 

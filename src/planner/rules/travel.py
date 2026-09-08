@@ -154,6 +154,10 @@ def plan(operations, desired_state) -> list[Task]:
             # hazard acknowledgement separate so genuinely risky routes still
             # pause for explicit consent.
             workflow_authorized=True,
+            metadata={
+                "automaticRepairTriggerPercent": float(repair.trigger_percent),
+                "automaticRepairTargetPercent": float(repair.target_percent),
+            },
             priority=NORMAL,
         )
     ]

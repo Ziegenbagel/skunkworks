@@ -315,6 +315,7 @@ class TaskCommandTranslator:
 
         next_sector = route[0]
         metadata = {
+            **dict(task.metadata or {}),
             "finalDestination": {
                 "x": task.destination.x,
                 "y": task.destination.y,

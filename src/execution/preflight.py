@@ -1,5 +1,7 @@
 """Last-mile validation for proposed commands."""
 
+from dataclasses import replace
+
 from .commands import CommandType
 
 
@@ -100,11 +102,20 @@ class PreflightValidator:
         assessment = self.operations.travel_safety.assess(
             coordinates
         )
-        return (
+        warnings = (
             assessment.hazards
             if assessment is not None
             else ()
         )
+        trigger = self._automatic_repair_threshold(command, "Trigger")
+        if trigger > 0 and self._live_integrity() > trigger:
+            warnings = tuple(
+                replace(warning, acknowledgement_recommended=False)
+                if warning.code == "arrival_integrity_low"
+                else warning
+                for warning in warnings
+            )
+        return warnings
 
     def _move_blockers(self, command):
         target = command.payload.get("target")
@@ -130,6 +141,17 @@ class PreflightValidator:
             blockers.extend(
                 self.operations.travel.automatic_manny_departure_blockers(coordinates)
             )
+            trigger = self._automatic_repair_threshold(command, "Trigger")
+            target = self._automatic_repair_threshold(command, "Target")
+            integrity = self._live_integrity()
+            repair_active = any(
+                self.operations.mannies._task_type(manny) in {"repair", "repairing"}
+                for manny in self.operations.mannies.all()
+            )
+            if trigger > 0 and integrity < target and (
+                integrity <= trigger or repair_active
+            ):
+                blockers.append("repair_required_before_travel")
         if command.metadata.get("requireScutCoverage"):
             origin = self.operations.travel.current_sector()
             if origin is not None and (
@@ -140,6 +162,28 @@ class PreflightValidator:
             ):
                 blockers.append("route_leaves_scut_coverage")
         return tuple(dict.fromkeys(blockers))
+
+    def _automatic_repair_threshold(self, command, boundary):
+        try:
+            return float(
+                command.metadata.get(
+                    f"automaticRepair{boundary}Percent",
+                    0,
+                ) or 0
+            )
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _live_integrity(self):
+        try:
+            return float(
+                (self.operations.world.probe.get("systems") or {}).get(
+                    "integrityPercent",
+                    100,
+                )
+            )
+        except (TypeError, ValueError):
+            return 0.0
 
     def _cancel_move_blockers(self):
         movement = self.operations.world.probe.get("movement") or {}

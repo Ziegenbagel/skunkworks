@@ -1037,8 +1037,15 @@ trigger is the durable integrity boundary. Predicted next-hop arrival below the
 travel warning threshold remains visible but does not demand repeated secondary
 risk approval while live integrity is still above the repair trigger. At or
 below the trigger, travel is blocked until live repair reaches the configured
-target. Other hazards—including collision, container, SCUT, black-hole, fuel,
+target. The typed movement command carries this boundary so authoritative
+last-moment preflight applies the same rule after refreshing telemetry; it must
+not recreate an acknowledgement already suppressed by the planner. Other
+hazards—including collision, container, SCUT, black-hole, fuel,
 and Manny risks—retain their independent approval or blocking behavior.
+
+Relevant test:
+
+- `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_auto_travel_preflight_honors_repair_trigger_boundary`
 
 Before modifying a shared path:
 

@@ -21,6 +21,7 @@ from src.planner.desired_state import (
     FleetGoal,
     InventoryGoal,
     ProductionGoal,
+    RepairGoal,
     ResourceGoal,
     TravelGoal,
 )
@@ -1516,6 +1517,40 @@ class ExecutionBoundaryTests(unittest.TestCase):
         ).blockers(command)
 
         self.assertIn("route_leaves_scut_coverage", blockers)
+
+    def test_auto_travel_preflight_honors_repair_trigger_boundary(self):
+        self.operations.world.probe["systems"] = {"integrityPercent": 50.8}
+        self.policy = ExecutionPolicy(
+            mode=ExecutionMode.AUTOMATIC,
+            live_execution_enabled=True,
+            allowed_command_types=frozenset({CommandType.MOVE_PROBE}),
+            max_commands_per_cycle=10,
+        )
+        prepared = self.prepare(DesiredState(
+            fuel=FuelGoal(0),
+            inventory=InventoryGoal(0),
+            repair=RepairGoal(trigger_percent=50, target_percent=100),
+            travel=TravelGoal(SectorCoordinates(1, 1, 0)),
+        ))[0]
+
+        self.assertEqual(prepared.disposition, "ready")
+        self.assertEqual(
+            prepared.command.metadata["automaticRepairTriggerPercent"],
+            50.0,
+        )
+        arrival_warning = next(
+            warning
+            for warning in prepared.warnings
+            if warning.code == "arrival_integrity_low"
+        )
+        self.assertFalse(arrival_warning.acknowledgement_recommended)
+
+        self.operations.world.probe["systems"]["integrityPercent"] = 50
+        blockers = PreflightValidator(
+            self.operations,
+            probe_id=1,
+        ).blockers(prepared.command)
+        self.assertIn("repair_required_before_travel", blockers)
 
     def test_auto_travel_preflight_rechecks_locally_claimed_and_deployed_mannies(self):
         command = Command(
