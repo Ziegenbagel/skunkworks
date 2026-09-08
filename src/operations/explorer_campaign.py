@@ -158,8 +158,39 @@ class ExplorerCampaignService:
     @classmethod
     def _contains_resource(cls, value, resource):
         if isinstance(value, dict):
-            resources = value.get("resources") or {}
-            if isinstance(resources, dict) and float(resources.get(resource, 0) or 0) > 0:
+            # Retained observations span several public API schemas. The
+            # Galaxy Map already presents all of these as resource-bearing
+            # sectors; campaign routing must consume the same evidence or it
+            # can display a nearby Metals node while claiming no source exists.
+            for key in (
+                "resourceAmounts", "resources", "remainingResources",
+            ):
+                resources = value.get(key)
+                if isinstance(resources, dict):
+                    try:
+                        if float(resources.get(resource, 0) or 0) > 0:
+                            return True
+                    except (TypeError, ValueError):
+                        if resources.get(resource):
+                            return True
+                elif isinstance(resources, (list, tuple)):
+                    for item in resources:
+                        if not isinstance(item, dict):
+                            continue
+                        resource_type = (
+                            item.get("type") or item.get("resourceType")
+                            or item.get("name")
+                        )
+                        amount = item.get("amount", item.get("remaining", 1))
+                        if resource_type == resource and amount not in (
+                            0, 0.0, "0", None,
+                        ):
+                            return True
+            resource_types = value.get("resourceTypes") or ()
+            if resource in resource_types and "resourceAmounts" not in value:
+                # Older scans sometimes report only a positive type hint. If
+                # authoritative remaining amounts are present, the checks
+                # above deliberately prevent a depleted target from routing.
                 return True
             return any(cls._contains_resource(item, resource) for item in value.values())
         if isinstance(value, (list, tuple)):

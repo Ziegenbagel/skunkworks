@@ -27,7 +27,9 @@ remains the record for internal implementation work.
   rejecting Mannys shown aboard a different probe.
 - Fixed Explorers incorrectly entering an indefinite resupply wait when their
   displayed onboard Metals or fuel exactly met the configured safety floor,
-  and made live current-sector deposits authoritative during source selection.
+  made live current-sector deposits authoritative during source selection,
+  and taught resupply routing to recognize the same modern nested resource
+  observations displayed on the Galaxy Map.
 - Clarified Explorer frontier accounting so fleet visits—not scans or scan
   confidence—mark sectors explored; scanned-but-unvisited sectors remain valid
   destinations and are preferred over unknown candidates at equal distance.

@@ -1024,6 +1024,16 @@ in a `resupplying` state with no actionable command.
 The current live sector's mining targets are checked before retained galaxy
 observations, so a visible mineable deposit cannot be misreported as no known
 source merely because archival map evidence is absent or stale.
+Retained resupply-source discovery accepts every resource representation shown
+by the Galaxy Map, including modern nested `resourceAmounts` and older
+`resourceTypes`-only hints. When authoritative remaining amounts are present,
+a zero amount is depleted and must never be selected merely because its type
+hint remains in the observation.
+
+Relevant tests:
+
+- `tests/test_explorer_campaign.py::test_resupply_route_recognizes_modern_nested_resource_observations`
+- `tests/test_explorer_campaign.py::test_resupply_route_ignores_depleted_modern_resource_observation`
 
 Explorer frontier accounting is fleet-wide and visit-based. Neighbor scans,
 including detailed 100%-confidence observations, are routing intelligence and

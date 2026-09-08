@@ -142,6 +142,50 @@ def test_global_resource_floor_redirects_explorer_to_known_scut_source():
     assert decision.destination == SectorCoordinates(1, 1, 0)
 
 
+def test_resupply_route_recognizes_modern_nested_resource_observations():
+    ops, galaxy = operations()
+    modern_source = SectorCoordinates(1, 1, 0)
+    galaxy.record_observation({"sector": {
+        "relativeCoordinates": {
+            "x": modern_source.x, "y": modern_source.y, "z": modern_source.z,
+        },
+        "objects": [{
+            "id": "system-1", "type": "solar_system",
+            "minableTargets": [{
+                "id": "metal-1", "type": "asteroid",
+                "resourceTypes": ["metals"],
+                "resourceAmounts": {"metals": 18.5},
+            }],
+        }],
+    }})
+
+    decision = ExplorerCampaignService(ops).decide(
+        resource_need=("metals", 2),
+    )
+
+    assert decision.phase == "resupply_travel"
+    assert decision.destination == modern_source
+
+
+def test_resupply_route_ignores_depleted_modern_resource_observation():
+    ops, galaxy = operations()
+    galaxy.record_observation({"sector": {
+        "relativeCoordinates": {"x": 1, "y": 1, "z": 0},
+        "objects": [{
+            "id": "metal-1", "type": "asteroid",
+            "resourceTypes": ["metals"],
+            "resourceAmounts": {"metals": 0},
+        }],
+    }})
+
+    decision = ExplorerCampaignService(ops).decide(
+        resource_need=("metals", 2),
+    )
+
+    assert decision.phase == "resupply_wait"
+    assert decision.destination is None
+
+
 def test_live_current_sector_metal_source_wins_over_missing_map_observation():
     ops, _galaxy = operations()
     ops.mining = SimpleNamespace(
