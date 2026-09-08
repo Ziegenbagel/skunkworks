@@ -1016,6 +1016,14 @@ probe is not considered safely aboard the focused probe. Recovery travel may
 still approach the stranded Manny's positively identified sector, but no role
 may use missing or contradictory telemetry as proof that all Mannys are aboard.
 
+Explorer resource interruptions compare the physical onboard inventory at the
+same four-decimal precision used by manufacturing and presentation. Reaching a
+configured fuel or Metals floor satisfies that floor; binary floating-point
+noise below a displayed exact boundary must not strand a campaign in resupply.
+The current live sector's mining targets are checked before retained galaxy
+observations, so a visible mineable deposit cannot be misreported as no known
+source merely because archival map evidence is absent or stale.
+
 Before modifying a shared path:
 
 1. Identify every guardrail it touches.

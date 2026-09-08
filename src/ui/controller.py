@@ -11,6 +11,7 @@ import re
 import sys
 import time
 from dataclasses import asdict, replace
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 import requests
@@ -1001,16 +1002,41 @@ class MissionControlDataService:
     @staticmethod
     def _explorer_resource_need(operations, desired):
         fuel = operations.world.probe.get("fuel") or {}
-        maximum = float(fuel.get("maxDeuterium", 0) or 0)
-        available = float(fuel.get("deuterium", 0) or 0)
-        if maximum and available / maximum * 100 <= desired.fuel.minimum_percent:
-            return ("deuterium", maximum)
-        resources, _items = operations.manufacturing.available_inputs()
+        maximum = MissionControlDataService._resource_floor_value(
+            fuel.get("maxDeuterium", 0), "0.0001",
+        )
+        available = MissionControlDataService._resource_floor_value(
+            fuel.get("deuterium", 0), "0.0001",
+        )
+        minimum_percent = MissionControlDataService._resource_floor_value(
+            desired.fuel.minimum_percent, "0.01",
+        )
+        current_percent = (
+            (available / maximum * Decimal("100")).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP,
+            ) if maximum > 0 else Decimal("0")
+        )
+        # Reaching the configured floor satisfies it. Only a genuine value
+        # below that boundary may interrupt the Explorer campaign.
+        if maximum > 0 and current_percent < minimum_percent:
+            return ("deuterium", float(maximum))
         metals_goal = next((goal for goal in desired.resources
                             if goal.resource_type == "metals"), None)
-        if metals_goal and float(resources.get("metals", 0) or 0) < metals_goal.minimum_amount:
+        metals = MissionControlDataService._resource_floor_value(
+            operations.inventory.resource_amount("metals"), "0.0001",
+        )
+        target = MissionControlDataService._resource_floor_value(
+            metals_goal.minimum_amount if metals_goal else 0, "0.0001",
+        )
+        if metals_goal and metals < target:
             return ("metals", metals_goal.minimum_amount)
         return None
+
+    @staticmethod
+    def _resource_floor_value(value, precision):
+        return Decimal(str(value or 0)).quantize(
+            Decimal(precision), rounding=ROUND_HALF_UP,
+        )
 
     def _apply_probe_role_goals(self, desired, operations, probe_id):
         """Add operational goals implied by a probe's assigned fleet role."""

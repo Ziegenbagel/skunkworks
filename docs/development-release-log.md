@@ -25,6 +25,9 @@ remains the record for internal implementation work.
 - Hardened automatic travel against leaving Mannys behind by reconciling the
   owned Manny roster with API-v128 deployed autonomous-unit observations and
   rejecting Mannys shown aboard a different probe.
+- Fixed Explorers incorrectly entering an indefinite resupply wait when their
+  displayed onboard Metals or fuel exactly met the configured safety floor,
+  and made live current-sector deposits authoritative during source selection.
 
 ### Internal release support
 

@@ -2,6 +2,8 @@ from types import SimpleNamespace
 
 from src.models.galaxy import GalaxyMap, SectorCoordinates
 from src.operations.explorer_campaign import ExplorerCampaignService
+from src.planner.desired_state import DesiredState, FuelGoal, ResourceGoal
+from src.ui.controller import MissionControlDataService
 
 
 class Travel:
@@ -107,3 +109,58 @@ def test_global_resource_floor_redirects_explorer_to_known_scut_source():
     decision = ExplorerCampaignService(ops).decide(resource_need=("deuterium", 100))
     assert decision.phase == "resupply_travel"
     assert decision.destination == SectorCoordinates(1, 1, 0)
+
+
+def test_live_current_sector_metal_source_wins_over_missing_map_observation():
+    ops, _galaxy = operations()
+    ops.mining = SimpleNamespace(
+        best_target=lambda resource: {"id": "metal-asteroid", "amount": 1723}
+        if resource == "metals" else None,
+    )
+
+    decision = ExplorerCampaignService(ops).decide(
+        resource_need=("metals", 2),
+    )
+
+    assert decision.phase == "resupplying"
+    assert decision.destination is None
+    assert "global 2 ECE floor" in decision.summary
+
+
+def test_explorer_treats_display_precision_resource_floor_as_satisfied():
+    ops = SimpleNamespace(
+        world=SimpleNamespace(probe={
+            "fuel": {"deuterium": 20.0, "maxDeuterium": 100.0},
+        }),
+        inventory=SimpleNamespace(
+            resource_amount=lambda resource: 1.9999999 if resource == "metals" else 0,
+        ),
+    )
+    desired = DesiredState(
+        fuel=FuelGoal(minimum_percent=20),
+        resources=(ResourceGoal("metals", 2),),
+    )
+
+    assert MissionControlDataService._explorer_resource_need(ops, desired) is None
+
+
+def test_explorer_interrupts_only_when_resource_is_genuinely_below_floor():
+    ops = SimpleNamespace(
+        world=SimpleNamespace(probe={
+            "fuel": {"deuterium": 19.99, "maxDeuterium": 100.0},
+        }),
+        inventory=SimpleNamespace(resource_amount=lambda _resource: 2.0),
+    )
+    desired = DesiredState(
+        fuel=FuelGoal(minimum_percent=20),
+        resources=(ResourceGoal("metals", 2),),
+    )
+    assert MissionControlDataService._explorer_resource_need(ops, desired) == (
+        "deuterium", 100.0,
+    )
+
+    ops.world.probe["fuel"]["deuterium"] = 20.0
+    ops.inventory.resource_amount = lambda _resource: 1.9998
+    assert MissionControlDataService._explorer_resource_need(ops, desired) == (
+        "metals", 2,
+    )

@@ -116,6 +116,13 @@ class ExplorerCampaignService:
         return result
 
     def _nearest_resource_source(self, current, resource):
+        # The focused sector snapshot is newer and more complete than the
+        # retained galaxy observation. If the normal mining service can select
+        # this resource here, resupply in place rather than claiming no known
+        # source or routing away from a visible deposit.
+        mining = getattr(self.operations, "mining", None)
+        if mining is not None and mining.best_target(resource) is not None:
+            return current
         candidates = []
         for record in self.operations.galaxy.known_sectors():
             if not record.observed or not self._contains_resource(record.observed, resource):
