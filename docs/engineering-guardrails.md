@@ -1025,6 +1025,13 @@ The current live sector's mining targets are checked before retained galaxy
 observations, so a visible mineable deposit cannot be misreported as no known
 source merely because archival map evidence is absent or stale.
 
+Explorer frontier accounting is fleet-wide and visit-based. Neighbor scans,
+including detailed 100%-confidence observations, are routing intelligence and
+never mark a sector explored. A sector leaves the frontier only after merged
+visit history proves that an owned probe physically reached it. At equal route
+distance, a scanned-but-unvisited candidate may be preferred because its known
+objects make the choice more explainable; it remains an exploration visit.
+
 Before modifying a shared path:
 
 1. Identify every guardrail it touches.

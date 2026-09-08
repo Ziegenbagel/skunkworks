@@ -57,6 +57,37 @@ def test_planetary_focus_prefers_planet_evidence_but_falls_back():
     assert "nearest frontier" in fallback.summary
 
 
+def test_detailed_scan_without_a_fleet_visit_remains_exploration_frontier():
+    ops, galaxy = operations()
+    scanned = SectorCoordinates(1, 1, 0)
+    galaxy.record_observation({"sector": {
+        "relativeCoordinates": {"x": scanned.x, "y": scanned.y, "z": scanned.z},
+        "knowledgeLevel": "detailed",
+        "confidence": 1,
+        "objects": [{"id": "planet-1", "type": "planet"}],
+    }}, probe_id=44)
+
+    decision = ExplorerCampaignService(ops).decide(mode="any_frontier")
+
+    assert decision.destination == scanned
+    assert "scanned but no owned probe has visited" in decision.summary
+
+
+def test_fleet_visit_removes_even_an_unscanned_sector_from_frontier():
+    ops, galaxy = operations()
+    visited = SectorCoordinates(-1, -1, 0)
+    galaxy.record_visit({
+        "relativeCoordinates": {"x": visited.x, "y": visited.y, "z": visited.z},
+        "visitCount": 1,
+    }, probe_id=81)
+
+    candidates = ExplorerCampaignService(ops).frontier_candidates(
+        SectorCoordinates(0, 0, 0),
+    )
+
+    assert visited not in {candidate for candidate, _record, _route in candidates}
+
+
 def test_frontier_never_selects_a_route_without_verified_scut_coverage():
     neighbors = set(SectorCoordinates(0, 0, 0).neighbors())
     ops, _galaxy = operations(blocked=neighbors)

@@ -83,20 +83,36 @@ class ExplorerCampaignService:
             fallback = not planetary
         else:
             pool, fallback = candidates, False
-        destination, _record, route = min(
-            pool, key=lambda item: (len(item[2]), item[0].x, item[0].y, item[0].z)
+        destination, selected_record, route = min(
+            pool, key=lambda item: (
+                len(item[2]),
+                # A scan is navigation intelligence, not exploration. When
+                # equally close candidates exist, consume that intelligence
+                # first while still requiring a physical fleet visit before
+                # the sector leaves the frontier.
+                0 if item[1] is not None and item[1].observed else 1,
+                item[0].x, item[0].y, item[0].z,
+            )
         )
         qualifier = "planet-bearing frontier" if not fallback and mode == "planetary_frontier" else "nearest frontier"
+        scan_note = " It has been scanned but no owned probe has visited it." if selected_record is not None and selected_record.observed else ""
         return ExplorerDecision(
             "travelling",
-            f"Selected {qualifier} at {destination.x}:{destination.y}:{destination.z}; route remains inside SCUT.",
+            f"Selected {qualifier} at {destination.x}:{destination.y}:{destination.z}; route remains inside SCUT.{scan_note}",
             destination=destination,
         )
 
     def frontier_candidates(self, current, *, reserved=()):
         reserved = set(reserved)
         records = self.operations.galaxy.known_sectors()
-        visited = {item.coordinates for item in records if item.visit_count > 0}
+        # Scans—even detailed, 100%-confidence scans—do not make a sector
+        # explored. Only merged fleet visit history proves that an owned probe
+        # physically reached it. Fleet-wide records and each probe's records
+        # are already coalesced into this GalaxyMap.
+        visited = {
+            item.coordinates for item in records
+            if self._physically_explored(item)
+        }
         frontier = {neighbor for point in (visited or {current}) for neighbor in point.neighbors() if neighbor not in visited}
         # Include observed, unvisited sectors even when they are not adjacent to
         # the current probe; this is what lets an Explorer route toward the next
@@ -114,6 +130,10 @@ class ExplorerCampaignService:
                 continue
             result.append((candidate, by_coordinate.get(candidate), route))
         return result
+
+    @staticmethod
+    def _physically_explored(record):
+        return int(record.visit_count or 0) > 0
 
     def _nearest_resource_source(self, current, resource):
         # The focused sector snapshot is newer and more complete than the
