@@ -326,6 +326,7 @@ class UiPreparationTests(unittest.TestCase):
                     "id": index,
                     "message": f"Alert {index}",
                     "createdAt": f"2026-08-{index:02d}T12:00:00+00:00",
+                    "sector": {"relative": {"x": -7, "y": -13, "z": 12}},
                 }
                 for index in range(1, 6)
             ], probe_id=1, observed_at="2026-08-20T12:00:00+00:00")
@@ -341,6 +342,16 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(len(alerts), 5)
             self.assertEqual(alerts[0]["summary"], "Alert 5")
             self.assertEqual(alerts[-1]["summary"], "Alert 1")
+            self.assertTrue(alerts[0]["hasSector"])
+            self.assertEqual(alerts[0]["sectorLabel"], "FCC -7 / -13 / 12")
+
+    def test_safety_alert_sector_accepts_flat_historical_coordinates(self):
+        payload = {"coordinates": {"x": 3, "y": 3, "z": -2}}
+
+        self.assertEqual(
+            MissionControlViewModelBuilder._alert_sector(payload),
+            {"x": 3, "y": 3, "z": -2},
+        )
 
     def test_archive_is_separate_from_game_logbook(self):
         with tempfile.TemporaryDirectory() as temporary:

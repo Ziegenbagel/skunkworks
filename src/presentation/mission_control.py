@@ -1383,8 +1383,7 @@ class MissionControlViewModelBuilder:
                 and not payload.get("resolvedAt")
                 and destruction_epoch_ms > datetime.now().timestamp() * 1000
             )
-            sector = payload.get("sector") or {}
-            relative_sector = sector.get("relative") or sector.get("relativeCoordinates") or {}
+            relative_sector = self._alert_sector(payload)
             alerts.append({
                 "id": str(event.get("id", "event")),
                 "domain": event["domain"],
@@ -1398,6 +1397,7 @@ class MissionControlViewModelBuilder:
                 "remoteMannyLaserTargeted": remote_manny_targeted,
                 "sector": relative_sector,
                 "sectorLabel": self._sector_label(relative_sector),
+                "hasSector": bool(relative_sector),
                 "destructionEpochMs": destruction_epoch_ms,
                 "observedAt": (
                     payload.get("createdAt")
@@ -1406,6 +1406,36 @@ class MissionControlViewModelBuilder:
                 ),
             })
         return tuple(alerts)
+
+    @staticmethod
+    def _alert_sector(payload):
+        """Extract the event's recorded FCC sector without using live location."""
+        candidates = (
+            payload.get("sector"),
+            payload.get("sectorCoordinates"),
+            payload.get("coordinates"),
+            payload.get("location"),
+            payload.get("relativeCoordinates"),
+            payload.get("relative"),
+        )
+        for candidate in candidates:
+            while isinstance(candidate, dict) and not all(
+                axis in candidate for axis in ("x", "y", "z")
+            ):
+                nested = (
+                    candidate.get("relative")
+                    or candidate.get("relativeCoordinates")
+                    or candidate.get("coordinates")
+                    or candidate.get("sector")
+                )
+                if nested is candidate or not isinstance(nested, dict):
+                    break
+                candidate = nested
+            if isinstance(candidate, dict) and all(
+                axis in candidate for axis in ("x", "y", "z")
+            ):
+                return {axis: candidate[axis] for axis in ("x", "y", "z")}
+        return {}
 
     def _dashboard_alerts(self, findings):
         received = sorted(

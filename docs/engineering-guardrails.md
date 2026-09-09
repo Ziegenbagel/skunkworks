@@ -374,6 +374,16 @@ Alerts and damage warnings belong to the focused reachable probe. Synchronize
 them on a bounded lightweight cadence even when the slower default-probe
 archival import is skipped, so explorer and other secondary-probe discoveries
 reach Safety without restoring a heavy refresh path.
+Safety presents the event's recorded FCC sector whenever the alert payload
+provides one, so an operator can return to a discovery after the probe moves.
+Historical alerts with no coordinates remain explicitly location-unknown; the
+current live probe sector must never be substituted for the event location.
+
+Relevant tests:
+
+- `tests/test_ui_preparation.py::UiPreparationTests::test_safety_view_exposes_every_persisted_alert_in_game_order`
+- `tests/test_ui_preparation.py::UiPreparationTests::test_safety_alert_sector_accepts_flat_historical_coordinates`
+- `tests/test_ui_assets.py::test_safety_workspace_virtualizes_and_wraps_large_alerts`
 
 ### Sector controls accept equivalent API type spellings
 

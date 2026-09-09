@@ -37,6 +37,8 @@ remains the record for internal implementation work.
   integrity approval while live durability remains above the configured repair
   trigger, including during authoritative execution preflight; reaching the
   trigger still blocks travel until repair completes.
+- Safety alerts now display the FCC sector recorded with arrivals, discoveries,
+  Manny reports, and other events so operators can return after moving away.
 
 ### Internal release support
 

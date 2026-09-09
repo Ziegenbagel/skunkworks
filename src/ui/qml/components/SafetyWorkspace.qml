@@ -79,6 +79,18 @@ Item {
                             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         }
                         Label {
+                            visible: Boolean(alertCard.modelData.hasSector)
+                                     && !Boolean(alertCard.modelData.remoteMannyLaserTargeted)
+                            Layout.fillWidth: true
+                            text: "RECORDED SECTOR · "
+                                  + String(alertCard.modelData.sectorLabel || "SECTOR UNKNOWN")
+                            color: Constants.textColor
+                            font.family: Constants.technicalFont
+                            font.bold: true
+                            font.pixelSize: 15
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        }
+                        Label {
                             Layout.fillWidth: true
                             text: alertCard.modelData.summary || ""
                             color: Constants.mutedTextColor

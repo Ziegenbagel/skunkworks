@@ -858,6 +858,8 @@ def test_safety_workspace_virtualizes_and_wraps_large_alerts():
     assert "Text.WrapAtWordBoundaryOrAnywhere" in safety
     assert "font.pixelSize: 17" in safety
     assert "font.pixelSize: 16" in safety
+    assert 'text: "RECORDED SECTOR · "' in safety
+    assert "visible: Boolean(alertCard.modelData.hasSector)" in safety
 
 
 def test_dashboard_alert_previews_are_bounded_to_the_panel():
