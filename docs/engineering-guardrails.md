@@ -204,6 +204,10 @@ In a sector containing an assigned Miner, more than five detached or drifting
 containers render as one Storage Station marker in the live sector view. This
 is presentation-only aggregation: the underlying container records and resource
 ledger remain individually addressable and authoritative.
+Unconfigured ordinary-resource selections default to none, never all. A full
+Deuterium tank is a logistics wait rather than a missing-resource condition;
+the Miner status must identify whether it needs a receiver selection, a
+rendezvous, or receiver capacity.
 
 Relevant code/tests:
 

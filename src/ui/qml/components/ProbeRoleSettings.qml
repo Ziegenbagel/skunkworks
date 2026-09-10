@@ -172,9 +172,9 @@ Item {
                         Label { Layout.fillWidth: true; text: "Select any other available probe as the receiver. It must rendezvous in this sector and have free fuel capacity before transfer. A full Miner keeps 1 ECE, transfers available fuel, then resumes mining when capacity opens."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Label { text: "OTHER RESOURCE SELECTION"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                         RowLayout {
-                            CheckBox { id: mineMetals; text: "METALS"; checked: !root.focusedSettings.ordinaryResources || root.focusedSettings.ordinaryResources.indexOf("metals") >= 0 }
-                            CheckBox { id: mineIce; text: "ICE"; checked: !root.focusedSettings.ordinaryResources || root.focusedSettings.ordinaryResources.indexOf("ice") >= 0 }
-                            CheckBox { id: mineCarbon; text: "CARBON COMPOUNDS"; checked: !root.focusedSettings.ordinaryResources || root.focusedSettings.ordinaryResources.indexOf("carbon_compounds") >= 0 }
+                            CheckBox { id: mineMetals; text: "METALS"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("metals") >= 0) }
+                            CheckBox { id: mineIce; text: "ICE"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("ice") >= 0) }
+                            CheckBox { id: mineCarbon; text: "CARBON COMPOUNDS"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("carbon_compounds") >= 0) }
                         }
                         RowLayout {
                             Label { text: "MAXIMUM MINING MANNYS"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }

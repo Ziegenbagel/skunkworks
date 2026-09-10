@@ -1193,3 +1193,12 @@ def test_miner_receiver_selector_lists_every_other_available_probe():
     assert "probe => Number(probe.id) !== focusedProbeId" in role_settings
     assert 'roleFor(probe.id) === "transport"' not in role_settings
     assert "model: root.minerReceiverProbes" in role_settings
+
+
+def test_miner_ordinary_resources_default_to_unchecked():
+    role_settings = Path(
+        "src/ui/qml/components/ProbeRoleSettings.qml"
+    ).read_text(encoding="utf-8")
+
+    assert "focusedSettings.ordinaryResources &&" in role_settings
+    assert "!root.focusedSettings.ordinaryResources" not in role_settings

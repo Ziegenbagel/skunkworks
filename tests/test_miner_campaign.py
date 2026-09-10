@@ -70,6 +70,30 @@ def test_full_deuterium_miner_transfers_to_selected_same_sector_probe():
     assert decision.tasks[0].quantity == 80
 
 
+def test_full_tank_reports_rendezvous_instead_of_missing_resource():
+    target = {
+        "id": 9, "sector": {"relative": {"x": 2, "y": 2, "z": -2}},
+        "fuel": {"deuterium": 20, "maxDeuterium": 100},
+    }
+    decision = MinerCampaignService(operations(fuel=100)).decide({
+        "miningEnabled": True, "resourceMode": "deuterium",
+        "deuteriumTransportProbeId": 9,
+    }, target_probe=target)
+
+    assert decision.phase == "tank_full_awaiting_rendezvous"
+    assert "full at 100/100 ECE" in decision.summary
+    assert "rendezvous" in decision.summary
+
+
+def test_unconfigured_ordinary_resources_default_to_unchecked_and_unmanaged():
+    decision = MinerCampaignService(operations()).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+    })
+
+    assert decision.managed_resources == ()
+    assert decision.tasks == ()
+
+
 def test_enabled_miner_suppresses_ordinary_travel_without_mutating_saved_goal():
     desired = DesiredState(travel=TravelGoal(SectorCoordinates(4, 5, 5)))
     engine = SimpleNamespace(fleet_roles=lambda _kind: ({

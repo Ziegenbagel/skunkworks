@@ -30,25 +30,25 @@ class MinerCampaignService:
         if mode in {"deuterium", "all"}:
             selected.append("deuterium")
         if mode in {"resources", "all"}:
-            enabled = settings.get("ordinaryResources") or self.ORDINARY_RESOURCES
+            enabled = settings.get("ordinaryResources", ())
             selected.extend(item for item in self.ORDINARY_RESOURCES if item in enabled)
         managed = tuple(dict.fromkeys(selected))
         idle = self.operations.mining.idle_mannies()
         worker_limit = max(1, min(4, int(settings.get("maximumMiningMannies", 4) or 4)))
         available_workers = min(worker_limit, max(0, len(idle) - 1))
-        if available_workers <= 0:
-            return MinerCampaignDecision(
-                phase="logistics_reserve", paused=False,
-                summary="Waiting for another idle Manny; one Manny remains reserved for logistics.",
-                managed_resources=managed,
-            )
         tasks = []
         if "deuterium" in managed:
             transfer = self._deuterium_transfer(settings, target_probe)
             if transfer is not None:
                 tasks.append(transfer)
+        if available_workers <= 0 and not tasks:
+            return MinerCampaignDecision(
+                phase="logistics_reserve", paused=False,
+                summary="Waiting for another idle Manny; one Manny remains reserved for logistics.",
+                managed_resources=managed,
+            )
         active = self.operations.mining.active_commitments()
-        remaining_workers = max(0, available_workers - len(tasks))
+        remaining_workers = available_workers
         for resource in managed:
             if remaining_workers <= 0:
                 break
@@ -74,10 +74,22 @@ class MinerCampaignService:
                 need -= order
                 remaining_workers -= 1
         if tasks:
+            transferring = any(task.action == "Transfer Deuterium" for task in tasks)
             return MinerCampaignDecision(
-                tasks=tuple(tasks), phase="mining", paused=False,
-                summary=(f"Prepared {len(tasks)} mining order(s); one idle Manny is reserved "
+                tasks=tuple(tasks),
+                phase="transferring_deuterium" if transferring and len(tasks) == 1 else "mining",
+                paused=False,
+                summary=("Tank is full; prepared transfer to the selected receiver."
+                         if transferring and len(tasks) == 1 else
+                         f"Prepared {len(tasks)} campaign order(s); one Manny is reserved "
                          "for transfer and container logistics."),
+                managed_resources=managed,
+            )
+        deuterium_wait = self._deuterium_wait_status(settings, target_probe)
+        if "deuterium" in managed and deuterium_wait is not None:
+            phase, summary = deuterium_wait
+            return MinerCampaignDecision(
+                phase=phase, paused=False, summary=summary,
                 managed_resources=managed,
             )
         return MinerCampaignDecision(
@@ -85,6 +97,27 @@ class MinerCampaignService:
             summary="No selected resource is currently mineable in this sector.",
             managed_resources=managed,
         )
+
+    def _deuterium_wait_status(self, settings, target_probe):
+        fuel = self.operations.world.probe.get("fuel") or {}
+        amount = float(fuel.get("deuterium", 0) or 0)
+        maximum = float(fuel.get("maxDeuterium", 0) or 0)
+        if maximum <= 0 or amount + 0.00001 < maximum:
+            return None
+        target_id = settings.get("deuteriumTransportProbeId")
+        if target_id in {None, "", -1, "-1"} or target_probe is None:
+            return ("tank_full_awaiting_receiver",
+                    f"Deuterium tank is full at {amount:g}/{maximum:g} ECE. Select an available receiver.")
+        if self._sector(self.operations.world.probe) != self._sector(target_probe):
+            return ("tank_full_awaiting_rendezvous",
+                    f"Deuterium tank is full at {amount:g}/{maximum:g} ECE. Waiting for the selected receiver to rendezvous in this sector.")
+        target_fuel = target_probe.get("fuel") or {}
+        target_amount = float(target_fuel.get("deuterium", 0) or 0)
+        target_maximum = float(target_fuel.get("maxDeuterium", 0) or 0)
+        if target_maximum <= target_amount + 0.00001:
+            return ("tank_full_receiver_full",
+                    f"Deuterium tank is full at {amount:g}/{maximum:g} ECE, but the selected receiver has no free fuel capacity.")
+        return None
 
     def _deuterium_transfer(self, settings, target_probe):
         target_id = settings.get("deuteriumTransportProbeId")
