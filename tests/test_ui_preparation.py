@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from src.data import DataEngine
-from src.execution import ExecutionMode
+from src.execution import Command, CommandType, ExecutionMode
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
 from src.planner.desired_state_store import DesiredStateStore
@@ -352,6 +352,31 @@ class UiPreparationTests(unittest.TestCase):
             MissionControlViewModelBuilder._alert_sector(payload),
             {"x": 3, "y": 3, "z": -2},
         )
+
+    def test_explorer_completed_inspections_include_successes_but_not_failures(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "inspection-history.sqlite3")
+            for object_id, status in (
+                ("construct-complete", "succeeded"),
+                ("construct-retry", "failed"),
+            ):
+                command = Command(
+                    type=CommandType.MANNY_INSPECT_SECTOR_OBJECT,
+                    probe_id=1,
+                    target_id="manny-1",
+                    payload={"objectId": object_id},
+                    reason="Explorer inspection",
+                    priority=1,
+                )
+                engine.record_action(
+                    command.fingerprint, command.to_dict(), status,
+                )
+            service = MissionControlDataService.__new__(MissionControlDataService)
+            service.data_engine = engine
+
+            completed = service._completed_explorer_inspections(1)
+
+        self.assertEqual(completed, frozenset({"construct-complete"}))
 
     def test_archive_is_separate_from_game_logbook(self):
         with tempfile.TemporaryDirectory() as temporary:

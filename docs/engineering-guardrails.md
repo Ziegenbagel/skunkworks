@@ -1013,9 +1013,16 @@ Others ships are inspected through an actual idle Manny using the game
 or first-contact alert pauses selection of further destinations until operator
 action; automation never silently acknowledges that contact.
 
+One discovery object owns one durable inspection identity regardless of which
+idle Manny is selected. An active inspection blocks duplicate assignment, and
+a successfully accepted inspection is excluded from later campaign decisions
+so the Explorer resumes frontier travel even if the inert object remains in
+sector telemetry. Failed dispatches are not completed and remain retryable.
+
 Relevant tests:
 
 - `tests/test_explorer_campaign.py`
+- `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_inspection_identity_is_stable_when_a_different_manny_is_selected`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_auto_travel_blocks_deployed_manny_reported_only_as_autonomous_unit`
 
 Automatic departure treats the focused probe's Manny roster and the independent

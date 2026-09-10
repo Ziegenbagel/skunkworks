@@ -39,6 +39,9 @@ remains the record for internal implementation work.
   trigger still blocks travel until repair completes.
 - Safety alerts now display the FCC sector recorded with arrivals, discoveries,
   Manny reports, and other events so operators can return after moving away.
+- Explorer discovery inspection now assigns only one Manny per construct or
+  derelict Others ship and resumes frontier travel after a successful order;
+  failed inspection dispatches remain eligible for retry.
 
 ### Internal release support
 

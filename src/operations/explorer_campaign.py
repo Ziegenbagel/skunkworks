@@ -24,7 +24,10 @@ class ExplorerCampaignService:
     def __init__(self, operations):
         self.operations = operations
 
-    def decide(self, *, mode="planetary_frontier", alerts=(), reserved=(), resource_need=None):
+    def decide(
+        self, *, mode="planetary_frontier", alerts=(), reserved=(),
+        resource_need=None, completed_inspections=(),
+    ):
         current = self.operations.travel.current_sector()
         if current is None:
             return ExplorerDecision("waiting", "Current sector telemetry is unavailable.")
@@ -54,7 +57,13 @@ class ExplorerCampaignService:
                 f"Returning to the nearest known {resource.replace('_', ' ')} source inside SCUT before exploration resumes.",
                 destination=source,
             )
-        targets = self._interesting_objects()
+        active_inspections = self._active_inspection_targets()
+        if active_inspections:
+            return ExplorerDecision(
+                "inspecting",
+                "Waiting for the active Manny sector-object inspection to finish before exploration resumes.",
+            )
+        targets = self._interesting_objects(completed_inspections)
         if targets:
             tasks = tuple(Task(
                 action="Inspect Sector Object",
@@ -197,9 +206,11 @@ class ExplorerCampaignService:
             return any(cls._contains_resource(item, resource) for item in value)
         return False
 
-    def _interesting_objects(self):
+    def _interesting_objects(self, completed_inspections=()):
         snapshot = (self.operations.world.sector.get("snapshot") or {}).get("sector", {})
         found = []
+        unavailable = {str(item) for item in completed_inspections}
+
         def walk(values):
             for item in values or ():
                 kind = re.sub(
@@ -213,7 +224,11 @@ class ExplorerCampaignService:
                     ("others" in kind or "others" in observed_class or "others" in state)
                     and any(token in state or token in kind for token in ("derelict", "wreck", "dormant"))
                 )
-                if (kind in self.INTERESTING_TYPES or is_derelict_others) and item.get("id") is not None:
+                if (
+                    (kind in self.INTERESTING_TYPES or is_derelict_others)
+                    and item.get("id") is not None
+                    and str(item["id"]) not in unavailable
+                ):
                     if is_derelict_others and kind not in self.INTERESTING_TYPES:
                         kind = "others_mothership_wreck"
                     found.append({
@@ -224,6 +239,28 @@ class ExplorerCampaignService:
                 walk(item.get("bookmarkTargets"))
         walk(snapshot.get("objects"))
         return tuple({str(item["id"]): item for item in found}.values())
+
+    def _active_inspection_targets(self):
+        targets = set()
+        mannies = getattr(self.operations.world, "mannies", {}) or {}
+        for manny in mannies.get("mannies", ()):
+            current = manny.get("currentTask")
+            details = current if isinstance(current, dict) else manny.get("task") or {}
+            task_type = current.get("type") if isinstance(current, dict) else current
+            normalized = str(task_type or "").lower().replace("-", "_").replace(" ", "_")
+            if normalized not in {
+                "inspect_sector_object", "inspecting_sector_object",
+                "sector_object_inspection",
+            } or not isinstance(details, dict):
+                continue
+            payload = details.get("payload") if isinstance(details.get("payload"), dict) else {}
+            target = (
+                details.get("objectId") or details.get("targetObjectId")
+                or details.get("targetId") or payload.get("objectId")
+            )
+            if target is not None:
+                targets.add(str(target))
+        return frozenset(targets)
 
     @staticmethod
     def _planet_evidence(record):

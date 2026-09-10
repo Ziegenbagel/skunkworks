@@ -35,6 +35,17 @@ class Command:
     @property
     def fingerprint(self):
         identity_metadata = dict(self.metadata)
+        target_id = self.target_id
+        if self.type == CommandType.MANNY_INSPECT_SECTOR_OBJECT:
+            # Inspection is a one-time mutation of the sector object, not of
+            # the selected worker. A refresh may choose another idle Manny;
+            # that must remain the same command identity so leases and the
+            # completed-action journal prevent duplicate inspections.
+            target_id = None
+            for key in (
+                "mannyName", "objectName", "objectType", "workflowAuthorized",
+            ):
+                identity_metadata.pop(key, None)
         # Route-level consent changes execution authorization, not the game
         # mutation itself. Keeping it out of the identity lets the exact hop
         # acknowledged by the operator remain selectable after consent is
@@ -44,7 +55,7 @@ class Command:
             {
                 "type": self.type.value,
                 "probeId": self.probe_id,
-                "targetId": self.target_id,
+                "targetId": target_id,
                 "payload": self.payload,
                 "metadata": identity_metadata,
             },

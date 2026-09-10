@@ -109,6 +109,38 @@ def test_construct_and_others_wreck_create_real_manny_inspection_tasks():
     assert all(task.workflow_authorized for task in decision.tasks)
 
 
+def test_completed_construct_inspection_resumes_frontier_selection():
+    ops, _galaxy = operations(objects=(
+        {"id": "construct-7", "type": "dormant_construct", "name": "Artifact"},
+    ))
+
+    decision = ExplorerCampaignService(ops).decide(
+        completed_inspections={"construct-7"},
+    )
+
+    assert decision.phase == "travelling"
+    assert decision.destination is not None
+
+
+def test_active_construct_inspection_does_not_assign_another_manny():
+    ops, _galaxy = operations(objects=(
+        {"id": "construct-7", "type": "dormant_construct", "name": "Artifact"},
+    ))
+    ops.world.mannies = {"mannies": [{
+        "id": "manny-1",
+        "currentTask": {
+            "type": "inspect-sector-object",
+            "payload": {"objectId": "construct-7"},
+        },
+    }]}
+
+    decision = ExplorerCampaignService(ops).decide()
+
+    assert decision.phase == "inspecting"
+    assert "active Manny" in decision.summary
+    assert not decision.tasks
+
+
 def test_camel_case_construct_and_derelict_others_ship_are_inspected():
     ops, _galaxy = operations(objects=(
         {"id": "construct-8", "type": "dormantConstruct"},

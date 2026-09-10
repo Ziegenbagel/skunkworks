@@ -240,6 +240,28 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual({first.target_id, second.target_id}, {101, 202})
 
+    def test_inspection_identity_is_stable_when_a_different_manny_is_selected(self):
+        from src.planner.task import Task
+
+        task = Task(
+            action="Inspect Sector Object",
+            reason="Inspect one dormant construct",
+            target="construct-7",
+            workflow_authorized=True,
+            metadata={"objectName": "Artifact", "objectType": "dormant_construct"},
+        )
+        first = TaskCommandTranslator(self.operations, 1).translate(task)
+        self.operations.world.mannies["mannies"][0]["canReceiveOrders"] = False
+        self.operations.world.mannies["mannies"].append({
+            "id": 202, "name": "Replacement Manny",
+            "currentTask": None, "canReceiveOrders": True,
+            "location": {"type": "probe"},
+        })
+        replacement = TaskCommandTranslator(self.operations, 1).translate(task)
+
+        self.assertNotEqual(first.target_id, replacement.target_id)
+        self.assertEqual(first.fingerprint, replacement.fingerprint)
+
     def test_transport_move_scope_allows_same_hop_in_a_later_circuit(self):
         from src.planner.task import Task
 

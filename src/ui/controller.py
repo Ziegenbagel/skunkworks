@@ -979,6 +979,7 @@ class MissionControlDataService:
             mode=settings.get("frontierMode", "planetary_frontier"),
             alerts=alerts,
             resource_need=resource_need,
+            completed_inspections=self._completed_explorer_inspections(probe_id),
         )
         # An operator-owned travel goal is never overwritten by role automation.
         if decision.destination is not None and desired.travel is None:
@@ -997,6 +998,25 @@ class MissionControlDataService:
                 "z": decision.destination.z,
             } if decision.destination else None),
         }
+
+    def _completed_explorer_inspections(self, probe_id):
+        """Return objects whose inspection order was accepted successfully."""
+        loader = getattr(self.data_engine, "recent_successful_actions", None)
+        rows = loader(probe_id) if loader is not None else self.data_engine.action_history(probe_id)
+        completed = set()
+        for row in rows:
+            if row["command_type"] != CommandType.MANNY_INSPECT_SECTOR_OBJECT.value:
+                continue
+            if loader is None and row["status"] != "succeeded":
+                continue
+            try:
+                command = json.loads(row["command_json"] or "{}")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            object_id = (command.get("payload") or {}).get("objectId")
+            if object_id is not None:
+                completed.add(str(object_id))
+        return frozenset(completed)
 
     @staticmethod
     def _explorer_resource_need(operations, desired):
