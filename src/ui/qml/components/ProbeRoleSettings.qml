@@ -16,6 +16,9 @@ Item {
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
     readonly property string focusedRole: roleFor(focusedProbeId)
     readonly property var focusedSettings: (settingsData.probeRoleSettings || {})[String(focusedProbeId)] || ({})
+    readonly property var minerTransportProbes: availableProbes.filter(
+        probe => Number(probe.id) !== focusedProbeId && roleFor(probe.id) === "transport"
+    )
     signal roleAssignmentRequested(int probeId, string role)
     signal roleSettingsSaveRequested(int probeId, var settings)
     signal transportCycleRequested(var plan)
@@ -36,6 +39,12 @@ Item {
         const target = Number(focusedSettings.targetProbeId || -1);
         for (let i = 0; i < availableProbes.length; ++i)
             if (Number(availableProbes[i].id) === target) return i;
+        return -1;
+    }
+    function minerTransportIndex() {
+        const target = Number(focusedSettings.deuteriumTransportProbeId || -1);
+        for (let i = 0; i < minerTransportProbes.length; ++i)
+            if (Number(minerTransportProbes[i].id) === target) return i;
         return -1;
     }
 
@@ -140,6 +149,52 @@ Item {
                     }
                 }
                 GroupBox {
+                    visible: root.focusedRole === "miner"
+                    title: "AUTONOMOUS RESOURCE MINING"
+                    Layout.fillWidth: true
+                    ColumnLayout {
+                        anchors.fill: parent; spacing: 14
+                        Label { Layout.fillWidth: true; text: "The Miner remains stationary, reserves one idle Manny for logistics, and assigns up to four other Mannys to bounded mining orders. Emergency missile escape remains available."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        Rectangle {
+                            Layout.fillWidth: true; implicitHeight: minerStatus.implicitHeight + 24
+                            color: Constants.raisedColor; border.color: Constants.lineColor; radius: 3
+                            Label { id: minerStatus; anchors.fill: parent; anchors.margins: 12; text: "STATUS · " + String((root.runtimeData.miner || {}).phase || "NOT EVALUATED").replace(/_/g, " ").toUpperCase() + "\n" + String((root.runtimeData.miner || {}).summary || "Save settings, then run or enable an automation cycle to evaluate the campaign."); color: Boolean((root.runtimeData.miner || {}).paused) ? Constants.warningColor : Constants.cyanColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        }
+                        CheckBox { id: minerEnabled; text: "ENABLE AUTONOMOUS MINING"; checked: Boolean(root.focusedSettings.miningEnabled) }
+                        RowLayout {
+                            Label { text: "RESOURCE MODE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox { id: minerMode; Layout.preferredWidth: 330; model: ["DEUTERIUM ONLY", "OTHER RESOURCES", "ALL RESOURCES"]; currentIndex: String(root.focusedSettings.resourceMode || "deuterium") === "resources" ? 1 : String(root.focusedSettings.resourceMode || "deuterium") === "all" ? 2 : 0 }
+                        }
+                        RowLayout {
+                            Label { text: "DEUTERIUM RECEIVER"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox { id: minerTransport; Layout.preferredWidth: 420; textRole: "name"; valueRole: "id"; model: root.minerTransportProbes; currentIndex: root.minerTransportIndex() }
+                        }
+                        Label { Layout.fillWidth: true; text: "The selected probe must have the Transport role and rendezvous in this sector. A full Miner keeps 1 ECE, transfers available fuel, then resumes mining when capacity opens."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        Label { text: "OTHER RESOURCE SELECTION"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                        RowLayout {
+                            CheckBox { id: mineMetals; text: "METALS"; checked: !root.focusedSettings.ordinaryResources || root.focusedSettings.ordinaryResources.indexOf("metals") >= 0 }
+                            CheckBox { id: mineIce; text: "ICE"; checked: !root.focusedSettings.ordinaryResources || root.focusedSettings.ordinaryResources.indexOf("ice") >= 0 }
+                            CheckBox { id: mineCarbon; text: "CARBON COMPOUNDS"; checked: !root.focusedSettings.ordinaryResources || root.focusedSettings.ordinaryResources.indexOf("carbon_compounds") >= 0 }
+                        }
+                        RowLayout {
+                            Label { text: "MAXIMUM MINING MANNYS"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            SpinBox { id: miningMannies; from: 1; to: 4; value: Number(root.focusedSettings.maximumMiningMannies || 4) }
+                            Label { text: "+ 1 RESERVED FOR LOGISTICS"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                        }
+                        Label { Layout.fillWidth: true; text: "Deuterium fills the probe tank. Ordinary resources mine selected local deposits toward depletion using currently available probe or detached-container capacity. Automated container placement and rotation is the next durable Miner phase."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        Button {
+                            text: "SAVE MINER ROLE SETTINGS"
+                            onClicked: {
+                                let resources = [];
+                                if (mineMetals.checked) resources.push("metals");
+                                if (mineIce.checked) resources.push("ice");
+                                if (mineCarbon.checked) resources.push("carbon_compounds");
+                                root.roleSettingsSaveRequested(root.focusedProbeId, {"miningEnabled": Boolean(minerEnabled.checked), "resourceMode": minerMode.currentIndex === 1 ? "resources" : minerMode.currentIndex === 2 ? "all" : "deuterium", "ordinaryResources": resources, "maximumMiningMannies": Number(miningMannies.value), "deuteriumTransportProbeId": minerTransport.currentIndex >= 0 ? Number(minerTransport.currentValue) : -1});
+                            }
+                        }
+                    }
+                }
+                GroupBox {
                     visible: root.focusedRole === "explorer"
                     title: "AUTONOMOUS FRONTIER EXPLORATION"
                     Layout.fillWidth: true
@@ -191,7 +246,7 @@ Item {
                     }
                 }
                 Item {
-                    visible: ["transport", "deuterium_tanker", "deuterium_reserve", "explorer"].indexOf(root.focusedRole) < 0
+                    visible: ["transport", "deuterium_tanker", "deuterium_reserve", "explorer", "miner"].indexOf(root.focusedRole) < 0
                     Layout.fillWidth: true
                     Layout.minimumWidth: roleScroll.availableWidth
                     Layout.preferredHeight: Math.max(300, roleScroll.availableHeight - 90)

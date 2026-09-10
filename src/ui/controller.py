@@ -34,6 +34,7 @@ from src.operations.operations import Operations
 from src.operations.manufacturing import ManufacturingService
 from src.operations.logistics import FleetRoleService, TankerLogisticsService
 from src.operations.explorer_campaign import ExplorerCampaignService
+from src.operations.miner_campaign import MinerCampaignService
 from src.operations import OperationFactory, OperationStore, RoundTripTransportPlan
 from src.presentation import MissionControlViewModelBuilder
 from src.recipes.manager import RecipeManager
@@ -895,6 +896,9 @@ class MissionControlDataService:
             desired, explorer_tasks, explorer_view = self._reconcile_explorer_campaign(
                 operations, probe_id, desired,
             )
+            desired, miner_tasks, miner_view = self._reconcile_miner_campaign(
+                operations, probe_id, desired,
+            )
             tasks = Planner(
                 operations,
                 desired,
@@ -910,6 +914,13 @@ class MissionControlDataService:
                 ]
             tasks.extend(transport_tasks)
             tasks.extend(explorer_tasks)
+            if miner_view.get("enabled"):
+                managed = set(miner_view.get("managedResources", ()))
+                tasks = [task for task in tasks if not (
+                    task.category == "mining" and task.resource_type in managed
+                    and not task.metadata.get("minerCampaign")
+                )]
+            tasks.extend(miner_tasks)
             tasks.sort(key=task_order_key)
             excluded_fabrication = set(excluded_fabrication)
             preparation_tasks = [
@@ -947,6 +958,46 @@ class MissionControlDataService:
             } for task in tasks],
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
             "explorer": explorer_view if operations is not None and probe_id is not None else {},
+            "miner": miner_view if operations is not None and probe_id is not None else {},
+        }
+
+    def _reconcile_miner_campaign(self, operations, probe_id, desired):
+        """Project Miner settings into stationary, bounded mining work."""
+        if not hasattr(self.data_engine, "fleet_roles"):
+            return desired, [], {}
+        role_rows = [dict(item) for item in FleetRoleService(self.data_engine).all("probe")]
+        row = next((item for item in role_rows
+                    if int(item["asset_id"]) == int(probe_id)), None)
+        if row is None or row.get("role") != "miner":
+            return desired, [], {}
+        try:
+            settings = json.loads(row.get("metadata_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            settings = {}
+        enabled = bool(settings.get("miningEnabled", False))
+        travel_locked = enabled and desired.travel is not None
+        if travel_locked:
+            desired = replace(desired, travel=None)
+        target_id = settings.get("deuteriumTransportProbeId")
+        target_is_transport = any(
+            str(item.get("asset_id")) == str(target_id)
+            and item.get("role") == "transport"
+            for item in role_rows
+        )
+        target_probe = next((probe for probe in (operations.world.fleet or {}).get("probes", ())
+                             if target_is_transport
+                             and str(probe.get("id")) == str(target_id)), None)
+        decision = MinerCampaignService(operations).decide(
+            settings, target_probe=target_probe,
+        )
+        summary = decision.summary
+        if travel_locked:
+            summary += " Ordinary travel is locked while Miner automation is enabled."
+        return desired, list(decision.tasks), {
+            "enabled": enabled, "phase": decision.phase,
+            "paused": decision.paused, "summary": summary,
+            "managedResources": list(decision.managed_resources),
+            "travelLocked": travel_locked,
         }
 
     def _reconcile_explorer_campaign(self, operations, probe_id, desired):

@@ -601,6 +601,21 @@ focused regression tests pass. No 1.2 development commit receives a public
   role workflow implemented on `develop`: planetary/any-frontier selection,
   non-stalling fallback, SCUT-contained nearest-frontier routing, resource-floor
   recovery, Manny discovery inspection, and civilization-contact hold.
+- Miner-role campaigns with Deuterium-only, ordinary-resource, and combined
+  modes. The first testable phase keeps the probe stationary, reserves one
+  Manny for logistics, dispatches up to four distinct mining Mannys, fills the
+  Deuterium tank, and mines selected local Metals, Ice, and Carbon Compound
+  deposits toward depletion within available storage. Ordinary travel remains
+  locked while mining is enabled; missile escape may interrupt the campaign
+  and later resume it through the normal live-preflight boundary.
+- Complete Miner logistics with a selected Transport-role fuel receiver,
+  transfer-and-resume cycles, and durable container rotation: place an empty
+  container at an asteroid, fill it evenly with four 0.25 ECE Manny assignments,
+  recover or replace it, and detach full containers in-sector for pickup.
+- Hub-role automation will reuse the common resource, Manny, container,
+  production, interruption, and resumption architecture. Hubs primarily build
+  components and finished items and transfer those outputs to other probes;
+  raw-resource delivery remains a Miner/Transport responsibility.
 - Civilization-contact and quest reward analysis.
 - Expand automation only through explainable desired-state goals, live
   preflight, bounded request budgets, and explicit opt-ins for consequential

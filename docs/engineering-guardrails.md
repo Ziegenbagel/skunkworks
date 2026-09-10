@@ -193,6 +193,18 @@ Relevant test:
 
 ### One cycle can use multiple distinct Mannys
 
+An enabled Miner role is a stationary campaign: ordinary desired travel is
+suppressed without deleting the saved destination, one idle Manny always remains
+unclaimed for logistics, and only the configured bounded worker count may receive
+mining orders. Emergency missile escape is a separate live-preflight safety path
+and must never be blocked by the stationary-role rule.
+
+Relevant code/tests:
+
+- `src/operations/miner_campaign.py`
+- `src/ui/controller.py::_reconcile_miner_campaign`
+- `tests/test_miner_campaign.py`
+
 An accepted order may not appear immediately in game telemetry. During one
 bounded cycle, retain local claims for accepted Manny IDs so subsequent replans
 select different idle Mannys. Successful repeatable work remains eligible on a
