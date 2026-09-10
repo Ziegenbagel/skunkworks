@@ -1791,6 +1791,7 @@ class MissionControlDataService:
         failed_fabrication = set()
         mining_allocations = {}
         claimed_manny_ids = set()
+        completed_exclusive_types = set()
         results = []
         for _ in range(policy.max_commands_per_cycle):
             # The previous execution's preflight already refreshed the world.
@@ -1808,6 +1809,7 @@ class MissionControlDataService:
                 item for item in self._prepared_commands
                 if item.command.probe_id == self._selected_probe_id
                 and item.disposition == "ready"
+                and item.command.type not in completed_exclusive_types
                 and self._cycle_attempt_key(item.command) not in failed_attempts
             ), None)
             if prepared is None:
@@ -1873,6 +1875,11 @@ class MissionControlDataService:
                         "orderAmount", prepared.command.payload.get("targetAmount", 0),
                     ) or 0
                 )
+            if prepared.command.type == CommandType.MANNY_REPAIR:
+                # A repair restores one probe, not one share per Manny. Live
+                # telemetry may lag the accepted order, so do not assign the
+                # same repair goal to another idle Manny in this cycle.
+                completed_exclusive_types.add(CommandType.MANNY_REPAIR)
             # AutomationRuntime performed the mandatory authoritative
             # preflight refresh immediately before dispatch. Its snapshot is
             # retained in ``self._operations`` and accepted Manny IDs are

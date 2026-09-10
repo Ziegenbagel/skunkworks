@@ -218,6 +218,20 @@ Relevant code/tests:
 - `src/ui/controller.py::_reconcile_miner_campaign`
 - `tests/test_miner_campaign.py`
 
+### Probe repair is a single-Manny task
+
+One accepted automatic repair order owns the probe's entire configured repair
+amount. Replanning against lagging live telemetry must not assign that same
+repair to additional idle Mannys in the same cycle. Parallel Manny dispatch
+remains valid for explicitly divisible work such as mining and repeated crafting;
+repair may use multiple Mannys only after the game and planner gain an explicit
+percentage-allocation model.
+
+Relevant code/tests:
+
+- `src/ui/controller.py::_run_replanning_automatic_cycle`
+- `tests/test_replanning_automation_cycle.py`
+
 An accepted order may not appear immediately in game telemetry. During one
 bounded cycle, retain local claims for accepted Manny IDs so subsequent replans
 select different idle Mannys. Successful repeatable work remains eligible on a

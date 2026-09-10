@@ -347,6 +347,59 @@ def test_successful_orders_claim_mannies_while_live_snapshot_lags():
     assert executed == ["manny-a", "manny-b"]
 
 
+def test_successful_repair_is_not_reassigned_while_live_snapshot_lags():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+    service._refresh_operations = lambda probe_id: None
+    repair_a = PreparedCommand(Command(
+        CommandType.MANNY_REPAIR, 7, {"integrityPercent": 50},
+        "restore probe integrity", 1, target_id="manny-a",
+    ), "ready")
+    repair_b = PreparedCommand(Command(
+        CommandType.MANNY_REPAIR, 7, {"integrityPercent": 50},
+        "restore probe integrity", 1, target_id="manny-b",
+    ), "ready")
+    craft = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "steel_plate"},
+        "continue unrelated work", 2, target_id="manny-c",
+    ), "ready")
+    queues = iter(((repair_a,), (repair_b, craft), ()))
+    service.automation_view = lambda probe_id=None, **kwargs: setattr(
+        service, "_prepared_commands", next(queues)
+    ) or {}
+    service._prepare_next_cycle_mining = lambda policy, failed: None
+    executed = []
+
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, prepared, **kwargs):
+            executed.append((prepared.command.type, prepared.command.target_id))
+            return ExecutionResult(
+                "succeeded", prepared.command, response={"accepted": True}
+            )
+
+    policy = ExecutionPolicy(
+        mode=ExecutionMode.AUTOMATIC,
+        live_execution_enabled=True,
+        allowed_command_types=frozenset({
+            CommandType.MANNY_REPAIR, CommandType.MANNY_CRAFT,
+        }),
+        max_commands_per_cycle=10,
+    )
+    with patch("src.ui.controller.AutomationRuntime", Runtime):
+        result = service._run_replanning_automatic_cycle(policy)
+
+    assert result["status"] == "succeeded"
+    assert executed == [
+        (CommandType.MANNY_REPAIR, "manny-a"),
+        (CommandType.MANNY_CRAFT, "manny-c"),
+    ]
+
+
 def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7
