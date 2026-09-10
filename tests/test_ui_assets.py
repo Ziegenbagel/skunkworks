@@ -1183,3 +1183,13 @@ def test_operator_amounts_and_scheduler_language_are_human_scaled():
     assert "× 0.01 ECE" not in fleet[fleet.index('title: "SAME-SECTOR PROBE TRANSFERS"'):]
     assert "AWAITING SERVER COMPLETION" in navigation
     assert "Number(item.quantity || 0).toFixed(2)" in manual
+
+
+def test_miner_receiver_selector_lists_every_other_available_probe():
+    role_settings = Path(
+        "src/ui/qml/components/ProbeRoleSettings.qml"
+    ).read_text(encoding="utf-8")
+
+    assert "probe => Number(probe.id) !== focusedProbeId" in role_settings
+    assert 'roleFor(probe.id) === "transport"' not in role_settings
+    assert "model: root.minerReceiverProbes" in role_settings

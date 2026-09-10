@@ -979,14 +979,9 @@ class MissionControlDataService:
         if travel_locked:
             desired = replace(desired, travel=None)
         target_id = settings.get("deuteriumTransportProbeId")
-        target_is_transport = any(
-            str(item.get("asset_id")) == str(target_id)
-            and item.get("role") == "transport"
-            for item in role_rows
-        )
         target_probe = next((probe for probe in (operations.world.fleet or {}).get("probes", ())
-                             if target_is_transport
-                             and str(probe.get("id")) == str(target_id)), None)
+                             if str(probe.get("id")) == str(target_id)
+                             and str(probe.get("id")) != str(probe_id)), None)
         decision = MinerCampaignService(operations).decide(
             settings, target_probe=target_probe,
         )

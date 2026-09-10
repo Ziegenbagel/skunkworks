@@ -48,6 +48,7 @@ QtObject {
             "manny": "manny",
             "drifting_item": "drifting-item",
             "detached_container": "detached-container",
+            "storage_station": "detached-container",
             "deuterium_refuel_station": "deuterium-station",
             "dormant_construct": "dormant-construct",
             "others_ship": "others-ship",

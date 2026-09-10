@@ -1039,6 +1039,8 @@ class MissionControlViewModelBuilder:
                 nested["orbitIndex"] = orbit_index
                 objects.append(nested)
         objects = self._condense_empty_asteroids(objects)
+        if self._sector_has_miner(world, coordinates):
+            objects = self._condense_storage_station(objects)
         active_mannies = []
         for manny in (world.mannies or {}).get("mannies", ()):
             current_task = manny.get("currentTask")
@@ -1091,6 +1093,61 @@ class MissionControlViewModelBuilder:
                 else ""
             ),
         }
+
+    @staticmethod
+    def _condense_storage_station(objects):
+        """Collapse a Miner sector's large detached-container field."""
+        container_types = {
+            "detached_container", "storage_container", "hidden_container",
+            "drifting_container", "dropped_on_planet_container",
+        }
+        containers = [
+            item for item in objects
+            if str(item.get("type", "")).casefold() in container_types
+        ]
+        if len(containers) <= 5:
+            return objects
+        visible = [item for item in objects if item not in containers]
+        return visible + [{
+            "id": "miner-storage-station-summary",
+            "type": "storage_station",
+            "name": f"STORAGE STATION · {len(containers)} CONTAINERS",
+            "category": "miner_container_group",
+            "estimated": False,
+            "dangerLevel": "nominal",
+            "resources": {},
+            "mode": "grouped",
+            "status": "active",
+            "isTransitBeacon": False,
+            "layoutRole": "free_object",
+            "aggregateCount": len(containers),
+            "aggregateIds": tuple(item["id"] for item in containers),
+        }]
+
+    def _sector_has_miner(self, world, coordinates):
+        """Return whether an assigned Miner is present in this live sector."""
+        if self.data_engine is None or not hasattr(self.data_engine, "fleet_roles"):
+            return False
+        miner_ids = {
+            str(row["asset_id"])
+            for source in self.data_engine.fleet_roles("probe")
+            for row in (dict(source),)
+            if row.get("role") == "miner"
+        }
+        if not miner_ids:
+            return False
+        probes = list((getattr(world, "fleet", None) or {}).get("probes", ()))
+        if not any(str(item.get("id")) == str(world.probe.get("id")) for item in probes):
+            probes.append(world.probe)
+        target = {axis: coordinates.get(axis) for axis in ("x", "y", "z")}
+        return any(
+            str(probe.get("id")) in miner_ids
+            and {
+                axis: self._coordinates(probe, world.sector).get(axis)
+                for axis in ("x", "y", "z")
+            } == target
+            for probe in probes
+        )
 
     @staticmethod
     def _condense_empty_asteroids(objects):

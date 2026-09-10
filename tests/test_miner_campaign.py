@@ -88,3 +88,29 @@ def test_enabled_miner_suppresses_ordinary_travel_without_mutating_saved_goal():
     assert projected.travel is None
     assert desired.travel.target == SectorCoordinates(4, 5, 5)
     assert view["travelLocked"] is True
+
+
+def test_controller_accepts_available_receiver_without_exact_transport_role():
+    engine = SimpleNamespace(fleet_roles=lambda _kind: ({
+        "asset_id": "7", "role": "miner",
+        "metadata_json": json.dumps({
+            "miningEnabled": True, "resourceMode": "deuterium",
+            "deuteriumTransportProbeId": 9,
+        }),
+    },))
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service.data_engine = engine
+    miner_operations = operations(idle=2, fuel=100)
+    miner_operations.world.fleet = {"probes": [{
+        "id": 9, "role": "unassigned",
+        "sector": {"relative": {"x": 1, "y": 2, "z": 3}},
+        "fuel": {"deuterium": 0, "maxDeuterium": 100},
+    }]}
+
+    _desired, tasks, _view = service._reconcile_miner_campaign(
+        miner_operations, 7, DesiredState(),
+    )
+
+    assert len(tasks) == 1
+    assert tasks[0].action == "Transfer Deuterium"
+    assert tasks[0].target == "9"

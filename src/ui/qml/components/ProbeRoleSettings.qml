@@ -16,8 +16,8 @@ Item {
     readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
     readonly property string focusedRole: roleFor(focusedProbeId)
     readonly property var focusedSettings: (settingsData.probeRoleSettings || {})[String(focusedProbeId)] || ({})
-    readonly property var minerTransportProbes: availableProbes.filter(
-        probe => Number(probe.id) !== focusedProbeId && roleFor(probe.id) === "transport"
+    readonly property var minerReceiverProbes: availableProbes.filter(
+        probe => Number(probe.id) !== focusedProbeId
     )
     signal roleAssignmentRequested(int probeId, string role)
     signal roleSettingsSaveRequested(int probeId, var settings)
@@ -43,8 +43,8 @@ Item {
     }
     function minerTransportIndex() {
         const target = Number(focusedSettings.deuteriumTransportProbeId || -1);
-        for (let i = 0; i < minerTransportProbes.length; ++i)
-            if (Number(minerTransportProbes[i].id) === target) return i;
+        for (let i = 0; i < minerReceiverProbes.length; ++i)
+            if (Number(minerReceiverProbes[i].id) === target) return i;
         return -1;
     }
 
@@ -167,9 +167,9 @@ Item {
                         }
                         RowLayout {
                             Label { text: "DEUTERIUM RECEIVER"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
-                            ComboBox { id: minerTransport; Layout.preferredWidth: 420; textRole: "name"; valueRole: "id"; model: root.minerTransportProbes; currentIndex: root.minerTransportIndex() }
+                            ComboBox { id: minerTransport; Layout.preferredWidth: 420; textRole: "name"; valueRole: "id"; model: root.minerReceiverProbes; currentIndex: root.minerTransportIndex() }
                         }
-                        Label { Layout.fillWidth: true; text: "The selected probe must have the Transport role and rendezvous in this sector. A full Miner keeps 1 ECE, transfers available fuel, then resumes mining when capacity opens."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        Label { Layout.fillWidth: true; text: "Select any other available probe as the receiver. It must rendezvous in this sector and have free fuel capacity before transfer. A full Miner keeps 1 ECE, transfers available fuel, then resumes mining when capacity opens."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Label { text: "OTHER RESOURCE SELECTION"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                         RowLayout {
                             CheckBox { id: mineMetals; text: "METALS"; checked: !root.focusedSettings.ordinaryResources || root.focusedSettings.ordinaryResources.indexOf("metals") >= 0 }

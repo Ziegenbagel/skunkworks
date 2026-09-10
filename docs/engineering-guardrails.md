@@ -198,6 +198,12 @@ suppressed without deleting the saved destination, one idle Manny always remains
 unclaimed for logistics, and only the configured bounded worker count may receive
 mining orders. Emergency missile escape is a separate live-preflight safety path
 and must never be blocked by the stationary-role rule.
+The Deuterium receiver selector lists every other available probe; role labels
+must not hide otherwise valid tanker or reserve-tanker rendezvous targets.
+In a sector containing an assigned Miner, more than five detached or drifting
+containers render as one Storage Station marker in the live sector view. This
+is presentation-only aggregation: the underlying container records and resource
+ledger remain individually addressable and authoritative.
 
 Relevant code/tests:
 

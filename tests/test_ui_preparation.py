@@ -2302,6 +2302,43 @@ class UiPreparationTests(unittest.TestCase):
         detached = next(row for row in ledger["rows"] if row["scope"] == "detached_container")
         self.assertIn("Contents not exposed by API", detached["detail"])
 
+    def test_miner_sector_condenses_six_containers_into_storage_station(self):
+        world = build_operations().world
+        world.probe["sector"] = {"relative": {"x": 0, "y": 1, "z": -1}}
+        world.sector["snapshot"] = {"sector": {"objects": [
+            {"id": f"container-{index}", "type": "detached_container",
+             "name": f"Container {index}"}
+            for index in range(6)
+        ]}}
+        engine = type("Roles", (), {"fleet_roles": lambda _self, _kind: ({
+            "asset_id": str(world.probe["id"]), "role": "miner",
+        },)})()
+
+        sector = MissionControlViewModelBuilder(
+            Operations(world, build_operations().manufacturing.recipes), engine,
+        )._sector_view(world, {"x": 0, "y": 1, "z": -1})
+
+        self.assertEqual(len(sector["objects"]), 1)
+        station = sector["objects"][0]
+        self.assertEqual(station["type"], "storage_station")
+        self.assertEqual(station["aggregateCount"], 6)
+        self.assertEqual(station["name"], "STORAGE STATION · 6 CONTAINERS")
+
+    def test_non_miner_sector_keeps_six_containers_individual(self):
+        world = build_operations().world
+        world.probe["sector"] = {"relative": {"x": 0, "y": 1, "z": -1}}
+        world.sector["snapshot"] = {"sector": {"objects": [
+            {"id": f"container-{index}", "type": "drifting_container"}
+            for index in range(6)
+        ]}}
+        engine = type("Roles", (), {"fleet_roles": lambda _self, _kind: ()})()
+
+        sector = MissionControlViewModelBuilder(
+            Operations(world, build_operations().manufacturing.recipes), engine,
+        )._sector_view(world, {"x": 0, "y": 1, "z": -1})
+
+        self.assertEqual(len(sector["objects"]), 6)
+
     def test_inventory_management_includes_equipment_and_container_placement(self):
         world = build_operations().world
         world.probe["name"] = "Carrier"
