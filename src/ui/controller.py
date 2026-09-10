@@ -984,6 +984,7 @@ class MissionControlDataService:
                              and str(probe.get("id")) != str(probe_id)), None)
         decision = MinerCampaignService(operations).decide(
             settings, target_probe=target_probe,
+            maximum_mining_order_amount=desired.maximum_mining_order_amount,
         )
         summary = decision.summary
         if travel_locked:

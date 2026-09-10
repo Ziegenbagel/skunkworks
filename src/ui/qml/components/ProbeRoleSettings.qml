@@ -154,7 +154,7 @@ Item {
                     Layout.fillWidth: true
                     ColumnLayout {
                         anchors.fill: parent; spacing: 14
-                        Label { Layout.fillWidth: true; text: "The Miner remains stationary, reserves one idle Manny for logistics, and assigns up to four other Mannys to bounded mining orders. Emergency missile escape remains available."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        Label { Layout.fillWidth: true; text: "The Miner remains stationary. Every idle Manny mines Deuterium until the tank is full; at full capacity exactly one stays aboard for transfer while the others mine and may wait with fuel. Ordinary-resource container work uses up to four Mannys. Emergency missile escape remains available."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Rectangle {
                             Layout.fillWidth: true; implicitHeight: minerStatus.implicitHeight + 24
                             color: Constants.raisedColor; border.color: Constants.lineColor; radius: 3
@@ -177,9 +177,9 @@ Item {
                             CheckBox { id: mineCarbon; text: "CARBON COMPOUNDS"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("carbon_compounds") >= 0) }
                         }
                         RowLayout {
-                            Label { text: "MAXIMUM MINING MANNYS"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            Label { text: "ORDINARY-RESOURCE MINING MANNYS"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                             SpinBox { id: miningMannies; from: 1; to: 4; value: Number(root.focusedSettings.maximumMiningMannies || 4) }
-                            Label { text: "+ 1 RESERVED FOR LOGISTICS"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                            Label { text: "DEUTERIUM AUTOMATICALLY USES THE AVAILABLE CREW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                         }
                         Label { Layout.fillWidth: true; text: "Deuterium fills the probe tank. Ordinary resources mine selected local deposits toward depletion using currently available probe or detached-container capacity. Automated container placement and rotation is the next durable Miner phase."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Button {

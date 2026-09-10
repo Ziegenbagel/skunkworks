@@ -24,23 +24,24 @@ def operations(*, idle=5, resources=None, fuel=20, maximum=100, capacity=4):
     )
 
 
-def test_miner_reserves_one_manny_and_caps_workers_at_four():
+def test_deuterium_miner_uses_all_needed_mannies_while_tank_has_capacity():
     target = {"id": "asteroid-1", "resource_type": "deuterium", "available_amount": 500}
     decision = MinerCampaignService(operations(resources=[target])).decide({
         "miningEnabled": True, "resourceMode": "deuterium", "maximumMiningMannies": 4,
-    })
+    }, maximum_mining_order_amount=0.25)
     assert decision.phase == "mining"
-    assert len(decision.tasks) == 2
-    assert [task.quantity for task in decision.tasks] == [80, 25]
+    assert len(decision.tasks) == 4
+    assert [task.quantity for task in decision.tasks] == [80, 55, 30, 5]
 
 
-def test_miner_never_claims_last_idle_manny():
+def test_ordinary_resource_miner_can_use_its_only_idle_manny():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
     decision = MinerCampaignService(operations(idle=1, resources=[target])).decide({
         "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"],
     })
-    assert decision.tasks == ()
-    assert decision.phase == "logistics_reserve"
+    assert len(decision.tasks) == 1
+    assert decision.tasks[0].resource_type == "metals"
 
 
 def test_all_resources_selects_fuel_and_enabled_ordinary_resources():
@@ -68,6 +69,42 @@ def test_full_deuterium_miner_transfers_to_selected_same_sector_probe():
     assert len(decision.tasks) == 1
     assert decision.tasks[0].action == "Transfer Deuterium"
     assert decision.tasks[0].quantity == 80
+
+
+def test_full_deuterium_miner_sends_nine_of_ten_mannies_to_waiting_mining():
+    resource = {
+        "id": "deuterium-asteroid", "resource_type": "deuterium",
+        "available_amount": 6498,
+    }
+    decision = MinerCampaignService(
+        operations(idle=10, resources=[resource], fuel=400, maximum=400)
+    ).decide({
+        "miningEnabled": True, "resourceMode": "deuterium",
+        "deuteriumTransportProbeId": 9,
+    }, target_probe={
+        "id": 9, "sector": {"relative": {"x": 9, "y": 8, "z": -1}},
+        "fuel": {"deuterium": 0, "maxDeuterium": 400},
+    }, maximum_mining_order_amount=0.25)
+
+    assert len(decision.tasks) == 9
+    assert all(task.action == "Mine Resource" for task in decision.tasks)
+    assert all(task.maximum_order_amount == 0.25 for task in decision.tasks)
+    assert "One Manny is reserved" in decision.summary
+
+
+def test_deuterium_miner_can_use_all_ten_mannies_before_tank_is_full():
+    resource = {
+        "id": "deuterium-asteroid", "resource_type": "deuterium",
+        "available_amount": 6498,
+    }
+    decision = MinerCampaignService(
+        operations(idle=10, resources=[resource], fuel=0, maximum=400)
+    ).decide({
+        "miningEnabled": True, "resourceMode": "deuterium",
+    }, maximum_mining_order_amount=0.25)
+
+    assert len(decision.tasks) == 10
+    assert all(task.action == "Mine Resource" for task in decision.tasks)
 
 
 def test_full_tank_reports_rendezvous_instead_of_missing_resource():

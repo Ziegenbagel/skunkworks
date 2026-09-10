@@ -194,10 +194,13 @@ Relevant test:
 ### One cycle can use multiple distinct Mannys
 
 An enabled Miner role is a stationary campaign: ordinary desired travel is
-suppressed without deleting the saved destination, one idle Manny always remains
-unclaimed for logistics, and only the configured bounded worker count may receive
-mining orders. Emergency missile escape is a separate live-preflight safety path
-and must never be blocked by the stationary-role rule.
+suppressed without deleting the saved destination. Deuterium mining uses every
+idle Manny while tank capacity remains. Only once the tank is full does it keep
+exactly one Manny aboard for transfer while every other idle Manny continues
+mining and may wait with fuel until capacity opens. The configured one-to-four
+worker limit applies to ordinary-resource container work, not Deuterium. Emergency
+missile escape is a separate live-preflight safety path and must never be blocked
+by the stationary-role rule.
 The Deuterium receiver selector lists every other available probe; role labels
 must not hide otherwise valid tanker or reserve-tanker rendezvous targets.
 In a sector containing an assigned Miner, more than five detached or drifting

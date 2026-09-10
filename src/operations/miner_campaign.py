@@ -15,14 +15,14 @@ class MinerCampaignDecision:
 
 
 class MinerCampaignService:
-    """Select bounded mining work while retaining one Manny for logistics."""
+    """Select bounded mining work with a full-tank Manny transfer reserve."""
 
     ORDINARY_RESOURCES = ("metals", "ice", "carbon_compounds")
 
     def __init__(self, operations):
         self.operations = operations
 
-    def decide(self, settings, *, target_probe=None):
+    def decide(self, settings, *, target_probe=None, maximum_mining_order_amount=0.55):
         if not settings.get("miningEnabled", False):
             return MinerCampaignDecision()
         mode = str(settings.get("resourceMode") or "deuterium")
@@ -34,41 +34,61 @@ class MinerCampaignService:
             selected.extend(item for item in self.ORDINARY_RESOURCES if item in enabled)
         managed = tuple(dict.fromkeys(selected))
         idle = self.operations.mining.idle_mannies()
-        worker_limit = max(1, min(4, int(settings.get("maximumMiningMannies", 4) or 4)))
-        available_workers = min(worker_limit, max(0, len(idle) - 1))
+        ordinary_worker_limit = max(
+            1, min(4, int(settings.get("maximumMiningMannies", 4) or 4))
+        )
+        fuel = self.operations.world.probe.get("fuel") or {}
+        fuel_amount = float(fuel.get("deuterium", 0) or 0)
+        fuel_maximum = float(fuel.get("maxDeuterium", 0) or 0)
+        deuterium_full = (
+            "deuterium" in managed and fuel_maximum > 0
+            and fuel_amount + 0.00001 >= fuel_maximum
+        )
         tasks = []
         if "deuterium" in managed:
             transfer = self._deuterium_transfer(settings, target_probe)
             if transfer is not None:
                 tasks.append(transfer)
-        if available_workers <= 0 and not tasks:
-            return MinerCampaignDecision(
-                phase="logistics_reserve", paused=False,
-                summary="Waiting for another idle Manny; one Manny remains reserved for logistics.",
-                managed_resources=managed,
-            )
         active = self.operations.mining.active_commitments()
-        remaining_workers = available_workers
         for resource in managed:
+            if resource == "deuterium":
+                # Every idle Manny mines until the tank is full. Once full,
+                # retain exactly one aboard for transfer and let the rest mine
+                # into their own waiting cargo state.
+                remaining_workers = max(0, len(idle) - (1 if deuterium_full else 0))
+            else:
+                remaining_workers = min(ordinary_worker_limit, len(idle) - len(tasks))
             if remaining_workers <= 0:
-                break
+                continue
             target = self.operations.mining.best_target(resource)
             if target is None:
                 continue
-            need = self._mineable_need(resource, target, active)
+            need = self._mineable_need(
+                resource, target, active, allow_waiting=deuterium_full,
+            )
             while need > 0.00001 and remaining_workers > 0:
-                order = min(need, 55.0 if resource == "deuterium" else 0.55)
+                order_limit = (
+                    float(maximum_mining_order_amount) * 100.0
+                    if resource == "deuterium" else 0.25
+                )
+                order = min(need, order_limit)
                 tasks.append(Task(
                     action="Mine Resource", category="mining",
                     # Retain the changing uncovered campaign amount in command
                     # identity. A later completed trip may legitimately send
                     # the same Manny back to the same asteroid.
                     target=str(target["id"]), quantity=round(need, 3),
-                    maximum_order_amount=0.55, resource_type=resource,
+                    maximum_order_amount=(
+                        float(maximum_mining_order_amount)
+                        if resource == "deuterium" else 0.25
+                    ), resource_type=resource,
                     priority=1, workflow_authorized=True,
                     idempotency_scope=f"miner:{resource}:{target['id']}",
-                    reason=(f"Miner campaign is extracting {resource.replace('_', ' ')} "
-                            "while retaining one idle Manny aboard for logistics."),
+                    reason=(
+                        f"Miner campaign is extracting {resource.replace('_', ' ')}."
+                        + (" The full tank reserves one Manny for transfer; this worker may wait with mined fuel until capacity opens."
+                           if resource == "deuterium" and deuterium_full else "")
+                    ),
                     metadata={"minerCampaign": True},
                 ))
                 need -= order
@@ -81,8 +101,9 @@ class MinerCampaignService:
                 paused=False,
                 summary=("Tank is full; prepared transfer to the selected receiver."
                          if transferring and len(tasks) == 1 else
-                         f"Prepared {len(tasks)} campaign order(s); one Manny is reserved "
-                         "for transfer and container logistics."),
+                         f"Prepared {len(tasks)} Miner campaign order(s)."
+                         + (" One Manny is reserved for the full-tank transfer."
+                            if deuterium_full else "")),
                 managed_resources=managed,
             )
         deuterium_wait = self._deuterium_wait_status(settings, target_probe)
@@ -152,10 +173,12 @@ class MinerCampaignService:
         sector = probe.get("sector") or {}
         return sector.get("relative") or sector.get("relativeCoordinates")
 
-    def _mineable_need(self, resource, target, active):
+    def _mineable_need(self, resource, target, active, *, allow_waiting=False):
         available = max(0.0, float(target.get("available_amount", 0) or 0))
         committed = max(0.0, float(active.get(resource, 0) or 0))
         if resource == "deuterium":
+            if allow_waiting:
+                return max(0.0, available - committed)
             fuel = self.operations.world.probe.get("fuel") or {}
             free = max(0.0, float(fuel.get("maxDeuterium", 0) or 0)
                        - float(fuel.get("deuterium", 0) or 0))
