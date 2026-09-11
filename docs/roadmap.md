@@ -111,6 +111,7 @@ Goal: plan objectives as resumable operations rather than disconnected tasks.
   - transport;
   - deuterium tanker;
   - explorer;
+  - salvage;
   - builder/support;
   - unassigned.
 - Add transport capacity, pickup, storage transfer, and delivery-cycle plans.
@@ -602,9 +603,11 @@ focused regression tests pass. No 1.2 development commit receives a public
   non-stalling fallback, SCUT-contained nearest-frontier routing, resource-floor
   recovery, Manny discovery inspection, and civilization-contact hold.
 - Miner-role campaigns with Deuterium-only, ordinary-resource, and combined
-  modes. The first testable phase keeps the probe stationary, reserves one
-  Manny for logistics, dispatches up to four distinct mining Mannys, fills the
-  Deuterium tank, and mines selected local Metals, Ice, and Carbon Compound
+  modes. The first testable phase keeps the probe stationary and uses all idle
+  Mannys for Deuterium mining until the tank is full; once full, exactly one
+  Manny is reserved for transfer while the others continue mining and may wait
+  with recovered fuel. The configured one-to-four worker limit applies to
+  ordinary-resource mining of selected local Metals, Ice, and Carbon Compound
   deposits toward depletion within available storage. Ordinary travel remains
   locked while mining is enabled; missile escape may interrupt the campaign
   and later resume it through the normal live-preflight boundary.
@@ -616,6 +619,14 @@ focused regression tests pass. No 1.2 development commit receives a public
   production, interruption, and resumption architecture. Hubs primarily build
   components and finished items and transfer those outputs to other probes;
   raw-resource delivery remains a Miner/Transport responsibility.
+- Salvage-role campaigns recover detached or drifting containers and other
+  recoverable items lost or deliberately staged by fleet probes. Salvagers
+  prioritize explicitly lost assets over ordinary cargo, remain inside verified
+  SCUT coverage, respect capacity and fuel/repair floors, and never collect
+  containers currently claimed by active mining, storage-station, transfer, or
+  Manny workflows. Each pickup is reconciled against live object state so a
+  vanished, recovered, or externally claimed target is skipped safely; full
+  salvagers return recovered cargo to a configured hub or storage destination.
 - Civilization-contact and quest reward analysis.
 - Expand automation only through explainable desired-state goals, live
   preflight, bounded request budgets, and explicit opt-ins for consequential
