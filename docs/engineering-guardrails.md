@@ -386,6 +386,11 @@ settle time is distinct from worker refresh time. Heavy workspace loaders report
 loading and ready boundaries, and stalls of at least 500 ms enter the rotating
 diagnostic log. Attribution history remains bounded and contains no API payload,
 credentials, messages, coordinates, or resource inventory.
+Galaxy discovery state changes as probes move: a scanned destination becomes
+current on arrival and visited after departure. Enabling an operational filter
+such as planet habitability must begin across all discovery states so a target
+does not disappear simply because the operator reached it. Operators may still
+deliberately narrow discovery states after enabling the operational filter.
 Navigation audio is part of the interaction boundary. Keep its common effect
 preloaded and replay the existing source; repeatedly assigning the same media
 URL can synchronously rebuild the macOS AVFoundation player and make every tab

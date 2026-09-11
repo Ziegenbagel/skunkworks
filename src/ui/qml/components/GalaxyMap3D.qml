@@ -641,7 +641,15 @@ Item {
                     Layout.columnSpan: 2
                     text: "PLANET HABITABILITY ≥ 0.5"
                     checked: root.habitablePlanetOnly
-                    onToggled: root.habitablePlanetOnly = checked
+                    onToggled: {
+                        root.habitablePlanetOnly = checked;
+                        if (checked) {
+                            // Arrival changes a candidate from SCANNED to
+                            // CURRENT and departure changes it to VISITED.
+                            // Search all states initially so it stays visible.
+                            root.showAllStates();
+                        }
+                    }
                 }
                 CheckBox {
                     Layout.columnSpan: 2
