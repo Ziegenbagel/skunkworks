@@ -1196,7 +1196,8 @@ class DataEngine:
                     SELECT sector_observations.*,
                            ROW_NUMBER() OVER (
                                PARTITION BY sector_x, sector_y, sector_z
-                               ORDER BY observed_at DESC, id DESC
+                               ORDER BY confidence DESC,
+                                        observed_at DESC, id DESC
                            ) AS observation_rank
                     FROM sector_observations
                 )

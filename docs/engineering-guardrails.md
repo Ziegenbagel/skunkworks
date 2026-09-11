@@ -750,7 +750,10 @@ recent legacy backlog at full resolution is not a complete growth fix.
 - Live task labels query a bounded recent set of successful actions rather than
   loading the full journal.
 - Galaxy reconstruction selects the latest observation per sector and uses its
-  cache until a meaningful discovery or arrival invalidates it.
+  cache until a meaningful discovery or arrival invalidates it. “Latest” means
+  the newest observation at the sector's highest retained confidence: a later
+  long-range estimate must not replace detailed catalogued objects, resources,
+  or planet habitability learned by visiting the sector.
 
 ### Compaction preserves operational truth
 

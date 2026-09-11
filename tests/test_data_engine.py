@@ -338,6 +338,37 @@ class DataEngineTests(unittest.TestCase):
 
         self.assertEqual(record.observed["sector"]["confidence"], 0.9)
 
+    def test_lower_confidence_revisit_scan_does_not_erase_detailed_planets(self):
+        coordinates = {"x": -7, "y": -12, "z": 11}
+        self.engine.record_sector_observation(762, {
+            "sector": {
+                "relativeCoordinates": coordinates,
+                "knowledgeLevel": "detailed",
+                "confidence": 1.0,
+                "objects": [{
+                    "id": "system-1", "type": "solar_system",
+                    "bookmarkTargets": [{
+                        "id": "planet-1", "type": "planet",
+                        "habitabilityScore": 0.82155,
+                    }],
+                }],
+            }
+        }, observed_at="2026-09-11T12:41:36+00:00")
+        self.engine.record_sector_observation(762, {
+            "sector": {
+                "relativeCoordinates": coordinates,
+                "knowledgeLevel": "long_range_estimation",
+                "confidence": 0.2,
+                "possibleObjects": ["planet"],
+            }
+        }, observed_at="2026-09-11T12:46:19+00:00")
+
+        record = self.engine.galaxy_map(max_age_seconds=0).sectors()[0]
+
+        self.assertEqual(record.observed["sector"]["knowledgeLevel"], "detailed")
+        planet = record.observed["sector"]["objects"][0]["bookmarkTargets"][0]
+        self.assertEqual(planet["habitabilityScore"], 0.82155)
+
     def test_action_journal_supports_idempotency_checks(self):
         command = {
             "type": "move_probe",
