@@ -11,6 +11,7 @@ import re
 import sys
 import time
 from dataclasses import asdict, replace
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 import requests
@@ -75,6 +76,25 @@ class ManualCraftReservationConflict(ValueError):
     """A manual build may proceed only after an explicit operator override."""
 
 
+def _coerce_integral_id(value, *, label="probe"):
+    """Accept integer IDs even when legacy/Qt data serializes them as ``805.0``."""
+    try:
+        parsed = Decimal(str(value).strip())
+    except (InvalidOperation, TypeError, ValueError) as error:
+        raise ValueError(f"Invalid {label} ID: {value!r}") from error
+    if not parsed.is_finite() or parsed != parsed.to_integral_value():
+        raise ValueError(f"Invalid {label} ID: {value!r}")
+    return int(parsed)
+
+
+def _integral_ids_equal(left, right):
+    """Compare persisted numeric IDs without allowing one bad row to break refresh."""
+    try:
+        return _coerce_integral_id(left) == _coerce_integral_id(right)
+    except ValueError:
+        return False
+
+
 class MissionControlDataService:
     """Build one authoritative dashboard snapshot for a selected probe."""
 
@@ -127,6 +147,8 @@ class MissionControlDataService:
         prefer_cached_fleet=False, priority_section=None,
         priority_progress=None, archival_sync_seconds=300,
     ):
+        if probe_id not in {None, ""}:
+            probe_id = _coerce_integral_id(probe_id)
         report = progress or (lambda percent, label: None)
         load_started = time.monotonic()
         timings = {}
@@ -975,7 +997,7 @@ class MissionControlDataService:
             return desired, [], {}
         role_rows = [dict(item) for item in FleetRoleService(self.data_engine).all("probe")]
         row = next((item for item in role_rows
-                    if int(item["asset_id"]) == int(probe_id)), None)
+                    if _integral_ids_equal(item.get("asset_id"), probe_id)), None)
         if row is None or row.get("role") != "miner":
             return desired, [], {}
         try:
@@ -987,16 +1009,23 @@ class MissionControlDataService:
         if travel_locked:
             desired = replace(desired, travel=None)
         target_id = settings.get("deuteriumTransportProbeId")
+        if target_id not in {None, "", -1, "-1"}:
+            try:
+                target_id = _coerce_integral_id(target_id, label="receiver probe")
+            except ValueError:
+                target_id = None
+            else:
+                settings["deuteriumTransportProbeId"] = target_id
         target_probe = next((probe for probe in (operations.world.fleet or {}).get("probes", ())
-                             if str(probe.get("id")) == str(target_id)
-                             and str(probe.get("id")) != str(probe_id)), None)
-        if target_id not in {None, "", -1, "-1"} and str(target_id) != str(probe_id):
+                             if _integral_ids_equal(probe.get("id"), target_id)
+                             and not _integral_ids_equal(probe.get("id"), probe_id)), None)
+        if target_id is not None and not _integral_ids_equal(target_id, probe_id):
             # Fleet rows are suitable for selection but can lag a just-arrived
             # receiver or omit its current fuel capacity. Match reserve-tanker
             # and Transport workflows by validating the destination probe live
             # before deciding whether a handoff is ready.
             try:
-                response = self.client.get_probe(int(target_id))
+                response = self.client.get_probe(target_id)
                 target_probe = response.get("probe", response)
             except Exception:
                 # Retain the fleet observation for an explainable wait state
@@ -1022,7 +1051,7 @@ class MissionControlDataService:
         if not hasattr(self.data_engine, "fleet_roles"):
             return desired, [], {}
         row = next((dict(item) for item in FleetRoleService(self.data_engine).all("probe")
-                    if int(item["asset_id"]) == int(probe_id)), None)
+                    if _integral_ids_equal(item["asset_id"], probe_id)), None)
         if row is None or row.get("role") != "explorer":
             return desired, [], {}
         try:
@@ -1118,7 +1147,7 @@ class MissionControlDataService:
             return desired
         role = next((
             row["role"] for row in FleetRoleService(self.data_engine).all("probe")
-            if int(row["asset_id"]) == int(probe_id)
+            if _integral_ids_equal(row["asset_id"], probe_id)
         ), None)
         if (
             role != "deuterium_reserve"
@@ -4802,6 +4831,7 @@ class MissionControlController(QObject):
 
     @Slot(int)
     def selectProbe(self, probe_id):
+        probe_id = _coerce_integral_id(probe_id)
         if self._refreshing:
             self._pending_probe_id = probe_id
             return
@@ -4814,12 +4844,12 @@ class MissionControlController(QObject):
         # do not move this deadline, so automation cannot be starved.
         if self._automation_timer.isActive():
             self._automation_timer.start(60_000)
-        cached = self._dashboard_cache.get(int(probe_id))
+        cached = self._dashboard_cache.get(probe_id)
         if cached is not None:
             cached_dashboard, cached_probes = cached
             self._dashboard = dict(cached_dashboard)
             self._available_probes = [dict(item) for item in cached_probes]
-            self._focused_probe_id = int(probe_id)
+            self._focused_probe_id = probe_id
             self._dashboard["connectionLabel"] = (
                 f"CACHED · REFRESHING {self._active_section}"
             )
@@ -5132,7 +5162,7 @@ class MissionControlController(QObject):
                 if self.service is not None else self.settings_engine
             )
             row = next((dict(item) for item in roles.all("probe")
-                        if int(item["asset_id"]) == int(probe_id)), None)
+                        if _integral_ids_equal(item["asset_id"], probe_id)), None)
             if row is None:
                 raise ValueError("Assign this probe a role before saving role settings.")
             roles.assign("probe", probe_id, row["role"], metadata=payload)

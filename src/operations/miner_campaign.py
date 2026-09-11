@@ -164,7 +164,8 @@ class MinerCampaignService:
             return None
         return Task(
             action="Transfer Deuterium", category="miner_logistics",
-            target=str(target_id), quantity=round(plan.deliverable_amount, 2), priority=1,
+            target=str(plan.target_probe_id),
+            quantity=round(plan.deliverable_amount, 2), priority=1,
             workflow_authorized=True,
             idempotency_scope=f"miner-transfer:{target_id}:{amount:g}",
             reason=("Miner tank is full; transfer mined Deuterium to the selected "

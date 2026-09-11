@@ -403,6 +403,18 @@ The background refresh converts Python containers to QML-safe lists and maps;
 every controller-side incremental dashboard mutation must preserve those same
 shapes. Reintroducing tuples after conversion makes JavaScript array methods
 fail and causes Qt controls to report invalid model sizes on every refresh.
+
+Probe identifiers crossing Qt, JSON metadata, or legacy persistence boundaries
+may arrive as integral decimal strings such as `805.0`. Normalize them to an
+integer at the controller/data-service boundary, and use tolerant numeric ID
+matching for persisted fleet roles. A representation mismatch must never abort
+a probe switch or replace live telemetry with the stale-snapshot error state.
+
+Relevant code/tests:
+
+- `src/ui/controller.py::_coerce_integral_id`
+- `tests/test_ui_preparation.py`
+- `tests/test_miner_campaign.py`
 Dialogs must have a non-circular width owner rather than deriving implicit width
 from content whose width depends on the dialog's available width.
 

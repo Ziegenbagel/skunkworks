@@ -890,6 +890,19 @@ class UiPreparationTests(unittest.TestCase):
             include_archival=False,
         )
 
+    def test_probe_switch_normalizes_legacy_decimal_string_id(self):
+        controller = MissionControlController()
+        controller._focused_probe_id = 7
+
+        with patch.object(controller, "_start_refresh") as refresh:
+            controller.selectProbe("805.0")
+
+        refresh.assert_called_once_with(
+            805,
+            prefer_cached_fleet=True,
+            include_archival=False,
+        )
+
     def test_failed_refresh_retains_snapshot_and_marks_it_stale(self):
         class Service:
             fail = False
