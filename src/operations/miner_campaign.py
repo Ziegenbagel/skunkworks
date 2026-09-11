@@ -12,6 +12,7 @@ class MinerCampaignDecision:
     summary: str = "Miner automation is paused."
     paused: bool = True
     managed_resources: tuple[str, ...] = ()
+    reserve_transfer_manny: bool = False
 
 
 class MinerCampaignService:
@@ -105,6 +106,7 @@ class MinerCampaignService:
                          + (" One Manny is reserved for the full-tank transfer."
                             if deuterium_full else "")),
                 managed_resources=managed,
+                reserve_transfer_manny=deuterium_full,
             )
         deuterium_wait = self._deuterium_wait_status(settings, target_probe)
         if "deuterium" in managed and deuterium_wait is not None:
@@ -112,6 +114,7 @@ class MinerCampaignService:
             return MinerCampaignDecision(
                 phase=phase, paused=False, summary=summary,
                 managed_resources=managed,
+                reserve_transfer_manny=deuterium_full,
             )
         return MinerCampaignDecision(
             phase="waiting_for_resource", paused=False,
@@ -159,7 +162,7 @@ class MinerCampaignService:
         if deliverable <= 0.00001:
             return None
         return Task(
-            action="Transfer Deuterium", category="operations",
+            action="Transfer Deuterium", category="miner_logistics",
             target=str(target_id), quantity=round(deliverable, 2), priority=1,
             workflow_authorized=True,
             idempotency_scope=f"miner-transfer:{target_id}:{amount:g}",

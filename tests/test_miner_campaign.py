@@ -4,6 +4,9 @@ import json
 from src.operations.miner_campaign import MinerCampaignService
 from src.models.galaxy import SectorCoordinates
 from src.planner.desired_state import DesiredState, TravelGoal
+from src.execution import CommandPreparer, CommandType, ExecutionMode, ExecutionPolicy
+from src.planner.task import Task
+from tests.test_planner_missions import build_operations
 from src.ui.controller import MissionControlDataService
 
 
@@ -69,6 +72,46 @@ def test_full_deuterium_miner_transfers_to_selected_same_sector_probe():
     assert len(decision.tasks) == 1
     assert decision.tasks[0].action == "Transfer Deuterium"
     assert decision.tasks[0].quantity == 80
+    assert decision.tasks[0].category == "miner_logistics"
+    assert decision.reserve_transfer_manny is True
+
+
+def test_full_miner_reserved_manny_is_used_by_transfer_not_other_work():
+    miner_operations = build_operations()
+    miner_operations.world.mannies["mannies"] = [
+        {
+            "id": f"manny-{index}", "currentTask": None,
+            "canReceiveOrders": True, "location": {"type": "probe"},
+        }
+        for index in range(2)
+    ]
+    tasks = (
+        Task(
+            action="Repair Probe", category="safety", quantity=10, priority=1,
+            reason="Unrelated Manny work must not consume the transfer reserve.",
+        ),
+        Task(
+            action="Transfer Deuterium", category="miner_logistics", target="9",
+            quantity=80, priority=1, workflow_authorized=True,
+            reason="Transfer full Miner fuel.", metadata={"minerCampaign": True},
+        ),
+    )
+    prepared = CommandPreparer(
+        miner_operations, 1,
+        ExecutionPolicy(
+            mode=ExecutionMode.AUTOMATIC, live_execution_enabled=True,
+            allowed_command_types=frozenset({
+                CommandType.MANNY_TRANSFER_DEUTERIUM, CommandType.MANNY_REPAIR,
+            }),
+            max_commands_per_cycle=10,
+        ),
+        reserved_manny_ids=("manny-0",),
+    ).prepare(tasks)
+
+    commands = {item.command.type: item.command for item in prepared}
+    assert commands[CommandType.MANNY_TRANSFER_DEUTERIUM].target_id == "manny-0"
+    assert commands[CommandType.MANNY_TRANSFER_DEUTERIUM].metadata["minerCampaign"] is True
+    assert commands[CommandType.MANNY_REPAIR].target_id == "manny-1"
 
 
 def test_full_deuterium_miner_sends_nine_of_ten_mannies_to_waiting_mining():

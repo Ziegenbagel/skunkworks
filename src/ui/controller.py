@@ -107,6 +107,7 @@ class MissionControlDataService:
         self._selected_probe_id = None
         self._last_scan_result = None
         self._prepared_commands = ()
+        self._automation_reserved_manny_ids = ()
         self._logbook_page_probes = {}
         self._history_sync_at = {}
         self._safety_sync_at = {}
@@ -936,8 +937,15 @@ class MissionControlDataService:
                     policy.max_commands_per_cycle, len(preparation_tasks),
                 ),
             )
+            reserved_manny_ids = ()
+            if miner_view.get("reserveTransferManny"):
+                idle_mannies = operations.mining.idle_mannies()
+                if idle_mannies:
+                    reserved_manny_ids = (idle_mannies[0]["id"],)
+            self._automation_reserved_manny_ids = reserved_manny_ids
             prepared_commands = CommandPreparer(
                 operations, probe_id, preparation_policy,
+                reserved_manny_ids=reserved_manny_ids,
             ).prepare(preparation_tasks)
             self._prepared_commands = self._dispatch_prepared_commands(
                 prepared_commands,
@@ -993,6 +1001,7 @@ class MissionControlDataService:
             "enabled": enabled, "phase": decision.phase,
             "paused": decision.paused, "summary": summary,
             "managedResources": list(decision.managed_resources),
+            "reserveTransferManny": decision.reserve_transfer_manny,
             "travelLocked": travel_locked,
         }
 
@@ -1875,11 +1884,15 @@ class MissionControlDataService:
                         "orderAmount", prepared.command.payload.get("targetAmount", 0),
                     ) or 0
                 )
-            if prepared.command.type == CommandType.MANNY_REPAIR:
-                # A repair restores one probe, not one share per Manny. Live
-                # telemetry may lag the accepted order, so do not assign the
-                # same repair goal to another idle Manny in this cycle.
-                completed_exclusive_types.add(CommandType.MANNY_REPAIR)
+            if prepared.command.type in {
+                CommandType.MANNY_REPAIR,
+                CommandType.MANNY_TRANSFER_DEUTERIUM,
+            }:
+                # These commands complete one probe-level goal, not one share
+                # per Manny. Live telemetry may lag an accepted order, so do
+                # not assign the same repair or transfer to another idle Manny
+                # in this cycle.
+                completed_exclusive_types.add(prepared.command.type)
             # AutomationRuntime performed the mandatory authoritative
             # preflight refresh immediately before dispatch. Its snapshot is
             # retained in ``self._operations`` and accepted Manny IDs are
@@ -2004,6 +2017,9 @@ class MissionControlDataService:
         )
         prepared_plan = CommandPreparer(
             self._operations, self._selected_probe_id, preparation_policy,
+            reserved_manny_ids=getattr(
+                self, "_automation_reserved_manny_ids", (),
+            ),
         ).prepare(planned_tasks)
         fabrication_types = {
             CommandType.MANNY_CRAFT,
@@ -2026,6 +2042,9 @@ class MissionControlDataService:
         )
         prepared = CommandPreparer(
             self._operations, self._selected_probe_id, policy,
+            reserved_manny_ids=getattr(
+                self, "_automation_reserved_manny_ids", (),
+            ),
         ).prepare(mining_tasks)
         return next((
             item for item in prepared
@@ -2094,6 +2113,9 @@ class MissionControlDataService:
         )
         prepared = CommandPreparer(
             operations, self._selected_probe_id, policy,
+            reserved_manny_ids=getattr(
+                self, "_automation_reserved_manny_ids", (),
+            ),
         ).prepare((task,))
         return next((item for item in prepared if item.disposition == "ready"), None)
 

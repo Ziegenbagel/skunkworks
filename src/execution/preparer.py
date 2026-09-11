@@ -26,10 +26,12 @@ class CommandPreparer:
         probe_id,
         policy,
         journal=None,
+        reserved_manny_ids=(),
     ):
         self.translator = TaskCommandTranslator(
             operations,
             probe_id,
+            reserved_manny_ids=reserved_manny_ids,
         )
         self.validator = PreflightValidator(
             operations,

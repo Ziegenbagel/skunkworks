@@ -7,6 +7,7 @@ FABRICATION_ACTIONS = frozenset({
 })
 
 TIER_BY_CATEGORY = {
+    "miner_logistics": 0,
     "safety": 0,
     "inventory": 0,
     "fleet_assembly": 1,
@@ -24,6 +25,10 @@ TIER_BY_CATEGORY = {
 # fabrication so dependency/reserve mining cannot consume capacity while any
 # craft or assembly command is currently dispatchable.
 STAGE_BY_CATEGORY = {
+    # A full Miner has one Manny reserved specifically for handoff. Once the
+    # receiver arrives, complete that handoff before unrelated work can consume
+    # the cycle or the reserved worker.
+    "miner_logistics": 0,
     "safety": 0,
     "inventory": 0,
     "fleet_assembly": 1,

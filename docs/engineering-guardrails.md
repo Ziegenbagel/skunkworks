@@ -211,6 +211,12 @@ Unconfigured ordinary-resource selections default to none, never all. A full
 Deuterium tank is a logistics wait rather than a missing-resource condition;
 the Miner status must identify whether it needs a receiver selection, a
 rendezvous, or receiver capacity.
+The full-tank reserve is an actual scheduler reservation, not merely a reduced
+mining-worker count: unrelated fabrication, repair, or other Manny work may not
+claim it while the Miner awaits rendezvous. When the selected receiver arrives,
+the Miner transfer receives first scheduling priority and explicitly consumes
+that reserved Manny. An accepted transfer is exclusive for the remainder of
+the cycle so lagging fuel telemetry cannot dispatch the same handoff twice.
 
 Relevant code/tests:
 

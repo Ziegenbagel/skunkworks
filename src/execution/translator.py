@@ -6,10 +6,11 @@ from .commands import Command, CommandType
 
 
 class TaskCommandTranslator:
-    def __init__(self, operations, probe_id):
+    def __init__(self, operations, probe_id, reserved_manny_ids=()):
         self.operations = operations
         self.probe_id = probe_id
         self._claimed_manny_ids = set()
+        self._reserved_manny_ids = {str(item) for item in reserved_manny_ids}
 
     def translate(self, task):
         if task.constraints:
@@ -80,7 +81,9 @@ class TaskCommandTranslator:
         )
 
     def _transfer_deuterium(self, task):
-        manny = self._claim_idle_manny()
+        manny = self._claim_idle_manny(
+            allow_reserved=bool(task.metadata.get("minerCampaign")),
+        )
         if manny is None:
             return None
         return Command(
@@ -97,6 +100,7 @@ class TaskCommandTranslator:
             metadata={
                 "resource": "deuterium",
                 "transportTransfer": True,
+                "minerCampaign": bool(task.metadata.get("minerCampaign")),
                 "workflowAuthorized": bool(task.workflow_authorized),
                 "mannyName": manny.get("name") or "Manny",
             },
@@ -355,10 +359,21 @@ class TaskCommandTranslator:
             metadata=metadata,
         )
 
-    def _claim_idle_manny(self):
+    def _claim_idle_manny(self, *, allow_reserved=False):
         mannies = self.operations.mining.idle_mannies()
+        if allow_reserved:
+            reserved = next((
+                item for item in mannies
+                if str(item["id"]) in self._reserved_manny_ids
+                and item["id"] not in self._claimed_manny_ids
+            ), None)
+            if reserved is not None:
+                self._claimed_manny_ids.add(reserved["id"])
+                return reserved
         manny = next(
-            (item for item in mannies if item["id"] not in self._claimed_manny_ids),
+            (item for item in mannies
+             if item["id"] not in self._claimed_manny_ids
+             and (allow_reserved or str(item["id"]) not in self._reserved_manny_ids)),
             None,
         )
         if manny is not None:
