@@ -990,6 +990,18 @@ class MissionControlDataService:
         target_probe = next((probe for probe in (operations.world.fleet or {}).get("probes", ())
                              if str(probe.get("id")) == str(target_id)
                              and str(probe.get("id")) != str(probe_id)), None)
+        if target_id not in {None, "", -1, "-1"} and str(target_id) != str(probe_id):
+            # Fleet rows are suitable for selection but can lag a just-arrived
+            # receiver or omit its current fuel capacity. Match reserve-tanker
+            # and Transport workflows by validating the destination probe live
+            # before deciding whether a handoff is ready.
+            try:
+                response = self.client.get_probe(int(target_id))
+                target_probe = response.get("probe", response)
+            except Exception:
+                # Retain the fleet observation for an explainable wait state
+                # when the targeted live read is temporarily unavailable.
+                pass
         decision = MinerCampaignService(operations).decide(
             settings, target_probe=target_probe,
             maximum_mining_order_amount=desired.maximum_mining_order_amount,

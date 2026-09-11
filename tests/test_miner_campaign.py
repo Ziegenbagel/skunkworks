@@ -22,8 +22,11 @@ def operations(*, idle=5, resources=None, fuel=20, maximum=100, capacity=4):
                 (item for item in targets if item["resource_type"] == resource), None),
         ),
         inventory=SimpleNamespace(mining_return_capacity=lambda _active: capacity),
-        world=SimpleNamespace(probe={"fuel": {"deuterium": fuel, "maxDeuterium": maximum},
-                                    "sector": {"relative": {"x": 1, "y": 2, "z": 3}}}),
+        world=SimpleNamespace(probe={
+            "id": 1, "model": "deuterium_tanker", "status": "idle",
+            "fuel": {"deuterium": fuel, "maxDeuterium": maximum},
+            "sector": {"relative": {"x": 1, "y": 2, "z": 3}},
+        }),
     )
 
 
@@ -62,7 +65,8 @@ def test_all_resources_selects_fuel_and_enabled_ordinary_resources():
 
 def test_full_deuterium_miner_transfers_to_selected_same_sector_probe():
     target = {
-        "id": 9, "sector": {"relative": {"x": 1, "y": 2, "z": 3}},
+        "id": 9, "status": "idle",
+        "sector": {"relative": {"x": 1, "y": 2, "z": 3}},
         "fuel": {"deuterium": 20, "maxDeuterium": 100},
     }
     decision = MinerCampaignService(operations(fuel=100)).decide({
@@ -207,6 +211,7 @@ def test_controller_accepts_available_receiver_without_exact_transport_role():
     miner_operations = operations(idle=2, fuel=100)
     miner_operations.world.fleet = {"probes": [{
         "id": 9, "role": "unassigned",
+        "status": "idle",
         "sector": {"relative": {"x": 1, "y": 2, "z": 3}},
         "fuel": {"deuterium": 0, "maxDeuterium": 100},
     }]}
@@ -218,3 +223,36 @@ def test_controller_accepts_available_receiver_without_exact_transport_role():
     assert len(tasks) == 1
     assert tasks[0].action == "Transfer Deuterium"
     assert tasks[0].target == "9"
+
+
+def test_controller_uses_live_receiver_after_cached_fleet_sector_lags():
+    engine = SimpleNamespace(fleet_roles=lambda _kind: ({
+        "asset_id": "7", "role": "miner",
+        "metadata_json": json.dumps({
+            "miningEnabled": True, "resourceMode": "deuterium",
+            "deuteriumTransportProbeId": 9,
+        }),
+    },))
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service.data_engine = engine
+    service.client = SimpleNamespace(get_probe=lambda _probe_id: {"probe": {
+        "id": 9, "status": "idle",
+        "sector": {"relative": {"x": 1, "y": 2, "z": 3}},
+        "fuel": {"deuterium": 20, "maxDeuterium": 100},
+    }})
+    miner_operations = operations(idle=2, fuel=100)
+    miner_operations.world.probe["id"] = 7
+    miner_operations.world.fleet = {"probes": [{
+        "id": 9, "status": "idle",
+        "sector": {"relative": {"x": 8, "y": 8, "z": 8}},
+        "fuel": {"deuterium": 20, "maxDeuterium": 100},
+    }]}
+
+    _desired, tasks, view = service._reconcile_miner_campaign(
+        miner_operations, 7, DesiredState(),
+    )
+
+    assert view["reserveTransferManny"] is True
+    assert len(tasks) == 1
+    assert tasks[0].action == "Transfer Deuterium"
+    assert tasks[0].quantity == 80

@@ -217,6 +217,9 @@ claim it while the Miner awaits rendezvous. When the selected receiver arrives,
 the Miner transfer receives first scheduling priority and explicitly consumes
 that reserved Manny. An accepted transfer is exclusive for the remainder of
 the cycle so lagging fuel telemetry cannot dispatch the same handoff twice.
+Receiver selection may use the fleet list, but readiness must use a targeted
+live probe read, as reserve-tanker and Transport workflows do. A cached fleet
+sector must not hide a receiver that has already arrived.
 
 Relevant code/tests:
 

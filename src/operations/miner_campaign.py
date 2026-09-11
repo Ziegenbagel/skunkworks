@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from src.planner.task import Task
+from src.operations.logistics import TankerLogisticsService
 
 
 @dataclass(frozen=True)
@@ -153,17 +154,17 @@ class MinerCampaignService:
         maximum = float(source_fuel.get("maxDeuterium", 0) or 0)
         if maximum <= 0 or amount + 0.00001 < maximum:
             return None
-        if self._sector(source) != self._sector(target_probe):
-            return None
         target_fuel = target_probe.get("fuel") or {}
         target_free = max(0.0, float(target_fuel.get("maxDeuterium", 0) or 0)
                           - float(target_fuel.get("deuterium", 0) or 0))
-        deliverable = min(max(0.0, amount - 1.0), target_free)
-        if deliverable <= 0.00001:
+        plan = TankerLogisticsService().plan_delivery(
+            source, target_probe, target_free, 1.0,
+        )
+        if plan.blockers:
             return None
         return Task(
             action="Transfer Deuterium", category="miner_logistics",
-            target=str(target_id), quantity=round(deliverable, 2), priority=1,
+            target=str(target_id), quantity=round(plan.deliverable_amount, 2), priority=1,
             workflow_authorized=True,
             idempotency_scope=f"miner-transfer:{target_id}:{amount:g}",
             reason=("Miner tank is full; transfer mined Deuterium to the selected "
