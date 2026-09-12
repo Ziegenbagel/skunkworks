@@ -88,6 +88,14 @@ def test_asset_catalog_covers_current_api_objects_and_tanker():
         assert f'"{object_type}"' in catalog
 
 
+def test_selected_map_marker_does_not_cover_the_object_icon():
+    marker = Path("src/ui/qml/components/MapObjectMarker.qml").read_text(encoding="utf-8")
+
+    assert 'source: AssetCatalog.icon("badge-selected-object")' not in marker
+    assert 'color: "transparent"' in marker
+    assert "border.color: Constants.cyanColor" in marker
+
+
 def test_dashboard_keeps_persistent_probe_selector_binding_seam():
     screen = Path("src/ui/qml/MissionControlScreen.ui.qml").read_text(encoding="utf-8")
     selector = Path("src/ui/qml/components/ProbeSelector.qml").read_text(encoding="utf-8")

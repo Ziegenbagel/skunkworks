@@ -19,11 +19,16 @@ Item {
         fillMode: Image.PreserveAspectFit
     }
 
-    Image {
+    Rectangle {
         visible: root.selected
-        anchors.fill: parent
-        source: AssetCatalog.icon("badge-selected-object")
-        fillMode: Image.PreserveAspectFit
+        anchors.centerIn: parent
+        width: parent.width * 0.92
+        height: width
+        radius: width / 2
+        color: "transparent"
+        border.color: Constants.cyanColor
+        border.width: Math.max(1, Math.round(parent.width * 0.025))
+        opacity: 0.72
     }
 
     Row {

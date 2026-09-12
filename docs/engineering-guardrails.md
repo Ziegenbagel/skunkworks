@@ -114,6 +114,18 @@ Relevant code/tests:
 
 ## Navigation Interface Invariants
 
+### Selection decoration never replaces map-object identity
+
+Live-sector selection styling must remain transparent and must not contain a
+second object illustration. The selected probe or sector object's own icon is
+the identity-bearing artwork; selection may add a halo or outline but must not
+cover it with a legacy badge image.
+
+Relevant code/tests:
+
+- `src/ui/qml/components/MapObjectMarker.qml`
+- `tests/test_ui_assets.py::test_selected_map_marker_does_not_cover_the_object_icon`
+
 ### Map selections create drafts, not commands
 
 Passing a selected Galaxy Map sector to Navigation is a local interface action.
