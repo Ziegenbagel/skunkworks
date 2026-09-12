@@ -88,12 +88,20 @@ def test_asset_catalog_covers_current_api_objects_and_tanker():
         assert f'"{object_type}"' in catalog
 
 
-def test_selected_map_marker_does_not_cover_the_object_icon():
+def test_selected_map_marker_does_not_cover_or_shrink_the_object_icon():
     marker = Path("src/ui/qml/components/MapObjectMarker.qml").read_text(encoding="utf-8")
 
     assert 'source: AssetCatalog.icon("badge-selected-object")' not in marker
-    assert 'color: "transparent"' in marker
-    assert "border.color: Constants.cyanColor" in marker
+    assert "anchors.margins: root.selected" not in marker
+
+
+def test_manny_map_labels_stay_in_view_and_wrap_long_task_names():
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
+
+    assert "root.width - mannyMarker.x - width - 4" in sector
+    assert "width: Math.min(240, Math.max(72, mannyLabel.implicitWidth + 12))" in sector
+    assert "wrapMode: Text.Wrap" in sector
+    assert "maximumLineCount: 2" in sector
 
 
 def test_dashboard_keeps_persistent_probe_selector_binding_seam():

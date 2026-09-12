@@ -116,15 +116,15 @@ Relevant code/tests:
 
 ### Selection decoration never replaces map-object identity
 
-Live-sector selection styling must remain transparent and must not contain a
-second object illustration. The selected probe or sector object's own icon is
-the identity-bearing artwork; selection may add a halo or outline but must not
-cover it with a legacy badge image.
+Live-sector selection styling must not contain a second object illustration or
+shrink the selected artwork. The selected probe or sector object's own icon is
+the identity-bearing artwork; its name and stable focused position are enough
+to communicate selection unless a future non-obscuring treatment is required.
 
 Relevant code/tests:
 
 - `src/ui/qml/components/MapObjectMarker.qml`
-- `tests/test_ui_assets.py::test_selected_map_marker_does_not_cover_the_object_icon`
+- `tests/test_ui_assets.py::test_selected_map_marker_does_not_cover_or_shrink_the_object_icon`
 
 ### Map selections create drafts, not commands
 

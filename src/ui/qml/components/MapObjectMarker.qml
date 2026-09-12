@@ -14,21 +14,8 @@ Item {
 
     Image {
         anchors.fill: parent
-        anchors.margins: root.selected ? parent.width * 0.10 : 0
         source: root.iconSource
         fillMode: Image.PreserveAspectFit
-    }
-
-    Rectangle {
-        visible: root.selected
-        anchors.centerIn: parent
-        width: parent.width * 0.92
-        height: width
-        radius: width / 2
-        color: "transparent"
-        border.color: Constants.cyanColor
-        border.width: Math.max(1, Math.round(parent.width * 0.025))
-        opacity: 0.72
     }
 
     Row {

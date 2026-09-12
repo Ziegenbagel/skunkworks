@@ -475,21 +475,29 @@ Rectangle {
                : root.height * 0.84 + Math.floor(index / 4) * 46
             iconSource: AssetCatalog.icon("manny")
             Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.bottom
                 anchors.topMargin: 1
-                width: Math.min(150, mannyLabel.implicitWidth + 12)
-                height: 22
+                width: Math.min(240, Math.max(72, mannyLabel.implicitWidth + 12))
+                height: Math.max(22, mannyLabel.implicitHeight + 8)
+                x: Math.max(4 - mannyMarker.x,
+                            Math.min((mannyMarker.width - width) / 2,
+                                     root.width - mannyMarker.x - width - 4))
                 radius: 3
                 color: Qt.rgba(0.04, 0.12, 0.16, 0.92)
                 border.color: Qt.rgba(Constants.nominalColor.r, Constants.nominalColor.g, Constants.nominalColor.b, 0.45)
                 Label {
                     id: mannyLabel
                     anchors.centerIn: parent
-                    width: Math.min(138, implicitWidth)
+                    width: parent.width - 12
                     horizontalAlignment: Text.AlignHCenter
-                text: "×" + mannyMarker.modelData.count + " · " + mannyMarker.modelData.task
-                    color: Constants.nominalColor; font.family: Constants.technicalFont; font.pixelSize: 11; font.bold: true; elide: Text.ElideRight
+                    text: "×" + mannyMarker.modelData.count + " · " + mannyMarker.modelData.task
+                    color: Constants.nominalColor
+                    font.family: Constants.technicalFont
+                    font.pixelSize: 11
+                    font.bold: true
+                    wrapMode: Text.Wrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
                 }
             }
         }
