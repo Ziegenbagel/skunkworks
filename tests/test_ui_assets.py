@@ -9,7 +9,9 @@ from src.ui.controller import MissionControlDataService
 
 ICON_ROOT = Path("src/ui/assets/icons")
 EXPANSION_ICONS = (
+    "probe",
     "probe-tanker",
+    "manny",
     "star",
     "star-remnant",
     "solar-system",
