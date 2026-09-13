@@ -748,6 +748,10 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert "protectedDeuterium" in navigation
     assert 'focusedRole === "transport"' in navigation
     assert "SAVE AUTO-TRAVEL DESTINATION" in navigation
+    assert "SCUT TRANSIT BEACON DIRECTORY" in navigation
+    assert "ADD TO MANUAL TRAVEL" in navigation
+    assert "root.navigationData.atTransitBeacon" in navigation
+    assert "root.chooseTransitBeacon(beaconRow.modelData)" in navigation
     assert "ACTIVE AUTO-TRAVEL TARGET" in navigation
     assert "CANCEL AUTO-TRAVEL TARGET" in navigation
     assert "scanSummary" in navigation

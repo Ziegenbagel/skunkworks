@@ -52,6 +52,10 @@ Item {
         manualX.value = Number(sector.x); manualY.value = Number(sector.y); manualZ.value = Number(sector.z);
         navigationTabs.currentIndex = 0;
     }
+    function chooseTransitBeacon(beacon) {
+        chooseSector(beacon);
+        routeMode.currentIndex = routeMode.model.indexOf("direct");
+    }
     function applyRequestedTravelSector() {
         if (requestedTravelSector.x === undefined
                 || requestedTravelSector.y === undefined
@@ -183,6 +187,63 @@ Item {
                                 Label { text: "ROUTE STRATEGY"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                                 ComboBox { id: routeMode; model: ["segmented", "direct"]; Layout.preferredWidth: 190 }
                                 Button { text: "PREVIEW ROUTE"; enabled: root.validManualCoordinates; onClicked: root.previewRequested(manualX.value, manualY.value, manualZ.value, String(routeMode.currentText)) }
+                            }
+                        }
+                    }
+                    GroupBox {
+                        title: "SCUT TRANSIT BEACON DIRECTORY"; Layout.fillWidth: true
+                        ColumnLayout {
+                            anchors.fill: parent; spacing: 8
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.navigationData.atTransitBeacon
+                                      ? "The focused probe is at an active transit beacon. Select another active beacon to prefill a direct Manual Travel order."
+                                      : "Beacon destinations are listed for reference. Quick beacon travel becomes available when the focused probe is in the exact sector of an active transit beacon."
+                                color: root.navigationData.atTransitBeacon ? Constants.nominalColor : Constants.mutedTextColor
+                                font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap
+                            }
+                            Label {
+                                visible: !(root.navigationData.transitBeacons || []).length
+                                Layout.fillWidth: true
+                                text: "NO INSTALLED TRANSIT BEACONS ARE PRESENT IN THE LOADED SCUT NETWORK DATA"
+                                color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true
+                            }
+                            Repeater {
+                                model: root.navigationData.transitBeacons || []
+                                delegate: Rectangle {
+                                    id: beaconRow
+                                    required property var modelData
+                                    Layout.fillWidth: true; implicitHeight: 58
+                                    color: modelData.isCurrent ? Constants.selectedColor : Constants.raisedColor
+                                    border.color: modelData.active ? Constants.lineColor : Constants.warningColor
+                                    radius: 3
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.margins: 9; spacing: 12
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 2
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: String(beaconRow.modelData.name) + " · " + String(beaconRow.modelData.networkName)
+                                                color: beaconRow.modelData.active ? Constants.cyanColor : Constants.warningColor
+                                                font.family: Constants.technicalFont; font.bold: true; elide: Text.ElideRight
+                                            }
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: String(beaconRow.modelData.label)
+                                                      + (beaconRow.modelData.isCurrent ? " · CURRENT SECTOR" : "")
+                                                      + (beaconRow.modelData.active ? " · ACTIVE" : " · OFFLINE")
+                                                color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                                            }
+                                        }
+                                        Button {
+                                            text: "ADD TO MANUAL TRAVEL"
+                                            enabled: Boolean(root.navigationData.atTransitBeacon)
+                                                     && Boolean(beaconRow.modelData.active)
+                                                     && !Boolean(beaconRow.modelData.isCurrent)
+                                            onClicked: root.chooseTransitBeacon(beaconRow.modelData)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

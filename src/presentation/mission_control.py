@@ -1225,10 +1225,14 @@ class MissionControlViewModelBuilder:
         world = self.operations.world
         current = self.operations.travel.current_sector()
         if current is None:
-            return {"current": {}, "neighbors": (), "travelReady": False}
+            return {
+                "current": {}, "neighbors": (), "travelReady": False,
+                "transitBeacons": (), "atTransitBeacon": False,
+            }
         snapshot = (world.sector or {}).get("snapshot") or {}
         current_sector = snapshot.get("sector", snapshot)
         galaxy = getattr(world, "galaxy", None)
+        transit_beacons = self._transit_beacons(world, current)
         neighbors = []
         for coordinates in current.neighbors():
             record = galaxy.get(coordinates) if galaxy is not None else None
@@ -1262,6 +1266,11 @@ class MissionControlViewModelBuilder:
                 "scutCoverage": self._scut_coverage(world, current),
             },
             "neighbors": tuple(neighbors),
+            "transitBeacons": transit_beacons,
+            "atTransitBeacon": any(
+                beacon["isCurrent"] and beacon["active"]
+                for beacon in transit_beacons
+            ),
             "travelReady": self.operations.travel.travel_ready(),
             "fuelPercent": self.operations.travel.fuel_percentage(),
             "fuelAvailable": self.operations.travel.fuel_available(),
@@ -1269,6 +1278,48 @@ class MissionControlViewModelBuilder:
             "probeStatus": world.probe.get("status", "unknown"),
             "telemetryAvailable": world.probe.get("telemetry_available", False),
         }
+
+    @staticmethod
+    def _transit_beacons(world, current):
+        beacons = []
+        seen = set()
+        for response in getattr(world, "hazard_context", {}).get("scutNetworks", ()):
+            network = response.get("network") or {}
+            network_id = str(network.get("id", network.get("name", "unknown")))
+            network_name = network.get("name") or f"SCUT Network {network_id}"
+            for relay in network.get("relays", ()):
+                if relay.get("isTransitBeacon") is not True:
+                    continue
+                relative = (relay.get("sector") or {}).get("relative")
+                try:
+                    coordinates = SectorCoordinates.from_api(relative)
+                except (KeyError, TypeError, ValueError):
+                    continue
+                relay_id = str(relay.get("id", "unknown"))
+                identity = (network_id, relay_id, coordinates.x, coordinates.y, coordinates.z)
+                if identity in seen:
+                    continue
+                seen.add(identity)
+                beacons.append({
+                    "id": relay_id,
+                    "name": relay.get("name") or f"Relay {relay_id}",
+                    "networkName": network_name,
+                    "x": coordinates.x,
+                    "y": coordinates.y,
+                    "z": coordinates.z,
+                    "label": MissionControlViewModelBuilder._sector_label({
+                        "x": coordinates.x, "y": coordinates.y, "z": coordinates.z,
+                    }),
+                    "active": relay.get("status") == "on",
+                    "isCurrent": coordinates == current,
+                })
+        return tuple(sorted(
+            beacons,
+            key=lambda item: (
+                not item["isCurrent"], item["networkName"], item["name"],
+                item["x"], item["y"], item["z"],
+            ),
+        ))
 
     @staticmethod
     def _scan_summary(sector):

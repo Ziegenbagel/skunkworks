@@ -2055,6 +2055,32 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("1 planets", navigation["current"]["scanSummary"])
         self.assertIn("composition/category: Oceanic", navigation["current"]["detailText"])
 
+    def test_navigation_lists_installed_beacons_and_gates_shortcuts_at_beacon_sector(self):
+        base = build_operations()
+        base.world.hazard_context = {"scutNetworks": [{"network": {
+            "id": "home", "name": "Home Grid", "relays": [
+                {"id": 7, "name": "Home Gate", "status": "on",
+                 "isTransitBeacon": True,
+                 "sector": {"relative": {"x": 0, "y": 0, "z": 0}}},
+                {"id": 8, "name": "Frontier Gate", "status": "on",
+                 "isTransitBeacon": True,
+                 "sector": {"relative": {"x": 4, "y": 0, "z": 0}}},
+                {"id": 9, "name": "Ordinary Relay", "status": "on",
+                 "isTransitBeacon": False,
+                 "sector": {"relative": {"x": 2, "y": 0, "z": 0}}},
+            ],
+        }}]}
+
+        navigation = MissionControlViewModelBuilder(base).navigation_view()
+
+        self.assertTrue(navigation["atTransitBeacon"])
+        self.assertEqual(
+            [item["name"] for item in navigation["transitBeacons"]],
+            ["Home Gate", "Frontier Gate"],
+        )
+        self.assertTrue(navigation["transitBeacons"][0]["isCurrent"])
+        self.assertEqual(navigation["transitBeacons"][1]["label"], "FCC 4 / 0 / 0")
+
     def test_galaxy_view_has_a_stable_content_revision(self):
         first = MissionControlViewModelBuilder(build_operations()).build()["galaxy"]
         second = MissionControlViewModelBuilder(build_operations()).build()["galaxy"]

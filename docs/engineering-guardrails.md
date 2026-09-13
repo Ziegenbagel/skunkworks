@@ -133,6 +133,11 @@ It may open Navigation and prefill the manual destination, but it must not
 preview, approve, dispatch, or refresh by itself. The operator remains in
 control of route review and every command boundary.
 
+The Manual Travel beacon directory follows the same boundary. It may list
+installed beacons from the already-loaded SCUT network context and prefill a
+direct destination only when the focused probe is at an active beacon. It must
+not preview or dispatch the trip, and it must not perform QML-side API reads.
+
 Relevant code/tests:
 
 - `src/ui/qml/components/GalaxyMap3D.qml`
