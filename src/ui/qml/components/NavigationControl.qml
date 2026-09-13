@@ -23,6 +23,7 @@ Item {
     signal cancelMovementRequested()
     signal scanRequested(int x, int y, int z)
     signal neighborScanRequested()
+    signal galaxySectorRequested(int x, int y, int z)
     signal autonomousTargetRequested(int x, int y, int z, string routeMode, bool riskAcknowledged, bool scutExitAcknowledged)
     signal autonomousTargetCancelRequested()
     signal transportCycleRequested(var plan)
@@ -191,63 +192,6 @@ Item {
                         }
                     }
                     GroupBox {
-                        title: "SCUT TRANSIT BEACON DIRECTORY"; Layout.fillWidth: true
-                        ColumnLayout {
-                            anchors.fill: parent; spacing: 8
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.navigationData.atTransitBeacon
-                                      ? "The focused probe is at an active transit beacon. Select another active beacon to prefill a direct Manual Travel order."
-                                      : "Beacon destinations are listed for reference. Quick beacon travel becomes available when the focused probe is in the exact sector of an active transit beacon."
-                                color: root.navigationData.atTransitBeacon ? Constants.nominalColor : Constants.mutedTextColor
-                                font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap
-                            }
-                            Label {
-                                visible: !(root.navigationData.transitBeacons || []).length
-                                Layout.fillWidth: true
-                                text: "NO INSTALLED TRANSIT BEACONS ARE PRESENT IN THE LOADED SCUT NETWORK DATA"
-                                color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true
-                            }
-                            Repeater {
-                                model: root.navigationData.transitBeacons || []
-                                delegate: Rectangle {
-                                    id: beaconRow
-                                    required property var modelData
-                                    Layout.fillWidth: true; implicitHeight: 58
-                                    color: modelData.isCurrent ? Constants.selectedColor : Constants.raisedColor
-                                    border.color: modelData.active ? Constants.lineColor : Constants.warningColor
-                                    radius: 3
-                                    RowLayout {
-                                        anchors.fill: parent; anchors.margins: 9; spacing: 12
-                                        ColumnLayout {
-                                            Layout.fillWidth: true; spacing: 2
-                                            Label {
-                                                Layout.fillWidth: true
-                                                text: String(beaconRow.modelData.name) + " · " + String(beaconRow.modelData.networkName)
-                                                color: beaconRow.modelData.active ? Constants.cyanColor : Constants.warningColor
-                                                font.family: Constants.technicalFont; font.bold: true; elide: Text.ElideRight
-                                            }
-                                            Label {
-                                                Layout.fillWidth: true
-                                                text: String(beaconRow.modelData.label)
-                                                      + (beaconRow.modelData.isCurrent ? " · CURRENT SECTOR" : "")
-                                                      + (beaconRow.modelData.active ? " · ACTIVE" : " · OFFLINE")
-                                                color: Constants.mutedTextColor; font.family: Constants.technicalFont
-                                            }
-                                        }
-                                        Button {
-                                            text: "ADD TO MANUAL TRAVEL"
-                                            enabled: Boolean(root.navigationData.atTransitBeacon)
-                                                     && Boolean(beaconRow.modelData.active)
-                                                     && !Boolean(beaconRow.modelData.isCurrent)
-                                            onClicked: root.chooseTransitBeacon(beaconRow.modelData)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    GroupBox {
                         title: "MANUAL ROUTE REVIEW"; Layout.fillWidth: true
                         ColumnLayout {
                             anchors.fill: parent; spacing: 10
@@ -305,6 +249,70 @@ Item {
                                 visible: Object.keys(root.activeTravelTarget).length > 0
                                 text: "CANCEL AUTO-TRAVEL TARGET"
                                 onClicked: root.autonomousTargetCancelRequested()
+                            }
+                        }
+                    }
+                    GroupBox {
+                        title: "SCUT TRANSIT BEACON DIRECTORY"; Layout.fillWidth: true
+                        ColumnLayout {
+                            anchors.fill: parent; spacing: 8
+                            Label {
+                                Layout.fillWidth: true
+                                text: root.navigationData.atTransitBeacon
+                                      ? "The focused probe is at an active transit beacon. Select another active beacon to prefill a direct Manual Travel order."
+                                      : "Beacon destinations are listed for reference. Quick beacon travel becomes available when the focused probe is in the exact sector of an active transit beacon."
+                                color: root.navigationData.atTransitBeacon ? Constants.nominalColor : Constants.mutedTextColor
+                                font.family: Constants.bodyFont; font.pixelSize: 14; wrapMode: Text.Wrap
+                            }
+                            Label {
+                                visible: !(root.navigationData.transitBeacons || []).length
+                                Layout.fillWidth: true
+                                text: "NO INSTALLED TRANSIT BEACONS ARE PRESENT IN THE LOADED SCUT NETWORK DATA"
+                                color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true
+                            }
+                            Repeater {
+                                model: root.navigationData.transitBeacons || []
+                                delegate: Rectangle {
+                                    id: beaconRow
+                                    required property var modelData
+                                    Layout.fillWidth: true; implicitHeight: 58
+                                    color: modelData.isCurrent ? Constants.selectedColor : Constants.raisedColor
+                                    border.color: modelData.active ? Constants.lineColor : Constants.warningColor
+                                    radius: 3
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.margins: 9; spacing: 12
+                                        ColumnLayout {
+                                            Layout.fillWidth: true; spacing: 2
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: String(beaconRow.modelData.name) + " · " + String(beaconRow.modelData.networkName)
+                                                color: beaconRow.modelData.active ? Constants.cyanColor : Constants.warningColor
+                                                font.family: Constants.technicalFont; font.bold: true; elide: Text.ElideRight
+                                            }
+                                            Label {
+                                                Layout.fillWidth: true
+                                                text: String(beaconRow.modelData.label)
+                                                      + (beaconRow.modelData.isCurrent ? " · CURRENT SECTOR" : "")
+                                                      + (beaconRow.modelData.active ? " · ACTIVE" : " · OFFLINE")
+                                                color: Constants.mutedTextColor; font.family: Constants.technicalFont
+                                            }
+                                        }
+                                        Button {
+                                            text: "VIEW ON GALAXY MAP"
+                                            onClicked: root.galaxySectorRequested(
+                                                Number(beaconRow.modelData.x),
+                                                Number(beaconRow.modelData.y),
+                                                Number(beaconRow.modelData.z))
+                                        }
+                                        Button {
+                                            text: "ADD TO MANUAL TRAVEL"
+                                            enabled: Boolean(root.navigationData.atTransitBeacon)
+                                                     && Boolean(beaconRow.modelData.active)
+                                                     && !Boolean(beaconRow.modelData.isCurrent)
+                                            onClicked: root.chooseTransitBeacon(beaconRow.modelData)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

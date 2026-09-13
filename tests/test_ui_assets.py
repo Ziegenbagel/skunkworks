@@ -728,6 +728,8 @@ def test_resource_workspace_groups_locations_and_uses_responsive_cards():
 def test_navigation_moves_transport_workflow_to_probe_role_settings():
     navigation = Path("src/ui/qml/components/NavigationControl.qml").read_text(encoding="utf-8")
     role_settings = Path("src/ui/qml/components/ProbeRoleSettings.qml").read_text(encoding="utf-8")
+    workspace = Path("src/ui/qml/components/NavigationWorkspace.qml").read_text(encoding="utf-8")
+    galaxy_map = Path("src/ui/qml/components/GalaxyMap3D.qml").read_text(encoding="utf-8")
 
     assert 'TabButton { text: "MANUAL TRAVEL" }' in navigation
     assert 'root.roleSettingsOnly ? 1' in navigation
@@ -749,9 +751,20 @@ def test_navigation_moves_transport_workflow_to_probe_role_settings():
     assert 'focusedRole === "transport"' in navigation
     assert "SAVE AUTO-TRAVEL DESTINATION" in navigation
     assert "SCUT TRANSIT BEACON DIRECTORY" in navigation
+    assert navigation.index('title: "MANUAL ROUTE REVIEW"') < navigation.index('title: "SCUT TRANSIT BEACON DIRECTORY"')
+    assert "VIEW ON GALAXY MAP" in navigation
+    assert "root.galaxySectorRequested(" in navigation
     assert "ADD TO MANUAL TRAVEL" in navigation
     assert "root.navigationData.atTransitBeacon" in navigation
     assert "root.chooseTransitBeacon(beaconRow.modelData)" in navigation
+    assert "requestedGalaxySector" in workspace
+    assert 'root.navigationSectionRequested("GALAXY MAP")' in workspace
+    assert "requestedSector: root.requestedGalaxySector" in workspace
+    assert "function showRequestedSector()" in galaxy_map
+    assert "cameraOrigin.position = positionFor(target)" in galaxy_map
+    assert "requestedSectorShown()" in galaxy_map
+    assert "onRequestedSectorShown: root.requestedGalaxySector = ({})" in workspace
+    assert "String(node.id) === String(selectedNode.id)" in galaxy_map
     assert "ACTIVE AUTO-TRAVEL TARGET" in navigation
     assert "CANCEL AUTO-TRAVEL TARGET" in navigation
     assert "scanSummary" in navigation

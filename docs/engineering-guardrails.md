@@ -137,6 +137,10 @@ The Manual Travel beacon directory follows the same boundary. It may list
 installed beacons from the already-loaded SCUT network context and prefill a
 direct destination only when the focused probe is at an active beacon. It must
 not preview or dispatch the trip, and it must not perform QML-side API reads.
+Its Galaxy Map action is always available and only selects and centers the
+beacon's already-loaded sector. That view action must not alter the Manual
+Travel draft, and the requested sector remains visible even when the current
+map filters would ordinarily exclude it.
 
 Relevant code/tests:
 

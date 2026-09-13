@@ -1,5 +1,34 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.2.0 — In Development
+
+- Added autonomous Explorer campaigns with planetary-frontier preference and
+  ordinary-frontier fallback, fleet-wide visit-based exploration tracking,
+  SCUT-bound routing, and automatic fuel, Metals, and repair interruptions.
+- Added guarded Explorer discovery handling for dormant constructs, derelict
+  Others vessels, and habitable-species contact, including one-Manny inspection
+  assignments, durable deduplication, recorded-sector alerts, and automatic
+  exploration resumption after completed inspections.
+- Added initial autonomous Miner role support for Deuterium-only, ordinary
+  resource, and combined mining modes, configurable Manny staffing, selected
+  fuel receivers, full-tank transfer logistics, and container-station grouping
+  in Live Sector.
+- Ensured Miner fuel transfers reserve exactly one available Manny only while
+  the tank is full, use current receiver state, and leave all other available
+  Mannys eligible to mine. Automatic probe repair likewise assigns only one
+  Manny per repair task.
+- Preserved complete Galaxy Map observations across revisits, legacy probe-ID
+  formats, and filters, including previously discovered habitable planets and
+  catalogued sector objects.
+- Replaced probe and Manny artwork with more canonical designs, added a distinct
+  large-tank Deuterium probe, and improved selected and busy-unit presentation
+  in Live Sector.
+- Added a SCUT transit-beacon directory beneath Manual Route Review. Operators
+  can always open and center any listed beacon sector on the Galaxy Map, while
+  direct beacon travel remains a separately reviewed manual-travel draft.
+- Added the Salvage Probe role to the 1.2 automation roadmap for recovering
+  detached containers and other items lost by fleet probes.
+
 ## Skunkworks 1.1.1
 
 - Fixed Windows release validation so the portable package can be published

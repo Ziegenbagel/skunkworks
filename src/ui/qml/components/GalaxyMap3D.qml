@@ -12,6 +12,7 @@ Item {
     property var renderedGalaxyData: ({})
     property var deferredGalaxyData: null
     property int focusedProbeId: -1
+    property var requestedSector: ({})
     property var selectedNode: null
     property var selectedCoveragePoint: null
     property bool hasCenteredOnProbe: false
@@ -74,6 +75,7 @@ Item {
     readonly property real spacing3D: 115
     signal scanRequested(int x, int y, int z)
     signal travelRequested(int x, int y, int z)
+    signal requestedSectorShown()
 
     component CoverageCell: Model {
         id: coverageCell
@@ -94,6 +96,7 @@ Item {
             || (state === "visited" && showVisited);
     }
     function matchesFilters(node) {
+        if (selectedNode && String(node.id) === String(selectedNode.id)) return true;
         if (!stateEnabled(String(node.mapState || "unknown"))) return false;
         if (hazardsOnly && !node.hasHazard) return false;
         if (salvageOnly && !node.hasDetachedContainers) return false;
@@ -169,6 +172,19 @@ Item {
             return true;
         }
         return false;
+    }
+    function showRequestedSector() {
+        const request = requestedSector || {};
+        if (request.x === undefined || request.y === undefined || request.z === undefined)
+            return false;
+        const identifier = String(Number(request.x)) + ":" + String(Number(request.y)) + ":" + String(Number(request.z));
+        const target = nodeById(identifier);
+        if (!target) return false;
+        selectedCoveragePoint = null;
+        selectedNode = target;
+        cameraOrigin.position = positionFor(target);
+        requestedSectorShown();
+        return true;
     }
     function resetCamera() {
         hasCenteredOnProbe = centerOnFocusedProbe();
@@ -491,7 +507,9 @@ Item {
 
     Component.onCompleted: {
         root.applyGalaxyData(root.galaxyData);
-        Qt.callLater(root.resetCamera);
+        Qt.callLater(function() {
+            if (!root.showRequestedSector()) root.resetCamera();
+        });
     }
     onFocusedProbeIdChanged: {
         root.hasCenteredOnProbe = false;
@@ -499,6 +517,7 @@ Item {
                 && Number(root.renderedGalaxyData.focusProbeId) === root.focusedProbeId)
             Qt.callLater(root.resetCamera);
     }
+    onRequestedSectorChanged: Qt.callLater(root.showRequestedSector)
     onGalaxyDataChanged: {
         if (root.cameraMoving) {
             root.deferredGalaxyData = root.galaxyData;
@@ -508,7 +527,7 @@ Item {
         // Initial data commonly arrives after the QML component is created.
         // Center once when it becomes available, but preserve operator pan and
         // orbit choices across ordinary background refreshes.
-        if (changed && !root.hasCenteredOnProbe)
+        if (changed && !root.showRequestedSector() && !root.hasCenteredOnProbe)
             Qt.callLater(root.resetCamera);
     }
 

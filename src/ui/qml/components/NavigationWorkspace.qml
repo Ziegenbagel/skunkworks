@@ -15,6 +15,7 @@ PanelFrame {
     property string cachedProductionRevision: ""
     property string cachedManualRevision: ""
     property var requestedTravelSector: ({})
+    property var requestedGalaxySector: ({})
     property var availableProbes: []
     property int focusedProbeId: -1
     property double currentEpochMs: Date.now()
@@ -299,6 +300,8 @@ PanelFrame {
             sourceComponent: Component {
                 GalaxyMap3D {
                     galaxyData: root.dashboardData.galaxy || ({})
+                    requestedSector: root.requestedGalaxySector
+                    onRequestedSectorShown: root.requestedGalaxySector = ({})
                     focusedProbeId: root.focusedProbeId
                     detailProfile: String(root.operatingProfile.map_detail || "normal")
                     onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
@@ -374,6 +377,10 @@ PanelFrame {
                     onCancelMovementRequested: root.travelCancelRequested()
                     onScanRequested: (x, y, z) => root.sectorScanRequested(x, y, z)
                     onNeighborScanRequested: root.neighboringSectorsScanRequested()
+                    onGalaxySectorRequested: (x, y, z) => {
+                        root.requestedGalaxySector = ({"x": x, "y": y, "z": z});
+                        root.navigationSectionRequested("GALAXY MAP");
+                    }
                     onAutonomousTargetRequested: (x, y, z, routeMode, riskAcknowledged) =>
                         root.autonomousTravelTargetRequested(x, y, z, routeMode, riskAcknowledged)
                     onAutonomousTargetCancelRequested: root.autonomousTravelTargetCancelRequested()
