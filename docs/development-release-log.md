@@ -45,4 +45,9 @@ remains the record for internal implementation work.
 
 ### Internal release support
 
-No candidates recorded yet.
+- For the 1.2 manual refresh, redraw the Warranty Redemption Manny schematic
+  from the current in-game Manny design rather than retaining the older generic
+  service diagram.
+- Add a prominent manual-style liability warning explaining that Skunkworks is
+  not responsible for the loss or destruction of operator probes, consistent
+  with the full GPLv3 no-warranty notice.

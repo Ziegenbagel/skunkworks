@@ -628,6 +628,12 @@ focused regression tests pass. No 1.2 development commit receives a public
   vanished, recovered, or externally claimed target is skipped safely; full
   salvagers return recovered cargo to a configured hub or storage destination.
 - Civilization-contact and quest reward analysis.
+- Rebuild the 1.2 Operator Manual after the interface and role workflows settle.
+  Replace the Warranty Redemption schematic with artwork based on the current
+  in-game Manny design, and add a prominent manual-style warning that
+  Skunkworks is not responsible for the loss or destruction of operator probes.
+  Keep the warning clearly presented as product documentation and consistent
+  with the project's GPLv3 no-warranty notice.
 - Expand automation only through explainable desired-state goals, live
   preflight, bounded request budgets, and explicit opt-ins for consequential
   behavior.
