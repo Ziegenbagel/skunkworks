@@ -159,7 +159,8 @@ class GameClient:
                 f"v{self.api_version} predates Skunkworks' required contract "
                 f"v{MINIMUM_API_VERSION}."
             )
-        headers = {"Accept": "application/json"}
+        caller_headers = dict(kwargs.pop("headers", {}) or {})
+        headers = {"Accept": "application/json", **caller_headers}
 
         if authenticated:
             headers["Authorization"] = (

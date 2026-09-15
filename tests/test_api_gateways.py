@@ -211,6 +211,51 @@ class ApiGatewayTests(unittest.TestCase):
         self.assertEqual(self.client.calls[2][1], "/api/probe/42/mannies/mny_1/detach-storage-container")
         self.assertEqual(self.client.calls[3][1], "/api/probe/42/mannies/mny_2/transfer-deuterium-to-probe")
 
+    def test_v131_sector_storage_operations_use_dedicated_routes(self):
+        self.api.mannies.sector_storage_inventory(
+            42, "storage-1", limit=50, cursor="next-page",
+        )
+        self.api.mannies.start_storage_transfer(
+            42, "mny_1", {
+                "objectId": "storage-1", "direction": "from_storage",
+                "containerId": "container-2", "kind": "resources",
+                "resources": {"metals": 0.25},
+            }, idempotency_key="transfer-key",
+        )
+        self.api.mannies.transfer_deuterium_from_external_storage(
+            42, "mny_2", "storage-1", 0.5, idempotency_key="fuel-key",
+        )
+        self.api.mannies.storage_transfer(42, "xfer-1")
+
+        self.assertEqual(self.client.calls[0], (
+            "GET", "/api/probe/42/sector-objects/storage-1/inventory",
+            {"params": {"limit": 50, "cursor": "next-page"}},
+        ))
+        self.assertEqual(
+            self.client.calls[1][2]["headers"],
+            {"Idempotency-Key": "transfer-key"},
+        )
+        self.assertEqual(
+            self.client.calls[2][1],
+            "/api/probe/42/mannies/mny_2/transfer-deuterium-from-external-storage",
+        )
+        self.assertEqual(self.client.calls[2][2]["json"], {
+            "objectId": "storage-1", "amount": 0.5,
+        })
+        self.assertEqual(
+            self.client.calls[3][1],
+            "/api/probe/42/storage-transfers/xfer-1",
+        )
+
+    def test_v131_atomic_printer_can_select_an_idle_manny(self):
+        self.api.mannies.atomic_printer_craft(
+            42, "integrated_circuit", manny_id="mny_7",
+        )
+
+        self.assertEqual(self.client.calls[-1][2]["json"], {
+            "recipe": "integrated_circuit", "mannyId": "mny_7",
+        })
+
 
 if __name__ == "__main__":
     unittest.main()

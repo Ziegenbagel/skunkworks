@@ -2641,7 +2641,7 @@ class MissionControlDataService:
             )
         if "atomic_3d_printer" in craftable_by:
             return self.capabilities.mannies.atomic_printer_craft(
-                self._selected_probe_id, recipe_id,
+                self._selected_probe_id, recipe_id, manny_id or None,
             )
         raise ValueError("This recipe has no supported fabricator.")
 
