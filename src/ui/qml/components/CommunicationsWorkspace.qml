@@ -40,12 +40,13 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     Label { text: "TO"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    ComboBox { id: recipient; Layout.preferredWidth: 280; model: root.probes.filter(probe => Number(probe.id) !== root.focusedProbeId); textRole: "name"; valueRole: "id" }
+                    ComboBox { id: recipient; Layout.preferredWidth: 340; model: root.communicationsData.recipients || []; textRole: "label" }
                     TextField { id: subject; Layout.fillWidth: true; placeholderText: "Subject" }
                     Button {
                         text: "SEND MESSAGE"; enabled: recipient.currentIndex >= 0 && body.text.trim().length > 0
                         onClicked: {
-                            root.messageSendRequested({"recipient":{"type":"probe","id":Number(recipient.currentValue)},"subject":subject.text,"body":body.text});
+                            const target = recipient.model[recipient.currentIndex];
+                            root.messageSendRequested({"recipient":{"type":String(target.type),"id":target.id},"subject":subject.text,"body":body.text});
                             subject.clear(); body.clear();
                         }
                     }

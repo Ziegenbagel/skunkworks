@@ -55,6 +55,33 @@ class MessagingExplorationTests(unittest.TestCase):
         self.assertEqual([event["domain"] for event in timeline], ["missions", "alerts"])
         self.assertTrue(timeline[0]["acknowledged"])
 
+    def test_oracle_contacts_replace_prior_fix_and_use_query_sector_as_origin(self):
+        self.engine.record_records("sent_messages", [
+            {"id": "query-old", "createdAt": "2026-09-12T10:00:00Z", "recipient": {"type": "planet", "id": "oracle-planet"}, "sector": {"relative": {"x": 0, "y": 0, "z": 0}}, "body": "Alice"},
+            {"id": "query-new", "createdAt": "2026-09-13T10:00:00Z", "recipient": {"type": "planet", "id": "oracle-planet"}, "sector": {"relative": {"x": 10, "y": 0, "z": 0}}, "body": "Alice"},
+        ])
+        self.engine.record_records("messages", [
+            {"id": "reply-old", "createdAt": "2026-09-12T10:01:00Z", "sender": {"type": "planet", "id": "oracle-planet"}, "body": "Approximate normalized direction vector 1, 0, 0. FCC distance 4."},
+            {"id": "reply-new", "createdAt": "2026-09-13T10:01:00Z", "sender": {"type": "planet", "id": "oracle-planet"}, "body": "Approximate normalized direction vector 0, 1, 0. FCC distance 6."},
+        ], probe_id=7)
+
+        contacts = MessagingService(self.engine).oracle_contacts()
+
+        self.assertEqual(len(contacts), 1)
+        self.assertEqual(contacts[0]["playerName"], "Alice")
+        self.assertEqual(contacts[0]["origin"], {"x": 10, "y": 0, "z": 0})
+        self.assertEqual(contacts[0]["replyMessageId"], "reply-new")
+        self.assertTrue(contacts[0]["approximate"])
+
+    def test_oracle_contacts_ignore_uncorrelated_planet_narrative(self):
+        self.engine.record_records("messages", [{
+            "id": "story", "createdAt": "2026-09-13T10:01:00Z",
+            "sender": {"type": "planet", "id": "another-planet"},
+            "body": "The direction vector is 1, 0, 0 and distance is 6.",
+        }], probe_id=7)
+
+        self.assertEqual(MessagingService(self.engine).oracle_contacts(), ())
+
     def test_all_exploration_templates_exist(self):
         names = (
             "frontier_exploration", "destination_explorer", "resource_search",

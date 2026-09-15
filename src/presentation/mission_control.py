@@ -86,7 +86,7 @@ class MissionControlViewModelBuilder:
             "operations": self._operation_records(),
             "actions": self._action_records(),
             "archive": self._archive_records(),
-            "communications": self._communications(probe),
+            "communications": self._communications(probe, world),
         }
         result["reports"] = self._reports(
             result["archive"], result["actions"], result["operations"],
@@ -709,6 +709,16 @@ class MissionControlViewModelBuilder:
             "scutCoverageCells": tuple(scut_coverage_cells.values()),
             "scutCoverageBoundary": scut_coverage_boundary,
             "ownedMannyLocations": tuple(owned_manny_locations),
+            # Oracle fixes are intelligence estimates, not discovered-sector
+            # records. Keep them in a distinct overlay so the map never
+            # upgrades them to scanned or visited knowledge.
+            "oracleContacts": tuple(
+                oracle_contacts()
+                if callable(oracle_contacts := getattr(
+                    getattr(self.operations, "messaging", None),
+                    "oracle_contacts", None,
+                )) else ()
+            ),
         }
         # The controller refreshes global dashboard objects frequently even
         # when durable galaxy knowledge is unchanged. Compute the revision in
@@ -719,16 +729,134 @@ class MissionControlViewModelBuilder:
         ).hexdigest()
         return result
 
-    def _communications(self, probe):
+    def _communications(self, probe, world=None):
         if not self.operations.messaging:
-            return {"inbox": (), "outbox": (), "unreadCount": 0}
+            return {"inbox": (), "outbox": (), "recipients": (), "unreadCount": 0}
         inbox = tuple(self.operations.messaging.inbox(probe.get("id")))
         outbox = tuple(self.operations.messaging.outbox())
         unread = sum(
             not bool(message.get("read", message.get("isRead", message.get("status") == "read")))
             for message in inbox
         )
-        return {"inbox": inbox, "outbox": outbox, "unreadCount": unread}
+        recipients = []
+        if world is not None:
+            for candidate in (getattr(world, "fleet", {}) or {}).get("probes", ()):
+                if str(candidate.get("id")) == str(probe.get("id")):
+                    continue
+                recipients.append({
+                    "type": "probe", "id": candidate.get("id"),
+                    "name": candidate.get("name") or f"Probe {candidate.get('id')}",
+                    "label": candidate.get("name") or f"Probe {candidate.get('id')}",
+                })
+            recipients.extend(self._planet_message_recipients(world, probe, inbox, outbox))
+        return {
+            "inbox": inbox, "outbox": outbox,
+            "recipients": tuple(recipients), "unreadCount": unread,
+        }
+
+    def _planet_message_recipients(self, world, probe, inbox=(), outbox=()):
+        """Discover current-sector planet contacts without a contact allowlist."""
+        coordinates = self._coordinates(probe, world.sector)
+        found = {}
+
+        def remember(identifier, name):
+            if identifier in (None, ""):
+                return
+            label = name or "Inhabited planet"
+            found[str(identifier)] = {
+                "type": "planet", "id": str(identifier), "name": label,
+                "label": f"{label} · PLANET",
+            }
+
+        def visit(value):
+            if isinstance(value, dict):
+                object_type = str(value.get("type") or value.get("kind") or "").casefold()
+                description = " ".join(str(value.get(key) or "") for key in ("name", "summary", "description")).casefold()
+                identifier = value.get("id") or value.get("planetId")
+                inhabited = (
+                    object_type == "planet" and (
+                        value.get("intelligentLife") is True
+                        or value.get("inhabited") is True
+                        or value.get("messageable") is True
+                        or value.get("canReceiveMessages") is True
+                        or value.get("communicationAvailable") is True
+                        or "inhabited" in description
+                    )
+                )
+                if identifier not in (None, "") and inhabited:
+                    remember(identifier, value.get("name"))
+                for nested in value.values():
+                    visit(nested)
+            elif isinstance(value, (list, tuple)):
+                for nested in value:
+                    visit(nested)
+
+        visit(getattr(world, "sector", {}))
+        # Any mission may introduce a messageable planet. Avoid a mission-name
+        # allowlist: accept typed planet IDs only while the probe is in the
+        # mission's recorded sector, which is also the server's send boundary.
+        mission_service = getattr(self.operations, "missions", None)
+        for mission in mission_service.all() if mission_service else ():
+            mission_sector = self._find_relative_coordinates(mission)
+            planet_id = self._find_key(mission, "planetId")
+            if planet_id in (None, "") or mission_sector != coordinates:
+                continue
+            name = (
+                self._find_key(mission, "planetName")
+                or self._find_key(mission, "targetName")
+                or self._find_key(mission, "contactName")
+                or mission.get("name")
+            )
+            remember(planet_id, name)
+
+        # Newly introduced contacts can appear in message endpoint data before
+        # sector or mission schemas grow an explicit capability flag. Reuse a
+        # typed planet endpoint only when that message was recorded in the
+        # probe's current sector; stale remote contacts must not be offered.
+        for message in tuple(inbox) + tuple(outbox):
+            if self._find_relative_coordinates(message) != coordinates:
+                continue
+            for key in ("sender", "recipient"):
+                endpoint = message.get(key) or {}
+                if str(endpoint.get("type", "")).casefold() == "planet":
+                    remember(
+                        endpoint.get("id") or endpoint.get("planetId"),
+                        endpoint.get("name") or endpoint.get("planetName"),
+                    )
+        return tuple(found.values())
+
+    @classmethod
+    def _find_relative_coordinates(cls, value):
+        if isinstance(value, dict):
+            relative = value.get("relative") or value.get("relativeCoordinates")
+            if isinstance(relative, dict) and all(axis in relative for axis in ("x", "y", "z")):
+                return {axis: int(relative[axis]) for axis in ("x", "y", "z")}
+            for nested in value.values():
+                found = cls._find_relative_coordinates(nested)
+                if found is not None:
+                    return found
+        elif isinstance(value, (list, tuple)):
+            for nested in value:
+                found = cls._find_relative_coordinates(nested)
+                if found is not None:
+                    return found
+        return None
+
+    @classmethod
+    def _find_key(cls, value, wanted):
+        if isinstance(value, dict):
+            if wanted in value:
+                return value[wanted]
+            for nested in value.values():
+                found = cls._find_key(nested, wanted)
+                if found is not None:
+                    return found
+        elif isinstance(value, (list, tuple)):
+            for nested in value:
+                found = cls._find_key(nested, wanted)
+                if found is not None:
+                    return found
+        return None
 
     @classmethod
     def _movement_view(cls, probe):

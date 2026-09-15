@@ -90,6 +90,27 @@ class HistorySynchronizer:
         )
         return failures
 
+    def sync_messages(self, probe_id, include_sent=True):
+        """Synchronize the focused probe's conversation without a fleet import."""
+
+        failures = {}
+        self._record_response(
+            failures,
+            "messages",
+            lambda: self.capabilities.messaging.received(probe_id),
+            "messages",
+            probe_id,
+        )
+        if include_sent:
+            self._record_response(
+                failures,
+                "sent_messages",
+                self.capabilities.messaging.sent,
+                "messages",
+                None,
+            )
+        return failures
+
     def _record_response(
         self,
         failures,

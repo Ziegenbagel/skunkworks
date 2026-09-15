@@ -16,7 +16,7 @@ Item {
     property var selectedNode: null
     property var selectedCoveragePoint: null
     property bool hasCenteredOnProbe: false
-    readonly property var nodes: renderedGalaxyData.nodes || []
+    readonly property var nodes: (renderedGalaxyData.nodes || []).concat(renderedGalaxyData.oracleContacts || [])
     readonly property var nodeIndex: {
         const result = {};
         for (let i = 0; i < nodes.length; ++i)
@@ -91,7 +91,8 @@ Item {
     }
 
     function stateEnabled(state) {
-        return (state === "current" && showCurrent)
+        return state === "oracle_estimate"
+            || (state === "current" && showCurrent)
             || (state === "scanned" && showScanned)
             || (state === "visited" && showVisited);
     }
@@ -245,6 +246,7 @@ Item {
     function colorFor(node) {
         // Operational state must remain legible regardless of resource and
         // trail overlays. Hazards and the live focused sector take priority.
+        if (String(node.mapState || "") === "oracle_estimate") return "#e45cff";
         if (node.hasHazard) return "#ff4d5a";
         if (String(node.mapState || "unknown") === "current" || node.isFocused)
             return "#39ff9a";

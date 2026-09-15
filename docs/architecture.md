@@ -123,6 +123,16 @@ the Data Engine section below.
 Communications separates game-facing text from local operational reporting:
 
 - Messaging and Logbook remain game API capabilities.
+- Reachable focused probes receive a lightweight message synchronization apart
+  from the default probe's slower account-wide archival refresh. Successful
+  Oracle replies are projected from durable sent/received messages into a
+  separate approximate Galaxy Map overlay. Each username has one replaceable
+  estimate anchored at the requesting probe's recorded send-time sector; the
+  overlay is not discovered-sector knowledge and is a safe future input for a
+  reviewed SCUT Pathfinder destination.
+- The communications recipient model is dynamically assembled from the current
+  fleet plus typed, current-sector planet contacts exposed by sector, mission,
+  or message data. It does not hard-code Oracle or other game contact names.
 - Daily Reports are generated locally from retained telemetry and accepted
   action-journal records; they do not automatically create game Logbook pages.
   Operators may favorite or explicitly delete them. Unfavorited daily reports

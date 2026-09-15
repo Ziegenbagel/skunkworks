@@ -42,6 +42,12 @@ remains the record for internal implementation work.
 - Explorer discovery inspection now assigns only one Manny per construct or
   derelict Others ship and resumes frontier travel after a successful order;
   failed inspection dispatches remain eligible for retry.
+- Added dynamically discovered inhabited-planet messaging recipients, including
+  contacts introduced by future mission and message data, plus completed Oracle access,
+  including focused secondary-probe inbox synchronization. Successful Oracle
+  direction-and-distance replies now place one replaceable, explicitly
+  approximate Galaxy Map marker per queried player, calculated from the
+  requesting probe's recorded send-time sector for future Pathfinder use.
 
 ### Internal release support
 

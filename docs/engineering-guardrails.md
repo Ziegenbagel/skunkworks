@@ -460,6 +460,27 @@ Alerts and damage warnings belong to the focused reachable probe. Synchronize
 them on a bounded lightweight cadence even when the slower default-probe
 archival import is skipped, so explorer and other secondary-probe discoveries
 reach Safety without restoring a heavy refresh path.
+
+Focused-probe communications follow the same boundary. Every reachable focused
+probe receives a bounded lightweight inbox/outbox sync even when it is not the
+default archival probe. A secondary probe's mission conversation must not remain
+invisible merely because account-wide history synchronization is intentionally
+reserved for the default probe.
+
+Oracle player-location intelligence is derived only by correlating a
+planet-originated reply containing both a direction vector and FCC distance with
+the latest preceding outbound query to that same opaque planet ID. The estimate
+origin is the sector recorded on the outbound message—the requesting probe's
+location when it sent the query—not the currently focused probe. Retain one
+newest estimate per case-insensitive player name, label it approximate, and do
+not convert it into scan/visit evidence or an automatic travel authorization.
+
+Planet message recipients are discovered from typed live sector objects,
+current-sector mission metadata, and current-sector typed message endpoints.
+Do not maintain a feature-name allowlist: a newly introduced message-capable
+planet contact must become selectable after its authoritative data refresh.
+
+Relevant tests: `tests/test_history_sync.py::test_lightweight_message_sync_records_focused_inbox_and_account_outbox`, `tests/test_messaging_exploration.py::MessagingExplorationTests::test_oracle_contacts_replace_prior_fix_and_use_query_sector_as_origin`, and `tests/test_messaging_exploration.py::MessagingExplorationTests::test_oracle_contacts_ignore_uncorrelated_planet_narrative`.
 Safety presents the event's recorded FCC sector whenever the alert payload
 provides one, so an operator can return to a discovery after the probe moves.
 Historical alerts with no coordinates remain explicitly location-unknown; the

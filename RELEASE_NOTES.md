@@ -28,6 +28,10 @@
   direct beacon travel remains a separately reviewed manual-travel draft.
 - Added the Salvage Probe role to the 1.2 automation roadmap for recovering
   detached containers and other items lost by fleet probes.
+- Added Oracle planet messaging and per-probe conversation synchronization.
+  Successful player lookups produce a named approximate Galaxy Map marker based
+  on the querying probe's send-time sector, replacing that player's previous
+  estimate when queried again.
 
 ## Skunkworks 1.1.1
 

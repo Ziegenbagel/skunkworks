@@ -131,6 +131,7 @@ class MissionControlDataService:
         self._logbook_page_probes = {}
         self._history_sync_at = {}
         self._safety_sync_at = {}
+        self._messages_sync_at = {}
         self._hazard_cache = {}
         self._reserve_target_cache = {}
         self._logbook_cache = {}
@@ -244,6 +245,7 @@ class MissionControlDataService:
             )
             self._history_sync_at[selected_id] = now
             self._safety_sync_at[selected_id] = now
+            self._messages_sync_at[selected_id] = now
         else:
             timed("recordWorld", lambda: self.data_engine.record_world(world))
             sync_failures = {}
@@ -260,6 +262,20 @@ class MissionControlDataService:
                 )
                 sync_failures.update(safety_failures)
                 self._safety_sync_at[selected_id] = now
+            if (
+                selected.get("isReachable", True)
+                and hasattr(self.client, "request")
+                and now - self._messages_sync_at.get(selected_id, 0) >= 60
+            ):
+                message_failures = timed(
+                    "messageSync",
+                    lambda: HistorySynchronizer(
+                        self.data_engine,
+                        self.capabilities,
+                    ).sync_messages(selected_id),
+                )
+                sync_failures.update(message_failures)
+                self._messages_sync_at[selected_id] = now
         world.galaxy = timed("galaxyMap", self.data_engine.galaxy_map)
         report(76, "Evaluating hazards and automation")
         cached_hazards = self._hazard_cache.get(selected_id)
@@ -867,7 +883,11 @@ class MissionControlDataService:
     def send_message(self, payload):
         if self._selected_probe_id is None:
             raise RuntimeError("Select a probe before sending a message.")
-        return self.capabilities.messaging.send(self._selected_probe_id, payload)
+        response = self.capabilities.messaging.send(self._selected_probe_id, payload)
+        message = response.get("message", response) if isinstance(response, dict) else None
+        if isinstance(message, dict) and (message.get("id") or message.get("uid")):
+            self.data_engine.record_records("sent_messages", (message,))
+        return response
 
     def mark_message_read(self, message_id):
         if self._selected_probe_id is None:

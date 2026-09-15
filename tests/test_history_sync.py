@@ -21,6 +21,18 @@ class Capabilities:
     probes = ProbeCapabilities()
 
 
+class MessagingCapabilities:
+    def received(self, probe_id):
+        return {"messages": [{"id": "oracle-reply", "probeId": probe_id}]}
+
+    def sent(self):
+        return {"messages": [{"id": "oracle-query"}]}
+
+
+class MessagingOnlyCapabilities:
+    messaging = MessagingCapabilities()
+
+
 def test_lightweight_safety_sync_records_focused_probe_payload_variants():
     engine = RecordingEngine()
 
@@ -34,4 +46,16 @@ def test_lightweight_safety_sync_records_focused_probe_payload_variants():
             42,
         ),
         ("damage_warnings", [{"id": "warning-1"}], 42),
+    ]
+
+
+def test_lightweight_message_sync_records_focused_inbox_and_account_outbox():
+    engine = RecordingEngine()
+
+    failures = HistorySynchronizer(engine, MessagingOnlyCapabilities()).sync_messages(42)
+
+    assert failures == {}
+    assert engine.calls == [
+        ("messages", [{"id": "oracle-reply", "probeId": 42}], 42),
+        ("sent_messages", [{"id": "oracle-query"}], None),
     ]
