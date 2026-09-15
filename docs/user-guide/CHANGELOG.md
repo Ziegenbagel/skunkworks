@@ -1,5 +1,11 @@
 # Operator Manual Revision History
 
+## 1.8 — 2026-09-15
+
+- Added reviewed API v133 compatibility, including accessible sector-storage
+  inventory, durable Manny cargo transfers, external-storage Deuterium refuel,
+  and explicit atomic-printer Manny selection.
+
 ## 1.7 — 2026-09-07
 
 - Prepared the operator manual for Skunkworks 1.1 with Normal, Low Power,

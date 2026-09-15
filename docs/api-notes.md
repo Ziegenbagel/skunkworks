@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v130, verified
-against the live contract on 2026-09-01.
+Skunkworks supports deployed API v103 through upstream API v133, verified
+against the live contract on 2026-09-15.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -93,6 +93,20 @@ API v123 adds `task.waitingForSpaceSince` to Manny `waiting_for_space` state.
 The timestamp is server-authoritative; after seven continuous days the game
 abandons the cargo and retries docking, potentially leaving the Manny as an
 `abandoned` sector object when its own storage slot remains unavailable.
+
+API v131 adds probe-scoped, paginated inventory reads for accessible sector
+storage and durable Manny transfers between that storage and a named onboard
+container. Ordinary transfers accept items, metals, ice, and carbon compounds;
+raw Deuterium must use the dedicated external-storage refuel route, which
+credits the probe tank after a ten-minute round trip. Mutation retries may use
+an `Idempotency-Key`, which Skunkworks preserves alongside authentication.
+Atomic-printer crafting may now name an idle embarked Manny explicitly.
+
+API v132 applies the existing seven-day `waitingForSpaceSince` abandonment
+rule to blocked mining cargo. API v133 adds only an Others-fleet alert control,
+outside Skunkworks' probe surface. Remote visited-sector observations also no
+longer reveal live Others vessels or missiles without a local scanning probe;
+retained Skunkworks history remains historical rather than live telemetry.
 
 API v124 changes motorized-asteroid impact alerts. The launcher receives the
 result only while still physically present in the impact sector; an impacted

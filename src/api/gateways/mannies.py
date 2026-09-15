@@ -103,9 +103,52 @@ class MannyGateway:
             json={"tasks": tasks},
         )
 
-    def atomic_printer_craft(self, probe_id, recipe_id):
+    def sector_storage_inventory(self, probe_id, object_id, limit=100, cursor=None):
+        params = {"limit": int(limit)}
+        if cursor:
+            params["cursor"] = cursor
+        return self.client.request(
+            "GET",
+            f"/api/probe/{probe_id}/sector-objects/{object_id}/inventory",
+            params=params,
+        )
+
+    @staticmethod
+    def _idempotency_headers(idempotency_key):
+        return {"Idempotency-Key": str(idempotency_key)} if idempotency_key else {}
+
+    def start_storage_transfer(
+        self, probe_id, manny_id, payload, idempotency_key=None,
+    ):
+        return self.client.request(
+            "POST",
+            f"/api/probe/{probe_id}/mannies/{manny_id}/storage-transfers",
+            json=dict(payload),
+            headers=self._idempotency_headers(idempotency_key),
+        )
+
+    def transfer_deuterium_from_external_storage(
+        self, probe_id, manny_id, object_id, amount, idempotency_key=None,
+    ):
+        return self.client.request(
+            "POST",
+            f"/api/probe/{probe_id}/mannies/{manny_id}/transfer-deuterium-from-external-storage",
+            json={"objectId": str(object_id), "amount": float(amount)},
+            headers=self._idempotency_headers(idempotency_key),
+        )
+
+    def storage_transfer(self, probe_id, transfer_id):
+        return self.client.request(
+            "GET",
+            f"/api/probe/{probe_id}/storage-transfers/{transfer_id}",
+        )
+
+    def atomic_printer_craft(self, probe_id, recipe_id, manny_id=None):
+        payload = {"recipe": recipe_id}
+        if manny_id:
+            payload["mannyId"] = str(manny_id)
         return self.client.request(
             "POST",
             f"/api/probe/{probe_id}/atomic-printer/craft",
-            json={"recipe": recipe_id},
+            json=payload,
         )

@@ -54,14 +54,27 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_accepts_current_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 130})]
+            [FakeResponse({"apiVersion": 133})]
         )
 
         self.assertEqual(
             client.ensure_compatible_api(),
-            130,
+            133,
         )
-        self.assertEqual(MAXIMUM_API_VERSION, 130)
+        self.assertEqual(MAXIMUM_API_VERSION, 133)
+
+    def test_preserves_caller_headers_with_authentication(self):
+        client = self.client([FakeResponse({"accepted": True})])
+
+        client.request(
+            "POST", "/api/order", json={},
+            headers={"Idempotency-Key": "stable-transfer-key"},
+        )
+
+        headers = client.session.calls[-1][2]["headers"]
+        self.assertEqual(headers["Idempotency-Key"], "stable-transfer-key")
+        self.assertEqual(headers["Authorization"], "Bearer test-key")
+        self.assertEqual(headers["Accept"], "application/json")
 
     def test_rejects_older_api(self):
         client = self.client(
