@@ -181,6 +181,7 @@ class MissionControlViewModelBuilder:
         recoverable_objects = []
         bookmark_targets = []
         inspectable_objects = []
+        accessible_storage_objects = []
         inactive_scut_relays = []
         active_scut_relays = []
         refuel_stations = []
@@ -321,6 +322,12 @@ class MissionControlViewModelBuilder:
                         "name": value.get("name") or value.get("summary") or f"{target_type.replace('_', ' ').title()} · {target_id}",
                         "type": target_type,
                     })
+                if value.get("inventoryAccessible", False) and target_id:
+                    accessible_storage_objects.append({
+                        "id": target_id,
+                        "name": value.get("name") or value.get("summary") or f"Sector storage · {target_id}",
+                        "type": target_type or "sector_storage",
+                    })
                 if target_type == "scut_relay" and target_id:
                     relay = {
                         "id": target_id,
@@ -379,6 +386,9 @@ class MissionControlViewModelBuilder:
             "recoverableObjects": tuple(recoverable_objects),
             "bookmarkTargets": tuple(bookmark_targets),
             "inspectableObjects": tuple(inspectable_objects),
+            "accessibleStorageObjects": tuple(
+                {item["id"]: item for item in accessible_storage_objects}.values()
+            ),
             "inactiveScutRelays": tuple(inactive_scut_relays),
             "activeScutRelaysWithoutBeacon": tuple(active_scut_relays),
             "refuelStations": tuple(refuel_stations),

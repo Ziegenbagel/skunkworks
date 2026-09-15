@@ -1,5 +1,14 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.2
+
+- Added reviewed compatibility with Von Neumann Game API v133.
+- Added probe-scoped access to v131 sector-storage inventory and durable Manny
+  transfers, including the dedicated external-storage Deuterium refuel route.
+- Added optional explicit Manny selection for atomic-printer crafting.
+- Preserved API idempotency headers alongside authentication for safe durable
+  transfer retries.
+
 ## Skunkworks 1.1.1
 
 - Fixed Windows release validation so the portable package can be published

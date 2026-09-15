@@ -1760,11 +1760,11 @@ class UiPreparationTests(unittest.TestCase):
         notices = []
         controller._set_operation_notice = notices.append
 
-        controller._notify_unreviewed_api_version(131)
-        controller._notify_unreviewed_api_version(131)
+        controller._notify_unreviewed_api_version(134)
+        controller._notify_unreviewed_api_version(134)
 
         self.assertEqual(notices, [
-            "NEW GAME API v131 DETECTED · CONTINUING IN COMPATIBILITY MODE",
+            "NEW GAME API v134 DETECTED · CONTINUING IN COMPATIBILITY MODE",
         ])
 
     def test_production_includes_active_manny_crafting_and_mining(self):
@@ -2302,15 +2302,20 @@ class UiPreparationTests(unittest.TestCase):
             {"id": "42", "type": "SCUT Relay", "name": "Relay 42", "status": "on", "isTransitBeacon": False},
             {"id": "43", "type": "scut_relay", "name": "Relay 43", "status": "on", "isTransitBeacon": True},
             {"id": "station-1", "type": "deuterium_refuel_station", "name": "Fuel Station"},
+            {"id": "cache-1", "type": "detached_container", "name": "Recovered Cache", "inventoryAccessible": True},
         ]}}
 
         inventory = MissionControlViewModelBuilder._inventory_management(world)
 
         self.assertEqual({item["id"] for item in inventory["bookmarkTargets"]}, {"star-1", "asteroid-1"})
-        self.assertEqual({item["id"] for item in inventory["inspectableObjects"]}, {"asteroid-1", "construct-1"})
+        self.assertEqual(
+            {item["id"] for item in inventory["inspectableObjects"]},
+            {"asteroid-1", "construct-1", "cache-1"},
+        )
         self.assertEqual([item["id"] for item in inventory["inactiveScutRelays"]], ["41"])
         self.assertEqual([item["id"] for item in inventory["activeScutRelaysWithoutBeacon"]], ["42"])
         self.assertEqual([item["id"] for item in inventory["refuelStations"]], ["station-1"])
+        self.assertEqual([item["id"] for item in inventory["accessibleStorageObjects"]], ["cache-1"])
         self.assertEqual([item["id"] for item in inventory["waitingCargoMannies"]], ["manny-waiting"])
 
     def test_others_wreck_is_mineable_inspectable_and_normalized_for_live_sector(self):
