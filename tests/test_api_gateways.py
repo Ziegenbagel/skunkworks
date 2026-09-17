@@ -86,6 +86,43 @@ class ApiGatewayTests(unittest.TestCase):
             }},
         ))
 
+    def test_v135_batch_missile_launch_uses_atomic_manny_task_contract(self):
+        self.api.mannies.start_tasks(42, [
+            {
+                "mannyId": "mny_1",
+                "task": "ignite_missile",
+                "payload": {
+                    "targetId": "target_alpha",
+                    "missileItemId": "missile_1",
+                },
+            },
+            {
+                "mannyId": "mny_2",
+                "task": "ignite_missile",
+                "payload": {"targetId": "target_beta"},
+            },
+        ])
+
+        self.assertEqual(self.client.calls[-1], (
+            "POST",
+            "/api/probe/42/mannies/tasks",
+            {"json": {"tasks": [
+                {
+                    "mannyId": "mny_1",
+                    "task": "ignite_missile",
+                    "payload": {
+                        "targetId": "target_alpha",
+                        "missileItemId": "missile_1",
+                    },
+                },
+                {
+                    "mannyId": "mny_2",
+                    "task": "ignite_missile",
+                    "payload": {"targetId": "target_beta"},
+                },
+            ]}},
+        ))
+
     def test_v128_autonomous_units_are_probe_scoped_and_paginated(self):
         self.api.probes.autonomous_units(42, limit=500, cursor="next-page")
 

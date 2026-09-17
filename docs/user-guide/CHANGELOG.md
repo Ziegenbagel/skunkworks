@@ -1,5 +1,11 @@
 # Operator Manual Revision History
 
+## 1.9 — 2026-09-16
+
+- Added reviewed API v135 compatibility. Single missile-launch responses now
+  include the selected Manny, and the atomic Manny batch route accepts missile
+  ignition tasks with all-or-nothing rollback.
+
 ## 1.8 — 2026-09-15
 
 - Added reviewed API v133 compatibility, including accessible sector-storage

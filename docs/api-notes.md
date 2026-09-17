@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v133, verified
-against the live contract on 2026-09-15.
+Skunkworks supports deployed API v103 through upstream API v135, verified
+against the live contract on 2026-09-16.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -107,6 +107,17 @@ rule to blocked mining cargo. API v133 adds only an Others-fleet alert control,
 outside Skunkworks' probe surface. Remote visited-sector observations also no
 longer reveal live Others vessels or missiles without a local scanning probe;
 retained Skunkworks history remains historical rather than live telemetry.
+
+API v134 enriches the canonical individual `ignite_missile` response with the
+selected `manny`, while retaining `missile`, `missileItemId`, and `targetId`.
+API v135 allows the same `ignite_missile` task through the existing atomic
+`POST /api/probe/{probeId}/mannies/tasks` batch route. Each batch payload
+requires `targetId` and may omit `missileItemId` to reserve the next available
+missile in request order. If any task is rejected, the server rolls back the
+entire batch, including missile reservations and scheduled events. Skunkworks'
+existing typed-confirm single-launch control remains unchanged; its generic
+batch gateway preserves the new request and response contract for future
+reviewed multi-launch workflows.
 
 API v124 changes motorized-asteroid impact alerts. The launcher receives the
 result only while still physically present in the impact sector; an impacted
