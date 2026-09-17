@@ -1,5 +1,12 @@
 # Operator Manual Revision History
 
+## 1.10 — 2026-09-17
+
+- Fixed generic-probe assembly reservations at the live execution boundary.
+  If an electric motor or another kit component completes after the command
+  queue was prepared, Skunkworks now replans before dispatch and prevents an
+  older lower-priority craft from consuming that component.
+
 ## 1.9 — 2026-09-16
 
 - Added reviewed API v135 compatibility. Single missile-launch responses now

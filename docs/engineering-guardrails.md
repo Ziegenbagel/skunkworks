@@ -185,10 +185,17 @@ priority shortage. Equal-priority assembly wins the tie.
 Manual crafting is intentionally treated as lowest priority unless the operator
 explicitly confirms an override.
 
+The execution runtime must rebuild planner ownership and reservation blockers
+after its authoritative live refresh, before dispatch. A prepared lower-priority
+craft is stale if a protected assembly component completed after queue
+preparation; ordinary command preflight alone cannot authorize it.
+
 Relevant code/tests:
 
 - `src/execution/preparer.py::_reserve_manufacturing_inputs`
+- `src/execution/runtime.py::AutomationRuntime.execute`
 - `src/operations/manufacturing.py`
+- `tests/test_automation_runtime.py`
 - `tests/test_execution_boundary.py`
 - `tests/test_manufacturing.py`
 

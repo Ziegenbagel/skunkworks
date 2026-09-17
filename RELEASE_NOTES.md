@@ -2,6 +2,9 @@
 
 ## Skunkworks 1.2.0 — In Development
 
+- Revalidated planner ownership after the execution runtime's authoritative
+  refresh so newly completed generic-probe components remain reserved for the
+  higher-priority assembly goal instead of being consumed by a stale craft.
 - Added autonomous Explorer campaigns with planetary-frontier preference and
   ordinary-frontier fallback, fleet-wide visit-based exploration tracking,
   SCUT-bound routing, and automatic fuel, Metals, and repair interruptions.

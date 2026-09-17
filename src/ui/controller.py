@@ -1799,6 +1799,7 @@ class MissionControlDataService:
                     policy=policy,
                     dispatcher=CapabilityDispatcher(self.capabilities),
                     refresh=self._refresh_operations,
+                    revalidate=self._runtime_revalidation_blockers,
                 )
                 result = runtime.execute(
                     prepared,
@@ -1821,6 +1822,7 @@ class MissionControlDataService:
             policy=policy,
             dispatcher=CapabilityDispatcher(self.capabilities),
             refresh=self._refresh_operations,
+            revalidate=self._runtime_revalidation_blockers,
         )
         results = []
         for prepared in candidates:
@@ -1842,6 +1844,30 @@ class MissionControlDataService:
         prepared, result = results[0]
         return self._execution_result(prepared, result)
 
+    def _runtime_revalidation_blockers(self, command, operations):
+        """Recheck planner ownership against the authoritative live snapshot.
+
+        Command preflight validates the game mutation itself. Manufacturing
+        reservations are cross-goal policy, so they must also be rebuilt after
+        the runtime refresh; otherwise a component that completed after queue
+        preparation can be consumed by an older lower-priority proposal.
+        """
+
+        self.automation_view(operations=operations, probe_id=command.probe_id)
+        current = next((
+            item for item in self._prepared_commands
+            if item.command.fingerprint == command.fingerprint
+        ), None)
+        if current is None:
+            return ("planner_state_changed",)
+        if current.blockers:
+            return current.blockers
+        if current.disposition not in {
+            "ready", "awaiting_approval", "awaiting_risk_acknowledgement",
+        }:
+            return ("planner_state_changed",)
+        return ()
+
     def _run_replanning_automatic_cycle(self, policy, risk_acknowledged=False):
         """Dispatch one fresh proposal at a time and replan after each order.
 
@@ -1856,6 +1882,7 @@ class MissionControlDataService:
             policy=policy,
             dispatcher=CapabilityDispatcher(self.capabilities),
             refresh=self._refresh_operations,
+            revalidate=self._runtime_revalidation_blockers,
         )
         failed_attempts = set()
         failed_fabrication = set()

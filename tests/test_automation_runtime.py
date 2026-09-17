@@ -108,6 +108,19 @@ class AutomationRuntimeTests(unittest.TestCase):
         self.assertIn("probe_unavailable", result.blockers)
         self.assertEqual(self.mannies.calls, [])
 
+    def test_fresh_planner_revalidation_can_protect_newly_completed_assembly_parts(self):
+        self.runtime.revalidate = lambda command, operations: (
+            "item_reserved_by_assembly_goal",
+        )
+
+        result = self.runtime.execute(self.prepared, approved=True)
+
+        self.assertEqual(result.status, "cancelled")
+        self.assertEqual(
+            result.blockers, ("item_reserved_by_assembly_goal",),
+        )
+        self.assertEqual(self.mannies.calls, [])
+
     def test_arrived_probe_is_stationary_and_can_dispatch_onboard_work(self):
         self.runtime.refresh = lambda probe_id: build_operations(status="arrived")
 

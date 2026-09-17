@@ -30,6 +30,7 @@ class AutomationRuntime:
         dispatcher,
         refresh,
         replan=None,
+        revalidate=None,
         lease_seconds=30,
         retry_attempts=1,
         cooldown_seconds=0,
@@ -42,6 +43,7 @@ class AutomationRuntime:
         self.dispatcher = dispatcher
         self.refresh = refresh
         self.replan = replan
+        self.revalidate = revalidate
         self.lease_seconds = lease_seconds
         self.retry_attempts = retry_attempts
         self.cooldown_seconds = cooldown_seconds
@@ -110,6 +112,10 @@ class AutomationRuntime:
         operations = self.refresh(command.probe_id)
         validator = PreflightValidator(operations, command.probe_id)
         blockers = validator.blockers(command)
+        if self.revalidate is not None:
+            blockers = tuple(blockers) + tuple(
+                self.revalidate(command, operations)
+            )
         warnings = validator.warnings(command)
         if blockers:
             return self._finish(command, "cancelled", blockers)
