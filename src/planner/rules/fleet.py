@@ -138,23 +138,14 @@ def plan(operations, desired_state) -> list[Task]:
                 ))
             continue
 
-        containers = (
-            empty_assembly_containers(operations)
-            if goal.model == "deuterium_tanker" else ()
-        )
-        ready_to_assemble = (
-            len(containers) >= 2
-            if goal.model == "deuterium_tanker" else True
-        )
+        containers = empty_assembly_containers(operations)
+        ready_to_assemble = len(containers) >= 2
         tasks.append(Task(
             action="Assemble Probe" if ready_to_assemble else "Prepare Probe Assembly",
             reason=(
                 f"Priority {goal.priority} {goal.model.replace('_', ' ')} goal has "
                 "all crafted components."
-                + (
-                    f" {len(containers)} of 2 empty, unassigned attached containers are ready."
-                    if goal.model == "deuterium_tanker" else ""
-                )
+                + f" {len(containers)} of 2 empty, unassigned attached containers are ready."
             ),
             category="fleet_assembly",
             target=goal.model,

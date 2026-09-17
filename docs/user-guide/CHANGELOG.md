@@ -2,6 +2,9 @@
 
 ## 1.10 — 2026-09-17
 
+- Corrected generic-probe assembly so its required two empty containers are
+  selected and sent with the order. A rejected generic assembly now stops the
+  cycle instead of allowing a lower-priority tanker order to run in its place.
 - Fixed generic-probe assembly reservations at the live execution boundary.
   If an electric motor or another kit component completes after the command
   queue was prepared, Skunkworks now replans before dispatch and prevents an

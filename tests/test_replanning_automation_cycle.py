@@ -201,6 +201,50 @@ def test_failed_craft_tries_next_recipe_before_mining_dependency():
     ) == "deuterium"
 
 
+def test_rejected_generic_assembly_does_not_fall_through_to_tanker():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+    generic = PreparedCommand(Command(
+        CommandType.MANNY_ASSEMBLE_PROBE, 7,
+        {"model": "generic", "containerIds": ["a", "b"]},
+        "assemble priority-one generic probe", 1, target_id="manny-a",
+    ), "ready")
+    tanker = PreparedCommand(Command(
+        CommandType.MANNY_ASSEMBLE_PROBE, 7,
+        {"model": "deuterium_tanker", "containerIds": ["a", "b"]},
+        "assemble lower-priority tanker", 3, target_id="manny-b",
+    ), "ready")
+    queues = iter(((generic, tanker), (tanker,)))
+    service.automation_view = lambda probe_id=None, **kwargs: setattr(
+        service, "_prepared_commands", next(queues)
+    ) or {}
+    service._refresh_operations = lambda probe_id: None
+    service._prepare_next_cycle_mining = lambda policy, failed: None
+    executed = []
+
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, prepared, **kwargs):
+            executed.append(prepared.command.payload["model"])
+            return ExecutionResult("failed", prepared.command)
+
+    policy = ExecutionPolicy(
+        mode=ExecutionMode.AUTOMATIC,
+        live_execution_enabled=True,
+        allowed_command_types=frozenset({CommandType.MANNY_ASSEMBLE_PROBE}),
+        max_commands_per_cycle=10,
+    )
+    with patch("src.ui.controller.AutomationRuntime", Runtime):
+        result = service._run_replanning_automatic_cycle(policy)
+
+    assert result["status"] == "failed"
+    assert executed == ["generic"]
+
+
 def test_failed_recipe_is_not_retried_on_another_manny_before_mining_fallback():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7

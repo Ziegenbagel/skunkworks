@@ -2,6 +2,9 @@
 
 ## Skunkworks 1.2.0 — In Development
 
+- Fixed generic-probe assembly to require and submit two explicitly selected
+  empty containers, and stopped rejected assembly orders from falling through
+  to a different lower-priority probe model in the same automation cycle.
 - Revalidated planner ownership after the execution runtime's authoritative
   refresh so newly completed generic-probe components remain reserved for the
   higher-priority assembly goal instead of being consumed by a stale craft.

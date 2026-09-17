@@ -1459,6 +1459,12 @@ class ExecutionBoundaryTests(unittest.TestCase):
             for component, quantity in GENERIC_COMPONENTS
             for index in range(quantity)
         ]
+        self.operations.world.probe["inventory"]["containers"] = [
+            {"id": "generic-container-a", "kind": "container", "capacity": 1,
+             "usedCapacity": 0},
+            {"id": "generic-container-b", "kind": "container", "capacity": 1,
+             "usedCapacity": 0},
+        ]
 
         prepared = self.prepare(DesiredState(
             fleet=(FleetGoal("generic", 1, priority=1),),
@@ -1466,7 +1472,34 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual(len(prepared), 1)
         self.assertEqual(prepared[0].command.type, CommandType.MANNY_ASSEMBLE_PROBE)
-        self.assertEqual(prepared[0].command.payload, {"model": "generic"})
+        self.assertEqual(prepared[0].command.payload, {
+            "model": "generic",
+            "containerIds": ["generic-container-a", "generic-container-b"],
+        })
+
+    def test_complete_generic_probe_kit_waits_for_two_empty_containers(self):
+        from src.planner.assembly import GENERIC_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["items"] = [
+            {"id": f"{component}-{index}", "type": component}
+            for component, quantity in GENERIC_COMPONENTS
+            for index in range(quantity)
+        ]
+        self.operations.world.probe["inventory"]["containers"] = []
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(fleet=(FleetGoal("generic", 1, priority=1),)),
+        ).tasks()
+
+        assembly = next(
+            task for task in tasks if task.category == "fleet_assembly"
+        )
+        self.assertEqual(assembly.action, "Prepare Probe Assembly")
+        self.assertIn(
+            "two_unassigned_empty_containers_required", assembly.constraints,
+        )
 
     def test_tanker_resource_mining_inherits_tanker_priority(self):
         from src.planner.assembly import TANKER_COMPONENTS

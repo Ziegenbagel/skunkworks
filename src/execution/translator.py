@@ -291,11 +291,9 @@ class TaskCommandTranslator:
         manny = self._claim_idle_manny()
         model = str(task.target or "").strip().lower().replace("-", "_")
         containers = empty_assembly_containers(self.operations)
-        if manny is None or (model == "deuterium_tanker" and len(containers) < 2):
+        if manny is None or len(containers) < 2:
             return None
-        payload = {"model": model}
-        if model == "deuterium_tanker":
-            payload["containerIds"] = containers[:2]
+        payload = {"model": model, "containerIds": containers[:2]}
         return Command(
             type=CommandType.MANNY_ASSEMBLE_PROBE,
             probe_id=self.probe_id,

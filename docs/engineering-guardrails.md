@@ -85,6 +85,22 @@ Relevant code/tests:
 - `src/execution/translator.py::_assemble_probe`
 - `tests/test_execution_boundary.py`
 
+### Every probe assembly consumes two explicitly selected empty containers
+
+The game requires `containerIds` for generic and Deuterium-tanker assembly.
+Skunkworks must not mark either model ready without two empty, attached,
+policy-unassigned additional containers, and the typed command must preserve
+the requested model alongside those exact IDs. If an assembly request is
+rejected, automation must stop that cycle rather than falling through to a
+different lower-priority probe model that could consume the shared kit.
+
+Relevant code/tests:
+
+- `src/planner/rules/fleet.py`
+- `src/execution/translator.py::_assemble_probe`
+- `src/ui/controller.py::_run_replanning_automatic_cycle`
+- `tests/test_execution_boundary.py`
+
 ### A deuterium reserve tanker replenishes its transferable surplus
 
 Assigning `deuterium_reserve` is an operational commitment, not only a transfer

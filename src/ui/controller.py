@@ -1948,6 +1948,12 @@ class MissionControlDataService:
                     )
                     if failed_target:
                         failed_fabrication.add(failed_target)
+                if prepared.command.type == CommandType.MANNY_ASSEMBLE_PROBE:
+                    # Assembly consumes a complete shared kit and creates a
+                    # specific probe model. If the selected model is rejected,
+                    # never fall through to a different lower-priority model
+                    # during the same cycle.
+                    break
                 # A rejected goal cannot freeze the priority walk. Replan and
                 # offer every other fabrication goal before resource
                 # acquisition; dependency mining remains available only after
