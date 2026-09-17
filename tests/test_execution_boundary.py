@@ -1402,6 +1402,72 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertIn(("deuterium_engine", 1), summary.reserved_items)
         self.assertIn(("electric_motor", 2), summary.reserved_items)
 
+    def test_generic_probe_target_emits_priority_component_craft_tasks(self):
+        from src.planner.assembly import GENERIC_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"].setdefault("items", []).append({
+            "id": "printer-1", "type": "atomic_3d_printer", "currentTask": None,
+        })
+        for component, _quantity in GENERIC_COMPONENTS:
+            self.operations.manufacturing.recipes._recipes[component] = {
+                "id": component,
+                "name": component.replace("_", " ").title(),
+                "craftableBy": [
+                    "atomic_3d_printer"
+                    if component == "atomic_printer_part" else "manny"
+                ],
+                "durationSeconds": 60,
+                "ingredients": [
+                    {"type": "metals", "quantity": 1, "kind": "resource"},
+                ],
+                "output": {"type": component, "containerSpace": 0.1},
+            }
+
+        tasks = Planner(
+            self.operations,
+            DesiredState(
+                fleet=(FleetGoal("generic", 1, priority=1),),
+                production=(ProductionGoal("integrated_circuit", 75, priority=2),),
+            ),
+        ).tasks()
+
+        printer_part = next(
+            task for task in tasks if task.target == "atomic_printer_part"
+        )
+        self.assertEqual(printer_part.action, "Craft Item")
+        self.assertEqual(printer_part.category, "fleet_assembly")
+        self.assertEqual(printer_part.priority, 1)
+        self.assertEqual(printer_part.quantity, 2)
+
+        prepared = CommandPreparer(
+            self.operations, 1, self.policy,
+        ).prepare(tasks)
+        part_command = next(
+            item.command for item in prepared
+            if item.command.payload.get("recipe") == "atomic_printer_part"
+        )
+        self.assertEqual(part_command.type, CommandType.ATOMIC_PRINTER_CRAFT)
+        self.assertEqual(part_command.priority, 1)
+
+    def test_complete_generic_probe_kit_emits_generic_assembly_command(self):
+        from src.planner.assembly import GENERIC_COMPONENTS
+
+        self.operations.world.fleet = {"probes": [{"model": "generic"}]}
+        self.operations.world.probe["inventory"]["items"] = [
+            {"id": f"{component}-{index}", "type": component}
+            for component, quantity in GENERIC_COMPONENTS
+            for index in range(quantity)
+        ]
+
+        prepared = self.prepare(DesiredState(
+            fleet=(FleetGoal("generic", 1, priority=1),),
+        ))
+
+        self.assertEqual(len(prepared), 1)
+        self.assertEqual(prepared[0].command.type, CommandType.MANNY_ASSEMBLE_PROBE)
+        self.assertEqual(prepared[0].command.payload, {"model": "generic"})
+
     def test_tanker_resource_mining_inherits_tanker_priority(self):
         from src.planner.assembly import TANKER_COMPONENTS
 

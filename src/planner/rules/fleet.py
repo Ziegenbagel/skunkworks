@@ -6,7 +6,6 @@ from src.planner.assembly import (
     empty_assembly_containers,
     probe_component_statuses,
     recorded_probe_assembly_count,
-    tanker_component_statuses,
 )
 
 
@@ -53,40 +52,7 @@ def plan(operations, desired_state) -> list[Task]:
                     priority=goal.priority,
                 ))
             continue
-        if goal.model != "deuterium_tanker":
-            component_statuses = probe_component_statuses(operations, goal.model)
-            reserved_items = tuple(
-                (status["component"], status["allocated_stored"])
-                for status in component_statuses
-                if status["allocated_stored"] > 0
-            )
-            component_note = (
-                f" Next assembly kit — {_component_summary(component_statuses)}."
-                if component_statuses else ""
-            )
-            tasks.append(Task(
-                action="Prepare Probe Assembly",
-                reason=(
-                    f"Desired {goal.model.replace('_', ' ')} fleet is "
-                    f"{goal.quantity}; this probe has recorded {completed} successful "
-                    f"assembly order(s), {active} assembly order(s) are active, and "
-                    f"{shortage} still remain. Transferred probes do not reopen this target."
-                    + component_note
-                ),
-                category="fleet_assembly",
-                target=goal.model,
-                quantity=shortage,
-                constraints=(
-                    ("assembly_components_incomplete",)
-                    if any(status["completed"] < status["required"] for status in component_statuses)
-                    else ()
-                ),
-                reserved_items=reserved_items,
-                priority=goal.priority,
-            ))
-            continue
-
-        component_statuses = tanker_component_statuses(operations)
+        component_statuses = probe_component_statuses(operations, goal.model)
         reserved_items = tuple(
             (status["component"], status["allocated_stored"])
             for status in component_statuses
@@ -104,7 +70,7 @@ def plan(operations, desired_state) -> list[Task]:
             tasks.append(Task(
                 action="Prepare Probe Assembly",
                 reason=(
-                    f"Desired deuterium tanker fleet is {goal.quantity}; "
+                    f"Desired {goal.model.replace('_', ' ')} fleet is {goal.quantity}; "
                     f"this probe has recorded {completed} successful assembly "
                     f"order(s), {active} assembly order(s) are active, and "
                     f"{shortage} still remain. Next assembly kit — "
@@ -123,7 +89,8 @@ def plan(operations, desired_state) -> list[Task]:
                 if status["completed"] >= status["required"]:
                     continue
                 progress = (
-                    f"Tanker component {index}/{len(component_statuses)}: "
+                    f"{'Tanker' if goal.model == 'deuterium_tanker' else 'Assembly'} "
+                    f"component {index}/{len(component_statuses)}: "
                     f"{component.replace('_', ' ')} — "
                     f"{status['required']} required; "
                     f"{status['allocated_stored']} stored and allocated, "
@@ -157,7 +124,9 @@ def plan(operations, desired_state) -> list[Task]:
                 tasks.append(Task(
                     action="Craft Item" if production and production["achievable"] else "Prepare Manufacturing",
                     reason=(
-                        f"{progress} Priority {goal.priority} tanker goal reserves "
+                        f"{progress} Priority {goal.priority} "
+                        f"{'tanker' if goal.model == 'deuterium_tanker' else 'assembly'} "
+                        "goal reserves "
                         f"this work ahead of lower-priority goals."
                     ),
                     category="fleet_assembly",
@@ -169,19 +138,30 @@ def plan(operations, desired_state) -> list[Task]:
                 ))
             continue
 
-        containers = empty_assembly_containers(operations)
+        containers = (
+            empty_assembly_containers(operations)
+            if goal.model == "deuterium_tanker" else ()
+        )
+        ready_to_assemble = (
+            len(containers) >= 2
+            if goal.model == "deuterium_tanker" else True
+        )
         tasks.append(Task(
-            action="Assemble Probe" if len(containers) >= 2 else "Prepare Probe Assembly",
+            action="Assemble Probe" if ready_to_assemble else "Prepare Probe Assembly",
             reason=(
-                f"Priority {goal.priority} tanker goal has all crafted components; "
-                f"{len(containers)} of 2 empty, unassigned attached containers are ready."
+                f"Priority {goal.priority} {goal.model.replace('_', ' ')} goal has "
+                "all crafted components."
+                + (
+                    f" {len(containers)} of 2 empty, unassigned attached containers are ready."
+                    if goal.model == "deuterium_tanker" else ""
+                )
             ),
             category="fleet_assembly",
             target=goal.model,
             quantity=shortage,
             constraints=(
                 ()
-                if len(containers) >= 2
+                if ready_to_assemble
                 else ("two_unassigned_empty_containers_required",)
             ),
             reserved_items=reserved_items,

@@ -289,22 +289,23 @@ class TaskCommandTranslator:
         from src.planner.assembly import empty_assembly_containers
 
         manny = self._claim_idle_manny()
+        model = str(task.target or "").strip().lower().replace("-", "_")
         containers = empty_assembly_containers(self.operations)
-        if manny is None or len(containers) < 2:
+        if manny is None or (model == "deuterium_tanker" and len(containers) < 2):
             return None
+        payload = {"model": model}
+        if model == "deuterium_tanker":
+            payload["containerIds"] = containers[:2]
         return Command(
             type=CommandType.MANNY_ASSEMBLE_PROBE,
             probe_id=self.probe_id,
             target_id=manny["id"],
-            payload={
-                "model": "deuterium_tanker",
-                "containerIds": containers[:2],
-            },
+            payload=payload,
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
             metadata={
-                "model": "deuterium_tanker", "durationSeconds": 10800,
+                "model": model, "durationSeconds": 10800,
                 "mannyName": manny.get("name") or "Manny",
             },
         )
