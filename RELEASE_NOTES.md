@@ -33,6 +33,12 @@
   on the querying probe's send-time sector, replacing that player's previous
   estimate when queried again.
 
+## Skunkworks 1.1.4
+
+- Added reviewed compatibility with Von Neumann Game API v135, including the
+  enriched Manny missile-launch response and atomic batch missile ignition
+  contract introduced by API v134–v135.
+
 ## Skunkworks 1.1.3
 
 - Fixed generic-probe assembly planning so every missing kit component is
