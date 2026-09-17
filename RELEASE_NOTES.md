@@ -1,5 +1,11 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.3
+
+- Fixed generic-probe assembly planning so every missing kit component is
+  manufactured at the fleet goal's priority, including atomic-printer parts,
+  before lower-priority stockpile work; completed kits now proceed to assembly.
+
 ## Skunkworks 1.1.2
 
 - Added reviewed compatibility with Von Neumann Game API v133.

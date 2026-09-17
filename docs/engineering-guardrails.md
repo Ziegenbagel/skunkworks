@@ -68,6 +68,23 @@ A large desired quantity is a long-term target, not an immediate claim on all ra
 resources. Reserve the next unit, re-read live inventory, then replan. Otherwise
 one goal such as 100 Mannys monopolizes mining and starves every other goal.
 
+### Every registered probe assembly emits actionable component work
+
+An incomplete fleet-assembly kit must emit child manufacturing tasks for each
+missing component at the parent assembly priority, regardless of probe model.
+The summary row is explanatory state, not executable work. Once the registered
+kit is complete, the planner must emit the corresponding assembly command;
+model-specific requirements such as tanker containers may add blockers but must
+not replace the common component pipeline. Otherwise lower-priority stock goals
+can occupy the fabricator indefinitely while a higher-priority fleet goal only
+appears to be waiting.
+
+Relevant code/tests:
+
+- `src/planner/rules/fleet.py`
+- `src/execution/translator.py::_assemble_probe`
+- `tests/test_execution_boundary.py`
+
 ### A deuterium reserve tanker replenishes its transferable surplus
 
 Assigning `deuterium_reserve` is an operational commitment, not only a transfer
