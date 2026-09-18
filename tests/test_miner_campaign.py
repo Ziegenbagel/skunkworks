@@ -10,9 +10,11 @@ from tests.test_planner_missions import build_operations
 from src.ui.controller import MissionControlDataService
 
 
-def operations(*, idle=5, resources=None, fuel=20, maximum=100, capacity=4):
+def operations(*, idle=5, resources=None, fuel=20, maximum=100, capacity=4,
+               attached=None, detached=None, active_mannies=None):
     mannies = [{"id": f"manny-{index}", "currentTask": None, "canReceiveOrders": True}
                for index in range(idle)]
+    all_mannies = list(active_mannies or ()) + mannies
     targets = resources or []
     return SimpleNamespace(
         mining=SimpleNamespace(
@@ -22,11 +24,23 @@ def operations(*, idle=5, resources=None, fuel=20, maximum=100, capacity=4):
                 (item for item in targets if item["resource_type"] == resource), None),
         ),
         inventory=SimpleNamespace(mining_return_capacity=lambda _active: capacity),
+        containers=SimpleNamespace(
+            attached=lambda: tuple(attached or ()),
+            detached=lambda: tuple(detached or ()),
+        ),
+        mannies=SimpleNamespace(
+            all=lambda: tuple(all_mannies),
+            _task_type=lambda manny: (
+                (manny.get("currentTask") or {}).get("type")
+                if isinstance(manny.get("currentTask"), dict)
+                else manny.get("currentTask")
+            ),
+        ),
         world=SimpleNamespace(probe={
             "id": 1, "model": "deuterium_tanker", "status": "idle",
             "fuel": {"deuterium": fuel, "maxDeuterium": maximum},
             "sector": {"relative": {"x": 1, "y": 2, "z": 3}},
-        }),
+        }, mannies={"mannies": all_mannies}),
     )
 
 
@@ -40,14 +54,100 @@ def test_deuterium_miner_uses_all_needed_mannies_while_tank_has_capacity():
     assert [task.quantity for task in decision.tasks] == [80, 55, 30, 5]
 
 
-def test_ordinary_resource_miner_can_use_its_only_idle_manny():
+def test_ordinary_resource_miner_deploys_empty_container_before_mining():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
-    decision = MinerCampaignService(operations(idle=1, resources=[target])).decide({
+    decision = MinerCampaignService(operations(
+        idle=1, resources=[target],
+        attached=[{"id": "box-1", "kind": "container", "usedCapacity": 0}],
+    )).decide({
         "miningEnabled": True, "resourceMode": "resources",
         "ordinaryResources": ["metals"],
     })
     assert len(decision.tasks) == 1
-    assert decision.tasks[0].resource_type == "metals"
+    assert decision.tasks[0].action == "Deploy Miner Container"
+    assert decision.tasks[0].target == "box-1"
+    assert decision.tasks[0].metadata["objectId"] == "asteroid-1"
+    assert decision.campaign_state["phase"] == "deploy_container"
+
+
+def test_ordinary_resource_miner_sends_four_quarter_ece_orders_to_deployed_container():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    decision = MinerCampaignService(operations(
+        idle=6, resources=[target],
+        detached=[{
+            "id": "box-1", "type": "detached_container",
+            "mode": "hidden_on_asteroid", "targetObjectId": "asteroid-1",
+            "capacity": 1, "usedCapacity": 0,
+        }],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "box-1", "phase": "deploy_container",
+        },
+    })
+
+    assert decision.phase == "mine_container"
+    assert len(decision.tasks) == 4
+    assert all(task.action == "Mine Resource" for task in decision.tasks)
+    assert all(task.quantity == 0.25 for task in decision.tasks)
+    assert all(task.maximum_order_amount == 0.25 for task in decision.tasks)
+    assert all(task.metadata["targetContainerId"] == "box-1"
+               for task in decision.tasks)
+
+
+def test_full_ordinary_container_is_recovered_then_released_to_drift():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 9}
+    settings = {
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"],
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "box-1", "phase": "mine_container",
+        },
+    }
+    recovery = MinerCampaignService(operations(
+        resources=[target], detached=[{
+            "id": "box-1", "type": "detached_container",
+            "mode": "hidden_on_asteroid", "targetObjectId": "asteroid-1",
+            "capacity": 1, "usedCapacity": 1,
+        }],
+    )).decide(settings)
+    assert recovery.phase == "recover_container"
+    assert recovery.tasks[0].action == "Recover Miner Container"
+    assert recovery.tasks[0].metadata["source"] == "asteroid"
+
+    release_settings = {
+        **settings,
+        "ordinaryContainerCampaign": {
+            **recovery.campaign_state, "phase": "recover_container",
+        },
+    }
+    release = MinerCampaignService(operations(
+        resources=[target], attached=[{
+            "id": "box-1", "kind": "container", "capacity": 1,
+            "usedCapacity": 1,
+        }],
+    )).decide(release_settings)
+    assert release.phase == "release_container"
+    assert release.tasks[0].action == "Release Miner Container"
+    assert release.tasks[0].metadata["mode"] == "drifting"
+
+    complete_settings = {
+        **settings,
+        "ordinaryContainerCampaign": release.campaign_state,
+    }
+    complete = MinerCampaignService(operations(
+        resources=[target], detached=[{
+            "id": "box-1", "type": "drifting_container",
+            "mode": "drifting", "capacity": 1,
+            "contents": {"metals": 1},
+        }],
+    )).decide(complete_settings)
+    assert complete.phase == "container_ready_for_transport"
+    assert complete.tasks == ()
+    assert complete.campaign_state == {}
 
 
 def test_all_resources_selects_fuel_and_enabled_ordinary_resources():
@@ -55,12 +155,16 @@ def test_all_resources_selects_fuel_and_enabled_ordinary_resources():
         {"id": "d", "resource_type": "deuterium", "available_amount": 500},
         {"id": "m", "resource_type": "metals", "available_amount": 10},
     ]
-    decision = MinerCampaignService(operations(resources=targets)).decide({
+    decision = MinerCampaignService(operations(
+        resources=targets,
+        attached=[{"id": "box-1", "kind": "container", "usedCapacity": 0}],
+    )).decide({
         "miningEnabled": True, "resourceMode": "all",
         "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
     })
     assert decision.managed_resources == ("deuterium", "metals")
-    assert {task.resource_type for task in decision.tasks} == {"deuterium", "metals"}
+    assert any(task.resource_type == "deuterium" for task in decision.tasks)
+    assert any(task.action == "Deploy Miner Container" for task in decision.tasks)
 
 
 def test_full_deuterium_miner_transfers_to_selected_same_sector_probe():

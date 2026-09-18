@@ -14,6 +14,7 @@ class MinerCampaignDecision:
     paused: bool = True
     managed_resources: tuple[str, ...] = ()
     reserve_transfer_manny: bool = False
+    campaign_state: dict | None = None
 
 
 class MinerCampaignService:
@@ -47,12 +48,26 @@ class MinerCampaignService:
             and fuel_amount + 0.00001 >= fuel_maximum
         )
         tasks = []
+        ordinary_managed = tuple(
+            resource for resource in managed if resource != "deuterium"
+        )
+        if ordinary_managed:
+            ordinary = self._ordinary_container_campaign(
+                settings, ordinary_managed, ordinary_worker_limit,
+            )
+            # In combined mode the container workflow and deuterium mining may
+            # coexist, but ordinary-resource mining itself is exclusively
+            # owned by the staged container campaign below.
+        else:
+            ordinary = None
         if "deuterium" in managed:
             transfer = self._deuterium_transfer(settings, target_probe)
             if transfer is not None:
                 tasks.append(transfer)
         active = self.operations.mining.active_commitments()
         for resource in managed:
+            if resource != "deuterium":
+                continue
             if resource == "deuterium":
                 # Every idle Manny mines until the tank is full. Once full,
                 # retain exactly one aboard for transfer and let the rest mine
@@ -95,11 +110,15 @@ class MinerCampaignService:
                 ))
                 need -= order
                 remaining_workers -= 1
+        if ordinary is not None:
+            tasks.extend(ordinary.tasks)
         if tasks:
             transferring = any(task.action == "Transfer Deuterium" for task in tasks)
             return MinerCampaignDecision(
                 tasks=tuple(tasks),
-                phase="transferring_deuterium" if transferring and len(tasks) == 1 else "mining",
+                phase=(ordinary.phase if ordinary is not None and ordinary.tasks
+                       else "transferring_deuterium" if transferring and len(tasks) == 1
+                       else "mining"),
                 paused=False,
                 summary=("Tank is full; prepared transfer to the selected receiver."
                          if transferring and len(tasks) == 1 else
@@ -108,6 +127,14 @@ class MinerCampaignService:
                             if deuterium_full else "")),
                 managed_resources=managed,
                 reserve_transfer_manny=deuterium_full,
+                campaign_state=(ordinary.campaign_state if ordinary is not None else None),
+            )
+        if ordinary is not None:
+            return MinerCampaignDecision(
+                phase=ordinary.phase, paused=False, summary=ordinary.summary,
+                managed_resources=managed,
+                reserve_transfer_manny=deuterium_full,
+                campaign_state=ordinary.campaign_state,
             )
         deuterium_wait = self._deuterium_wait_status(settings, target_probe)
         if "deuterium" in managed and deuterium_wait is not None:
@@ -122,6 +149,261 @@ class MinerCampaignService:
             summary="No selected resource is currently mineable in this sector.",
             managed_resources=managed,
         )
+
+    def _ordinary_container_campaign(self, settings, resources, worker_limit):
+        state = dict(settings.get("ordinaryContainerCampaign") or {})
+        resource = str(state.get("resourceType") or "")
+        target_id = str(state.get("asteroidId") or "")
+        container_id = str(state.get("containerId") or "")
+        phase = str(state.get("phase") or "")
+
+        if resource not in resources or not target_id or not container_id:
+            resource = resources[0]
+            target = self.operations.mining.best_target(resource)
+            if target is None:
+                return MinerCampaignDecision(
+                    phase="waiting_for_resource", paused=False,
+                    summary=f"No {resource.replace('_', ' ')} deposit is mineable in this sector.",
+                    campaign_state={},
+                )
+            container = self._empty_attached_container()
+            if container is None:
+                return MinerCampaignDecision(
+                    phase="waiting_for_empty_container", paused=False,
+                    summary=("Ordinary-resource mining requires one empty attached "
+                             "additional container before mining can begin."),
+                    campaign_state={},
+                )
+            target_id = str(target["id"])
+            container_id = str(container["id"])
+            phase = "deploy_container"
+            state = {
+                "resourceType": resource,
+                "asteroidId": target_id,
+                "containerId": container_id,
+                "phase": phase,
+            }
+
+        attached = self._attached_container(container_id)
+        detached = self._detached_container(container_id)
+        active_types = self._active_container_task_types(container_id)
+        expected_sector = self._sector(self.operations.world.probe)
+
+        if phase == "deploy_container":
+            if detached is not None and self._container_targets(detached, target_id):
+                phase = "mine_container"
+                state["phase"] = phase
+            elif "detach" in active_types:
+                return self._ordinary_wait(
+                    state, phase, "Waiting for the mining container deployment to complete."
+                )
+            elif attached is not None:
+                return MinerCampaignDecision(
+                    tasks=(Task(
+                        action="Deploy Miner Container", category="miner_logistics",
+                        target=container_id, priority=1, workflow_authorized=True,
+                        idempotency_scope=f"miner-container:{container_id}:deploy:{target_id}",
+                        reason=(f"Deploy empty container {container_id} to asteroid "
+                                f"{target_id} before assigning miners."),
+                        metadata={
+                            "minerCampaign": True, "mode": "hidden_on_asteroid",
+                            "objectId": target_id, "expectedSector": expected_sector,
+                        },
+                    ),),
+                    phase=phase, paused=False,
+                    summary="Deploying an empty container to the selected asteroid.",
+                    campaign_state=state,
+                )
+            else:
+                return self._ordinary_wait(
+                    state, phase, "Waiting for the selected mining container to become visible."
+                )
+
+        if phase == "mine_container":
+            detached = self._detached_container(container_id)
+            if detached is None:
+                if attached is not None and self._container_used(attached) >= 0.999:
+                    phase = "release_container"
+                    state["phase"] = phase
+                else:
+                    return self._ordinary_wait(
+                        state, phase, "Waiting for the deployed mining container telemetry."
+                    )
+            else:
+                used = self._container_used(detached)
+                active_count = self._active_mining_count(container_id)
+                remaining = max(0.0, 1.0 - used - active_count * 0.25)
+                if used >= 0.999 and active_count == 0:
+                    phase = "recover_container"
+                    state["phase"] = phase
+                elif active_count:
+                    return self._ordinary_wait(
+                        state, phase,
+                        f"{active_count} Manny mining order(s) are filling container {container_id}."
+                    )
+                else:
+                    target = self.operations.mining.best_target(resource)
+                    available = float((target or {}).get("available_amount", 0) or 0)
+                    count = min(worker_limit, len(self.operations.mining.idle_mannies()),
+                                int((min(remaining, available) + 0.249999) / 0.25))
+                    if count <= 0:
+                        return self._ordinary_wait(
+                            state, phase, "Waiting for four idle Mannys or remaining resource capacity."
+                        )
+                    tasks = tuple(Task(
+                        action="Mine Resource", category="mining", target=target_id,
+                        quantity=0.25, maximum_order_amount=0.25,
+                        resource_type=resource, priority=1, workflow_authorized=True,
+                        idempotency_scope=f"miner-container:{container_id}:fill:{index}:{used:g}",
+                        reason=(f"Fill container {container_id} with 0.25 ECE of "
+                                f"{resource.replace('_', ' ')}."),
+                        metadata={
+                            "minerCampaign": True,
+                            "targetContainerId": container_id,
+                        },
+                    ) for index in range(count))
+                    return MinerCampaignDecision(
+                        tasks=tasks, phase=phase, paused=False,
+                        summary=(f"Sending {count} Manny miner(s) to place 0.25 ECE each "
+                                 f"into container {container_id}."),
+                        campaign_state=state,
+                    )
+
+        if phase == "recover_container":
+            detached = self._detached_container(container_id)
+            if attached is not None:
+                phase = "release_container"
+                state["phase"] = phase
+            elif "recover" in active_types:
+                return self._ordinary_wait(
+                    state, phase, "Waiting for the full mining container recovery to complete."
+                )
+            elif detached is not None:
+                return MinerCampaignDecision(
+                    tasks=(Task(
+                        action="Recover Miner Container", category="miner_logistics",
+                        target=container_id, priority=1, workflow_authorized=True,
+                        idempotency_scope=f"miner-container:{container_id}:recover",
+                        reason=f"Recover full mining container {container_id} from its asteroid.",
+                        metadata={
+                            "minerCampaign": True, "source": "asteroid",
+                            "expectedSector": expected_sector,
+                        },
+                    ),),
+                    phase=phase, paused=False,
+                    summary="Recovering the full mining container from the asteroid.",
+                    campaign_state=state,
+                )
+
+        if phase == "release_container":
+            detached = self._detached_container(container_id)
+            if detached is not None and self._container_is_drifting(detached):
+                return MinerCampaignDecision(
+                    phase="container_ready_for_transport", paused=False,
+                    summary=(f"Container {container_id} is full and drifting for Transport pickup."),
+                    campaign_state={},
+                )
+            if "detach" in active_types:
+                return self._ordinary_wait(
+                    state, phase, "Waiting for the full container to be released for Transport pickup."
+                )
+            if attached is not None:
+                return MinerCampaignDecision(
+                    tasks=(Task(
+                        action="Release Miner Container", category="miner_logistics",
+                        target=container_id, priority=1, workflow_authorized=True,
+                        idempotency_scope=f"miner-container:{container_id}:release",
+                        reason=f"Detach full container {container_id} to drift for Transport pickup.",
+                        metadata={
+                            "minerCampaign": True, "mode": "drifting",
+                            "expectedSector": expected_sector,
+                        },
+                    ),),
+                    phase=phase, paused=False,
+                    summary="Releasing the full container to drift for Transport pickup.",
+                    campaign_state=state,
+                )
+
+        return self._ordinary_wait(state, phase, "Waiting for live container state to advance.")
+
+    @staticmethod
+    def _ordinary_wait(state, phase, summary):
+        return MinerCampaignDecision(
+            phase=phase, paused=False, summary=summary, campaign_state=state,
+        )
+
+    def _empty_attached_container(self):
+        return next((item for item in self.operations.containers.attached()
+                     if self._container_used(item) <= 0.00001), None)
+
+    def _attached_container(self, container_id):
+        return next((item for item in self.operations.containers.attached()
+                     if str(item.get("id", item.get("containerId"))) == container_id), None)
+
+    def _detached_container(self, container_id):
+        return next((item for item in self.operations.containers.detached()
+                     if str(item.get("id", item.get("containerId"))) == container_id), None)
+
+    @staticmethod
+    def _container_used(container):
+        explicit = container.get("usedCapacity", container.get("used"))
+        if explicit is not None:
+            return float(explicit or 0)
+        contents = container.get("contents") or container.get("resources") or {}
+        if isinstance(contents, dict):
+            return sum(float(value or 0) for value in contents.values())
+        if isinstance(contents, (list, tuple)):
+            return sum(float(
+                item.get("amount", item.get("quantity", 0)) or 0
+            ) for item in contents if isinstance(item, dict))
+        return 0.0
+
+    @staticmethod
+    def _container_targets(container, target_id):
+        target = (container.get("targetObjectId") or container.get("asteroidId")
+                  or (container.get("location") or {}).get("objectId"))
+        return str(target or "") == str(target_id)
+
+    @staticmethod
+    def _container_is_drifting(container):
+        mode = str(container.get("mode") or container.get("state") or "").casefold()
+        return mode in {"drifting", "detached"}
+
+    def _active_container_task_types(self, container_id):
+        types = set()
+        for manny in self.operations.mannies.all():
+            task = self._manny_task_payload(manny)
+            text = str(self.operations.mannies._task_type(manny) or "").casefold()
+            referenced = task.get("containerId") or task.get("targetContainerId")
+            if referenced in {None, ""} or str(referenced) == container_id:
+                if "detach" in text:
+                    types.add("detach")
+                if "recover" in text:
+                    types.add("recover")
+        return types
+
+    def _active_mining_count(self, container_id):
+        count = 0
+        for manny in self.operations.mannies.all():
+            task = self._manny_task_payload(manny)
+            task_type = str(self.operations.mannies._task_type(manny) or "").casefold()
+            if "min" in task_type and str(task.get("targetContainerId") or "") == container_id:
+                count += 1
+        return count
+
+    @staticmethod
+    def _manny_task_payload(manny):
+        candidates = []
+        for value in (manny.get("currentTask"), manny.get("task")):
+            if isinstance(value, dict):
+                candidates.append(value)
+                for key in ("payload", "details", "parameters"):
+                    if isinstance(value.get(key), dict):
+                        candidates.append(value[key])
+        merged = {}
+        for candidate in candidates:
+            merged.update(candidate)
+        return merged
 
     def _deuterium_wait_status(self, settings, target_probe):
         fuel = self.operations.world.probe.get("fuel") or {}

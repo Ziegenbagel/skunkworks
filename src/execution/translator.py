@@ -27,6 +27,9 @@ class TaskCommandTranslator:
             "Inspect Sector Object": self._inspect_sector_object,
             "Recover Transport Container": self._recover_transport_container,
             "Detach Transport Container": self._detach_transport_container,
+            "Deploy Miner Container": self._detach_transport_container,
+            "Recover Miner Container": self._recover_transport_container,
+            "Release Miner Container": self._detach_transport_container,
             "Transfer Deuterium": self._transfer_deuterium,
             "Refill Deuterium Tank": self._refill_deuterium_tank,
         }.get(task.action)
@@ -41,7 +44,10 @@ class TaskCommandTranslator:
             type=CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
             probe_id=self.probe_id,
             target_id=manny["id"],
-            payload={"objectId": str(task.target), "source": "drifting"},
+            payload={
+                "objectId": str(task.target),
+                "source": str(task.metadata.get("source") or "drifting"),
+            },
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
@@ -60,7 +66,12 @@ class TaskCommandTranslator:
             type=CommandType.MANNY_DETACH_STORAGE_CONTAINER,
             probe_id=self.probe_id,
             target_id=manny["id"],
-            payload={"containerId": str(task.target), "mode": "drifting"},
+            payload={
+                "containerId": str(task.target),
+                "mode": str(task.metadata.get("mode") or "drifting"),
+                **({"objectId": str(task.metadata["objectId"])}
+                   if task.metadata.get("objectId") not in {None, ""} else {}),
+            },
             reason=task.reason,
             priority=task.priority,
             source_action=task.action,
@@ -254,7 +265,12 @@ class TaskCommandTranslator:
         ), 3)
         api_target_amount = round(target_amount / unit_scale, 4)
         trips = max(1, int((target_amount / (trip_capacity * unit_scale)) + 0.999999))
-        target_container = self._preferred_mining_container(task.target, resource_type)
+        target_container_id = task.metadata.get("targetContainerId")
+        target_container = (
+            {"id": target_container_id}
+            if target_container_id not in {None, ""}
+            else self._preferred_mining_container(task.target, resource_type)
+        )
         sector = (
             (self.operations.world.probe.get("sector") or {}).get("relative") or {}
         )

@@ -400,6 +400,40 @@ class ExecutionBoundaryTests(unittest.TestCase):
 
         self.assertEqual(command.payload["targetContainerId"], "metals-depot")
 
+    def test_miner_campaign_routes_each_quarter_ece_order_to_its_container(self):
+        from src.planner.task import Task
+        command = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Mine Resource", reason="Container campaign",
+            target="asteroid-1", quantity=0.25,
+            maximum_order_amount=0.25, resource_type="metals", priority=1,
+            workflow_authorized=True,
+            metadata={"minerCampaign": True, "targetContainerId": "box-1"},
+        ))
+
+        self.assertEqual(command.payload["targetAmount"], 0.25)
+        self.assertEqual(command.payload["targetContainerId"], "box-1")
+
+    def test_miner_container_deployment_and_recovery_use_exact_game_payloads(self):
+        from src.planner.task import Task
+        deploy = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Deploy Miner Container", reason="Deploy",
+            target="box-1", priority=1, workflow_authorized=True,
+            metadata={"mode": "hidden_on_asteroid", "objectId": "asteroid-1"},
+        ))
+        recover = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Recover Miner Container", reason="Recover",
+            target="box-1", priority=1, workflow_authorized=True,
+            metadata={"source": "asteroid"},
+        ))
+
+        self.assertEqual(deploy.payload, {
+            "containerId": "box-1", "mode": "hidden_on_asteroid",
+            "objectId": "asteroid-1",
+        })
+        self.assertEqual(recover.payload, {
+            "objectId": "box-1", "source": "asteroid",
+        })
+
     def test_deuterium_mining_never_routes_to_detached_storage(self):
         self.operations.world.sector["snapshot"] = {"sector": {"objects": [{
             "id": "fuel-depot", "type": "detached_container",

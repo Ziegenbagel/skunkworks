@@ -59,6 +59,10 @@ remains the record for internal implementation work.
   drifting containers one at a time, respect each probe's upgrade-aware safe
   attachment limit, travel to the configured delivery sector, detach only the
   current circuit's cargo, and repeat with visible durable progress.
+- Corrected ordinary-resource Miner automation to use its intended container
+  pipeline: deploy an empty container to the asteroid, send up to four Mannys
+  to mine exactly 0.25 ECE each into it, recover the confirmed full container,
+  then release it to drift for Transport pickup.
 
 ### Internal release support
 

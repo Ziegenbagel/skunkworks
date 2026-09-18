@@ -1055,6 +1055,13 @@ class MissionControlDataService:
             settings, target_probe=target_probe,
             maximum_mining_order_amount=desired.maximum_mining_order_amount,
         )
+        campaign_before = settings.get("ordinaryContainerCampaign") or {}
+        campaign_after = decision.campaign_state
+        if campaign_after is not None and campaign_after != campaign_before:
+            settings["ordinaryContainerCampaign"] = campaign_after
+            FleetRoleService(self.data_engine).assign(
+                "probe", probe_id, "miner", metadata=settings,
+            )
         summary = decision.summary
         if travel_locked:
             summary += " Ordinary travel is locked while Miner automation is enabled."

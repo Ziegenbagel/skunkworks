@@ -379,6 +379,14 @@ the destination, and repeat after live confirmation. Typed recovery and
 detachment commands pass through the same refresh, preflight, idempotency, and
 all-Mannys-aboard execution boundary as other automatic orders.
 
+Ordinary-resource Miner campaigns use a durable per-probe container state
+machine. The planner selects and deploys one empty attached container to an
+asteroid, routes up to four 0.25-ECE Manny mining orders explicitly into it,
+waits for live completion, recovers the full container, and detaches it to
+drift for a Transport route. The selected resource, asteroid, container, and
+phase persist in fleet-role metadata; only authoritative container telemetry
+advances the workflow.
+
 Current planning rules:
 
 - Safety
