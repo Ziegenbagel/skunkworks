@@ -118,17 +118,28 @@ class MinerCampaignService:
             tasks.append(reserve_task)
         if tasks:
             transferring = any(task.action == "Transfer Deuterium" for task in tasks)
+            ordinary_is_primary = ordinary is not None and (
+                bool(ordinary.tasks) or all(
+                    task.metadata.get("emptyContainerReserve") for task in tasks
+                )
+            )
+            if ordinary_is_primary:
+                summary = ordinary.summary
+                if reserve_task is not None:
+                    summary += " Empty-container reserve replenishment is also queued."
+            elif transferring and len(tasks) == 1:
+                summary = "Tank is full; prepared transfer to the selected receiver."
+            else:
+                summary = f"Prepared {len(tasks)} Miner campaign order(s)."
+                if deuterium_full:
+                    summary += " One Manny is reserved for the full-tank transfer."
             return MinerCampaignDecision(
                 tasks=tuple(tasks),
-                phase=(ordinary.phase if ordinary is not None and ordinary.tasks
+                phase=(ordinary.phase if ordinary_is_primary
                        else "transferring_deuterium" if transferring and len(tasks) == 1
                        else "mining"),
                 paused=False,
-                summary=("Tank is full; prepared transfer to the selected receiver."
-                         if transferring and len(tasks) == 1 else
-                         f"Prepared {len(tasks)} Miner campaign order(s)."
-                         + (" One Manny is reserved for the full-tank transfer."
-                            if deuterium_full else "")),
+                summary=summary,
                 managed_resources=managed,
                 reserve_transfer_manny=deuterium_full,
                 campaign_state=(ordinary.campaign_state if ordinary is not None else None),
@@ -192,6 +203,42 @@ class MinerCampaignService:
         detached = self._detached_container(container_id)
         active_types = self._active_container_task_types(container_id)
         expected_sector = self._sector(self.operations.world.probe)
+
+        # A persisted campaign pointer can outlive the selected container when
+        # the game removes, renumbers, or otherwise stops reporting that
+        # object. Do not let that stale pointer strand other live empty
+        # containers. An active Manny reference is the telemetry-lag guard:
+        # while a command is still operating on the selected container, retain
+        # the durable campaign identity until the resulting object is visible.
+        if (attached is None and detached is None
+                and not self._campaign_container_is_active(container_id)):
+            target = self.operations.mining.best_target(resource)
+            container = self._empty_attached_container()
+            if target is None:
+                return MinerCampaignDecision(
+                    phase="waiting_for_resource", paused=False,
+                    summary=f"No {resource.replace('_', ' ')} deposit is mineable in this sector.",
+                    campaign_state={},
+                )
+            if container is None:
+                return MinerCampaignDecision(
+                    phase="waiting_for_empty_container", paused=False,
+                    summary=("The previous campaign container is no longer visible. "
+                             "Waiting for an empty attached additional container."),
+                    campaign_state={},
+                )
+            target_id = str(target["id"])
+            container_id = str(container["id"])
+            phase = "deploy_container"
+            state = {
+                "resourceType": resource,
+                "asteroidId": target_id,
+                "containerId": container_id,
+                "phase": phase,
+            }
+            attached = container
+            detached = None
+            active_types = set()
 
         if phase == "deploy_container":
             if detached is not None and self._container_targets(detached, target_id):
@@ -422,6 +469,19 @@ class MinerCampaignService:
                 if "recover" in text:
                     types.add("recover")
         return types
+
+    def _campaign_container_is_active(self, container_id):
+        for manny in self.operations.mannies.all():
+            task = self._manny_task_payload(manny)
+            references = (
+                task.get("containerId"),
+                task.get("targetContainerId"),
+                task.get("objectId"),
+            )
+            if any(str(reference) == container_id for reference in references
+                   if reference not in {None, ""}):
+                return True
+        return False
 
     def _active_mining_count(self, container_id):
         count = 0

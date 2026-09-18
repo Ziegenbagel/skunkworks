@@ -67,6 +67,11 @@ remains the record for internal implementation work.
   containers, automatically crafting only the live uncovered shortage while
   respecting probe-assembly reservations and preserving an active container
   campaign when its visible role settings are edited.
+- Fixed ordinary-resource Miners becoming idle when a persisted campaign
+  container disappeared: they now safely select an available live empty
+  container unless an active Manny task still references the prior one, and
+  their role status continues to show the actual container-workflow phase when
+  reserve crafting is queued or blocked.
 
 ### Internal release support
 

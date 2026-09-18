@@ -1278,6 +1278,15 @@ restarts must resume the same phase rather than submit a later step early or
 select a different container. Container mutations remain one-Manny commands
 and pass through authoritative preflight.
 
+If the persisted container is absent from both attached and detached live
+inventory, the campaign may select a new empty container only when no active
+Manny task still references the saved container. This repairs genuinely stale
+campaign pointers without mistaking command-to-telemetry lag for disappearance.
+Reserve-container crafting is supplemental work: it must not prevent an
+available campaign container from being deployed, and the visible role phase
+and summary must continue to describe the primary container workflow rather
+than relabeling a wait as generic mining.
+
 The Miner also owns a configurable minimum reserve of empty attached
 containers (default two). Empty live containers and matching active craft
 orders both count toward the reserve; only the uncovered shortage is proposed.
@@ -1294,6 +1303,8 @@ Relevant tests:
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_deployment_and_recovery_use_exact_game_payloads`
 - `tests/test_miner_campaign.py::test_ordinary_miner_crafts_its_configured_empty_container_reserve`
 - `tests/test_miner_campaign.py::test_active_container_crafting_counts_toward_miner_reserve`
+- `tests/test_miner_campaign.py::test_ordinary_miner_reselects_live_empty_container_after_saved_one_disappears`
+- `tests/test_miner_campaign.py::test_ordinary_miner_keeps_missing_container_pointer_while_task_is_active`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_reserve_craft_retains_workflow_authorization`
 
 Before modifying a shared path:

@@ -70,6 +70,69 @@ def test_ordinary_resource_miner_deploys_empty_container_before_mining():
     assert decision.campaign_state["phase"] == "deploy_container"
 
 
+def test_ordinary_miner_reselects_live_empty_container_after_saved_one_disappears():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    miner_operations = operations(
+        resources=[target],
+        attached=[
+            {"id": f"live-box-{index}", "kind": "container", "usedCapacity": 0}
+            for index in range(4)
+        ],
+    )
+    miner_operations.manufacturing = SimpleNamespace(
+        recipes=SimpleNamespace(get=lambda recipe: (
+            {"id": recipe, "craftableBy": ["manny"]}
+            if recipe == "additional_container" else None
+        )),
+        active_production_count=lambda _recipe: 0,
+    )
+
+    decision = MinerCampaignService(miner_operations).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "minimumEmptyContainers": 10,
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "old-asteroid",
+            "containerId": "missing-box", "phase": "deploy_container",
+        },
+    })
+
+    assert decision.phase == "deploy_container"
+    assert decision.tasks[0].action == "Deploy Miner Container"
+    assert decision.tasks[0].target == "live-box-0"
+    assert decision.campaign_state == {
+        "resourceType": "metals", "asteroidId": "asteroid-1",
+        "containerId": "live-box-0", "phase": "deploy_container",
+    }
+    assert "Deploying an empty container" in decision.summary
+    assert "reserve replenishment" in decision.summary
+
+
+def test_ordinary_miner_keeps_missing_container_pointer_while_task_is_active():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    active = [{
+        "id": "working-manny", "canReceiveOrders": False,
+        "currentTask": {
+            "type": "detach_container",
+            "payload": {"containerId": "in-flight-box"},
+        },
+    }]
+    decision = MinerCampaignService(operations(
+        idle=1, resources=[target], active_mannies=active,
+        attached=[{"id": "other-box", "kind": "container", "usedCapacity": 0}],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"],
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "in-flight-box", "phase": "deploy_container",
+        },
+    })
+
+    assert decision.tasks == ()
+    assert decision.campaign_state["containerId"] == "in-flight-box"
+    assert "deployment to complete" in decision.summary
+
+
 def test_ordinary_resource_miner_sends_four_quarter_ece_orders_to_deployed_container():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
     decision = MinerCampaignService(operations(
