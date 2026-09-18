@@ -385,7 +385,11 @@ asteroid, routes up to four 0.25-ECE Manny mining orders explicitly into it,
 waits for live completion, recovers the full container, and detaches it to
 drift for a Transport route. The selected resource, asteroid, container, and
 phase persist in fleet-role metadata; only authoritative container telemetry
-advances the workflow.
+advances the workflow. A configurable empty-container reserve is maintained
+through the existing typed crafting pipeline. Live empty containers and active
+container crafts satisfy that reserve, while the shared production preflight
+continues to protect components committed to higher- or equal-priority probe
+assembly.
 
 Current planning rules:
 

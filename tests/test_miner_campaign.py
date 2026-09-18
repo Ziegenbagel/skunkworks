@@ -282,6 +282,54 @@ def test_unconfigured_ordinary_resources_default_to_unchecked_and_unmanaged():
     assert decision.tasks == ()
 
 
+def test_ordinary_miner_crafts_its_configured_empty_container_reserve():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    miner_operations = operations(resources=[target])
+    miner_operations.manufacturing = SimpleNamespace(
+        recipes=SimpleNamespace(get=lambda recipe: (
+            {"id": recipe, "craftableBy": ["manny"]}
+            if recipe == "additional_container" else None
+        )),
+        active_production_count=lambda _recipe: 0,
+    )
+
+    decision = MinerCampaignService(miner_operations).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "minimumEmptyContainers": 3,
+    })
+
+    assert len(decision.tasks) == 1
+    task = decision.tasks[0]
+    assert task.action == "Craft Item"
+    assert task.target == "additional_container"
+    assert task.quantity == 3
+    assert task.workflow_authorized is True
+    assert task.metadata["emptyContainerReserve"] is True
+
+
+def test_active_container_crafting_counts_toward_miner_reserve():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    miner_operations = operations(
+        resources=[target],
+        attached=[{"id": "empty-1", "kind": "container", "usedCapacity": 0}],
+    )
+    miner_operations.manufacturing = SimpleNamespace(
+        recipes=SimpleNamespace(get=lambda recipe: (
+            {"id": recipe, "craftableBy": ["manny"]}
+            if recipe == "additional_container" else None
+        )),
+        active_production_count=lambda _recipe: 1,
+    )
+
+    decision = MinerCampaignService(miner_operations).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "minimumEmptyContainers": 2,
+    })
+
+    assert not any(task.metadata.get("emptyContainerReserve")
+                   for task in decision.tasks)
+
+
 def test_enabled_miner_suppresses_ordinary_travel_without_mutating_saved_goal():
     desired = DesiredState(travel=TravelGoal(SectorCoordinates(4, 5, 5)))
     engine = SimpleNamespace(fleet_roles=lambda _kind: ({

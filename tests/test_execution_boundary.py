@@ -434,6 +434,18 @@ class ExecutionBoundaryTests(unittest.TestCase):
             "objectId": "box-1", "source": "asteroid",
         })
 
+    def test_miner_container_reserve_craft_retains_workflow_authorization(self):
+        from src.planner.task import Task
+        command = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Craft Item", reason="Maintain Miner containers",
+            category="miner_logistics", target="storage_container",
+            quantity=2, priority=1, workflow_authorized=True,
+            metadata={"minerCampaign": True, "emptyContainerReserve": True},
+        ))
+
+        self.assertTrue(command.metadata["workflowAuthorized"])
+        self.assertTrue(command.metadata["emptyContainerReserve"])
+
     def test_deuterium_mining_never_routes_to_detached_storage(self):
         self.operations.world.sector["snapshot"] = {"sector": {"objects": [{
             "id": "fuel-depot", "type": "detached_container",

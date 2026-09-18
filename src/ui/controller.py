@@ -5420,8 +5420,20 @@ class MissionControlController(QObject):
                         if _integral_ids_equal(item["asset_id"], probe_id)), None)
             if row is None:
                 raise ValueError("Assign this probe a role before saving role settings.")
-            roles.assign("probe", probe_id, row["role"], metadata=payload)
-            return payload
+            saved = dict(payload)
+            try:
+                existing = json.loads(row.get("metadata_json") or "{}")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                existing = {}
+            if (
+                "ordinaryContainerCampaign" in existing
+                and "ordinaryContainerCampaign" not in saved
+            ):
+                saved["ordinaryContainerCampaign"] = existing[
+                    "ordinaryContainerCampaign"
+                ]
+            roles.assign("probe", probe_id, row["role"], metadata=saved)
+            return saved
 
         self._run_background_call(
             "settings", save,

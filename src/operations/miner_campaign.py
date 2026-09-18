@@ -55,11 +55,13 @@ class MinerCampaignService:
             ordinary = self._ordinary_container_campaign(
                 settings, ordinary_managed, ordinary_worker_limit,
             )
+            reserve_task = self._empty_container_reserve_task(settings)
             # In combined mode the container workflow and deuterium mining may
             # coexist, but ordinary-resource mining itself is exclusively
             # owned by the staged container campaign below.
         else:
             ordinary = None
+            reserve_task = None
         if "deuterium" in managed:
             transfer = self._deuterium_transfer(settings, target_probe)
             if transfer is not None:
@@ -112,6 +114,8 @@ class MinerCampaignService:
                 remaining_workers -= 1
         if ordinary is not None:
             tasks.extend(ordinary.tasks)
+        if reserve_task is not None:
+            tasks.append(reserve_task)
         if tasks:
             transferring = any(task.action == "Transfer Deuterium" for task in tasks)
             return MinerCampaignDecision(
@@ -325,6 +329,43 @@ class MinerCampaignService:
                 )
 
         return self._ordinary_wait(state, phase, "Waiting for live container state to advance.")
+
+    def _empty_container_reserve_task(self, settings):
+        desired = max(1, min(
+            20, int(settings.get("minimumEmptyContainers", 2) or 2),
+        ))
+        empty = sum(
+            self._container_used(container) <= 0.00001
+            for container in self.operations.containers.attached()
+        )
+        manufacturing = getattr(self.operations, "manufacturing", None)
+        if manufacturing is None:
+            return None
+        recipe_id = next((candidate for candidate in (
+            "additional_container", "storage_container",
+        ) if manufacturing.recipes.get(candidate) is not None), None)
+        if recipe_id is None:
+            return None
+        active = manufacturing.active_production_count(recipe_id)
+        shortage = max(0, desired - empty - active)
+        if shortage <= 0:
+            return None
+        return Task(
+            action="Craft Item", category="miner_logistics",
+            target=recipe_id, quantity=shortage, priority=1,
+            workflow_authorized=True,
+            idempotency_scope=(
+                f"miner-empty-container-reserve:{recipe_id}:{empty}:{active}:{desired}"
+            ),
+            reason=(f"Maintain {desired} empty attached container(s) for the "
+                    f"ordinary-resource Miner campaign; {empty} are ready and "
+                    f"{active} are currently being crafted."),
+            metadata={
+                "minerCampaign": True,
+                "emptyContainerReserve": True,
+                "desiredEmptyContainers": desired,
+            },
+        )
 
     @staticmethod
     def _ordinary_wait(state, phase, summary):

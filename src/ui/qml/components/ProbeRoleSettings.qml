@@ -181,7 +181,12 @@ Item {
                             SpinBox { id: miningMannies; from: 1; to: 4; value: Number(root.focusedSettings.maximumMiningMannies || 4) }
                             Label { text: "DEUTERIUM AUTOMATICALLY USES THE AVAILABLE CREW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                         }
-                        Label { Layout.fillWidth: true; text: "Deuterium fills the probe tank. Ordinary resources mine selected local deposits toward depletion using currently available probe or detached-container capacity. Automated container placement and rotation is the next durable Miner phase."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        RowLayout {
+                            Label { text: "MINIMUM EMPTY CONTAINER RESERVE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            SpinBox { id: minimumEmptyContainers; from: 1; to: 20; value: Number(root.focusedSettings.minimumEmptyContainers || 2) }
+                            Label { text: "CRAFTED AUTOMATICALLY · ASSEMBLY RESERVATIONS REMAIN PROTECTED"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                        }
+                        Label { Layout.fillWidth: true; text: "Deuterium fills the probe tank. Ordinary resources use a durable container cycle: deploy, fill with up to four 0.25-ECE Manny orders, recover, and release for Transport pickup. The Miner automatically replenishes its configured empty-container reserve."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Button {
                             text: "SAVE MINER ROLE SETTINGS"
                             onClicked: {
@@ -189,7 +194,7 @@ Item {
                                 if (mineMetals.checked) resources.push("metals");
                                 if (mineIce.checked) resources.push("ice");
                                 if (mineCarbon.checked) resources.push("carbon_compounds");
-                                root.roleSettingsSaveRequested(root.focusedProbeId, {"miningEnabled": Boolean(minerEnabled.checked), "resourceMode": minerMode.currentIndex === 1 ? "resources" : minerMode.currentIndex === 2 ? "all" : "deuterium", "ordinaryResources": resources, "maximumMiningMannies": Number(miningMannies.value), "deuteriumTransportProbeId": minerTransport.currentIndex >= 0 ? Number(minerTransport.currentValue) : -1});
+                                root.roleSettingsSaveRequested(root.focusedProbeId, {"miningEnabled": Boolean(minerEnabled.checked), "resourceMode": minerMode.currentIndex === 1 ? "resources" : minerMode.currentIndex === 2 ? "all" : "deuterium", "ordinaryResources": resources, "maximumMiningMannies": Number(miningMannies.value), "minimumEmptyContainers": Number(minimumEmptyContainers.value), "deuteriumTransportProbeId": minerTransport.currentIndex >= 0 ? Number(minerTransport.currentValue) : -1});
                             }
                         }
                     }

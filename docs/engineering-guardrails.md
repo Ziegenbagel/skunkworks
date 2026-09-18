@@ -1278,12 +1278,23 @@ restarts must resume the same phase rather than submit a later step early or
 select a different container. Container mutations remain one-Manny commands
 and pass through authoritative preflight.
 
+The Miner also owns a configurable minimum reserve of empty attached
+containers (default two). Empty live containers and matching active craft
+orders both count toward the reserve; only the uncovered shortage is proposed.
+Reserve crafting is workflow-authorized but still passes through ordinary
+resource checks, Manny availability, the emergency stop, and shared assembly
+reservation preflight. Saving visible role settings must preserve the hidden
+in-progress container campaign rather than silently restarting it.
+
 Relevant tests:
 
 - `tests/test_miner_campaign.py::test_ordinary_resource_miner_deploys_empty_container_before_mining`
 - `tests/test_miner_campaign.py::test_ordinary_resource_miner_sends_four_quarter_ece_orders_to_deployed_container`
 - `tests/test_miner_campaign.py::test_full_ordinary_container_is_recovered_then_released_to_drift`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_deployment_and_recovery_use_exact_game_payloads`
+- `tests/test_miner_campaign.py::test_ordinary_miner_crafts_its_configured_empty_container_reserve`
+- `tests/test_miner_campaign.py::test_active_container_crafting_counts_toward_miner_reserve`
+- `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_reserve_craft_retains_workflow_authorization`
 
 Before modifying a shared path:
 

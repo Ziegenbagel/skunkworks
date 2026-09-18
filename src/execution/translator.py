@@ -221,6 +221,8 @@ class TaskCommandTranslator:
             source_action=task.action,
             metadata={
                 "remainingOrders": int(task.quantity),
+                **task.metadata,
+                "workflowAuthorized": bool(task.workflow_authorized),
                 "storedBefore": int(stored_before),
                 "activeBefore": int(active_before),
                 # Counts can repeat after another recipe consumes an output.

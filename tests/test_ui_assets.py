@@ -1238,3 +1238,5 @@ def test_miner_ordinary_resources_default_to_unchecked():
 
     assert "focusedSettings.ordinaryResources &&" in role_settings
     assert "!root.focusedSettings.ordinaryResources" not in role_settings
+    assert "MINIMUM EMPTY CONTAINER RESERVE" in role_settings
+    assert '"minimumEmptyContainers": Number(minimumEmptyContainers.value)' in role_settings

@@ -63,6 +63,10 @@ remains the record for internal implementation work.
   pipeline: deploy an empty container to the asteroid, send up to four Mannys
   to mine exactly 0.25 ECE each into it, recover the confirmed full container,
   then release it to drift for Transport pickup.
+- Ordinary-resource Miners now maintain a configurable reserve of empty
+  containers, automatically crafting only the live uncovered shortage while
+  respecting probe-assembly reservations and preserving an active container
+  campaign when its visible role settings are edited.
 
 ### Internal release support
 
