@@ -307,17 +307,20 @@ class MinerCampaignService:
                 if used >= 0.999 and active_count == 0:
                     phase = "recover_container"
                     state["phase"] = phase
-                elif active_count:
-                    return self._ordinary_wait(
-                        state, phase,
-                        f"{active_count} Manny mining order(s) are filling container {container_id}."
-                    )
                 else:
                     target = self.operations.mining.best_target(resource)
                     available = float((target or {}).get("available_amount", 0) or 0)
-                    count = min(worker_limit, len(self.operations.mining.idle_mannies()),
+                    worker_slots = max(0, worker_limit - active_count)
+                    count = min(worker_slots, len(self.operations.mining.idle_mannies()),
                                 int((min(remaining, available) + 0.249999) / 0.25))
                     if count <= 0:
+                        if active_count:
+                            return self._ordinary_wait(
+                                state, phase,
+                                (f"{active_count} of {worker_limit} configured Manny mining "
+                                 f"order(s) are filling container {container_id}; waiting for "
+                                 "another worker slot or remaining container capacity."),
+                            )
                         return self._ordinary_wait(
                             state, phase, "Waiting for four idle Mannys or remaining resource capacity."
                         )
@@ -325,7 +328,8 @@ class MinerCampaignService:
                         action="Mine Resource", category="mining", target=target_id,
                         quantity=0.25, maximum_order_amount=0.25,
                         resource_type=resource, priority=1, workflow_authorized=True,
-                        idempotency_scope=f"miner-container:{container_id}:fill:{index}:{used:g}",
+                        idempotency_scope=(f"miner-container:{container_id}:fill:"
+                                           f"{active_count + index}:{used:g}"),
                         reason=(f"Fill container {container_id} with 0.25 ECE of "
                                 f"{resource.replace('_', ' ')}."),
                         metadata={
@@ -335,8 +339,9 @@ class MinerCampaignService:
                     ) for index in range(count))
                     return MinerCampaignDecision(
                         tasks=tasks, phase=phase, paused=False,
-                        summary=(f"Sending {count} Manny miner(s) to place 0.25 ECE each "
-                                 f"into container {container_id}."),
+                        summary=(f"Sending {count} additional Manny miner(s) to place "
+                                 f"0.25 ECE each into container {container_id}; "
+                                 f"{active_count} already active."),
                         campaign_state=state,
                     )
 

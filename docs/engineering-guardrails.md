@@ -1269,6 +1269,11 @@ asteroid without a campaign container. It first selects one empty attached
 additional container and deploys it to the chosen asteroid. Only confirmed
 deployment permits mining, which is issued as at most four concurrent orders
 of exactly 0.25 ECE, all explicitly targeting that container.
+An already-active container-bound mining order consumes one configured worker
+slot; it does not pause the campaign while other slots and idle Mannys remain.
+Production task details must identify whether mined output is routed to an
+anchored container, focused-probe storage, or the focused probe's deuterium
+tank so operators can verify the accepted order's destination.
 
 The campaign waits for live completion of those orders. A confirmed full
 container is recovered from the asteroid, then detached in drifting mode for
@@ -1308,6 +1313,8 @@ Relevant tests:
 
 - `tests/test_miner_campaign.py::test_ordinary_resource_miner_deploys_empty_container_before_mining`
 - `tests/test_miner_campaign.py::test_ordinary_resource_miner_sends_four_quarter_ece_orders_to_deployed_container`
+- `tests/test_miner_campaign.py::test_active_container_miner_does_not_block_remaining_worker_slots`
+- `tests/test_ui_preparation.py::MissionControlPreparationTests::test_production_includes_active_manny_crafting_and_mining`
 - `tests/test_miner_campaign.py::test_full_ordinary_container_is_recovered_then_released_to_drift`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_deployment_and_recovery_use_exact_game_payloads`
 - `tests/test_miner_campaign.py::test_ordinary_miner_crafts_its_configured_empty_container_reserve`

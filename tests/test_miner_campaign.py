@@ -191,6 +191,44 @@ def test_deployed_container_wrapper_id_advances_campaign_and_routes_live_id():
                for task in decision.tasks)
 
 
+def test_active_container_miner_does_not_block_remaining_worker_slots():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    active = [{
+        "id": "working-manny", "canReceiveOrders": False,
+        "currentTask": {
+            "type": "mining",
+            "payload": {
+                "objectId": "asteroid-1",
+                "targetContainerId": "detached-container-box-1",
+            },
+        },
+    }]
+    decision = MinerCampaignService(operations(
+        idle=6, resources=[target], active_mannies=active,
+        detached=[{
+            "id": "detached-container-box-1", "containerId": "box-1",
+            "type": "detached_container", "mode": "hidden_on_asteroid",
+            "targetObjectId": "asteroid-1", "capacity": 1,
+            "usedCapacity": 0,
+        }],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "box-1", "phase": "mine_container",
+        },
+    })
+
+    assert decision.phase == "mine_container"
+    assert len(decision.tasks) == 3
+    assert all(
+        task.metadata["targetContainerId"] == "detached-container-box-1"
+        for task in decision.tasks
+    )
+    assert "1 already active" in decision.summary
+
+
 def test_deploy_phase_adopts_different_live_container_anchored_by_game():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
     miner_operations = operations(

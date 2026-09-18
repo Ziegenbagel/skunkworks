@@ -2066,6 +2066,22 @@ class MissionControlViewModelBuilder:
                 or "Unknown"
             )
             lines.append(f"Target: {target_label}")
+            target_container = (
+                task.get("targetContainerId")
+                or task.get("containerId")
+                or target.get("targetContainerId")
+            )
+            if target_container:
+                lines.append(f"Destination: Anchored container · {target_container}")
+            elif (
+                task.get("resourceType") == "deuterium"
+                or "deuterium" in (
+                    task.get("resourceTypes") or task.get("resources") or ()
+                )
+            ):
+                lines.append("Destination: Focused probe deuterium tank")
+            else:
+                lines.append("Destination: Focused probe storage")
             trip = task.get("tripIndex") or task.get("currentTrip")
             lines.append(f"Trip: {trip}" if trip is not None else "Trip: Single scheduled delivery (API v106)")
             if task.get("targetAmount") is not None:

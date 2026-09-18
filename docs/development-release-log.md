@@ -79,6 +79,10 @@ remains the record for internal implementation work.
 - Miner campaigns now reconcile an accepted deployment when the game anchors a
   different live container than the requested inventory ID, adopting that
   exact-asteroid container and beginning mining rather than replaying detach.
+- Ordinary-resource Miner campaigns now continue filling all configured Manny
+  worker slots after the first mining order becomes active. Production task
+  details also state whether mined output is going to an anchored container,
+  probe storage, or the probe's deuterium tank.
 
 ### Internal release support
 

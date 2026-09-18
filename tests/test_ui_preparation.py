@@ -1852,6 +1852,7 @@ class UiPreparationTests(unittest.TestCase):
                         "resourceTypes": ["metals", "ice"],
                         "phase": "extracting",
                         "objectId": "asteroid-1",
+                        "targetContainerId": "detached-container-box-1",
                         "target": {"id": "asteroid-1", "name": "Ferric Haven"},
                     },
                 },
@@ -1868,6 +1869,10 @@ class UiPreparationTests(unittest.TestCase):
         self.assertIn("STEEL PLATE", work[0]["displayText"])
         self.assertIn("MINING METALS, ICE", work[1]["displayText"])
         self.assertIn("Target: Ferric Haven", work[1]["detailText"])
+        self.assertIn(
+            "Destination: Anchored container · detached-container-box-1",
+            work[1]["detailText"],
+        )
         self.assertNotIn("Target: asteroid-1", work[1]["detailText"])
         self.assertIn("Estimated completion", work[0]["detailText"])
         self.assertIn(
