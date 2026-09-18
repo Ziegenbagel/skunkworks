@@ -83,6 +83,10 @@ remains the record for internal implementation work.
   worker slots after the first mining order becomes active. Production task
   details also state whether mined output is going to an anchored container,
   probe storage, or the probe's deuterium tank.
+- Ordinary-resource Miners now run one durable container campaign per complete
+  configured Manny group. A ten-Manny Miner with groups of four can fill two
+  containers concurrently while leaving two Mannys available for crafting and
+  logistics.
 
 ### Internal release support
 

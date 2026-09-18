@@ -229,6 +229,41 @@ def test_active_container_miner_does_not_block_remaining_worker_slots():
     assert "1 already active" in decision.summary
 
 
+def test_ten_mannies_run_two_parallel_container_campaigns():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    decision = MinerCampaignService(operations(
+        idle=10, resources=[target],
+        detached=[
+            {
+                "id": f"detached-container-box-{index}",
+                "containerId": f"box-{index}",
+                "type": "detached_container", "mode": "hidden_on_asteroid",
+                "targetObjectId": "asteroid-1", "capacity": 1,
+                "usedCapacity": 0,
+            }
+            for index in (1, 2)
+        ],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+        "ordinaryContainerCampaign": {"campaigns": [
+            {
+                "resourceType": "metals", "asteroidId": "asteroid-1",
+                "containerId": f"box-{index}", "phase": "mine_container",
+            }
+            for index in (1, 2)
+        ]},
+    })
+
+    mining = [task for task in decision.tasks if task.action == "Mine Resource"]
+    assert decision.phase == "parallel_container_campaigns"
+    assert len(mining) == 8
+    assert {
+        task.metadata["targetContainerId"] for task in mining
+    } == {"detached-container-box-1", "detached-container-box-2"}
+    assert len(decision.campaign_state["campaigns"]) == 2
+
+
 def test_deploy_phase_adopts_different_live_container_anchored_by_game():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
     miner_operations = operations(

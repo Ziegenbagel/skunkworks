@@ -154,7 +154,7 @@ Item {
                     Layout.fillWidth: true
                     ColumnLayout {
                         anchors.fill: parent; spacing: 14
-                        Label { Layout.fillWidth: true; text: "The Miner remains stationary. Every idle Manny mines Deuterium until the tank is full; at full capacity exactly one stays aboard for transfer while the others mine and may wait with fuel. Ordinary-resource container work uses up to four Mannys. Emergency missile escape remains available."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        Label { Layout.fillWidth: true; text: "The Miner remains stationary. Every idle Manny mines Deuterium until the tank is full; at full capacity exactly one stays aboard for transfer while the others mine and may wait with fuel. Ordinary-resource work runs one container campaign per complete Manny group; leftover Mannys remain available for crafting and logistics. Emergency missile escape remains available."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Rectangle {
                             Layout.fillWidth: true; implicitHeight: minerStatus.implicitHeight + 24
                             color: Constants.raisedColor; border.color: Constants.lineColor; radius: 3
@@ -177,7 +177,7 @@ Item {
                             CheckBox { id: mineCarbon; text: "CARBON COMPOUNDS"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("carbon_compounds") >= 0) }
                         }
                         RowLayout {
-                            Label { text: "ORDINARY-RESOURCE MINING MANNYS"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            Label { text: "MANNYS PER MINING CONTAINER"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                             SpinBox { id: miningMannies; from: 1; to: 4; value: Number(root.focusedSettings.maximumMiningMannies || 4) }
                             Label { text: "DEUTERIUM AUTOMATICALLY USES THE AVAILABLE CREW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                         }
@@ -186,7 +186,7 @@ Item {
                             SpinBox { id: minimumEmptyContainers; from: 1; to: 20; value: Number(root.focusedSettings.minimumEmptyContainers || 2) }
                             Label { text: "CRAFTED AUTOMATICALLY · ASSEMBLY RESERVATIONS REMAIN PROTECTED"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                         }
-                        Label { Layout.fillWidth: true; text: "Deuterium fills the probe tank. Ordinary resources use a durable container cycle: deploy, fill with up to four 0.25-ECE Manny orders, recover, and release for Transport pickup. The Miner automatically replenishes its configured empty-container reserve."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        Label { Layout.fillWidth: true; text: "Deuterium fills the probe tank. Ordinary resources use parallel durable container cycles: deploy, fill with the configured Manny group, recover, and release for Transport pickup. Ten Mannys at four per container run two campaigns and leave two available for crafting or logistics. The Miner automatically replenishes its configured empty-container reserve."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Button {
                             text: "SAVE MINER ROLE SETTINGS"
                             onClicked: {

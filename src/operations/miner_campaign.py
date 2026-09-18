@@ -166,7 +166,76 @@ class MinerCampaignService:
         )
 
     def _ordinary_container_campaign(self, settings, resources, worker_limit):
-        state = dict(settings.get("ordinaryContainerCampaign") or {})
+        saved = settings.get("ordinaryContainerCampaign") or {}
+        if isinstance(saved, dict) and isinstance(saved.get("campaigns"), list):
+            states = [dict(item) for item in saved["campaigns"] if isinstance(item, dict)]
+        elif isinstance(saved, dict) and saved:
+            # Migrate the original single-campaign shape without abandoning an
+            # in-flight container when parallel campaign support is enabled.
+            states = [dict(saved)]
+        else:
+            states = []
+
+        crew_count = len(self.operations.mannies.all())
+        campaign_limit = max(1, crew_count // worker_limit)
+        states = states[:campaign_limit]
+        decisions = []
+        next_states = []
+        allocated_idle = 0
+
+        for index in range(campaign_limit):
+            state = states[index] if index < len(states) else {}
+            current_container_id = str(state.get("containerId") or "")
+            reserved_container_ids = {
+                str(item.get("containerId")) for item in (*states, *next_states)
+                if item.get("containerId") not in {None, ""}
+            }
+            reserved_container_ids.discard(current_container_id)
+            decision = self._ordinary_single_container_campaign(
+                state, resources, worker_limit,
+                excluded_container_ids=reserved_container_ids,
+                available_idle_count=max(
+                    0, len(self.operations.mining.idle_mannies()) - allocated_idle,
+                ),
+            )
+            decisions.append(decision)
+            allocated_idle += len(decision.tasks)
+            if decision.campaign_state:
+                next_states.append(dict(decision.campaign_state))
+
+        tasks = tuple(task for decision in decisions for task in decision.tasks)
+        active = [decision for decision in decisions if decision.campaign_state]
+        if not active:
+            return MinerCampaignDecision(
+                phase=decisions[0].phase if decisions else "waiting_for_resource",
+                paused=False,
+                summary=decisions[0].summary if decisions else "No ordinary-resource campaign is ready.",
+                campaign_state={"campaigns": []} if campaign_limit > 1 else {},
+            )
+        if len(active) == 1:
+            phase = active[0].phase
+            summary = active[0].summary
+        else:
+            phase = "parallel_container_campaigns"
+            summary = (
+                f"Running {len(active)} parallel container campaigns with up to "
+                f"{worker_limit} Mannys per container. "
+                + " ".join(decision.summary for decision in active)
+            )
+        return MinerCampaignDecision(
+            tasks=tasks, phase=phase, paused=False, summary=summary,
+            campaign_state=(
+                {"campaigns": next_states}
+                if campaign_limit > 1 or len(next_states) > 1
+                else next_states[0]
+            ),
+        )
+
+    def _ordinary_single_container_campaign(
+        self, state, resources, worker_limit, *, excluded_container_ids=(),
+        available_idle_count=None,
+    ):
+        state = dict(state or {})
         resource = str(state.get("resourceType") or "")
         target_id = str(state.get("asteroidId") or "")
         container_id = str(state.get("containerId") or "")
@@ -181,7 +250,7 @@ class MinerCampaignService:
                     summary=f"No {resource.replace('_', ' ')} deposit is mineable in this sector.",
                     campaign_state={},
                 )
-            container = self._empty_attached_container()
+            container = self._empty_attached_container(excluded_container_ids)
             if container is None:
                 return MinerCampaignDecision(
                     phase="waiting_for_empty_container", paused=False,
@@ -211,7 +280,9 @@ class MinerCampaignService:
         # limited to the deploy phase, the exact campaign asteroid, and a
         # container that still has room for the campaign payload.
         if phase == "deploy_container" and detached is None:
-            anchored = self._available_anchored_container(target_id)
+            anchored = self._available_anchored_container(
+                target_id, excluded_container_ids,
+            )
             if anchored is not None:
                 container_id = str(
                     anchored.get("containerId") or anchored.get("id")
@@ -230,7 +301,7 @@ class MinerCampaignService:
         if (attached is None and detached is None
                 and not self._campaign_container_is_active(container_id)):
             target = self.operations.mining.best_target(resource)
-            container = self._empty_attached_container()
+            container = self._empty_attached_container(excluded_container_ids)
             if target is None:
                 return MinerCampaignDecision(
                     phase="waiting_for_resource", paused=False,
@@ -311,7 +382,11 @@ class MinerCampaignService:
                     target = self.operations.mining.best_target(resource)
                     available = float((target or {}).get("available_amount", 0) or 0)
                     worker_slots = max(0, worker_limit - active_count)
-                    count = min(worker_slots, len(self.operations.mining.idle_mannies()),
+                    idle_count = (
+                        len(self.operations.mining.idle_mannies())
+                        if available_idle_count is None else available_idle_count
+                    )
+                    count = min(worker_slots, idle_count,
                                 int((min(remaining, available) + 0.249999) / 0.25))
                     if count <= 0:
                         if active_count:
@@ -446,9 +521,11 @@ class MinerCampaignService:
             phase=phase, paused=False, summary=summary, campaign_state=state,
         )
 
-    def _empty_attached_container(self):
+    def _empty_attached_container(self, excluded_container_ids=()):
+        excluded = {str(value) for value in excluded_container_ids}
         return next((item for item in self.operations.containers.attached()
-                     if self._container_used(item) <= 0.00001), None)
+                     if self._container_used(item) <= 0.00001
+                     and str(item.get("id", item.get("containerId"))) not in excluded), None)
 
     def _attached_container(self, container_id):
         return next((item for item in self.operations.containers.attached()
@@ -462,12 +539,16 @@ class MinerCampaignService:
                          str(item.get("sourceContainerId", "")),
                      }), None)
 
-    def _available_anchored_container(self, target_id):
+    def _available_anchored_container(self, target_id, excluded_container_ids=()):
+        excluded = {str(value) for value in excluded_container_ids}
         candidates = (
             item for item in self.operations.containers.detached()
             if self._container_targets(item, target_id)
             and not self._container_is_drifting(item)
             and self.operations.containers.free_capacity(item) > 0.00001
+            and not ({
+                str(item.get("id", "")), str(item.get("containerId", "")),
+            } & excluded)
         )
         return min(candidates, key=lambda item: str(item.get("id", "")), default=None)
 

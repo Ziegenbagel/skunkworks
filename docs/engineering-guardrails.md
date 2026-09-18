@@ -1309,11 +1309,18 @@ resource checks, Manny availability, the emergency stop, and shared assembly
 reservation preflight. Saving visible role settings must preserve the hidden
 in-progress container campaign rather than silently restarting it.
 
+Ordinary-resource concurrency is allocated in complete per-container Manny
+groups (four by default). Each group owns a distinct durable container campaign;
+active campaigns may advance independently, and incomplete remainder crew must
+remain available for crafting and logistics. Persisting multiple campaigns must
+retain backward compatibility with the original single-campaign metadata shape.
+
 Relevant tests:
 
 - `tests/test_miner_campaign.py::test_ordinary_resource_miner_deploys_empty_container_before_mining`
 - `tests/test_miner_campaign.py::test_ordinary_resource_miner_sends_four_quarter_ece_orders_to_deployed_container`
 - `tests/test_miner_campaign.py::test_active_container_miner_does_not_block_remaining_worker_slots`
+- `tests/test_miner_campaign.py::test_ten_mannies_run_two_parallel_container_campaigns`
 - `tests/test_ui_preparation.py::MissionControlPreparationTests::test_production_includes_active_manny_crafting_and_mining`
 - `tests/test_miner_campaign.py::test_full_ordinary_container_is_recovered_then_released_to_drift`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_deployment_and_recovery_use_exact_game_payloads`
