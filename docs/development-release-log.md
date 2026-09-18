@@ -48,6 +48,13 @@ remains the record for internal implementation work.
   direction-and-distance replies now place one replaceable, explicitly
   approximate Galaxy Map marker per queried player, calculated from the
   requesting probe's recorded send-time sector for future Pathfinder use.
+- Corrected Oracle/contact discovery to use the focused probe's authoritative
+  current-sector data and typed mission/message planet targets; API v135 does
+  not expose a separate contacts route.
+- Newly assembled probes now begin with zero automation targets and resource
+  floors instead of inheriting the hub's policy. Settings can explicitly copy
+  saved targets, priorities, and floors to another probe without copying an
+  active travel destination.
 
 ### Internal release support
 

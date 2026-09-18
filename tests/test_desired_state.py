@@ -436,6 +436,37 @@ class DesiredStateTests(unittest.TestCase):
             self.assertEqual(store.load(1), probe_one)
             self.assertEqual(store.load(2), probe_two)
 
+    def test_unconfigured_probe_does_not_inherit_builder_targets_or_floors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = DesiredStateStore(DataEngine(Path(directory) / "data.sqlite3"))
+            builder = DesiredState(
+                production=(ProductionGoal("manny", 20),),
+                resources=(ResourceGoal("metals", 50),),
+                fuel=FuelGoal(40),
+                inventory=InventoryGoal(5),
+                fleet=(FleetGoal("generic", 4),),
+            )
+            store.save(builder, 1)
+
+            new_probe = store.load(2)
+
+            self.assertEqual(new_probe.production, ())
+            self.assertEqual(new_probe.resources, ())
+            self.assertEqual(new_probe.fleet, ())
+            self.assertEqual(new_probe.fuel.minimum_percent, 0)
+            self.assertEqual(new_probe.inventory.minimum_free_capacity, 0)
+
+    def test_legacy_shared_state_is_not_retained_as_new_probe_template(self):
+        with tempfile.TemporaryDirectory() as directory:
+            engine = DataEngine(Path(directory) / "data.sqlite3")
+            engine.set_preference("desired_state", '{"minimumFuelPercent": 65}')
+            store = DesiredStateStore(engine)
+
+            store.save(DesiredState(fuel=FuelGoal(35)), 1)
+
+            self.assertEqual(store.load(1).fuel.minimum_percent, 35)
+            self.assertEqual(store.load(2).fuel.minimum_percent, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4977,6 +4977,42 @@ class MissionControlController(QObject):
         if not self._refreshing:
             self._start_refresh(self._focused_probe_id)
 
+    @Slot(int)
+    def copyAutomationSettings(self, target_probe_id):
+        """Explicitly copy the focused probe's targets/floors to another probe."""
+        source_probe_id = self._focused_probe_id
+        target_probe_id = _coerce_integral_id(target_probe_id)
+        if source_probe_id < 0 or target_probe_id == source_probe_id:
+            self._set_error("Select a different destination probe for the copy.")
+            return
+        owned_probe_ids = {
+            _coerce_integral_id(item.get("id"))
+            for item in self._available_probes if item.get("id") is not None
+        }
+        if owned_probe_ids and target_probe_id not in owned_probe_ids:
+            self._set_error("The destination must be an owned probe.")
+            return
+
+        def copy_settings():
+            data_engine = (
+                self.service.data_engine
+                if self.service is not None else self.settings_engine
+            )
+            store = DesiredStateStore(data_engine)
+            # A route is an active probe-specific instruction, not a reusable
+            # target or safety floor.
+            copied = replace(store.load(source_probe_id), travel=None)
+            store.save(copied, target_probe_id)
+            return target_probe_id
+
+        self._run_background_call(
+            "copy-automation-settings", copy_settings,
+            lambda probe_id: self._set_operation_notice(
+                f"TARGETS AND FLOORS COPIED TO PROBE {probe_id}"
+            ),
+            pending_message="COPYING TARGETS AND FLOORS",
+        )
+
     @Slot(str, str)
     def queueManualCraft(self, recipe_id, manny_id):
         if not self._require_manual_control():

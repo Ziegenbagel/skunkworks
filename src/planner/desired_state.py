@@ -166,6 +166,15 @@ class DesiredState:
         return cls()
 
     @classmethod
+    def unconfigured(cls):
+        """Return safe zero targets/floors for a probe with no saved policy."""
+
+        return cls(
+            fuel=FuelGoal(minimum_percent=0),
+            inventory=InventoryGoal(minimum_free_capacity=0),
+        )
+
+    @classmethod
     def from_dict(cls, value):
         travel_target = value.get("travelTarget")
         legacy_priorities = value.get("priorityScaleMax") != 10

@@ -519,8 +519,24 @@ Planet message recipients are discovered from typed live sector objects,
 current-sector mission metadata, and current-sector typed message endpoints.
 Do not maintain a feature-name allowlist: a newly introduced message-capable
 planet contact must become selectable after its authoritative data refresh.
+There is no separate contacts API in v135. The authoritative live contact
+location is the focused probe's `GET /api/probe/{probeId}/sector` response;
+mission and typed message endpoints are compatibility evidence when the sector
+schema does not expose an explicit messaging-capability flag.
 
 Relevant tests: `tests/test_history_sync.py::test_lightweight_message_sync_records_focused_inbox_and_account_outbox`, `tests/test_messaging_exploration.py::MessagingExplorationTests::test_oracle_contacts_replace_prior_fix_and_use_query_sector_as_origin`, and `tests/test_messaging_exploration.py::MessagingExplorationTests::test_oracle_contacts_ignore_uncorrelated_planet_narrative`.
+
+### New probes never inherit a builder's automation policy implicitly
+
+Desired state is probe-scoped. A probe with no saved desired state starts with
+zero production targets, fleet targets, resource reserves, fuel floor, and free
+capacity floor. The legacy shared/default record is not a template for newly
+assembled probes. Reusing another probe's targets, priorities, and floors
+requires an explicit operator copy action, and that copy must omit active travel
+destinations because a route is an instruction for one probe rather than a
+reusable safety policy.
+
+Relevant tests: `tests/test_desired_state.py::DesiredStateTests::test_unconfigured_probe_does_not_inherit_builder_targets_or_floors`, `tests/test_desired_state.py::DesiredStateTests::test_legacy_shared_state_is_not_retained_as_new_probe_template`, and `tests/test_ui_preparation.py::UiPreparationTests::test_copy_targets_and_floors_is_explicit_and_excludes_travel`.
 Safety presents the event's recorded FCC sector whenever the alert payload
 provides one, so an operator can return to a discovery after the probe moves.
 Historical alerts with no coordinates remain explicitly location-unknown; the

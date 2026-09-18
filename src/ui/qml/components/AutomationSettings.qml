@@ -30,6 +30,7 @@ Item {
                                                                || autoIdleMinutes.value !== savedOperatingProfileIdleMinutes)
     readonly property bool canManageProbeRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
     signal saveRequested(var settings)
+    signal targetsAndFloorsCopyRequested(int targetProbeId)
     signal roleAssignmentRequested(int probeId, string role)
     signal roleSettingsSaveRequested(int probeId, var settings)
     signal transportCycleRequested(var plan)
@@ -74,6 +75,19 @@ Item {
             if (Number(availableProbes[i].id) === Number(probeId))
                 return String(availableProbes[i].name || ("PROBE " + probeId));
         return probeId === undefined || probeId === null ? "NO FOCUSED PROBE" : "PROBE " + probeId;
+    }
+    function copyTargetProbes() {
+        const result = [];
+        for (let i = 0; i < availableProbes.length; ++i) {
+            const candidate = availableProbes[i];
+            if (Number(candidate.id) !== Number(focusedProbeId))
+                result.push(candidate);
+        }
+        return result;
+    }
+    function settingNumber(key, fallbackValue) {
+        const value = settingsData[key];
+        return value === undefined || value === null ? fallbackValue : Number(value);
     }
     function commandAllowed(commandType) {
         return (runtimeData.allowedCommandTypes || []).indexOf(commandType) >= 0;
@@ -186,9 +200,9 @@ Item {
         metalsPriority.value = Number((settingsData.resourcePriorities || {}).metals || 5);
         icePriority.value = Number((settingsData.resourcePriorities || {}).ice || 5);
         carbonPriority.value = Number((settingsData.resourcePriorities || {}).carbon_compounds || 5);
-        fuelFloor.value = Number(settingsData.minimumFuelPercent || 20);
+        fuelFloor.value = settingNumber("minimumFuelPercent", 20);
         fuelPriority.value = Number(settingsData.fuelPriority || 3);
-        freeCapacity.value = Number(settingsData.minimumFreeCapacity || 1);
+        freeCapacity.value = settingNumber("minimumFreeCapacity", 1);
         capacityPriority.value = Number(settingsData.inventoryPriority || 3);
         miningOrderSteps.value = Math.max(1, Math.min(11, Math.round(Number(settingsData.maximumMiningOrderAmount || 0.55) / 0.05)));
         safeHopDistance.value = Math.max(1, Math.min(2, Number(settingsData.maximumSafeHopDistance || 1)));
@@ -678,6 +692,33 @@ Item {
             }
 
             GroupBox {
+                title: "SHARE TARGETS AND FLOORS"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    Label {
+                        Layout.fillWidth: true
+                        text: "NEWLY ASSEMBLED PROBES START WITH ZERO AUTOMATION TARGETS AND RESOURCE FLOORS. COPY THE FOCUSED PROBE'S SAVED TARGETS, PRIORITIES, AND FLOORS ONLY WHEN YOU WANT THE SAME POLICY. ACTIVE TRAVEL DESTINATIONS ARE NEVER COPIED."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 10
+                        ComboBox {
+                            id: copyTargetProbe
+                            Layout.preferredWidth: 360
+                            model: root.copyTargetProbes()
+                            textRole: "name"
+                            valueRole: "id"
+                        }
+                        Button {
+                            text: "COPY TARGETS AND FLOORS"
+                            enabled: copyTargetProbe.count > 0 && copyTargetProbe.currentIndex >= 0
+                            onClicked: root.targetsAndFloorsCopyRequested(Number(copyTargetProbe.currentValue))
+                        }
+                    }
+                }
+            }
+
+            GroupBox {
                 title: "PRODUCTION AND PROBE ASSEMBLY TARGETS"; Layout.fillWidth: true
                 GridLayout {
                     anchors.fill: parent; columns: 3; uniformCellWidths: true; columnSpacing: 18; rowSpacing: 10
@@ -783,10 +824,10 @@ Item {
                     SpinBox { id: carbonReserve; from: 0; to: 100000; editable: true; value: root.reserve("carbon_compounds") }
                     SpinBox { id: carbonPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).carbon_compounds || 5) }
                     Label { text: "FUEL FLOOR %"; color: Constants.warningColor; font.family: Constants.technicalFont }
-                    SpinBox { id: fuelFloor; from: 0; to: 100; editable: true; value: Number(root.settingsData.minimumFuelPercent || 20) }
+                    SpinBox { id: fuelFloor; from: 0; to: 100; editable: true; value: root.settingNumber("minimumFuelPercent", 20) }
                     SpinBox { id: fuelPriority; from: 1; to: 10; editable: true; value: Number(root.settingsData.fuelPriority || 3) }
                     Label { text: "MIN FREE CAPACITY"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: freeCapacity; from: 0; to: 1000; editable: true; value: Number(root.settingsData.minimumFreeCapacity || 1) }
+                    SpinBox { id: freeCapacity; from: 0; to: 1000; editable: true; value: root.settingNumber("minimumFreeCapacity", 1) }
                     SpinBox { id: capacityPriority; from: 1; to: 10; editable: true; value: Number(root.settingsData.inventoryPriority || 3) }
                     Label { text: "AUTO REPAIR AT / BELOW %"; color: Constants.warningColor; font.family: Constants.technicalFont; ToolTip.visible: repairHover.hovered; ToolTip.text: "0 disables automatic repair. When enabled, an idle Manny restores integrity after the focused probe reaches this threshold."; HoverHandler { id: repairHover } }
                     SpinBox { id: repairTrigger; from: 0; to: 99; editable: true; value: Number(root.settingsData.repairTriggerPercent || 0); textFromValue: function(value, locale) { return value === 0 ? "OFF" : value + "%" }; valueFromText: function(text, locale) { const value = Number(String(text).replace(/[^0-9]/g, "")); return isFinite(value) ? Math.max(0, Math.min(99, value)) : 0 } }

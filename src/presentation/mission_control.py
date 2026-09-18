@@ -781,16 +781,25 @@ class MissionControlViewModelBuilder:
         def visit(value):
             if isinstance(value, dict):
                 object_type = str(value.get("type") or value.get("kind") or "").casefold()
-                description = " ".join(str(value.get(key) or "") for key in ("name", "summary", "description")).casefold()
+                description = " ".join(str(value.get(key) or "") for key in (
+                    "name", "summary", "description", "category",
+                    "civilization", "lifeClassification",
+                )).casefold()
                 identifier = value.get("id") or value.get("planetId")
                 inhabited = (
                     object_type == "planet" and (
                         value.get("intelligentLife") is True
+                        or value.get("hasIntelligentLife") is True
+                        or value.get("intelligentLifeDetected") is True
                         or value.get("inhabited") is True
+                        or value.get("isInhabited") is True
                         or value.get("messageable") is True
                         or value.get("canReceiveMessages") is True
                         or value.get("communicationAvailable") is True
                         or "inhabited" in description
+                        or "intelligent life" in description
+                        or "civilization" in description
+                        or "oracle" in description
                     )
                 )
                 if identifier not in (None, "") and inhabited:
@@ -809,12 +818,18 @@ class MissionControlViewModelBuilder:
         for mission in mission_service.all() if mission_service else ():
             mission_sector = self._find_relative_coordinates(mission)
             planet_id = self._find_key(mission, "planetId")
+            typed_planet_name = None
+            if planet_id in (None, ""):
+                typed_planet = self._find_typed_planet(mission)
+                if typed_planet is not None:
+                    planet_id, typed_planet_name = typed_planet
             if planet_id in (None, "") or mission_sector != coordinates:
                 continue
             name = (
                 self._find_key(mission, "planetName")
                 or self._find_key(mission, "targetName")
                 or self._find_key(mission, "contactName")
+                or typed_planet_name
                 or mission.get("name")
             )
             remember(planet_id, name)
@@ -834,6 +849,25 @@ class MissionControlViewModelBuilder:
                         endpoint.get("name") or endpoint.get("planetName"),
                     )
         return tuple(found.values())
+
+    @classmethod
+    def _find_typed_planet(cls, value):
+        """Find a typed planet target without depending on a mission name."""
+        if isinstance(value, dict):
+            if str(value.get("type") or value.get("kind") or "").casefold() == "planet":
+                identifier = value.get("id") or value.get("planetId")
+                if identifier not in (None, ""):
+                    return identifier, value.get("name") or value.get("planetName")
+            for nested in value.values():
+                found = cls._find_typed_planet(nested)
+                if found is not None:
+                    return found
+        elif isinstance(value, (list, tuple)):
+            for nested in value:
+                found = cls._find_typed_planet(nested)
+                if found is not None:
+                    return found
+        return None
 
     @classmethod
     def _find_relative_coordinates(cls, value):

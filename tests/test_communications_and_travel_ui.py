@@ -68,3 +68,45 @@ def test_communications_discovers_new_typed_planet_contacts_from_messages():
         "type": "planet", "id": "future-contact", "name": "Archivist",
         "label": "Archivist · PLANET",
     },)
+
+
+def test_communications_discovers_typed_planet_target_in_current_sector_mission():
+    messaging = SimpleNamespace(inbox=lambda _probe_id: (), outbox=lambda: ())
+    missions = SimpleNamespace(all=lambda: ({
+        "status": "completed",
+        "metadata": {
+            "sector": {"relative": {"x": 2, "y": 2, "z": 0}},
+            "contact": {"type": "planet", "id": "oracle-contact", "name": "Oracle"},
+        },
+    },))
+    world = SimpleNamespace(fleet={"probes": ()}, sector={})
+
+    view = MissionControlViewModelBuilder(
+        SimpleNamespace(messaging=messaging, missions=missions)
+    )._communications(
+        {"id": 7, "sector": {"relative": {"x": 2, "y": 2, "z": 0}}}, world,
+    )
+
+    assert view["recipients"] == ({
+        "type": "planet", "id": "oracle-contact", "name": "Oracle",
+        "label": "Oracle · PLANET",
+    },)
+
+
+def test_communications_discovers_oracle_category_from_current_sector_route():
+    messaging = SimpleNamespace(inbox=lambda _probe_id: (), outbox=lambda: ())
+    world = SimpleNamespace(
+        fleet={"probes": ()},
+        sector={"objects": ({
+            "type": "planet", "id": "oracle-planet", "name": "Oracle",
+            "category": "inhabited civilization",
+        },)},
+    )
+
+    view = MissionControlViewModelBuilder(
+        SimpleNamespace(messaging=messaging, missions=None)
+    )._communications(
+        {"id": 7, "sector": {"relative": {"x": 2, "y": 2, "z": 0}}}, world,
+    )
+
+    assert view["recipients"][0]["id"] == "oracle-planet"

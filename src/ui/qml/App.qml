@@ -445,6 +445,12 @@ ApplicationWindow {
                 window.backend.saveAutomationSettings(settings);
         }
 
+        function onTargetsAndFloorsCopyRequested(targetProbeId) {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.copyAutomationSettings(targetProbeId);
+        }
+
         function onOperatingProfileSaveRequested(name, idleMinutes, schedule) {
             AudioManager.play("save");
             if (window.backend)

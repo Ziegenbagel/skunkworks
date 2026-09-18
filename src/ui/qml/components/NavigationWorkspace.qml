@@ -32,6 +32,7 @@ PanelFrame {
     property int manualControlTabIndex: 0
     signal probeSelected(int probeId)
     signal automationSettingsSaved(var settings)
+    signal targetsAndFloorsCopyRequested(int targetProbeId)
     signal probeRoleAssigned(int probeId, string role)
     signal probeRoleSettingsSaved(int probeId, var settings)
     signal travelPreviewRequested(int x, int y, int z, string routeMode)
@@ -336,6 +337,7 @@ PanelFrame {
                     onNotificationPolicySaveRequested: policy => root.notificationPolicySaveRequested(policy)
                     onTestNotificationRequested: root.testNotificationRequested()
                     onSaveRequested: settings => root.automationSettingsSaved(settings)
+                    onTargetsAndFloorsCopyRequested: targetProbeId => root.targetsAndFloorsCopyRequested(targetProbeId)
                     onRoleAssignmentRequested: (probeId, role) => root.probeRoleAssigned(probeId, role)
                     onRoleSettingsSaveRequested: (probeId, settings) => root.probeRoleSettingsSaved(probeId, settings)
                     onTransportCycleRequested: plan => root.transportCycleSaveRequested(plan)

@@ -26,6 +26,8 @@ class DesiredStateStore:
             value = json.loads(stored)
             if value.get("_scopeVersion") == 1:
                 scoped = value.get("probes", {}).get(str(probe_id))
+                if probe_id is not None and scoped is None:
+                    return DesiredState.unconfigured()
                 value = scoped if scoped is not None else value.get("default", {})
             return DesiredState.from_dict(value)
 
@@ -49,7 +51,10 @@ class DesiredStateStore:
             if current.get("_scopeVersion") != 1:
                 current = {
                     "_scopeVersion": 1,
-                    "default": current,
+                    # Legacy shared policy belongs only to the probe being
+                    # explicitly saved below. It must never become an implicit
+                    # template for newly assembled probes.
+                    "default": DesiredState.unconfigured().to_dict(),
                     "probes": {},
                 }
             current.setdefault("probes", {})[str(probe_id)] = desired_state.to_dict()

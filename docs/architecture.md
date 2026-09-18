@@ -131,8 +131,10 @@ Communications separates game-facing text from local operational reporting:
   overlay is not discovered-sector knowledge and is a safe future input for a
   reviewed SCUT Pathfinder destination.
 - The communications recipient model is dynamically assembled from the current
-  fleet plus typed, current-sector planet contacts exposed by sector, mission,
-  or message data. It does not hard-code Oracle or other game contact names.
+  fleet plus typed, current-sector planet contacts. API v135 has no contacts
+  endpoint: the canonical source is `GET /api/probe/{probeId}/sector`, with
+  mission or typed message data used as compatibility evidence. It does not
+  hard-code Oracle or other game contact names.
 - Daily Reports are generated locally from retained telemetry and accepted
   action-journal records; they do not automatically create game Logbook pages.
   Operators may favorite or explicitly delete them. Unfavorited daily reports

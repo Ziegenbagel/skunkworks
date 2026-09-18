@@ -11,6 +11,8 @@ from src.data import DataEngine
 from src.execution import Command, CommandType, ExecutionMode
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
+from src.models.galaxy import SectorCoordinates
+from src.planner.desired_state import DesiredState, FuelGoal, TravelGoal
 from src.planner.desired_state_store import DesiredStateStore
 from src.presentation import MissionControlViewModelBuilder
 from src.ui.controller import (
@@ -2204,6 +2206,24 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(
                 DesiredStateStore(engine).load(1).fuel.minimum_percent, 42,
             )
+
+    def test_copy_targets_and_floors_is_explicit_and_excludes_travel(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "copy-settings.sqlite3")
+            service = type("Service", (), {"data_engine": engine})()
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
+            controller._focused_probe_id = 1
+            source = DesiredState(
+                fuel=FuelGoal(42),
+                travel=TravelGoal(SectorCoordinates(2, 2, 0)),
+            )
+            DesiredStateStore(engine).save(source, 1)
+
+            controller.copyAutomationSettings(2)
+
+            copied = DesiredStateStore(engine).load(2)
+            self.assertEqual(copied.fuel.minimum_percent, 42)
+            self.assertIsNone(copied.travel)
 
     def test_new_safety_and_resource_settings_return_before_sqlite_runs(self):
         with tempfile.TemporaryDirectory() as temporary:
