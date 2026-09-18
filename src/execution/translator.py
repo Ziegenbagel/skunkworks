@@ -37,7 +37,9 @@ class TaskCommandTranslator:
         return handler(task) if handler is not None else None
 
     def _recover_transport_container(self, task):
-        manny = self._claim_idle_manny()
+        manny = self._claim_idle_manny(
+            allow_reserved=bool(task.metadata.get("minerCampaign")),
+        )
         if manny is None or not task.target:
             return None
         return Command(
@@ -59,7 +61,9 @@ class TaskCommandTranslator:
         )
 
     def _detach_transport_container(self, task):
-        manny = self._claim_idle_manny()
+        manny = self._claim_idle_manny(
+            allow_reserved=bool(task.metadata.get("minerCampaign")),
+        )
         if manny is None or not task.target:
             return None
         return Command(
@@ -236,7 +240,9 @@ class TaskCommandTranslator:
 
     def _mine(self, task):
         idle_count = len(self.operations.mining.idle_mannies())
-        manny = self._claim_idle_manny()
+        manny = self._claim_idle_manny(
+            allow_reserved=bool(task.metadata.get("minerCampaign")),
+        )
         resource_type = task.resource_type
 
         if manny is None or resource_type is None:
@@ -271,6 +277,7 @@ class TaskCommandTranslator:
         target_container = (
             {"id": target_container_id}
             if target_container_id not in {None, ""}
+            else None if task.metadata.get("forceProbeStorage")
             else self._preferred_mining_container(task.target, resource_type)
         )
         sector = (

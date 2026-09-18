@@ -413,6 +413,25 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(command.payload["targetAmount"], 0.25)
         self.assertEqual(command.payload["targetContainerId"], "box-1")
 
+    def test_miner_remainder_mining_bypasses_campaign_container(self):
+        self.operations.world.sector["snapshot"] = {"sector": {"objects": [{
+            "id": "campaign-box", "type": "detached_container",
+            "mode": "hidden_on_asteroid", "targetObjectId": "asteroid-1",
+            "capacity": 1, "usedCapacity": 0,
+        }]}}
+        from src.planner.task import Task
+        command = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Mine Resource", reason="Remainder target work",
+            target="asteroid-1", quantity=0.25,
+            maximum_order_amount=0.25, resource_type="metals", priority=1,
+            metadata={
+                "ordinaryMinerRemainder": True,
+                "forceProbeStorage": True,
+            },
+        ))
+
+        self.assertNotIn("targetContainerId", command.payload)
+
     def test_miner_container_deployment_and_recovery_use_exact_game_payloads(self):
         from src.planner.task import Task
         deploy = TaskCommandTranslator(self.operations, 1).translate(Task(

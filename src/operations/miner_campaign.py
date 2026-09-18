@@ -14,6 +14,7 @@ class MinerCampaignDecision:
     paused: bool = True
     managed_resources: tuple[str, ...] = ()
     reserve_transfer_manny: bool = False
+    reserve_ordinary_mannies: int = 0
     campaign_state: dict | None = None
 
 
@@ -142,6 +143,9 @@ class MinerCampaignService:
                 summary=summary,
                 managed_resources=managed,
                 reserve_transfer_manny=deuterium_full,
+                reserve_ordinary_mannies=(
+                    ordinary.reserve_ordinary_mannies if ordinary is not None else 0
+                ),
                 campaign_state=(ordinary.campaign_state if ordinary is not None else None),
             )
         if ordinary is not None:
@@ -149,6 +153,7 @@ class MinerCampaignService:
                 phase=ordinary.phase, paused=False, summary=ordinary.summary,
                 managed_resources=managed,
                 reserve_transfer_manny=deuterium_full,
+                reserve_ordinary_mannies=ordinary.reserve_ordinary_mannies,
                 campaign_state=ordinary.campaign_state,
             )
         deuterium_wait = self._deuterium_wait_status(settings, target_probe)
@@ -210,6 +215,7 @@ class MinerCampaignService:
                 phase=decisions[0].phase if decisions else "waiting_for_resource",
                 paused=False,
                 summary=decisions[0].summary if decisions else "No ordinary-resource campaign is ready.",
+                reserve_ordinary_mannies=0,
                 campaign_state={"campaigns": []} if campaign_limit > 1 else {},
             )
         if len(active) == 1:
@@ -222,8 +228,14 @@ class MinerCampaignService:
                 f"{worker_limit} Mannys per container. "
                 + " ".join(decision.summary for decision in active)
             )
+        active_campaign_mannies = self._active_campaign_manny_count(next_states)
+        reserve_ordinary_mannies = min(
+            len(self.operations.mining.idle_mannies()),
+            max(0, campaign_limit * worker_limit - active_campaign_mannies),
+        )
         return MinerCampaignDecision(
             tasks=tasks, phase=phase, paused=False, summary=summary,
+            reserve_ordinary_mannies=reserve_ordinary_mannies,
             campaign_state=(
                 {"campaigns": next_states}
                 if campaign_limit > 1 or len(next_states) > 1
@@ -611,6 +623,27 @@ class MinerCampaignService:
             task_type = str(self.operations.mannies._task_type(manny) or "").casefold()
             if ("min" in task_type
                     and str(task.get("targetContainerId") or "") in expected):
+                count += 1
+        return count
+
+    def _active_campaign_manny_count(self, states):
+        expected = set()
+        for state in states:
+            container_id = str(state.get("containerId") or "")
+            if not container_id:
+                continue
+            expected.add(container_id)
+            detached = self._detached_container(container_id)
+            if detached is not None:
+                expected.add(str(detached.get("id") or ""))
+        count = 0
+        for manny in self.operations.mannies.all():
+            task = self._manny_task_payload(manny)
+            references = {
+                str(task.get(key) or "")
+                for key in ("containerId", "targetContainerId", "objectId")
+            }
+            if references & expected:
                 count += 1
         return count
 

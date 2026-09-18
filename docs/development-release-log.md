@@ -87,6 +87,10 @@ remains the record for internal implementation work.
   configured Manny group. A ten-Manny Miner with groups of four can fill two
   containers concurrently while leaving two Mannys available for crafting and
   logistics.
+- Mannys outside a complete Miner group now fall back to normal target work:
+  they craft when inputs allow, then may fill outstanding resource needs into
+  probe storage. Campaign-group workers remain reserved through deployment and
+  recovery, preventing fallback work from starving the container workflow.
 
 ### Internal release support
 

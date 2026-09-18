@@ -959,10 +959,28 @@ class MissionControlDataService:
             tasks.extend(explorer_tasks)
             if miner_view.get("enabled"):
                 managed = set(miner_view.get("managedResources", ()))
-                tasks = [task for task in tasks if not (
-                    task.category == "mining" and task.resource_type in managed
-                    and not task.metadata.get("minerCampaign")
-                )]
+                projected_tasks = []
+                for task in tasks:
+                    role_managed_mining = (
+                        task.category == "mining"
+                        and task.resource_type in managed
+                        and not task.metadata.get("minerCampaign")
+                    )
+                    if role_managed_mining and task.resource_type == "deuterium":
+                        continue
+                    if role_managed_mining:
+                        task = replace(
+                            task,
+                            reason=(task.reason + " Incomplete Miner crew-group fallback "
+                                    "returns this order to focused-probe storage."),
+                            metadata={
+                                **task.metadata,
+                                "ordinaryMinerRemainder": True,
+                                "forceProbeStorage": True,
+                            },
+                        )
+                    projected_tasks.append(task)
+                tasks = projected_tasks
             tasks.extend(miner_tasks)
             tasks.sort(key=task_order_key)
             excluded_fabrication = set(excluded_fabrication)
@@ -980,10 +998,14 @@ class MissionControlDataService:
                 ),
             )
             reserved_manny_ids = ()
+            reserved_count = int(miner_view.get("reserveOrdinaryMannies", 0) or 0)
             if miner_view.get("reserveTransferManny"):
+                reserved_count += 1
+            if reserved_count:
                 idle_mannies = operations.mining.idle_mannies()
-                if idle_mannies:
-                    reserved_manny_ids = (idle_mannies[0]["id"],)
+                reserved_manny_ids = tuple(
+                    item["id"] for item in idle_mannies[:reserved_count]
+                )
             self._automation_reserved_manny_ids = reserved_manny_ids
             prepared_commands = CommandPreparer(
                 operations, probe_id, preparation_policy,
@@ -1070,6 +1092,7 @@ class MissionControlDataService:
             "paused": decision.paused, "summary": summary,
             "managedResources": list(decision.managed_resources),
             "reserveTransferManny": decision.reserve_transfer_manny,
+            "reserveOrdinaryMannies": decision.reserve_ordinary_mannies,
             "travelLocked": travel_locked,
         }
 

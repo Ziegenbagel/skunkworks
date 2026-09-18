@@ -262,6 +262,50 @@ def test_ten_mannies_run_two_parallel_container_campaigns():
         task.metadata["targetContainerId"] for task in mining
     } == {"detached-container-box-1", "detached-container-box-2"}
     assert len(decision.campaign_state["campaigns"]) == 2
+    assert decision.reserve_ordinary_mannies == 8
+
+
+def test_parallel_campaigns_reserve_only_complete_groups():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    active = [
+        {
+            "id": f"working-{container}-{index}", "canReceiveOrders": False,
+            "currentTask": {
+                "type": "mining",
+                "payload": {
+                    "objectId": "asteroid-1",
+                    "targetContainerId": f"detached-container-{container}",
+                },
+            },
+        }
+        for container in ("box-1", "box-2") for index in range(4)
+    ]
+    decision = MinerCampaignService(operations(
+        idle=2, resources=[target], active_mannies=active,
+        detached=[
+            {
+                "id": f"detached-container-{container}",
+                "containerId": container, "type": "detached_container",
+                "mode": "hidden_on_asteroid", "targetObjectId": "asteroid-1",
+                "capacity": 1, "usedCapacity": 0,
+            }
+            for container in ("box-1", "box-2")
+        ],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+        "ordinaryContainerCampaign": {"campaigns": [
+            {
+                "resourceType": "metals", "asteroidId": "asteroid-1",
+                "containerId": container, "phase": "mine_container",
+            }
+            for container in ("box-1", "box-2")
+        ]},
+    })
+
+    assert decision.tasks == ()
+    assert decision.reserve_ordinary_mannies == 0
+    assert "2 parallel container campaigns" in decision.summary
 
 
 def test_deploy_phase_adopts_different_live_container_anchored_by_game():

@@ -392,6 +392,10 @@ through the existing typed crafting pipeline. Live empty containers and active
 container crafts satisfy that reserve, while the shared production preflight
 continues to protect components committed to higher- or equal-priority probe
 assembly.
+Incomplete Manny groups are not owned by the container state machines. Normal
+target planning may use that remainder for craft work first and then for
+ordinary-resource shortages; fallback mining explicitly returns to probe
+storage rather than silently filling a campaign container.
 
 Current planning rules:
 
