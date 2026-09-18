@@ -204,6 +204,23 @@ class MinerCampaignService:
         active_types = self._active_container_task_types(container_id)
         expected_sector = self._sector(self.operations.world.probe)
 
+        # The detach endpoint can accept the requested inventory ID while the
+        # resulting sector observation identifies a different container as
+        # the object anchored to that asteroid. Reconcile to the authoritative
+        # live anchored object before replaying deployment. This is deliberately
+        # limited to the deploy phase, the exact campaign asteroid, and a
+        # container that still has room for the campaign payload.
+        if phase == "deploy_container" and detached is None:
+            anchored = self._available_anchored_container(target_id)
+            if anchored is not None:
+                container_id = str(
+                    anchored.get("containerId") or anchored.get("id")
+                )
+                state["containerId"] = container_id
+                detached = anchored
+                attached = self._attached_container(container_id)
+                active_types = self._active_container_task_types(container_id)
+
         # A persisted campaign pointer can outlive the selected container when
         # the game removes, renumbers, or otherwise stops reporting that
         # object. Do not let that stale pointer strand other live empty
@@ -439,6 +456,15 @@ class MinerCampaignService:
                          str(item.get("containerId", "")),
                          str(item.get("sourceContainerId", "")),
                      }), None)
+
+    def _available_anchored_container(self, target_id):
+        candidates = (
+            item for item in self.operations.containers.detached()
+            if self._container_targets(item, target_id)
+            and not self._container_is_drifting(item)
+            and self.operations.containers.free_capacity(item) > 0.00001
+        )
+        return min(candidates, key=lambda item: str(item.get("id", "")), default=None)
 
     @staticmethod
     def _container_used(container):

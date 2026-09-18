@@ -76,6 +76,9 @@ remains the record for internal implementation work.
   exposes a prefixed detached-object ID or nests them under an asteroid, so
   mining begins instead of proposing duplicate deployment. Live-sector
   container markers now identify anchored versus freely drifting storage.
+- Miner campaigns now reconcile an accepted deployment when the game anchors a
+  different live container than the requested inventory ID, adopting that
+  exact-asteroid container and beginning mining rather than replaying detach.
 
 ### Internal release support
 

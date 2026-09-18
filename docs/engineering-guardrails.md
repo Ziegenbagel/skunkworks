@@ -1285,6 +1285,10 @@ campaign pointers without mistaking command-to-telemetry lag for disappearance.
 Detached sector-object wrapper IDs and nested asteroid storage entries must be
 normalized back to their original container inventory ID for campaign identity,
 while mine and recovery commands use the authoritative live sector-object ID.
+If an accepted deployment produces a different live container identity, the
+deploy phase may adopt an available non-drifting container anchored to the
+campaign's exact asteroid; it must not replay deployment while that suitable
+authoritative object exists.
 The live sector view labels each visible container as anchored to its target or
 drifting so the operator can verify the workflow state.
 Reserve-container crafting is supplemental work: it must not prevent an
@@ -1311,6 +1315,7 @@ Relevant tests:
 - `tests/test_miner_campaign.py::test_ordinary_miner_reselects_live_empty_container_after_saved_one_disappears`
 - `tests/test_miner_campaign.py::test_ordinary_miner_keeps_missing_container_pointer_while_task_is_active`
 - `tests/test_miner_campaign.py::test_deployed_container_wrapper_id_advances_campaign_and_routes_live_id`
+- `tests/test_miner_campaign.py::test_deploy_phase_adopts_different_live_container_anchored_by_game`
 - `tests/test_operations_logistics_depots.py::OperationsLogisticsDepotTests::test_detached_container_normalizes_wrapped_and_nested_inventory_ids`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_reserve_craft_retains_workflow_authorization`
 

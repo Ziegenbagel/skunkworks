@@ -27,6 +27,11 @@ def operations(*, idle=5, resources=None, fuel=20, maximum=100, capacity=4,
         containers=SimpleNamespace(
             attached=lambda: tuple(attached or ()),
             detached=lambda: tuple(detached or ()),
+            free_capacity=lambda item: float(
+                item.get("freeCapacity", item.get("capacity", 0)) or 0
+            ) - (0 if "freeCapacity" in item else float(
+                item.get("usedCapacity", item.get("used", 0)) or 0
+            )),
         ),
         mannies=SimpleNamespace(
             all=lambda: tuple(all_mannies),
@@ -184,6 +189,38 @@ def test_deployed_container_wrapper_id_advances_campaign_and_routes_live_id():
     assert all(task.action == "Mine Resource" for task in decision.tasks)
     assert all(task.metadata["targetContainerId"] == "detached-container-box-1"
                for task in decision.tasks)
+
+
+def test_deploy_phase_adopts_different_live_container_anchored_by_game():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    miner_operations = operations(
+        idle=4, resources=[target],
+        attached=[{"id": "requested-box", "kind": "container", "usedCapacity": 0}],
+        detached=[{
+            "id": "detached-container-actual-box", "containerId": "actual-box",
+            "type": "detached_container", "mode": "hidden_on_asteroid",
+            "targetObjectId": "asteroid-1", "capacity": 1,
+            "freeCapacity": 1, "usedCapacity": 0,
+        }],
+    )
+
+    decision = MinerCampaignService(miner_operations).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "requested-box", "phase": "deploy_container",
+        },
+    })
+
+    assert decision.phase == "mine_container"
+    assert len(decision.tasks) == 4
+    assert all(task.action == "Mine Resource" for task in decision.tasks)
+    assert all(
+        task.metadata["targetContainerId"] == "detached-container-actual-box"
+        for task in decision.tasks
+    )
+    assert decision.campaign_state["containerId"] == "actual-box"
 
 
 def test_full_ordinary_container_is_recovered_then_released_to_drift():
