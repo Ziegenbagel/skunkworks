@@ -55,6 +55,10 @@ remains the record for internal implementation work.
   floors instead of inheriting the hub's policy. Settings can explicitly copy
   saved targets, priorities, and floors to another probe without copying an
   active travel destination.
+- Added complete ordinary-resource Transport automation: recover matching
+  drifting containers one at a time, respect each probe's upgrade-aware safe
+  attachment limit, travel to the configured delivery sector, detach only the
+  current circuit's cargo, and repeat with visible durable progress.
 
 ### Internal release support
 

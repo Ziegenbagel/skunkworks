@@ -17,6 +17,8 @@ class CapabilityDispatcher:
             CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,
             CommandType.MANNY_REPAIR: self._manny_repair,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT: self._manny_inspect_sector_object,
+            CommandType.MANNY_RECOVER_STORAGE_CONTAINER: self._manny_recover_storage_container,
+            CommandType.MANNY_DETACH_STORAGE_CONTAINER: self._manny_detach_storage_container,
             CommandType.MOVE_PROBE: self._move_probe,
             CommandType.CANCEL_PROBE_MOVE: self._cancel_probe_move,
         }
@@ -85,6 +87,18 @@ class CapabilityDispatcher:
             command.target_id,
             "inspect-sector-object",
             command.payload,
+        )
+
+    def _manny_recover_storage_container(self, command):
+        return self.capabilities.mannies.start_task(
+            command.probe_id, command.target_id,
+            "recover-storage-container", command.payload,
+        )
+
+    def _manny_detach_storage_container(self, command):
+        return self.capabilities.mannies.start_task(
+            command.probe_id, command.target_id,
+            "detach-storage-container", command.payload,
         )
 
     def _move_probe(self, command):

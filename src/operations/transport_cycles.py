@@ -54,9 +54,12 @@ class RoundTripTransportPlan:
         for name, value in (("load_amount", self.load_amount), ("unload_amount", self.unload_amount)):
             if value is not None and not 0 <= value <= 800:
                 raise ValueError(f"{name} must be between 0 and 800 ECE.")
-        if self.load_source_mode not in {"probe", "mine_in_sector", "deuterium_station"}:
+        if self.load_source_mode not in {
+            "probe", "mine_in_sector", "deuterium_station", "drifting_containers",
+        }:
             raise ValueError(
-                "Load source mode must be probe, mine_in_sector, or deuterium_station."
+                "Load source mode must be probe, mine_in_sector, "
+                "deuterium_station, or drifting_containers."
             )
         if self.load_source_mode == "deuterium_station" and self.resource_type != "deuterium":
             raise ValueError("A deuterium station can only load deuterium tankers.")
@@ -104,6 +107,8 @@ class RoundTripTransportPlan:
 
     @property
     def loading_action(self):
+        if self.load_source_mode == "drifting_containers":
+            return "recover_drifting_containers"
         if self.load_source_mode == "deuterium_station":
             return "refill_at_deuterium_station"
         return (

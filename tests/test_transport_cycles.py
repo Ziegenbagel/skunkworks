@@ -198,6 +198,14 @@ class TransportCycleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only load deuterium"):
             replace(self.plan, load_source_mode="deuterium_station")
 
+    def test_drifting_container_mode_selects_recovery_action(self):
+        from dataclasses import replace
+
+        plan = replace(self.plan, load_source_mode="drifting_containers")
+
+        self.assertEqual(plan.loading_action, "recover_drifting_containers")
+        self.assertEqual(plan.to_dict()["loadSourceMode"], "drifting_containers")
+
     def test_unloading_waits_until_selected_remaining_percentage(self):
         service = RoundTripTransportService()
         waiting = service.assess(
@@ -498,6 +506,155 @@ class TransportCycleTests(unittest.TestCase):
                 item["metadata"].get("transportTransfer")
                 for item in runtime["queue"]
             ))
+
+    def test_container_transport_recovers_one_drifting_container_at_a_time(self):
+        from src.data import DataEngine
+        from src.planner.desired_state_store import DesiredStateStore
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "transport.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            operations = build_operations()
+            operations.world.probe.update({"id": 7, "model": "generic"})
+            operations.world.probe["inventory"]["containers"] = []
+            operations.world.sector = {"snapshot": {"sector": {"objects": [
+                {"id": "metal-box-2", "type": "drifting_container", "resources": {"metals": 1}},
+                {"id": "metal-box-1", "type": "drifting_container", "resources": {"metals": 1}},
+            ]}}}
+            service._selected_probe_id = 7
+            service._operations = operations
+            operation = service.save_transport_cycle({
+                "probeId": 7,
+                "resourceType": "metals",
+                "source": {"x": 0, "y": 0, "z": 0},
+                "destination": {"x": 2, "y": 0, "z": 0},
+                "returnPoint": {"x": 0, "y": 0, "z": 0},
+                "loadSourceMode": "drifting_containers",
+            })
+            service.start_transport_cycle(operation["id"])
+
+            desired = DesiredStateStore(engine).load(7)
+            _, tasks, _ = service._reconcile_transport_operation(
+                operations, 7, desired,
+            )
+
+            self.assertEqual(len(tasks), 1)
+            self.assertEqual(tasks[0].action, "Recover Transport Container")
+            self.assertEqual(tasks[0].target, "metal-box-1")
+            self.assertTrue(tasks[0].workflow_authorized)
+            from src.execution.translator import TaskCommandTranslator
+            command = TaskCommandTranslator(operations, 7).translate(tasks[0])
+            self.assertEqual(command.type.value, "manny_recover_storage_container")
+            self.assertEqual(command.payload, {
+                "objectId": "metal-box-1", "source": "drifting",
+            })
+
+            # A refresh can briefly retain the recovered object in the sector
+            # snapshot while already showing it attached. Never issue that
+            # same recovery again; advance to the next live drifting object.
+            operations.world.probe["inventory"]["containers"] = [
+                {"id": "metal-box-1", "kind": "container"},
+            ]
+            _, tasks, _ = service._reconcile_transport_operation(
+                operations, 7, desired,
+            )
+            self.assertEqual(tasks[0].target, "metal-box-2")
+
+    def test_container_transport_detaches_only_containers_loaded_this_circuit(self):
+        from dataclasses import replace
+        from src.data import DataEngine
+        from src.operations import OperationStore
+        from src.planner.desired_state_store import DesiredStateStore
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "transport.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            operations = build_operations()
+            operations.world.probe.update({"id": 7, "model": "generic"})
+            operations.world.probe["inventory"]["containers"] = [
+                {"id": "existing", "kind": "container"},
+                {"id": "delivered", "kind": "container"},
+            ]
+            service._selected_probe_id = 7
+            service._operations = operations
+            saved = service.save_transport_cycle({
+                "probeId": 7,
+                "resourceType": "metals",
+                "source": {"x": 2, "y": 0, "z": 0},
+                "destination": {"x": 0, "y": 0, "z": 0},
+                "returnPoint": {"x": 2, "y": 0, "z": 0},
+                "loadSourceMode": "drifting_containers",
+            })
+            operation = OperationStore(engine).get(saved["id"])
+            operation = replace(
+                operation.activate(),
+                metadata={
+                    **operation.metadata,
+                    "transportPhase": "unloading",
+                    "transportBaselineContainerIds": ["existing"],
+                },
+            )
+            OperationStore(engine).save(operation)
+
+            desired = DesiredStateStore(engine).load(7)
+            _, tasks, _ = service._reconcile_transport_operation(
+                operations, 7, desired,
+            )
+
+            self.assertEqual(len(tasks), 1)
+            self.assertEqual(tasks[0].action, "Detach Transport Container")
+            self.assertEqual(tasks[0].target, "delivered")
+            from src.execution.translator import TaskCommandTranslator
+            command = TaskCommandTranslator(operations, 7).translate(tasks[0])
+            self.assertEqual(command.type.value, "manny_detach_storage_container")
+            self.assertEqual(command.payload, {
+                "containerId": "delivered", "mode": "drifting",
+            })
+
+    def test_container_transport_stops_loading_at_upgrade_aware_safe_limit(self):
+        from src.data import DataEngine
+        from src.operations import OperationStore
+        from src.planner.desired_state_store import DesiredStateStore
+        from src.ui.controller import MissionControlDataService
+        from tests.test_planner_missions import build_operations
+
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "transport.sqlite3")
+            service = MissionControlDataService(client=object(), data_engine=engine)
+            operations = build_operations()
+            operations.world.probe.update({"id": 7, "model": "generic"})
+            operations.world.probe["inventory"]["containers"] = [
+                {"id": f"box-{index}", "kind": "container"}
+                for index in range(4)
+            ]
+            operations.world.sector = {"snapshot": {"sector": {"objects": [
+                {"id": "box-5", "type": "drifting_container", "resources": {"metals": 1}},
+            ]}}}
+            service._selected_probe_id = 7
+            service._operations = operations
+            saved = service.save_transport_cycle({
+                "probeId": 7,
+                "resourceType": "metals",
+                "source": {"x": 0, "y": 0, "z": 0},
+                "destination": {"x": 2, "y": 0, "z": 0},
+                "returnPoint": {"x": 0, "y": 0, "z": 0},
+                "loadSourceMode": "drifting_containers",
+            })
+            service.start_transport_cycle(saved["id"])
+
+            desired = DesiredStateStore(engine).load(7)
+            desired, tasks, _ = service._reconcile_transport_operation(
+                operations, 7, desired,
+            )
+
+            self.assertEqual(tasks, [])
+            self.assertEqual(desired.travel.target, SectorCoordinates(2, 0, 0))
+            operation = OperationStore(engine).get(saved["id"])
+            self.assertEqual(operation.metadata["transportSafeContainerLimit"], 4)
 
     def test_reserve_tanker_tops_up_live_hub_free_capacity(self):
         from src.data import DataEngine

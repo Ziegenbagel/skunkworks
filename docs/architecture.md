@@ -370,6 +370,15 @@ identifies finite or depleted sources, ranks known replacements, and emits
 future hub/miner/transport role requirements. It does not assign probes or move
 cargo. See `docs/logistics-and-safety.md`.
 
+Recurring Transport operations have two authoritative cargo paths. Deuterium
+routes refill or transfer the tanker fuel reservoir. Ordinary-resource routes
+recover live drifting storage containers at their source, one Manny order at a
+time, until the model- and upgrade-aware risk-free attachment limit is reached;
+they then travel, detach only the containers acquired during that circuit at
+the destination, and repeat after live confirmation. Typed recovery and
+detachment commands pass through the same refresh, preflight, idempotency, and
+all-Mannys-aboard execution boundary as other automatic orders.
+
 Current planning rules:
 
 - Safety

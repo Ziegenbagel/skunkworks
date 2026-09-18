@@ -1240,6 +1240,28 @@ Relevant test:
 
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_auto_travel_preflight_honors_repair_trigger_boundary`
 
+## Container Transport Workflow Invariants
+
+An ordinary-resource Transport route is a live container workflow, not a
+deuterium-tank percentage workflow. At the configured source it recovers at
+most one drifting container per accepted Manny order. It stops before the
+first container count that carries travel breakaway risk, using the focused
+probe model and installed reinforced-coupling improvement. The loading phase
+records the already-attached container IDs as its circuit baseline.
+
+At the destination the route detaches only containers added after that
+baseline, one accepted Manny order at a time. Existing probe containers are
+never treated as delivery cargo. Movement begins only after live telemetry
+confirms each recovery/detachment and the normal all-Mannys-aboard preflight
+continues to apply. Preflight rechecks the live object/container and expected
+sector so a stale refresh cannot recover or detach the wrong object.
+
+Relevant tests:
+
+- `tests/test_transport_cycles.py::TransportCycleTests::test_container_transport_recovers_one_drifting_container_at_a_time`
+- `tests/test_transport_cycles.py::TransportCycleTests::test_container_transport_detaches_only_containers_loaded_this_circuit`
+- `tests/test_transport_cycles.py::TransportCycleTests::test_container_transport_stops_loading_at_upgrade_aware_safe_limit`
+
 Before modifying a shared path:
 
 1. Identify every guardrail it touches.

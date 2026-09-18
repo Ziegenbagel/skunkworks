@@ -1521,6 +1521,7 @@ class MissionControlDataService:
             return desired, [], None
 
         cycle = operation.metadata.get("cycle") or {}
+        container_route = str(cycle.get("resourceType", "")) != "deuterium"
         source = SectorCoordinates.from_api(cycle["source"])
         destination = SectorCoordinates.from_api(cycle["destination"])
         return_point = SectorCoordinates.from_api(cycle["returnPoint"])
@@ -1547,6 +1548,75 @@ class MissionControlDataService:
             ) * operations.travel.fuel_cost()
         )
         phase = operation.metadata.get("transportPhase", "to_source")
+
+        def container_id(container):
+            value = container.get("id", container.get("containerId"))
+            return str(value) if value not in {None, ""} else None
+
+        def attached_container_ids():
+            return tuple(value for value in map(
+                container_id, operations.containers.attached(),
+            ) if value is not None)
+
+        def active_container_task():
+            return any(
+                "container" in task_type
+                and any(action in task_type for action in ("recover", "detach"))
+                for manny in operations.mannies.all()
+                if (task_type := str(
+                    operations.mannies._task_type(manny) or ""
+                ).lower().replace("-", "_").replace(" ", "_"))
+            )
+
+        def save_transport_metadata(**updates):
+            nonlocal operation
+            operation = replace(
+                operation, metadata={**operation.metadata, **updates},
+            )
+            store.save(operation)
+
+        def cargo_container_ids():
+            baseline = {
+                str(value) for value in operation.metadata.get(
+                    "transportBaselineContainerIds", (),
+                )
+            }
+            return tuple(
+                value for value in attached_container_ids()
+                if value not in baseline
+            )
+
+        def drifting_containers():
+            resource_type = str(cycle.get("resourceType", "")).casefold()
+            attached_ids = set(attached_container_ids())
+            candidates = []
+            for item in operations.containers.detached():
+                mode = str(item.get("mode") or item.get("state") or "drifting").casefold()
+                if mode not in {"", "drifting", "detached"}:
+                    continue
+                contents = item.get("contents") or item.get("resources") or {}
+                known_resources = set()
+                if isinstance(contents, dict):
+                    known_resources = {
+                        str(key).casefold() for key, amount in contents.items()
+                        if amount not in {None, 0, 0.0, "0"}
+                    }
+                elif isinstance(contents, (list, tuple)):
+                    known_resources = {
+                        str(entry.get("type") or entry.get("resourceType") or "").casefold()
+                        for entry in contents if isinstance(entry, dict)
+                    }
+                declared = item.get("resourceType") or item.get("resource")
+                if declared:
+                    known_resources.add(str(declared).casefold())
+                if known_resources and resource_type not in known_resources:
+                    continue
+                if (
+                    container_id(item) is not None
+                    and container_id(item) not in attached_ids
+                ):
+                    candidates.append(item)
+            return tuple(sorted(candidates, key=lambda item: container_id(item)))
 
         def travel_scope():
             circuit = int(operation.metadata.get("transportCircuit", 0) or 0)
@@ -1584,9 +1654,59 @@ class MissionControlDataService:
                     ))
                     return desired, [], travel_scope()
                 save_phase("loading")
+                if container_route:
+                    save_transport_metadata(
+                        transportBaselineContainerIds=list(attached_container_ids()),
+                    )
                 continue
 
             if phase == "loading":
+                if container_route:
+                    save_desired(replace(desired, travel=None))
+                    if "transportBaselineContainerIds" not in operation.metadata:
+                        save_transport_metadata(
+                            transportBaselineContainerIds=list(attached_container_ids()),
+                        )
+                    if active_container_task():
+                        return desired, [], None
+                    safe_limit = max(
+                        0, operations.travel_safety.container_break_threshold() - 1,
+                    )
+                    attached_count = len(attached_container_ids())
+                    cargo_ids = cargo_container_ids()
+                    available = drifting_containers()
+                    save_transport_metadata(
+                        transportSafeContainerLimit=safe_limit,
+                        transportAttachedContainerCount=attached_count,
+                        transportCargoContainerCount=len(cargo_ids),
+                    )
+                    if attached_count >= safe_limit or (cargo_ids and not available):
+                        save_phase("to_destination")
+                        continue
+                    if not available:
+                        return desired, [], None
+                    container = available[0]
+                    object_id = container_id(container)
+                    return desired, [Task(
+                        action="Recover Transport Container",
+                        reason=(
+                            f"Recover one drifting {cycle.get('resourceType', 'resource')} "
+                            f"container at the loading sector; {attached_count} of "
+                            f"{safe_limit} risk-free additional-container positions are occupied."
+                        ),
+                        category="transport",
+                        target=object_id,
+                        constraints=(),
+                        resource_type=cycle.get("resourceType"),
+                        workflow_authorized=True,
+                        priority=1,
+                        metadata={
+                            "transportContainerOperation": operation.id,
+                            "objectName": container.get("name") or object_id,
+                            "objectType": container.get("type") or "drifting_container",
+                            "expectedSector": cycle.get("source"),
+                        },
+                    )], None
                 if fuel_amount + 0.0001 < load_target:
                     if load_source_mode == "deuterium_station":
                         active_refill = any(
@@ -1641,6 +1761,37 @@ class MissionControlDataService:
 
             if phase == "unloading":
                 save_desired(replace(desired, travel=None))
+                if container_route:
+                    if active_container_task():
+                        return desired, [], None
+                    cargo_ids = cargo_container_ids()
+                    save_transport_metadata(
+                        transportAttachedContainerCount=len(attached_container_ids()),
+                        transportCargoContainerCount=len(cargo_ids),
+                    )
+                    if not cargo_ids:
+                        save_transport_metadata(transportBaselineContainerIds=[])
+                        save_phase("to_return")
+                        continue
+                    container_id_to_detach = cargo_ids[0]
+                    return desired, [Task(
+                        action="Detach Transport Container",
+                        reason=(
+                            f"Leave one delivered {cycle.get('resourceType', 'resource')} "
+                            "container drifting in the configured unloading sector."
+                        ),
+                        category="transport",
+                        target=container_id_to_detach,
+                        constraints=(),
+                        resource_type=cycle.get("resourceType"),
+                        workflow_authorized=True,
+                        priority=1,
+                        metadata={
+                            "transportContainerOperation": operation.id,
+                            "containerName": container_id_to_detach,
+                            "expectedSector": cycle.get("destination"),
+                        },
+                    )], None
                 # A deuterium transfer is a five-minute game task. Do not
                 # calculate another delivery from the same pre-transfer fuel
                 # snapshot while one is still active; wait for it to finish,
@@ -2489,7 +2640,8 @@ class MissionControlDataService:
         fuel_amount = float(fuel.get("deuterium", 0) or 0)
         fuel_maximum = float(fuel.get("maxDeuterium", 0) or 0)
         load_amount = cycle.get("loadAmount")
-        load_ready = (
+        container_route = str(cycle.get("resourceType", "")) != "deuterium"
+        load_ready = not container_route and (
             fuel_amount >= float(load_amount)
             if load_amount is not None
             else fuel_maximum > 0
@@ -2523,9 +2675,16 @@ class MissionControlDataService:
             ),
             operation.probe_id,
         )
+        metadata = {**operation.metadata, "transportPhase": phase}
+        if container_route and phase == "loading" and self._operations is not None:
+            metadata["transportBaselineContainerIds"] = [
+                str(container.get("id", container.get("containerId")))
+                for container in self._operations.containers.attached()
+                if container.get("id", container.get("containerId")) not in {None, ""}
+            ]
         operation = replace(
             operation.activate(),
-            metadata={**operation.metadata, "transportPhase": phase},
+            metadata=metadata,
         )
         store.save(operation)
         return operation.to_dict()

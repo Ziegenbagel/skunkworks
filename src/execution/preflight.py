@@ -32,6 +32,8 @@ class PreflightValidator:
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT,
+            CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
+            CommandType.MANNY_DETACH_STORAGE_CONTAINER,
             CommandType.MOVE_PROBE,
         } and probe["status"] not in {"idle", "arrived"}:
             blockers.append("probe_unavailable")
@@ -51,6 +53,8 @@ class PreflightValidator:
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT,
+            CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
+            CommandType.MANNY_DETACH_STORAGE_CONTAINER,
         }:
             manny = next(
                 (
@@ -83,6 +87,45 @@ class PreflightValidator:
             )
         ):
             blockers.append("transport_transfer_already_active")
+
+        if command.type == CommandType.MANNY_RECOVER_STORAGE_CONTAINER:
+            object_ids = {
+                str(item.get("id", item.get("containerId")))
+                for item in self.operations.containers.detached()
+            }
+            if str(command.payload.get("objectId")) not in object_ids:
+                blockers.append("transport_container_not_available")
+            if (
+                self.operations.travel_safety.additional_container_count()
+                >= max(
+                    0,
+                    self.operations.travel_safety.container_break_threshold() - 1,
+                )
+            ):
+                blockers.append("safe_container_limit_reached")
+
+        if command.type == CommandType.MANNY_DETACH_STORAGE_CONTAINER:
+            container_ids = {
+                str(item.get("id", item.get("containerId")))
+                for item in self.operations.containers.attached()
+            }
+            if str(command.payload.get("containerId")) not in container_ids:
+                blockers.append("transport_container_not_attached")
+
+        if command.type in {
+            CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
+            CommandType.MANNY_DETACH_STORAGE_CONTAINER,
+        }:
+            expected = command.metadata.get("expectedSector")
+            current = self.operations.travel.current_sector()
+            if isinstance(expected, dict):
+                from src.models.galaxy import SectorCoordinates
+                try:
+                    expected = SectorCoordinates.from_api(expected)
+                except (KeyError, TypeError, ValueError):
+                    expected = None
+            if expected is not None and current != expected:
+                blockers.append("transport_wrong_sector")
 
         return tuple(dict.fromkeys(blockers))
 

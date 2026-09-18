@@ -15,6 +15,8 @@ class CommandType(StrEnum):
     MANNY_ASSEMBLE_PROBE = "manny_assemble_probe"
     MANNY_REPAIR = "manny_repair"
     MANNY_INSPECT_SECTOR_OBJECT = "manny_inspect_sector_object"
+    MANNY_RECOVER_STORAGE_CONTAINER = "manny_recover_storage_container"
+    MANNY_DETACH_STORAGE_CONTAINER = "manny_detach_storage_container"
     MOVE_PROBE = "move_probe"
     CANCEL_PROBE_MOVE = "cancel_probe_move"
 
@@ -36,14 +38,19 @@ class Command:
     def fingerprint(self):
         identity_metadata = dict(self.metadata)
         target_id = self.target_id
-        if self.type == CommandType.MANNY_INSPECT_SECTOR_OBJECT:
+        if self.type in {
+            CommandType.MANNY_INSPECT_SECTOR_OBJECT,
+            CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
+            CommandType.MANNY_DETACH_STORAGE_CONTAINER,
+        }:
             # Inspection is a one-time mutation of the sector object, not of
             # the selected worker. A refresh may choose another idle Manny;
             # that must remain the same command identity so leases and the
             # completed-action journal prevent duplicate inspections.
             target_id = None
             for key in (
-                "mannyName", "objectName", "objectType", "workflowAuthorized",
+                "mannyName", "objectName", "objectType", "containerName",
+                "workflowAuthorized",
             ):
                 identity_metadata.pop(key, None)
         # Route-level consent changes execution authorization, not the game

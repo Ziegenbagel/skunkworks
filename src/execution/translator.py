@@ -25,11 +25,51 @@ class TaskCommandTranslator:
             "Assemble Probe": self._assemble_probe,
             "Repair Probe": self._repair,
             "Inspect Sector Object": self._inspect_sector_object,
+            "Recover Transport Container": self._recover_transport_container,
+            "Detach Transport Container": self._detach_transport_container,
             "Transfer Deuterium": self._transfer_deuterium,
             "Refill Deuterium Tank": self._refill_deuterium_tank,
         }.get(task.action)
 
         return handler(task) if handler is not None else None
+
+    def _recover_transport_container(self, task):
+        manny = self._claim_idle_manny()
+        if manny is None or not task.target:
+            return None
+        return Command(
+            type=CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
+            probe_id=self.probe_id,
+            target_id=manny["id"],
+            payload={"objectId": str(task.target), "source": "drifting"},
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+            metadata={
+                **task.metadata,
+                "workflowAuthorized": bool(task.workflow_authorized),
+                "mannyName": manny.get("name") or "Manny",
+            },
+        )
+
+    def _detach_transport_container(self, task):
+        manny = self._claim_idle_manny()
+        if manny is None or not task.target:
+            return None
+        return Command(
+            type=CommandType.MANNY_DETACH_STORAGE_CONTAINER,
+            probe_id=self.probe_id,
+            target_id=manny["id"],
+            payload={"containerId": str(task.target), "mode": "drifting"},
+            reason=task.reason,
+            priority=task.priority,
+            source_action=task.action,
+            metadata={
+                **task.metadata,
+                "workflowAuthorized": bool(task.workflow_authorized),
+                "mannyName": manny.get("name") or "Manny",
+            },
+        )
 
     def _inspect_sector_object(self, task):
         manny = self._claim_idle_manny()
