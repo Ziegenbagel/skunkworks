@@ -1198,6 +1198,12 @@ class MissionControlViewModelBuilder:
             nested_candidates = list(item.get("bookmarkTargets", ()) or ())
             nested_candidates.extend(item.get("minableTargets", ()) or ())
             nested_candidates.extend(item.get("objects", ()) or ())
+            for container in item.get("storageContainers", ()) or ():
+                nested_container = dict(container)
+                nested_container.setdefault("targetObjectId", item.get("id"))
+                nested_container.setdefault("targetObjectName", item.get("name"))
+                nested_container.setdefault("mode", "hidden_on_asteroid")
+                nested_candidates.append(nested_container)
             for child in nested_candidates:
                 child_id = str(child.get("id", ""))
                 if child_id and child_id in nested_ids:
@@ -1610,6 +1616,8 @@ class MissionControlViewModelBuilder:
             ),
             "mode": item.get("mode"),
             "status": item.get("status"),
+            "targetObjectId": str(item.get("targetObjectId") or ""),
+            "targetObjectName": item.get("targetObjectName") or "",
             "observedClass": item.get("observedClass"),
             "movement": item.get("movement") or {},
             "isTransitBeacon": bool(item.get("isTransitBeacon", False)),

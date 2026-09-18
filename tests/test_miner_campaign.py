@@ -160,6 +160,32 @@ def test_ordinary_resource_miner_sends_four_quarter_ece_orders_to_deployed_conta
                for task in decision.tasks)
 
 
+def test_deployed_container_wrapper_id_advances_campaign_and_routes_live_id():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    decision = MinerCampaignService(operations(
+        idle=4, resources=[target],
+        detached=[{
+            "id": "detached-container-box-1", "containerId": "box-1",
+            "type": "detached_container", "mode": "hidden_on_asteroid",
+            "targetObjectId": "asteroid-1", "capacity": 1,
+            "usedCapacity": 0,
+        }],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "box-1", "phase": "deploy_container",
+        },
+    })
+
+    assert decision.phase == "mine_container"
+    assert len(decision.tasks) == 4
+    assert all(task.action == "Mine Resource" for task in decision.tasks)
+    assert all(task.metadata["targetContainerId"] == "detached-container-box-1"
+               for task in decision.tasks)
+
+
 def test_full_ordinary_container_is_recovered_then_released_to_drift():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 9}
     settings = {

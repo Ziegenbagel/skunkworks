@@ -282,7 +282,10 @@ class MinerCampaignService:
                     )
             else:
                 used = self._container_used(detached)
-                active_count = self._active_mining_count(container_id)
+                live_container_id = str(detached.get("id") or container_id)
+                active_count = self._active_mining_count(
+                    container_id, live_container_id,
+                )
                 remaining = max(0.0, 1.0 - used - active_count * 0.25)
                 if used >= 0.999 and active_count == 0:
                     phase = "recover_container"
@@ -310,7 +313,7 @@ class MinerCampaignService:
                                 f"{resource.replace('_', ' ')}."),
                         metadata={
                             "minerCampaign": True,
-                            "targetContainerId": container_id,
+                            "targetContainerId": live_container_id,
                         },
                     ) for index in range(count))
                     return MinerCampaignDecision(
@@ -333,7 +336,8 @@ class MinerCampaignService:
                 return MinerCampaignDecision(
                     tasks=(Task(
                         action="Recover Miner Container", category="miner_logistics",
-                        target=container_id, priority=1, workflow_authorized=True,
+                        target=str(detached.get("id") or container_id),
+                        priority=1, workflow_authorized=True,
                         idempotency_scope=f"miner-container:{container_id}:recover",
                         reason=f"Recover full mining container {container_id} from its asteroid.",
                         metadata={
@@ -430,7 +434,11 @@ class MinerCampaignService:
 
     def _detached_container(self, container_id):
         return next((item for item in self.operations.containers.detached()
-                     if str(item.get("id", item.get("containerId"))) == container_id), None)
+                     if container_id in {
+                         str(item.get("id", "")),
+                         str(item.get("containerId", "")),
+                         str(item.get("sourceContainerId", "")),
+                     }), None)
 
     @staticmethod
     def _container_used(container):
@@ -483,12 +491,14 @@ class MinerCampaignService:
                 return True
         return False
 
-    def _active_mining_count(self, container_id):
+    def _active_mining_count(self, *container_ids):
+        expected = {str(value) for value in container_ids if value not in {None, ""}}
         count = 0
         for manny in self.operations.mannies.all():
             task = self._manny_task_payload(manny)
             task_type = str(self.operations.mannies._task_type(manny) or "").casefold()
-            if "min" in task_type and str(task.get("targetContainerId") or "") == container_id:
+            if ("min" in task_type
+                    and str(task.get("targetContainerId") or "") in expected):
                 count += 1
         return count
 

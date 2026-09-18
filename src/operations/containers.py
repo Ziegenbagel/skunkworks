@@ -28,10 +28,17 @@ class ContainerService:
     def detached(self):
         snapshot = self.world.sector.get("snapshot") or {}
         objects = (snapshot.get("sector") or {}).get("objects", ())
-        return tuple(
-            object_ for object_ in objects
-            if self._is_detached(object_)
-        )
+        detached = []
+        for object_ in objects:
+            if self._is_detached(object_):
+                detached.append(self._normalized_detached(object_))
+            for container in object_.get("storageContainers", ()) or ():
+                nested = dict(container)
+                nested.setdefault("targetObjectId", object_.get("id"))
+                nested.setdefault("targetObjectName", object_.get("name"))
+                nested.setdefault("mode", "hidden_on_asteroid")
+                detached.append(self._normalized_detached(nested))
+        return tuple(detached)
 
     def all(self):
         return self.attached() + self.detached()
@@ -56,3 +63,20 @@ class ContainerService:
             or "container" in type_
             and object_.get("detached", True)
         )
+
+    @staticmethod
+    def _normalized_detached(object_):
+        """Retain the sector-object ID while exposing its attached-item ID."""
+        normalized = dict(object_)
+        identifier = str(normalized.get("id", ""))
+        source_id = (
+            normalized.get("containerId")
+            or normalized.get("sourceContainerId")
+        )
+        if not source_id and identifier.startswith("detached-container-"):
+            source_id = identifier[len("detached-container-"):]
+        if not source_id:
+            source_id = identifier
+        if source_id:
+            normalized["containerId"] = str(source_id)
+        return normalized

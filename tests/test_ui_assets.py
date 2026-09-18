@@ -644,6 +644,8 @@ def test_sector_view_uses_one_orbit_per_planet_and_readable_markers():
     assert "SCUT RELAY · TRANSIT BEACON" in sector
     assert "irregularAngles" in sector
     assert "freeTargetIndex % 2" in sector
+    assert "· ANCHORED TO " in sector
+    assert "· DRIFTING" in sector
 
 
 def test_app_uses_a_dedicated_live_data_loading_screen():

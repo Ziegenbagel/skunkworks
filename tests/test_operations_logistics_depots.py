@@ -185,6 +185,28 @@ class OperationsLogisticsDepotTests(unittest.TestCase):
         self.assertEqual(depot.storage_fill_percent, 90)
         self.assertTrue(depot.needs_transport)
 
+    def test_detached_container_normalizes_wrapped_and_nested_inventory_ids(self):
+        operations = build_operations()
+        operations.world.sector["snapshot"] = {"sector": {"objects": [
+            {
+                "id": "detached-container-box-1", "type": "detached_container",
+                "mode": "drifting",
+            },
+            {
+                "id": "asteroid-1", "type": "asteroid", "name": "Metal 44e7",
+                "storageContainers": [{"id": "box-2", "type": "storage_container"}],
+            },
+        ]}}
+
+        drifting, anchored = operations.containers.detached()
+
+        self.assertEqual(drifting["id"], "detached-container-box-1")
+        self.assertEqual(drifting["containerId"], "box-1")
+        self.assertEqual(anchored["containerId"], "box-2")
+        self.assertEqual(anchored["targetObjectId"], "asteroid-1")
+        self.assertEqual(anchored["targetObjectName"], "Metal 44e7")
+        self.assertEqual(anchored["mode"], "hidden_on_asteroid")
+
 
 if __name__ == "__main__":
     unittest.main()

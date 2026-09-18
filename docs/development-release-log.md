@@ -72,6 +72,10 @@ remains the record for internal implementation work.
   container unless an active Manny task still references the prior one, and
   their role status continues to show the actual container-workflow phase when
   reserve crafting is queued or blocked.
+- Deployed Miner containers now retain their campaign identity when the game
+  exposes a prefixed detached-object ID or nests them under an asteroid, so
+  mining begins instead of proposing duplicate deployment. Live-sector
+  container markers now identify anchored versus freely drifting storage.
 
 ### Internal release support
 

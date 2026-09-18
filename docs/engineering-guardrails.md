@@ -1282,6 +1282,11 @@ If the persisted container is absent from both attached and detached live
 inventory, the campaign may select a new empty container only when no active
 Manny task still references the saved container. This repairs genuinely stale
 campaign pointers without mistaking command-to-telemetry lag for disappearance.
+Detached sector-object wrapper IDs and nested asteroid storage entries must be
+normalized back to their original container inventory ID for campaign identity,
+while mine and recovery commands use the authoritative live sector-object ID.
+The live sector view labels each visible container as anchored to its target or
+drifting so the operator can verify the workflow state.
 Reserve-container crafting is supplemental work: it must not prevent an
 available campaign container from being deployed, and the visible role phase
 and summary must continue to describe the primary container workflow rather
@@ -1305,6 +1310,8 @@ Relevant tests:
 - `tests/test_miner_campaign.py::test_active_container_crafting_counts_toward_miner_reserve`
 - `tests/test_miner_campaign.py::test_ordinary_miner_reselects_live_empty_container_after_saved_one_disappears`
 - `tests/test_miner_campaign.py::test_ordinary_miner_keeps_missing_container_pointer_while_task_is_active`
+- `tests/test_miner_campaign.py::test_deployed_container_wrapper_id_advances_campaign_and_routes_live_id`
+- `tests/test_operations_logistics_depots.py::OperationsLogisticsDepotTests::test_detached_container_normalizes_wrapped_and_nested_inventory_ids`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_reserve_craft_retains_workflow_authorization`
 
 Before modifying a shared path:

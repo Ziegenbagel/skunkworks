@@ -384,7 +384,14 @@ Rectangle {
                 horizontalAlignment: onLeft ? Text.AlignRight : Text.AlignLeft
                 text: {
                     const name = freeMarker.modelData.name || String(freeMarker.modelData.type).toUpperCase();
-                    if (String(freeMarker.modelData.type) !== "others_ship")
+                    const type = String(freeMarker.modelData.type).toLowerCase();
+                    if (type.indexOf("container") >= 0) {
+                        const mode = String(freeMarker.modelData.mode || "").toLowerCase();
+                        if (mode === "hidden_on_asteroid" || freeMarker.modelData.targetObjectId)
+                            return name + " · ANCHORED TO " + String(freeMarker.modelData.targetObjectName || freeMarker.modelData.targetObjectId || "ASTEROID");
+                        return name + " · DRIFTING";
+                    }
+                    if (type !== "others_ship")
                         return name;
                     const state = String(freeMarker.modelData.status || "detected").split("_").join(" ").toUpperCase();
                     const direction = freeMarker.modelData.movement && freeMarker.modelData.movement.direction
