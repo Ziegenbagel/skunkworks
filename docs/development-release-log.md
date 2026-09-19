@@ -98,6 +98,10 @@ remains the record for internal implementation work.
 - Scoped the risk-free attached-container recovery limit to travel-heavy
   workflows that explicitly opt in. Transport loading remains protected while
   stationary Miners can recover their asteroid containers and continue cycling.
+- Reused Miner containers now receive a persisted cycle-specific command
+  identity, preventing valid redeployment from being cancelled as an already
+  completed action. Historical accepted fills also reset when a container is
+  redeployed, allowing each fresh cycle to mine normally.
 
 ### Internal release support
 

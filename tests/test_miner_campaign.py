@@ -75,6 +75,62 @@ def test_ordinary_resource_miner_deploys_empty_container_before_mining():
     assert decision.campaign_state["phase"] == "deploy_container"
 
 
+def test_reused_container_gets_new_cycle_scoped_command_identity():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    decision = MinerCampaignService(operations(
+        idle=4, resources=[target],
+        attached=[{"id": "box-1", "kind": "container", "usedCapacity": 0}],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"],
+    }, container_mutation_counts={"box-1": 3})
+
+    assert decision.tasks[0].action == "Deploy Miner Container"
+    assert decision.campaign_state["cycle"] == 3
+    assert "miner-container:box-1:cycle:3:deploy:asteroid-1" == (
+        decision.tasks[0].idempotency_scope
+    )
+
+
+def test_campaign_action_evidence_resets_fills_after_redeployment():
+    rows = [
+        {
+            "status": "succeeded", "command_type": "manny_mine",
+            "command_json": json.dumps({"payload": {
+                "targetContainerId": "detached-container-box-1",
+                "targetAmount": 0.25,
+            }}),
+        },
+        {
+            "status": "succeeded",
+            "command_type": "manny_detach_storage_container",
+            "command_json": json.dumps({"payload": {
+                "containerId": "box-1", "mode": "hidden_on_asteroid",
+                "objectId": "asteroid-1",
+            }}),
+        },
+        {
+            "status": "succeeded", "command_type": "manny_mine",
+            "command_json": json.dumps({"payload": {
+                "targetContainerId": "detached-container-box-1",
+                "targetAmount": 0.25,
+            }}),
+        },
+    ]
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service.data_engine = SimpleNamespace(
+        successful_container_campaign_actions=lambda _probe_id: rows,
+    )
+
+    evidence = service._miner_campaign_action_evidence(7)
+
+    assert evidence["fills"] == {
+        "box-1": 0.0,
+        "detached-container-box-1": 0.25,
+    }
+    assert evidence["mutations"] == {"box-1": 1}
+
+
 def test_ordinary_miner_reselects_live_empty_container_after_saved_one_disappears():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
     miner_operations = operations(
@@ -106,7 +162,7 @@ def test_ordinary_miner_reselects_live_empty_container_after_saved_one_disappear
     assert decision.tasks[0].target == "live-box-0"
     assert decision.campaign_state == {
         "resourceType": "metals", "asteroidId": "asteroid-1",
-        "containerId": "live-box-0", "phase": "deploy_container",
+        "containerId": "live-box-0", "phase": "deploy_container", "cycle": 0,
     }
     assert "Deploying an empty container" in decision.summary
     assert "reserve replenishment" in decision.summary

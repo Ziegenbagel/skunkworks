@@ -27,7 +27,7 @@ class MinerCampaignService:
         self.operations = operations
 
     def decide(self, settings, *, target_probe=None, maximum_mining_order_amount=0.55,
-               accepted_container_fills=None):
+               accepted_container_fills=None, container_mutation_counts=None):
         if not settings.get("miningEnabled", False):
             return MinerCampaignDecision()
         mode = str(settings.get("resourceMode") or "deuterium")
@@ -57,6 +57,7 @@ class MinerCampaignService:
             ordinary = self._ordinary_container_campaign(
                 settings, ordinary_managed, ordinary_worker_limit,
                 accepted_container_fills=accepted_container_fills,
+                container_mutation_counts=container_mutation_counts,
             )
             reserve_task = self._empty_container_reserve_task(settings)
             # In combined mode the container workflow and deuterium mining may
@@ -174,8 +175,10 @@ class MinerCampaignService:
 
     def _ordinary_container_campaign(
         self, settings, resources, worker_limit, *, accepted_container_fills=None,
+        container_mutation_counts=None,
     ):
         accepted_container_fills = accepted_container_fills or {}
+        container_mutation_counts = container_mutation_counts or {}
         saved = settings.get("ordinaryContainerCampaign") or {}
         if isinstance(saved, dict) and isinstance(saved.get("campaigns"), list):
             states = [dict(item) for item in saved["campaigns"] if isinstance(item, dict)]
@@ -208,6 +211,7 @@ class MinerCampaignService:
                     0, len(self.operations.mining.idle_mannies()) - allocated_idle,
                 ),
                 accepted_container_fills=accepted_container_fills,
+                container_mutation_counts=container_mutation_counts,
             )
             decisions.append(decision)
             allocated_idle += len(decision.tasks)
@@ -252,6 +256,7 @@ class MinerCampaignService:
     def _ordinary_single_container_campaign(
         self, state, resources, worker_limit, *, excluded_container_ids=(),
         available_idle_count=None, accepted_container_fills=None,
+        container_mutation_counts=None,
     ):
         state = dict(state or {})
         resource = str(state.get("resourceType") or "")
@@ -284,7 +289,13 @@ class MinerCampaignService:
                 "asteroidId": target_id,
                 "containerId": container_id,
                 "phase": phase,
+                "cycle": int((container_mutation_counts or {}).get(container_id, 0)),
             }
+
+        state.setdefault(
+            "cycle", int((container_mutation_counts or {}).get(container_id, 0)),
+        )
+        cycle = int(state.get("cycle", 0) or 0)
 
         attached = self._attached_container(container_id)
         detached = self._detached_container(container_id)
@@ -341,7 +352,9 @@ class MinerCampaignService:
                 "asteroidId": target_id,
                 "containerId": container_id,
                 "phase": phase,
+                "cycle": int((container_mutation_counts or {}).get(container_id, 0)),
             }
+            cycle = int(state["cycle"])
             attached = container
             detached = None
             active_types = set()
@@ -359,7 +372,8 @@ class MinerCampaignService:
                     tasks=(Task(
                         action="Deploy Miner Container", category="miner_logistics",
                         target=container_id, priority=1, workflow_authorized=True,
-                        idempotency_scope=f"miner-container:{container_id}:deploy:{target_id}",
+                        idempotency_scope=(f"miner-container:{container_id}:cycle:{cycle}:"
+                                           f"deploy:{target_id}"),
                         reason=(f"Deploy empty container {container_id} to asteroid "
                                 f"{target_id} before assigning miners."),
                         metadata={
@@ -435,7 +449,7 @@ class MinerCampaignService:
                         action="Mine Resource", category="mining", target=target_id,
                         quantity=0.25, maximum_order_amount=0.25,
                         resource_type=resource, priority=1, workflow_authorized=True,
-                        idempotency_scope=(f"miner-container:{container_id}:fill:"
+                        idempotency_scope=(f"miner-container:{container_id}:cycle:{cycle}:fill:"
                                            f"{active_count + index}:{used:g}"),
                         reason=(f"Fill container {container_id} with 0.25 ECE of "
                                 f"{resource.replace('_', ' ')}."),
@@ -467,7 +481,8 @@ class MinerCampaignService:
                         action="Recover Miner Container", category="miner_logistics",
                         target=str(detached.get("id") or container_id),
                         priority=1, workflow_authorized=True,
-                        idempotency_scope=f"miner-container:{container_id}:recover",
+                        idempotency_scope=(f"miner-container:{container_id}:cycle:"
+                                           f"{cycle}:recover"),
                         reason=f"Recover full mining container {container_id} from its asteroid.",
                         metadata={
                             "minerCampaign": True, "source": "asteroid",
@@ -496,7 +511,8 @@ class MinerCampaignService:
                     tasks=(Task(
                         action="Release Miner Container", category="miner_logistics",
                         target=container_id, priority=1, workflow_authorized=True,
-                        idempotency_scope=f"miner-container:{container_id}:release",
+                        idempotency_scope=(f"miner-container:{container_id}:cycle:"
+                                           f"{cycle}:release"),
                         reason=f"Detach full container {container_id} to drift for Transport pickup.",
                         metadata={
                             "minerCampaign": True, "mode": "drifting",

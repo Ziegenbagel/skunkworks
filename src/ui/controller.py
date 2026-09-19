@@ -1073,10 +1073,12 @@ class MissionControlDataService:
                 # Retain the fleet observation for an explainable wait state
                 # when the targeted live read is temporarily unavailable.
                 pass
+        campaign_evidence = self._miner_campaign_action_evidence(probe_id)
         decision = MinerCampaignService(operations).decide(
             settings, target_probe=target_probe,
             maximum_mining_order_amount=desired.maximum_mining_order_amount,
-            accepted_container_fills=self._accepted_miner_container_fills(probe_id),
+            accepted_container_fills=campaign_evidence["fills"],
+            container_mutation_counts=campaign_evidence["mutations"],
         )
         campaign_before = settings.get("ordinaryContainerCampaign") or {}
         campaign_after = decision.campaign_state
@@ -1097,34 +1099,55 @@ class MissionControlDataService:
             "travelLocked": travel_locked,
         }
 
-    def _accepted_miner_container_fills(self, probe_id):
-        """Sum accepted mining output by explicit campaign container."""
-        loader = getattr(self.data_engine, "recent_successful_actions", None)
+    def _miner_campaign_action_evidence(self, probe_id):
+        """Reconstruct current-cycle fills and mutation generations."""
+        loader = getattr(
+            self.data_engine, "successful_container_campaign_actions", None,
+        )
         history = getattr(self.data_engine, "action_history", None)
         if loader is not None:
             rows = loader(probe_id)
         elif history is not None:
-            rows = history(probe_id)
+            rows = [row for row in history(probe_id) if row["status"] == "succeeded"]
         else:
-            return {}
+            return {"fills": {}, "mutations": {}}
         fills = {}
+        mutations = {}
         for row in rows:
-            if row["command_type"] != CommandType.MANNY_MINE.value:
-                continue
-            if loader is None and row["status"] != "succeeded":
-                continue
             try:
                 command = json.loads(row["command_json"] or "{}")
             except (TypeError, ValueError, json.JSONDecodeError):
                 continue
             payload = command.get("payload") or {}
-            container_id = payload.get("targetContainerId")
+            command_type = row["command_type"]
+            container_id = (
+                payload.get("targetContainerId")
+                if command_type == CommandType.MANNY_MINE.value
+                else payload.get("containerId") or payload.get("objectId")
+            )
             if container_id in {None, ""}:
                 continue
-            amount = float(payload.get("targetAmount", 0) or 0)
             key = str(container_id)
-            fills[key] = fills.get(key, 0.0) + amount
-        return fills
+            if command_type == CommandType.MANNY_MINE.value:
+                fills[key] = fills.get(key, 0.0) + float(
+                    payload.get("targetAmount", 0) or 0,
+                )
+            elif command_type in {
+                CommandType.MANNY_DETACH_STORAGE_CONTAINER.value,
+                CommandType.MANNY_RECOVER_STORAGE_CONTAINER.value,
+            }:
+                mutations[key] = mutations.get(key, 0) + 1
+                if (
+                    command_type == CommandType.MANNY_DETACH_STORAGE_CONTAINER.value
+                    and payload.get("mode") == "hidden_on_asteroid"
+                    and payload.get("objectId") not in {None, ""}
+                ):
+                    # A successful deployment starts a fresh fill cycle for a
+                    # reused container. Historical accepted mining must not
+                    # make the newly empty container appear full.
+                    fills[key] = 0.0
+                    fills[f"detached-container-{key}"] = 0.0
+        return {"fills": fills, "mutations": mutations}
 
     def _reconcile_explorer_campaign(self, operations, probe_id, desired):
         """Project an enabled Explorer role into safe travel and Manny tasks."""

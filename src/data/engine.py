@@ -606,6 +606,23 @@ class DataEngine:
             (int(probe_id), max(1, int(limit))),
         )
 
+    def successful_container_campaign_actions(self, probe_id):
+        """Return durable Miner container evidence in causal order."""
+
+        return self._rows(
+            """
+            SELECT * FROM action_journal
+            WHERE probe_id = ? AND status = 'succeeded'
+              AND command_type IN (
+                  'manny_mine',
+                  'manny_detach_storage_container',
+                  'manny_recover_storage_container'
+              )
+            ORDER BY id
+            """,
+            (int(probe_id),),
+        )
+
     def compact_history(self, retain_high_resolution_days=7, *, vacuum=False):
         """Downsample old telemetry while preserving every current state.
 
