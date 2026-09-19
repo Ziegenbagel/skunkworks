@@ -1762,6 +1762,7 @@ class MissionControlDataService:
                         priority=1,
                         metadata={
                             "transportContainerOperation": operation.id,
+                            "enforceSafeContainerLimit": True,
                             "objectName": container.get("name") or object_id,
                             "objectType": container.get("type") or "drifting_container",
                             "expectedSector": cycle.get("source"),

@@ -1324,6 +1324,11 @@ work even while a campaign is deploying or recovering. Only the incomplete
 remainder may fall back to ordinary target operations, with fabrication ordered
 before mining. Remainder mining must explicitly target probe storage and must
 not be auto-routed into a campaign container.
+The risk-free attached-container threshold is an opt-in travel-workflow rule,
+not a universal recovery limit. Transport loading and future Explorer or
+Frontier-SCUT recovery workflows must mark recovery commands for enforcement;
+stationary Miner recovery and unrelated roles must not be blocked merely for
+reaching that travel threshold.
 
 Relevant tests:
 
@@ -1335,6 +1340,7 @@ Relevant tests:
 - `tests/test_miner_campaign.py::test_ten_mannies_run_two_parallel_container_campaigns`
 - `tests/test_miner_campaign.py::test_parallel_campaigns_reserve_only_complete_groups`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_remainder_mining_bypasses_campaign_container`
+- `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_safe_container_limit_only_blocks_opted_in_recovery_workflows`
 - `tests/test_ui_preparation.py::MissionControlPreparationTests::test_production_includes_active_manny_crafting_and_mining`
 - `tests/test_miner_campaign.py::test_full_ordinary_container_is_recovered_then_released_to_drift`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_deployment_and_recovery_use_exact_game_payloads`

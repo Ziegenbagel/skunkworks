@@ -96,6 +96,8 @@ class PreflightValidator:
             if str(command.payload.get("objectId")) not in object_ids:
                 blockers.append("transport_container_not_available")
             if (
+                command.metadata.get("enforceSafeContainerLimit")
+                and
                 self.operations.travel_safety.additional_container_count()
                 >= max(
                     0,

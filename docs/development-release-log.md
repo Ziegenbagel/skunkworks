@@ -95,6 +95,9 @@ remains the record for internal implementation work.
   mining orders when the game omits detached-container contents and capacity.
   Full containers are recovered after four quarter-ECE fills instead of being
   treated as empty and receiving duplicate mining orders indefinitely.
+- Scoped the risk-free attached-container recovery limit to travel-heavy
+  workflows that explicitly opt in. Transport loading remains protected while
+  stationary Miners can recover their asteroid containers and continue cycling.
 
 ### Internal release support
 

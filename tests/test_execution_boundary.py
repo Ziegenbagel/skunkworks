@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from src.data import DataEngine
 from src.execution import (
@@ -452,6 +453,36 @@ class ExecutionBoundaryTests(unittest.TestCase):
         self.assertEqual(recover.payload, {
             "objectId": "box-1", "source": "asteroid",
         })
+
+    def test_safe_container_limit_only_blocks_opted_in_recovery_workflows(self):
+        self.operations.world.sector["snapshot"] = {"sector": {"objects": [{
+            "id": "full-box", "type": "detached_container",
+            "mode": "hidden_on_asteroid",
+        }]}}
+        self.operations.travel_safety = SimpleNamespace(
+            additional_container_count=lambda: 4,
+            container_break_threshold=lambda: 5,
+        )
+        manny_id = self.operations.world.mannies["mannies"][0]["id"]
+
+        def recovery(metadata):
+            return Command(
+                type=CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
+                probe_id=1, target_id=manny_id,
+                payload={"objectId": "full-box", "source": "asteroid"},
+                reason="Recover container", priority=1,
+                source_action="Recover Miner Container", metadata=metadata,
+            )
+
+        miner_blockers = PreflightValidator(self.operations, 1).blockers(
+            recovery({"minerCampaign": True}),
+        )
+        transport_blockers = PreflightValidator(self.operations, 1).blockers(
+            recovery({"enforceSafeContainerLimit": True}),
+        )
+
+        self.assertNotIn("safe_container_limit_reached", miner_blockers)
+        self.assertIn("safe_container_limit_reached", transport_blockers)
 
     def test_miner_container_reserve_craft_retains_workflow_authorization(self):
         from src.planner.task import Task
