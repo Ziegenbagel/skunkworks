@@ -26,7 +26,8 @@ class MinerCampaignService:
     def __init__(self, operations):
         self.operations = operations
 
-    def decide(self, settings, *, target_probe=None, maximum_mining_order_amount=0.55):
+    def decide(self, settings, *, target_probe=None, maximum_mining_order_amount=0.55,
+               accepted_container_fills=None):
         if not settings.get("miningEnabled", False):
             return MinerCampaignDecision()
         mode = str(settings.get("resourceMode") or "deuterium")
@@ -55,6 +56,7 @@ class MinerCampaignService:
         if ordinary_managed:
             ordinary = self._ordinary_container_campaign(
                 settings, ordinary_managed, ordinary_worker_limit,
+                accepted_container_fills=accepted_container_fills,
             )
             reserve_task = self._empty_container_reserve_task(settings)
             # In combined mode the container workflow and deuterium mining may
@@ -170,7 +172,10 @@ class MinerCampaignService:
             managed_resources=managed,
         )
 
-    def _ordinary_container_campaign(self, settings, resources, worker_limit):
+    def _ordinary_container_campaign(
+        self, settings, resources, worker_limit, *, accepted_container_fills=None,
+    ):
+        accepted_container_fills = accepted_container_fills or {}
         saved = settings.get("ordinaryContainerCampaign") or {}
         if isinstance(saved, dict) and isinstance(saved.get("campaigns"), list):
             states = [dict(item) for item in saved["campaigns"] if isinstance(item, dict)]
@@ -202,6 +207,7 @@ class MinerCampaignService:
                 available_idle_count=max(
                     0, len(self.operations.mining.idle_mannies()) - allocated_idle,
                 ),
+                accepted_container_fills=accepted_container_fills,
             )
             decisions.append(decision)
             allocated_idle += len(decision.tasks)
@@ -245,7 +251,7 @@ class MinerCampaignService:
 
     def _ordinary_single_container_campaign(
         self, state, resources, worker_limit, *, excluded_container_ids=(),
-        available_idle_count=None,
+        available_idle_count=None, accepted_container_fills=None,
     ):
         state = dict(state or {})
         resource = str(state.get("resourceType") or "")
@@ -386,8 +392,22 @@ class MinerCampaignService:
                 active_count = self._active_mining_count(
                     container_id, live_container_id,
                 )
-                remaining = max(0.0, 1.0 - used - active_count * 0.25)
-                if used >= 0.999 and active_count == 0:
+                accepted_amount = max(
+                    float((accepted_container_fills or {}).get(container_id, 0) or 0),
+                    float((accepted_container_fills or {}).get(live_container_id, 0) or 0),
+                )
+                # Detached asteroid objects currently omit contents and
+                # usedCapacity. Accepted target-container orders are therefore
+                # the durable lower bound on committed fill. Without journal
+                # evidence, retain the active-order estimate used by pure
+                # domain tests and compatibility callers.
+                committed = max(
+                    used,
+                    accepted_amount,
+                    used + active_count * 0.25 if not accepted_container_fills else 0,
+                )
+                remaining = max(0.0, 1.0 - committed)
+                if committed >= 0.999 and active_count == 0:
                     phase = "recover_container"
                     state["phase"] = phase
                 else:

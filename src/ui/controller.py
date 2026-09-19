@@ -1076,6 +1076,7 @@ class MissionControlDataService:
         decision = MinerCampaignService(operations).decide(
             settings, target_probe=target_probe,
             maximum_mining_order_amount=desired.maximum_mining_order_amount,
+            accepted_container_fills=self._accepted_miner_container_fills(probe_id),
         )
         campaign_before = settings.get("ordinaryContainerCampaign") or {}
         campaign_after = decision.campaign_state
@@ -1095,6 +1096,35 @@ class MissionControlDataService:
             "reserveOrdinaryMannies": decision.reserve_ordinary_mannies,
             "travelLocked": travel_locked,
         }
+
+    def _accepted_miner_container_fills(self, probe_id):
+        """Sum accepted mining output by explicit campaign container."""
+        loader = getattr(self.data_engine, "recent_successful_actions", None)
+        history = getattr(self.data_engine, "action_history", None)
+        if loader is not None:
+            rows = loader(probe_id)
+        elif history is not None:
+            rows = history(probe_id)
+        else:
+            return {}
+        fills = {}
+        for row in rows:
+            if row["command_type"] != CommandType.MANNY_MINE.value:
+                continue
+            if loader is None and row["status"] != "succeeded":
+                continue
+            try:
+                command = json.loads(row["command_json"] or "{}")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            payload = command.get("payload") or {}
+            container_id = payload.get("targetContainerId")
+            if container_id in {None, ""}:
+                continue
+            amount = float(payload.get("targetAmount", 0) or 0)
+            key = str(container_id)
+            fills[key] = fills.get(key, 0.0) + amount
+        return fills
 
     def _reconcile_explorer_campaign(self, operations, probe_id, desired):
         """Project an enabled Explorer role into safe travel and Manny tasks."""

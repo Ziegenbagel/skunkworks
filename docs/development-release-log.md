@@ -91,6 +91,10 @@ remains the record for internal implementation work.
   they craft when inputs allow, then may fill outstanding resource needs into
   probe storage. Campaign-group workers remain reserved through deployment and
   recovery, preventing fallback work from starving the container workflow.
+- Miner container completion now accounts for accepted container-targeted
+  mining orders when the game omits detached-container contents and capacity.
+  Full containers are recovered after four quarter-ECE fills instead of being
+  treated as empty and receiving duplicate mining orders indefinitely.
 
 ### Internal release support
 

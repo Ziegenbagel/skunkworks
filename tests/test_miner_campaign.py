@@ -229,6 +229,56 @@ def test_active_container_miner_does_not_block_remaining_worker_slots():
     assert "1 already active" in decision.summary
 
 
+def test_accepted_quarter_fills_recover_container_without_capacity_telemetry():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    live_id = "detached-container-box-1"
+    decision = MinerCampaignService(operations(
+        idle=4, resources=[target],
+        detached=[{
+            "id": live_id, "containerId": "box-1",
+            "type": "detached_container", "mode": "hidden_on_asteroid",
+            "targetObjectId": "asteroid-1", "capacity": 1,
+        }],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "box-1", "phase": "mine_container",
+        },
+    }, accepted_container_fills={live_id: 1.0})
+
+    assert decision.phase == "recover_container"
+    assert len(decision.tasks) == 1
+    assert decision.tasks[0].action == "Recover Miner Container"
+    assert decision.tasks[0].target == live_id
+
+
+def test_accepted_partial_fills_only_schedule_uncovered_slots():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
+    live_id = "detached-container-box-1"
+    decision = MinerCampaignService(operations(
+        idle=4, resources=[target],
+        detached=[{
+            "id": live_id, "containerId": "box-1",
+            "type": "detached_container", "mode": "hidden_on_asteroid",
+            "targetObjectId": "asteroid-1", "capacity": 1,
+        }],
+    )).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "box-1", "phase": "mine_container",
+        },
+    }, accepted_container_fills={live_id: 0.5})
+
+    assert decision.phase == "mine_container"
+    assert len(decision.tasks) == 2
+    assert all(task.metadata["targetContainerId"] == live_id
+               for task in decision.tasks)
+
+
 def test_ten_mannies_run_two_parallel_container_campaigns():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
     decision = MinerCampaignService(operations(
