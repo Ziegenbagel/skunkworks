@@ -102,6 +102,11 @@ remains the record for internal implementation work.
   identity, preventing valid redeployment from being cancelled as an already
   completed action. Historical accepted fills also reset when a container is
   redeployed, allowing each fresh cycle to mine normally.
+- Preserved planner idempotency scopes through every task-to-command translation,
+  allowing Miner redeployment cycles to produce genuinely distinct journal
+  identities. Live-sector Manny logistics such as container deployment,
+  recovery, and salvage now collapse matching concurrent work into one counted
+  icon instead of overlapping one marker per target.
 
 ### Internal release support
 

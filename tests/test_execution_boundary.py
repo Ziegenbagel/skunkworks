@@ -454,6 +454,27 @@ class ExecutionBoundaryTests(unittest.TestCase):
             "objectId": "box-1", "source": "asteroid",
         })
 
+    def test_task_idempotency_scope_reaches_non_travel_command_identity(self):
+        from src.planner.task import Task
+        first = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Deploy Miner Container", reason="First cycle",
+            target="box-1", priority=1, workflow_authorized=True,
+            idempotency_scope="miner-container:box-1:cycle:1:deploy:asteroid-1",
+            metadata={"mode": "hidden_on_asteroid", "objectId": "asteroid-1"},
+        ))
+        second = TaskCommandTranslator(self.operations, 1).translate(Task(
+            action="Deploy Miner Container", reason="Second cycle",
+            target="box-1", priority=1, workflow_authorized=True,
+            idempotency_scope="miner-container:box-1:cycle:2:deploy:asteroid-1",
+            metadata={"mode": "hidden_on_asteroid", "objectId": "asteroid-1"},
+        ))
+
+        self.assertEqual(
+            first.metadata["idempotencyScope"],
+            "miner-container:box-1:cycle:1:deploy:asteroid-1",
+        )
+        self.assertNotEqual(first.fingerprint, second.fingerprint)
+
     def test_safe_container_limit_only_blocks_opted_in_recovery_workflows(self):
         self.operations.world.sector["snapshot"] = {"sector": {"objects": [{
             "id": "full-box", "type": "detached_container",

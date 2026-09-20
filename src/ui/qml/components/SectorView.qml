@@ -128,11 +128,23 @@ Rectangle {
     function buildMannyClusters(mannies) {
         const groups = {};
         const order = [];
+        const operationCounts = {};
+        for (let i = 0; i < mannies.length; ++i) {
+            const operation = String(mannies[i].task || "active").toLowerCase().replace(/-/g, "_");
+            operationCounts[operation] = Number(operationCounts[operation] || 0) + 1;
+        }
         for (let i = 0; i < mannies.length; ++i) {
             const manny = mannies[i];
-            const targetId = manny.targetObjectId ? String(manny.targetObjectId) : "focused-probe";
-            const task = String(manny.task || "active").split("_").join(" ").toUpperCase();
-            const key = targetId;
+            const operation = String(manny.task || "active").toLowerCase().replace(/-/g, "_");
+            const task = operation.split("_").join(" ").toUpperCase();
+            const groupOperation = operationCounts[operation] > 1 && (
+                operation.indexOf("detach") >= 0 || operation.indexOf("recover") >= 0
+                || operation.indexOf("salvag") >= 0 || operation.indexOf("deploy") >= 0
+                || operation.indexOf("pick_up") >= 0 || operation.indexOf("pickup") >= 0
+            );
+            const liveTargetId = manny.targetObjectId ? String(manny.targetObjectId) : "focused-probe";
+            const targetId = groupOperation ? "focused-probe" : liveTargetId;
+            const key = groupOperation ? "operation:" + operation : targetId;
             if (!groups[key]) {
                 groups[key] = { "targetObjectId": targetId, "task": task, "count": 0 };
                 order.push(key);

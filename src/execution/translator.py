@@ -1,6 +1,7 @@
 """Translate actionable planner tasks into typed commands."""
 
 import math
+from dataclasses import replace
 
 from .commands import Command, CommandType
 
@@ -34,7 +35,13 @@ class TaskCommandTranslator:
             "Refill Deuterium Tank": self._refill_deuterium_tank,
         }.get(task.action)
 
-        return handler(task) if handler is not None else None
+        command = handler(task) if handler is not None else None
+        if command is not None and task.idempotency_scope:
+            command = replace(command, metadata={
+                **command.metadata,
+                "idempotencyScope": task.idempotency_scope,
+            })
+        return command
 
     def _recover_transport_container(self, task):
         manny = self._claim_idle_manny(
@@ -405,8 +412,6 @@ class TaskCommandTranslator:
                 for hazard in task.hazards
             ],
         }
-        if task.idempotency_scope:
-            metadata["idempotencyScope"] = task.idempotency_scope
         return Command(
             type=CommandType.MOVE_PROBE,
             probe_id=self.probe_id,

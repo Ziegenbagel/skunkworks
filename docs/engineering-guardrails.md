@@ -268,6 +268,11 @@ In a sector containing an assigned Miner, more than five detached or drifting
 containers render as one Storage Station marker in the live sector view. This
 is presentation-only aggregation: the underlying container records and resource
 ledger remain individually addressable and authoritative.
+Concurrent Manny logistics with the same operation—such as deploying,
+recovering, picking up, or salvaging multiple objects—render as one live-sector
+Manny icon with an explicit count. Distinct target IDs must not create a pile of
+overlapping icons for one operational cohort; the underlying Manny tasks remain
+individually visible in Production.
 Unconfigured ordinary-resource selections default to none, never all. A full
 Deuterium tank is a logistics wait rather than a missing-resource condition;
 the Miner status must identify whether it needs a receiver selection, a
@@ -287,6 +292,8 @@ Relevant code/tests:
 - `src/operations/miner_campaign.py`
 - `src/ui/controller.py::_reconcile_miner_campaign`
 - `tests/test_miner_campaign.py`
+- `src/ui/qml/components/SectorView.qml`
+- `tests/test_ui_assets.py::test_sector_view_uses_one_orbit_per_planet_and_readable_markers`
 
 ### Probe repair is a single-Manny task
 
@@ -1284,7 +1291,9 @@ that was deployed, filled, recovered, and released may be selected again; its
 next deploy, fill, recover, and release commands must not collide with the
 successful journal entries from the prior cycle. Accepted fill evidence resets
 at each successful asteroid deployment so old payloads cannot make a freshly
-reused container appear full.
+reused container appear full. Planner task idempotency scopes must survive the
+shared task-to-command translation boundary for every command type, not only
+travel; otherwise a correct cycle scope cannot affect durable journal identity.
 
 The campaign waits for live completion of those orders. A confirmed full
 container is recovered from the asteroid, then detached in drifting mode for
@@ -1352,6 +1361,7 @@ Relevant tests:
 - `tests/test_ui_preparation.py::MissionControlPreparationTests::test_production_includes_active_manny_crafting_and_mining`
 - `tests/test_miner_campaign.py::test_full_ordinary_container_is_recovered_then_released_to_drift`
 - `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_container_deployment_and_recovery_use_exact_game_payloads`
+- `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_task_idempotency_scope_reaches_non_travel_command_identity`
 - `tests/test_miner_campaign.py::test_ordinary_miner_crafts_its_configured_empty_container_reserve`
 - `tests/test_miner_campaign.py::test_active_container_crafting_counts_toward_miner_reserve`
 - `tests/test_miner_campaign.py::test_ordinary_miner_reselects_live_empty_container_after_saved_one_disappears`
