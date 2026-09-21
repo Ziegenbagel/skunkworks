@@ -689,6 +689,21 @@ Relevant code/tests:
 - `tests/test_operating_profile.py`
 - `tests/test_ui_assets.py`
 
+### Probe-settings copies name both ends and confirm the overwrite
+
+Copying automation targets and resource floors is directional: the focused
+probe is the source and the separately selected probe is the destination. The
+interface must label both roles, state that the destination will be
+overwritten, and show a confirmation containing both probe names before the
+copy is submitted. Completion feedback must repeat the accepted source →
+destination direction. Active travel goals remain probe-specific and are not
+copied.
+
+Relevant tests:
+
+- `tests/test_ui_preparation.py::MissionControlControllerTests::test_copy_targets_and_floors_is_explicit_and_excludes_travel`
+- `tests/test_ui_assets.py::test_settings_copy_names_source_destination_and_requires_confirmation`
+
 ### Desktop notifications are advisory and restart-safe
 
 Desktop notifications are opt-in. Refreshes and restarts must not replay the

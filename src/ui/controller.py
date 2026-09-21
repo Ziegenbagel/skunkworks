@@ -5235,6 +5235,14 @@ class MissionControlController(QObject):
         if owned_probe_ids and target_probe_id not in owned_probe_ids:
             self._set_error("The destination must be an owned probe.")
             return
+        probe_names = {
+            _coerce_integral_id(item.get("id")): str(
+                item.get("name") or f"PROBE {item.get('id')}"
+            )
+            for item in self._available_probes if item.get("id") is not None
+        }
+        source_name = probe_names.get(source_probe_id, f"PROBE {source_probe_id}")
+        target_name = probe_names.get(target_probe_id, f"PROBE {target_probe_id}")
 
         def copy_settings():
             data_engine = (
@@ -5250,8 +5258,8 @@ class MissionControlController(QObject):
 
         self._run_background_call(
             "copy-automation-settings", copy_settings,
-            lambda probe_id: self._set_operation_notice(
-                f"TARGETS AND FLOORS COPIED TO PROBE {probe_id}"
+            lambda _probe_id: self._set_operation_notice(
+                f"TARGETS AND FLOORS COPIED · {source_name} → {target_name}"
             ),
             pending_message="COPYING TARGETS AND FLOORS",
         )

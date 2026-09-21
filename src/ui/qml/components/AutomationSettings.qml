@@ -19,6 +19,7 @@ Item {
     property var operatingProfile: ({"name": "normal"})
     property var notificationPolicy: ({"enabled": false, "categories": [], "minimumSeverity": "warning"})
     property var notificationDelivery: ({"available": false, "supportsMessages": false, "detail": "CHECKING DESKTOP NOTIFICATION SUPPORT"})
+    property int pendingCopyTargetProbeId: -1
     readonly property string activeOperatingProfileName: String(operatingProfile.name || "normal")
     readonly property string effectiveOperatingProfileName: String(operatingProfile.effective_name || activeOperatingProfileName)
     readonly property int savedOperatingProfileIdleMinutes: Number(operatingProfile.idle_minutes || 10)
@@ -692,16 +693,25 @@ Item {
             }
 
             GroupBox {
-                title: "SHARE TARGETS AND FLOORS"; Layout.fillWidth: true
+                title: "COPY TARGETS AND FLOORS TO ANOTHER PROBE"; Layout.fillWidth: true
                 ColumnLayout {
                     anchors.fill: parent; spacing: 8
                     Label {
                         Layout.fillWidth: true
-                        text: "NEWLY ASSEMBLED PROBES START WITH ZERO AUTOMATION TARGETS AND RESOURCE FLOORS. COPY THE FOCUSED PROBE'S SAVED TARGETS, PRIORITIES, AND FLOORS ONLY WHEN YOU WANT THE SAME POLICY. ACTIVE TRAVEL DESTINATIONS ARE NEVER COPIED."
+                        text: "COPY DIRECTION · FOCUSED PROBE → SELECTED DESTINATION. THE SELECTED DESTINATION'S SAVED TARGETS, PRIORITIES, RESERVES, AND RESOURCE FLOORS WILL BE OVERWRITTEN. ACTIVE TRAVEL DESTINATIONS ARE NEVER COPIED."
                         color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "SOURCE · " + root.probeName(root.focusedProbeId).toUpperCase() + " (FOCUSED PROBE; SETTINGS ARE READ FROM HERE)"
+                        color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true; wrapMode: Text.Wrap
                     }
                     RowLayout {
                         Layout.fillWidth: true; spacing: 10
+                        Label {
+                            text: "DESTINATION · WILL BE OVERWRITTEN"
+                            color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true
+                        }
                         ComboBox {
                             id: copyTargetProbe
                             Layout.preferredWidth: 360
@@ -710,9 +720,12 @@ Item {
                             valueRole: "id"
                         }
                         Button {
-                            text: "COPY TARGETS AND FLOORS"
+                            text: "REVIEW FOCUSED → SELECTED COPY"
                             enabled: copyTargetProbe.count > 0 && copyTargetProbe.currentIndex >= 0
-                            onClicked: root.targetsAndFloorsCopyRequested(Number(copyTargetProbe.currentValue))
+                            onClicked: {
+                                root.pendingCopyTargetProbeId = Number(copyTargetProbe.currentValue);
+                                copyTargetsConfirmation.open();
+                            }
                         }
                     }
                 }
@@ -985,6 +998,29 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    Dialog {
+        id: copyTargetsConfirmation
+        anchors.centerIn: parent
+        modal: true
+        title: "CONFIRM SETTINGS COPY DIRECTION"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: {
+            root.targetsAndFloorsCopyRequested(root.pendingCopyTargetProbeId);
+            root.pendingCopyTargetProbeId = -1;
+        }
+        onRejected: root.pendingCopyTargetProbeId = -1
+        Label {
+            width: 620
+            text: "SOURCE · " + root.probeName(root.focusedProbeId).toUpperCase()
+                + "\n→ DESTINATION · " + root.probeName(root.pendingCopyTargetProbeId).toUpperCase()
+                + "\n\nThis overwrites the destination probe's saved targets, priorities, reserves, and resource floors. The source probe is not changed."
+            color: Constants.warningColor
+            font.family: Constants.technicalFont
+            font.bold: true
+            wrapMode: Text.Wrap
         }
     }
 

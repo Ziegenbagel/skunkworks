@@ -2218,6 +2218,10 @@ class UiPreparationTests(unittest.TestCase):
             service = type("Service", (), {"data_engine": engine})()
             controller = MissionControlController(service, thread_pool=ImmediatePool())
             controller._focused_probe_id = 1
+            controller._available_probes = [
+                {"id": 1, "name": "Established Explorer"},
+                {"id": 2, "name": "New Explorer"},
+            ]
             source = DesiredState(
                 fuel=FuelGoal(42),
                 travel=TravelGoal(SectorCoordinates(2, 2, 0)),
@@ -2229,6 +2233,14 @@ class UiPreparationTests(unittest.TestCase):
             copied = DesiredStateStore(engine).load(2)
             self.assertEqual(copied.fuel.minimum_percent, 42)
             self.assertIsNone(copied.travel)
+            self.assertEqual(
+                DesiredStateStore(engine).load(1).fuel.minimum_percent,
+                42,
+            )
+            self.assertEqual(
+                controller.operationNotice,
+                "TARGETS AND FLOORS COPIED · Established Explorer → New Explorer",
+            )
 
     def test_new_safety_and_resource_settings_return_before_sqlite_runs(self):
         with tempfile.TemporaryDirectory() as temporary:

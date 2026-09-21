@@ -178,6 +178,18 @@ def test_navigation_audio_is_preloaded_without_reassigning_the_same_source():
     assert "effectPlayer.position = 0" in audio
 
 
+def test_settings_copy_names_source_destination_and_requires_confirmation():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert "COPY DIRECTION · FOCUSED PROBE → SELECTED DESTINATION" in settings
+    assert "DESTINATION · WILL BE OVERWRITTEN" in settings
+    assert "REVIEW FOCUSED → SELECTED COPY" in settings
+    assert 'title: "CONFIRM SETTINGS COPY DIRECTION"' in settings
+    assert "The source probe is not changed." in settings
+
+
 def test_operating_profile_controls_follow_audio_and_precede_automation():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 

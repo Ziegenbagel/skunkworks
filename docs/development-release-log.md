@@ -112,6 +112,9 @@ remains the record for internal implementation work.
   from being evaluated with the unreinforced container-detachment threshold.
   Container-risk prompts now also report the observed attached-container count,
   the first risky count, and the risk-free maximum.
+- Probe target/floor copying now labels the focused probe as the source and the
+  selected probe as the overwritten destination, requires a named directional
+  confirmation, and repeats that source → destination direction on completion.
 
 ### Internal release support
 
