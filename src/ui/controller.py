@@ -5506,6 +5506,20 @@ class MissionControlController(QObject):
             if row is None:
                 raise ValueError("Assign this probe a role before saving role settings.")
             saved = dict(payload)
+            if row["role"] == "miner":
+                resource_mode = str(saved.get("resourceMode") or "deuterium")
+                if resource_mode not in {"deuterium", "resources"}:
+                    raise ValueError(
+                        "Miner settings must choose either Deuterium Mining "
+                        "or Other-Resource Mining."
+                    )
+                if (
+                    resource_mode == "resources"
+                    and not tuple(saved.get("ordinaryResources") or ())
+                ):
+                    raise ValueError(
+                        "Other-Resource Mining requires at least one selected resource."
+                    )
             try:
                 existing = json.loads(row.get("metadata_json") or "{}")
             except (TypeError, ValueError, json.JSONDecodeError):

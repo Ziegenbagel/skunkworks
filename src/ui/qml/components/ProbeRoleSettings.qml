@@ -154,7 +154,7 @@ Item {
                     Layout.fillWidth: true
                     ColumnLayout {
                         anchors.fill: parent; spacing: 14
-                        Label { Layout.fillWidth: true; text: "The Miner remains stationary. Every idle Manny mines Deuterium until the tank is full; at full capacity exactly one stays aboard for transfer while the others mine and may wait with fuel. Ordinary-resource work runs one container campaign per complete Manny group; leftover Mannys remain available for crafting and logistics. Emergency missile escape remains available."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                        Label { Layout.fillWidth: true; text: "Choose one exclusive Miner workflow. Deuterium Mining fills the probe tank and supports same-sector fuel transfer. Other-Resource Mining runs container campaigns for the selected ordinary resources. Emergency missile escape remains available in either mode."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Rectangle {
                             Layout.fillWidth: true; implicitHeight: minerStatus.implicitHeight + 24
                             color: Constants.raisedColor; border.color: Constants.lineColor; radius: 3
@@ -162,39 +162,56 @@ Item {
                         }
                         CheckBox { id: minerEnabled; text: "ENABLE AUTONOMOUS MINING"; checked: Boolean(root.focusedSettings.miningEnabled) }
                         RowLayout {
-                            Label { text: "RESOURCE MODE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
-                            ComboBox { id: minerMode; Layout.preferredWidth: 330; model: ["DEUTERIUM ONLY", "OTHER RESOURCES", "ALL RESOURCES"]; currentIndex: String(root.focusedSettings.resourceMode || "deuterium") === "resources" ? 1 : String(root.focusedSettings.resourceMode || "deuterium") === "all" ? 2 : 0 }
+                            Label { text: "MINER WORKFLOW"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                            ComboBox { id: minerMode; Layout.preferredWidth: 390; model: ["DEUTERIUM MINING", "OTHER-RESOURCE MINING"]; currentIndex: String(root.focusedSettings.resourceMode || "deuterium") === "deuterium" ? 0 : 1 }
                         }
-                        RowLayout {
-                            Label { text: "DEUTERIUM RECEIVER"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
-                            ComboBox { id: minerTransport; Layout.preferredWidth: 420; textRole: "name"; valueRole: "id"; model: root.minerReceiverProbes; currentIndex: root.minerTransportIndex() }
+                        GroupBox {
+                            visible: minerMode.currentIndex === 0
+                            title: "DEUTERIUM MINING SETTINGS"
+                            Layout.fillWidth: true
+                            ColumnLayout {
+                                anchors.fill: parent; spacing: 10
+                                RowLayout {
+                                    Label { text: "DEUTERIUM RECEIVER"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                                    ComboBox { id: minerTransport; Layout.preferredWidth: 420; textRole: "name"; valueRole: "id"; model: root.minerReceiverProbes; currentIndex: root.minerTransportIndex() }
+                                }
+                                Label { Layout.fillWidth: true; text: "Every available idle Manny mines Deuterium until the tank is full. Select any other available probe as the optional receiver; it must rendezvous in this sector and have free fuel capacity. At full capacity one Manny stays aboard for transfer while the others may continue mining and wait with fuel."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                            }
                         }
-                        Label { Layout.fillWidth: true; text: "Select any other available probe as the receiver. It must rendezvous in this sector and have free fuel capacity before transfer. A full Miner keeps 1 ECE, transfers available fuel, then resumes mining when capacity opens."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
-                        Label { text: "OTHER RESOURCE SELECTION"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
-                        RowLayout {
-                            CheckBox { id: mineMetals; text: "METALS"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("metals") >= 0) }
-                            CheckBox { id: mineIce; text: "ICE"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("ice") >= 0) }
-                            CheckBox { id: mineCarbon; text: "CARBON COMPOUNDS"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("carbon_compounds") >= 0) }
+                        GroupBox {
+                            visible: minerMode.currentIndex === 1
+                            title: "OTHER-RESOURCE CONTAINER MINING SETTINGS"
+                            Layout.fillWidth: true
+                            ColumnLayout {
+                                anchors.fill: parent; spacing: 10
+                                Label { text: "SELECT ONE OR MORE RESOURCES"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                                RowLayout {
+                                    CheckBox { id: mineMetals; text: "METALS"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("metals") >= 0) }
+                                    CheckBox { id: mineIce; text: "ICE"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("ice") >= 0) }
+                                    CheckBox { id: mineCarbon; text: "CARBON COMPOUNDS"; checked: Boolean(root.focusedSettings.ordinaryResources && root.focusedSettings.ordinaryResources.indexOf("carbon_compounds") >= 0) }
+                                }
+                                Label { visible: !mineMetals.checked && !mineIce.checked && !mineCarbon.checked; text: "SELECT AT LEAST ONE ORDINARY RESOURCE BEFORE SAVING."; color: Constants.criticalColor; font.family: Constants.technicalFont; font.bold: true }
+                                RowLayout {
+                                    Label { text: "MANNYS PER MINING CONTAINER"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                                    SpinBox { id: miningMannies; from: 1; to: 4; value: Number(root.focusedSettings.maximumMiningMannies || 4) }
+                                }
+                                RowLayout {
+                                    Label { text: "MINIMUM EMPTY CONTAINER RESERVE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                                    SpinBox { id: minimumEmptyContainers; from: 1; to: 20; value: Number(root.focusedSettings.minimumEmptyContainers || 2) }
+                                    Label { text: "CRAFTED AUTOMATICALLY · ASSEMBLY RESERVATIONS REMAIN PROTECTED"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                                }
+                                Label { Layout.fillWidth: true; text: "Selected resources use parallel durable container cycles: deploy, fill with the configured Manny group, recover, and release for Transport pickup. Ten Mannys at four per container run two campaigns and leave two available for crafting or logistics."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                            }
                         }
-                        RowLayout {
-                            Label { text: "MANNYS PER MINING CONTAINER"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
-                            SpinBox { id: miningMannies; from: 1; to: 4; value: Number(root.focusedSettings.maximumMiningMannies || 4) }
-                            Label { text: "DEUTERIUM AUTOMATICALLY USES THE AVAILABLE CREW"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
-                        }
-                        RowLayout {
-                            Label { text: "MINIMUM EMPTY CONTAINER RESERVE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
-                            SpinBox { id: minimumEmptyContainers; from: 1; to: 20; value: Number(root.focusedSettings.minimumEmptyContainers || 2) }
-                            Label { text: "CRAFTED AUTOMATICALLY · ASSEMBLY RESERVATIONS REMAIN PROTECTED"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
-                        }
-                        Label { Layout.fillWidth: true; text: "Deuterium fills the probe tank. Ordinary resources use parallel durable container cycles: deploy, fill with the configured Manny group, recover, and release for Transport pickup. Ten Mannys at four per container run two campaigns and leave two available for crafting or logistics. The Miner automatically replenishes its configured empty-container reserve."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                         Button {
                             text: "SAVE MINER ROLE SETTINGS"
+                            enabled: minerMode.currentIndex === 0 || mineMetals.checked || mineIce.checked || mineCarbon.checked
                             onClicked: {
                                 let resources = [];
                                 if (mineMetals.checked) resources.push("metals");
                                 if (mineIce.checked) resources.push("ice");
                                 if (mineCarbon.checked) resources.push("carbon_compounds");
-                                root.roleSettingsSaveRequested(root.focusedProbeId, {"miningEnabled": Boolean(minerEnabled.checked), "resourceMode": minerMode.currentIndex === 1 ? "resources" : minerMode.currentIndex === 2 ? "all" : "deuterium", "ordinaryResources": resources, "maximumMiningMannies": Number(miningMannies.value), "minimumEmptyContainers": Number(minimumEmptyContainers.value), "deuteriumTransportProbeId": minerTransport.currentIndex >= 0 ? Number(minerTransport.currentValue) : -1});
+                                root.roleSettingsSaveRequested(root.focusedProbeId, {"miningEnabled": Boolean(minerEnabled.checked), "resourceMode": minerMode.currentIndex === 1 ? "resources" : "deuterium", "ordinaryResources": resources, "maximumMiningMannies": Number(miningMannies.value), "minimumEmptyContainers": Number(minimumEmptyContainers.value), "deuteriumTransportProbeId": minerTransport.currentIndex >= 0 ? Number(minerTransport.currentValue) : -1});
                             }
                         }
                     }

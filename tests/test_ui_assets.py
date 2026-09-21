@@ -218,6 +218,20 @@ def test_resource_reserve_controls_use_tenth_ece_steps():
     assert '"metals": Number((metalsReserve.value / 10).toFixed(1))' in settings
 
 
+def test_miner_role_separates_deuterium_and_ordinary_resource_workflows():
+    settings = Path("src/ui/qml/components/ProbeRoleSettings.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert 'model: ["DEUTERIUM MINING", "OTHER-RESOURCE MINING"]' in settings
+    assert 'title: "DEUTERIUM MINING SETTINGS"' in settings
+    assert 'title: "OTHER-RESOURCE CONTAINER MINING SETTINGS"' in settings
+    assert settings.count("visible: minerMode.currentIndex ===") == 2
+    assert "SELECT AT LEAST ONE ORDINARY RESOURCE BEFORE SAVING" in settings
+    assert '"resourceMode": minerMode.currentIndex === 1 ? "resources" : "deuterium"' in settings
+    assert '"ALL RESOURCES"' not in settings
+
+
 def test_operating_profile_controls_follow_audio_and_precede_automation():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 

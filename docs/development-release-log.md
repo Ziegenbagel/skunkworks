@@ -120,6 +120,10 @@ remains the record for internal implementation work.
   risk-free additional count, first risky count, and total risk-free storage.
 - Resource reserve targets now accept, display, persist, and plan in 0.1 ECE
   increments instead of forcing whole-number quantities.
+- Miner role settings now present mutually exclusive Deuterium Mining and
+  Other-Resource Mining workflows. Each mode shows only its relevant controls;
+  combined mode is no longer accepted, and ordinary mining requires at least
+  one selected resource.
 
 ### Internal release support
 

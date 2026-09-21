@@ -689,6 +689,23 @@ Relevant code/tests:
 - `tests/test_operating_profile.py`
 - `tests/test_ui_assets.py`
 
+### Miner role configuration selects one exclusive workflow
+
+New Miner settings choose either Deuterium Mining or Other-Resource Mining,
+never a combined mode. The interface shows only the controls relevant to the
+selected workflow: receiver and fuel-transfer guidance for Deuterium, or
+resource selection and container-campaign controls for ordinary resources.
+Other-Resource Mining requires at least one selected resource. The controller
+rejects combined or empty ordinary-resource configurations even if submitted
+outside the QML form. The planner may continue reading historical `all` mode
+records long enough for users to open and replace them with an explicit mode.
+
+Relevant tests:
+
+- `tests/test_ui_assets.py::test_miner_role_separates_deuterium_and_ordinary_resource_workflows`
+- `tests/test_ui_preparation.py::MissionControlControllerTests::test_controller_persists_only_exclusive_miner_workflow_settings`
+- `tests/test_ui_preparation.py::MissionControlControllerTests::test_controller_rejects_combined_miner_workflow_settings`
+
 ### Resource reserve targets retain tenth-ECE precision
 
 The four resource reserve controls accept and display 0.1 ECE increments,

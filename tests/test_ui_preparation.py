@@ -2130,6 +2130,43 @@ class UiPreparationTests(unittest.TestCase):
                 75,
             )
 
+    def test_controller_persists_only_exclusive_miner_workflow_settings(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            FleetRoleService(engine).assign("probe", 7, "miner")
+            service = type("Service", (), {"data_engine": engine})()
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
+            controller._dashboard = {"automation": {"probeRoleSettings": {}}}
+
+            controller.saveProbeRoleSettings(7, {
+                "miningEnabled": True,
+                "resourceMode": "resources",
+                "ordinaryResources": ["metals", "ice"],
+            })
+
+            saved = json.loads(engine.fleet_roles("probe")[0]["metadata_json"])
+            self.assertEqual(saved["resourceMode"], "resources")
+            self.assertEqual(saved["ordinaryResources"], ["metals", "ice"])
+
+    def test_controller_rejects_combined_miner_workflow_settings(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            FleetRoleService(engine).assign("probe", 7, "miner")
+            service = type("Service", (), {"data_engine": engine})()
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
+            controller._dashboard = {"automation": {"probeRoleSettings": {}}}
+
+            controller.saveProbeRoleSettings(7, {
+                "miningEnabled": True,
+                "resourceMode": "all",
+                "ordinaryResources": ["metals"],
+            })
+
+            self.assertIn("either Deuterium Mining", controller.error)
+            self.assertEqual(json.loads(
+                engine.fleet_roles("probe")[0]["metadata_json"]
+            ), {})
+
     def test_controller_rejects_probe_role_change_from_secondary_probe(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")
