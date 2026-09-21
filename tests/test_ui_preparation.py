@@ -2200,7 +2200,15 @@ class UiPreparationTests(unittest.TestCase):
             controller._focused_probe_id = 1
             controller._dashboard = {"automation": {}}
 
-            controller.saveAutomationSettings({"minimumFuelPercent": 42})
+            controller.saveAutomationSettings({
+                "minimumFuelPercent": 42,
+                "resourceReserves": {
+                    "deuterium": 0.1,
+                    "metals": 1.5,
+                    "ice": 0.5,
+                    "carbon_compounds": 0.9,
+                },
+            })
 
             self.assertEqual(
                 DesiredStateStore(engine).load(1).fuel.minimum_percent, 20,
@@ -2211,6 +2219,16 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(
                 DesiredStateStore(engine).load(1).fuel.minimum_percent, 42,
             )
+            saved_reserves = {
+                goal.resource_type: goal.minimum_amount
+                for goal in DesiredStateStore(engine).load(1).resources
+            }
+            self.assertEqual(saved_reserves, {
+                "deuterium": 0.1,
+                "metals": 1.5,
+                "ice": 0.5,
+                "carbon_compounds": 0.9,
+            })
 
     def test_copy_targets_and_floors_is_explicit_and_excludes_travel(self):
         with tempfile.TemporaryDirectory() as temporary:

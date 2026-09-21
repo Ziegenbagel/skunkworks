@@ -70,6 +70,13 @@ Item {
         return 5;
     }
     function reserve(resource) { return Number((settingsData.resourceReserves || {})[resource] || 0); }
+    function reserveSteps(resource) { return Math.round(root.reserve(resource) * 10); }
+    function tenthText(value) { return (Number(value) / 10).toFixed(1) + " ECE"; }
+    function tenthValue(text, currentValue) {
+        const amount = Number(String(text).replace(/[^0-9.]/g, ""));
+        if (!isFinite(amount)) return currentValue;
+        return Math.max(0, Math.min(1000000, Math.round(amount * 10)));
+    }
     function roleFor(probeId) { return (settingsData.probeRoles || {})[String(probeId)] || "unassigned"; }
     function probeName(probeId) {
         for (let i = 0; i < availableProbes.length; ++i)
@@ -193,10 +200,10 @@ Item {
         missilePriority.value = productionPriority("missile");
         beaconTarget.value = productionQuantity("scut_transit_beacon");
         beaconPriority.value = productionPriority("scut_transit_beacon");
-        deuteriumReserve.value = reserve("deuterium");
-        metalsReserve.value = reserve("metals");
-        iceReserve.value = reserve("ice");
-        carbonReserve.value = reserve("carbon_compounds");
+        deuteriumReserve.value = reserveSteps("deuterium");
+        metalsReserve.value = reserveSteps("metals");
+        iceReserve.value = reserveSteps("ice");
+        carbonReserve.value = reserveSteps("carbon_compounds");
         deuteriumPriority.value = Number((settingsData.resourcePriorities || {}).deuterium || 5);
         metalsPriority.value = Number((settingsData.resourcePriorities || {}).metals || 5);
         icePriority.value = Number((settingsData.resourcePriorities || {}).ice || 5);
@@ -266,8 +273,10 @@ Item {
             "fleetPriorities": {"generic": genericPriority.value, "deuterium_tanker": tankerPriority.value},
             "production": production,
             "resourceReserves": {
-                "deuterium": deuteriumReserve.value, "metals": metalsReserve.value,
-                "ice": iceReserve.value, "carbon_compounds": carbonReserve.value
+                "deuterium": Number((deuteriumReserve.value / 10).toFixed(1)),
+                "metals": Number((metalsReserve.value / 10).toFixed(1)),
+                "ice": Number((iceReserve.value / 10).toFixed(1)),
+                "carbon_compounds": Number((carbonReserve.value / 10).toFixed(1))
             },
             "resourcePriorities": {
                 "deuterium": deuteriumPriority.value, "metals": metalsPriority.value,
@@ -825,16 +834,16 @@ Item {
                     SpinBox { id: safeHopDistance; from: 1; to: 2; editable: false; value: 1 }
                     Label { text: safeHopDistance.value + " SECTOR" + (safeHopDistance.value === 1 ? "" : "S") + " PER JUMP · BOTH ARE COLLISION-SAFE"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                     Label { text: "DEUTERIUM"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: deuteriumReserve; from: 0; to: 100000; editable: true; value: root.reserve("deuterium") }
+                    SpinBox { id: deuteriumReserve; from: 0; to: 1000000; stepSize: 1; editable: true; value: root.reserveSteps("deuterium"); textFromValue: function(value, locale) { return root.tenthText(value) }; valueFromText: function(text, locale) { return root.tenthValue(text, deuteriumReserve.value) } }
                     SpinBox { id: deuteriumPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).deuterium || 5) }
                     Label { text: "METALS"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: metalsReserve; from: 0; to: 100000; editable: true; value: root.reserve("metals") }
+                    SpinBox { id: metalsReserve; from: 0; to: 1000000; stepSize: 1; editable: true; value: root.reserveSteps("metals"); textFromValue: function(value, locale) { return root.tenthText(value) }; valueFromText: function(text, locale) { return root.tenthValue(text, metalsReserve.value) } }
                     SpinBox { id: metalsPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).metals || 5) }
                     Label { text: "ICE"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: iceReserve; from: 0; to: 100000; editable: true; value: root.reserve("ice") }
+                    SpinBox { id: iceReserve; from: 0; to: 1000000; stepSize: 1; editable: true; value: root.reserveSteps("ice"); textFromValue: function(value, locale) { return root.tenthText(value) }; valueFromText: function(text, locale) { return root.tenthValue(text, iceReserve.value) } }
                     SpinBox { id: icePriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).ice || 5) }
                     Label { text: "CARBON COMPOUNDS"; color: Constants.textColor; font.family: Constants.technicalFont }
-                    SpinBox { id: carbonReserve; from: 0; to: 100000; editable: true; value: root.reserve("carbon_compounds") }
+                    SpinBox { id: carbonReserve; from: 0; to: 1000000; stepSize: 1; editable: true; value: root.reserveSteps("carbon_compounds"); textFromValue: function(value, locale) { return root.tenthText(value) }; valueFromText: function(text, locale) { return root.tenthValue(text, carbonReserve.value) } }
                     SpinBox { id: carbonPriority; from: 1; to: 10; editable: true; value: Number((root.settingsData.resourcePriorities || {}).carbon_compounds || 5) }
                     Label { text: "FUEL FLOOR %"; color: Constants.warningColor; font.family: Constants.technicalFont }
                     SpinBox { id: fuelFloor; from: 0; to: 100; editable: true; value: root.settingNumber("minimumFuelPercent", 20) }
@@ -848,6 +857,55 @@ Item {
                     Label { text: "REPAIR TARGET %"; color: Constants.textColor; font.family: Constants.technicalFont }
                     SpinBox { id: repairTarget; from: 1; to: 100; editable: true; value: Number(root.settingsData.repairTargetPercent || 100) }
                     Label { text: "RESTORES TO THIS LEVEL"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                }
+            }
+
+            GroupBox {
+                title: "ATTACHED-CONTAINER TRAVEL SAFETY REFERENCE"; Layout.fillWidth: true
+                ColumnLayout {
+                    anchors.fill: parent; spacing: 8
+                    Label {
+                        Layout.fillWidth: true
+                        text: "RISK-FREE LIMITS INCLUDE ONLY ADDITIONAL CONTAINERS. TOTAL STORAGE ADDS THE PROBE'S BUILT-IN 1 ECE. THE PROBE MODEL CONTROLS THE LIMIT; AN EXPLORER ROLE ASSIGNED TO A DEUTERIUM TANKER STILL USES THE TANKER RULE."
+                        color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
+                    GridLayout {
+                        Layout.fillWidth: true; columns: 5; uniformCellWidths: true; columnSpacing: 14; rowSpacing: 8
+                        Label { text: "PROBE MODEL"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        Label { text: "REINFORCED COUPLINGS"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.bold: true }
+                        Label { text: "RISK-FREE ADDITIONAL"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
+                        Label { text: "RISK BEGINS AT"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
+                        Label { text: "RISK-FREE TOTAL STORAGE"; color: Constants.nominalColor; font.family: Constants.technicalFont; font.bold: true }
+
+                        Label { text: "GENERIC"; color: Constants.textColor; font.family: Constants.technicalFont }
+                        Label { text: "NOT INSTALLED"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                        Label { text: "4"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+                        Label { text: "5 ADDITIONAL · 10%"; color: Constants.warningColor; font.family: Constants.technicalFont }
+                        Label { text: "5 ECE"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+
+                        Label { text: "GENERIC"; color: Constants.textColor; font.family: Constants.technicalFont }
+                        Label { text: "INSTALLED"; color: Constants.textColor; font.family: Constants.technicalFont }
+                        Label { text: "9"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+                        Label { text: "10 ADDITIONAL · 10%"; color: Constants.warningColor; font.family: Constants.technicalFont }
+                        Label { text: "10 ECE"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+
+                        Label { text: "DEUTERIUM TANKER"; color: Constants.textColor; font.family: Constants.technicalFont }
+                        Label { text: "NOT INSTALLED"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
+                        Label { text: "1"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+                        Label { text: "2 ADDITIONAL · 10%"; color: Constants.warningColor; font.family: Constants.technicalFont }
+                        Label { text: "2 ECE"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+
+                        Label { text: "DEUTERIUM TANKER"; color: Constants.textColor; font.family: Constants.technicalFont }
+                        Label { text: "INSTALLED"; color: Constants.textColor; font.family: Constants.technicalFont }
+                        Label { text: "3"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+                        Label { text: "4 ADDITIONAL · 10%"; color: Constants.warningColor; font.family: Constants.technicalFont }
+                        Label { text: "4 ECE"; color: Constants.nominalColor; font.family: Constants.technicalFont }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: "EXAMPLE · FOUR ADDITIONAL CONTAINERS ON A REINFORCED TANKER PROVIDE 5 ECE TOTAL STORAGE, BUT THE FOURTH ADDITIONAL CONTAINER IS THE FIRST RISKY ONE (10%)."
+                        color: Constants.warningColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap
+                    }
                 }
             }
 

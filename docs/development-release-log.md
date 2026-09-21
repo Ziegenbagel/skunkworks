@@ -115,6 +115,11 @@ remains the record for internal implementation work.
 - Probe target/floor copying now labels the focused probe as the source and the
   selected probe as the overwritten destination, requires a named directional
   confirmation, and repeats that source → destination direction on completion.
+- Settings now includes an attached-container travel-safety comparison for
+  generic and tanker models with and without Reinforced Couplings, showing the
+  risk-free additional count, first risky count, and total risk-free storage.
+- Resource reserve targets now accept, display, persist, and plan in 0.1 ECE
+  increments instead of forcing whole-number quantities.
 
 ### Internal release support
 

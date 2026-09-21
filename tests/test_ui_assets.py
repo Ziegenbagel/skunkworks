@@ -190,6 +190,34 @@ def test_settings_copy_names_source_destination_and_requires_confirmation():
     assert "The source probe is not changed." in settings
 
 
+def test_settings_explains_container_limits_for_each_probe_model_and_upgrade():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert 'title: "ATTACHED-CONTAINER TRAVEL SAFETY REFERENCE"' in settings
+    assert "RISK-FREE LIMITS INCLUDE ONLY ADDITIONAL CONTAINERS" in settings
+    assert "AN EXPLORER ROLE ASSIGNED TO A DEUTERIUM TANKER" in settings
+    assert 'text: "5 ADDITIONAL · 10%"' in settings
+    assert 'text: "10 ADDITIONAL · 10%"' in settings
+    assert 'text: "2 ADDITIONAL · 10%"' in settings
+    assert 'text: "4 ADDITIONAL · 10%"' in settings
+    assert "THE FOURTH ADDITIONAL CONTAINER IS THE FIRST RISKY ONE" in settings
+
+
+def test_resource_reserve_controls_use_tenth_ece_steps():
+    settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(
+        encoding="utf-8",
+    )
+
+    assert "function reserveSteps(resource)" in settings
+    assert "Math.round(amount * 10)" in settings
+    assert settings.count("from: 0; to: 1000000; stepSize: 1") == 4
+    assert settings.count("root.tenthText(value)") == 4
+    assert settings.count("root.tenthValue(text") == 4
+    assert '"metals": Number((metalsReserve.value / 10).toFixed(1))' in settings
+
+
 def test_operating_profile_controls_follow_audio_and_precede_automation():
     settings = Path("src/ui/qml/components/AutomationSettings.qml").read_text(encoding="utf-8")
 

@@ -689,6 +689,20 @@ Relevant code/tests:
 - `tests/test_operating_profile.py`
 - `tests/test_ui_assets.py`
 
+### Resource reserve targets retain tenth-ECE precision
+
+The four resource reserve controls accept and display 0.1 ECE increments,
+including every sub-one target from 0.1 through 0.9 ECE.
+Because Qt Quick `SpinBox` stores integers, presentation scales values by ten
+and converts them back to one-decimal floats before persistence. Refreshing,
+copying settings, or planning must not truncate a saved reserve such as 1.5 ECE
+to a whole number. Item-production and cumulative probe targets remain integral.
+
+Relevant tests:
+
+- `tests/test_ui_assets.py::test_resource_reserve_controls_use_tenth_ece_steps`
+- `tests/test_ui_preparation.py::MissionControlControllerTests::test_saving_targets_returns_before_persistence_runs`
+
 ### Probe-settings copies name both ends and confirm the overwrite
 
 Copying automation targets and resource floors is directional: the focused
@@ -1019,11 +1033,17 @@ Predictive container-detachment warnings must state the observed additional
 container count, the first risky count, and the risk-free maximum so the
 operator can reconcile a planner warning with the game's event-only Safety
 history.
+Settings must also retain a model-and-upgrade comparison of the fallback rules.
+It distinguishes additional containers from total ECE storage, states that
+probe model rather than assigned role selects the rule, and shows both the
+risk-free maximum and the first risky count. The reference must remain aligned
+with `container_break_threshold()` whenever fallback rules change.
 
 Relevant test:
 
 - `tests/test_travel_safety.py::TravelSafetyTests::test_tanker_reinforced_couplings_alias_raises_fallback_threshold`
 - `tests/test_travel_safety.py::TravelSafetyTests::test_container_hazard_explains_count_and_risk_free_limit`
+- `tests/test_ui_assets.py::test_settings_explains_container_limits_for_each_probe_model_and_upgrade`
 
 Autonomous-unit telemetry must not be rendered as a floating overlay over Live
 Sector. Operational map space remains unobstructed unless the operator opens a
