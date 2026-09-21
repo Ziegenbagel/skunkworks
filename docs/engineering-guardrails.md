@@ -995,6 +995,21 @@ An installed Relativistic Path Clearing effect zeros only modeled intersector
 integrity loss. Travel safety must continue calculating collision probability,
 container-detachment risk, weapons, asteroid impacts, and black-hole hazards.
 
+Reinforced container coupling detection accepts the canonical game improvement
+ID `reinforced_couplings` and the historical compatibility ID
+`reinforced_container_couplings`. A completed installation must raise the
+fallback container-risk threshold for the focused probe model; presentation and
+travel safety may not disagree about whether the same improvement is installed.
+Predictive container-detachment warnings must state the observed additional
+container count, the first risky count, and the risk-free maximum so the
+operator can reconcile a planner warning with the game's event-only Safety
+history.
+
+Relevant test:
+
+- `tests/test_travel_safety.py::TravelSafetyTests::test_tanker_reinforced_couplings_alias_raises_fallback_threshold`
+- `tests/test_travel_safety.py::TravelSafetyTests::test_container_hazard_explains_count_and_risk_free_limit`
+
 Autonomous-unit telemetry must not be rendered as a floating overlay over Live
 Sector. Operational map space remains unobstructed unless the operator opens a
 dedicated detail surface or a critical safety takeover is required.

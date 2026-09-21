@@ -407,6 +407,9 @@ class TravelSafetyService:
             self.policy.warn_on_container_risk
             and option.container_risk_percent > 0
         ):
+            container_count = self.additional_container_count()
+            risk_threshold = self.container_break_threshold()
+            risk_free_maximum = max(0, risk_threshold - 1)
             hazards.append(
                 Hazard(
                     code="container_detachment_risk",
@@ -422,7 +425,10 @@ class TravelSafetyService:
                     message=(
                         "Chance of at least one container "
                         f"detachment across this route is "
-                        f"{option.container_risk_percent:.1f}%."
+                        f"{option.container_risk_percent:.1f}% "
+                        f"with {container_count} attached additional "
+                        f"container(s). Risk begins at {risk_threshold}; "
+                        f"the risk-free maximum is {risk_free_maximum}."
                     ),
                 )
             )
@@ -629,8 +635,10 @@ class TravelSafetyService:
             "improvements"
         ) or {}
         return any(
-            improvement.get("id")
-            == "reinforced_container_couplings"
+            str(improvement.get("id") or "").strip().lower() in {
+                "reinforced_couplings",
+                "reinforced_container_couplings",
+            }
             and improvement.get("done", False)
             for improvement in response.get("improvements", [])
         )

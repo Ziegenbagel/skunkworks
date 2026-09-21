@@ -107,6 +107,11 @@ remains the record for internal implementation work.
   identities. Live-sector Manny logistics such as container deployment,
   recovery, and salvage now collapse matching concurrent work into one counted
   icon instead of overlapping one marker per target.
+- Travel safety now recognizes the canonical `reinforced_couplings` improvement
+  ID as well as the historical longer alias, preventing upgraded tanker probes
+  from being evaluated with the unreinforced container-detachment threshold.
+  Container-risk prompts now also report the observed attached-container count,
+  the first risky count, and the risk-free maximum.
 
 ### Internal release support
 

@@ -46,6 +46,58 @@ class TravelSafetyTests(unittest.TestCase):
             2,
         )
 
+    def test_tanker_reinforced_couplings_alias_raises_fallback_threshold(self):
+        operations = build_operations()
+        operations.world.probe["model"] = "deuterium_tanker"
+        operations.world.hazard_context = {"improvements": {"improvements": [{
+            "id": "reinforced_couplings",
+            "done": True,
+            "installableOnProbe": True,
+        }]}}
+
+        self.assertEqual(
+            operations.travel_safety.container_break_threshold(),
+            4,
+        )
+
+    def test_legacy_reinforced_container_couplings_id_remains_supported(self):
+        operations = build_operations()
+        operations.world.probe["model"] = "deuterium_tanker"
+        operations.world.hazard_context = {"improvements": {"improvements": [{
+            "id": "reinforced_container_couplings", "done": True,
+        }]}}
+
+        self.assertEqual(
+            operations.travel_safety.container_break_threshold(),
+            4,
+        )
+
+    def test_container_hazard_explains_count_and_risk_free_limit(self):
+        operations = build_operations()
+        operations.world.probe["model"] = "deuterium_tanker"
+        operations.world.probe["inventory"]["containers"] = [
+            {"kind": "probe"},
+            *({"kind": "container"} for _ in range(9)),
+        ]
+        operations.world.hazard_context = {"improvements": {"improvements": [{
+            "id": "reinforced_couplings",
+            "done": True,
+        }]}}
+
+        assessment = operations.travel_safety.assess(
+            SectorCoordinates(1, 1, 0),
+            route_mode="direct",
+        )
+        hazard = next(
+            hazard for hazard in assessment.hazards
+            if hazard.code == "container_detachment_risk"
+        )
+
+        self.assertIn("60.0%", hazard.message)
+        self.assertIn("9 attached additional container(s)", hazard.message)
+        self.assertIn("Risk begins at 4", hazard.message)
+        self.assertIn("risk-free maximum is 3", hazard.message)
+
     def test_relativistic_path_clearing_removes_only_intersector_integrity_loss(self):
         operations = build_operations()
         operations.world.probe["inventory"]["containers"] = [
