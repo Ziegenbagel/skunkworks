@@ -1,5 +1,11 @@
 # Development Release Log
 
+- Fixed ordinary-resource Miners retaining recovered full containers aboard.
+  Containers reported only through resource-stock placements are now
+  normalized as attached inventory, allowing the campaign to detach them for
+  Transport pickup instead of abandoning their persisted release phase. The
+  Miner also drains full matching containers stranded by older campaign state.
+
 This is the private-to-development candidate ledger for the next Skunkworks
 release. It is not a public release note and must never be passed directly to a
 GitHub Release or packaged as `RELEASE_NOTES.md`.

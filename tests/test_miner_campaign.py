@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 import json
 
+from src.operations.containers import ContainerService
 from src.operations.miner_campaign import MinerCampaignService
 from src.models.galaxy import SectorCoordinates
 from src.planner.desired_state import DesiredState, TravelGoal
@@ -497,6 +498,68 @@ def test_full_ordinary_container_is_recovered_then_released_to_drift():
     assert complete.phase == "container_ready_for_transport"
     assert complete.tasks == ()
     assert complete.campaign_state == {}
+
+
+def test_recovered_container_visible_only_in_resource_placements_is_released():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 9}
+    miner_operations = operations(resources=[target])
+    miner_operations.world.probe["inventory"] = {
+        "containers": [],
+        "resourceStocks": [{
+            "type": "metals",
+            "containers": [{
+                "container": {
+                    "id": "box-1", "kind": "container", "capacity": 1,
+                },
+                "amount": 1,
+            }],
+        }],
+    }
+    miner_operations.world.sector = {"snapshot": {"sector": {"objects": []}}}
+    miner_operations.containers = ContainerService(miner_operations.world)
+
+    decision = MinerCampaignService(miner_operations).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"],
+        "ordinaryContainerCampaign": {
+            "resourceType": "metals", "asteroidId": "asteroid-1",
+            "containerId": "box-1", "phase": "recover_container",
+        },
+    })
+
+    assert decision.phase == "release_container"
+    assert decision.tasks[0].action == "Release Miner Container"
+    assert decision.tasks[0].target == "box-1"
+
+
+def test_full_untracked_miner_containers_are_released_for_transport_pickup():
+    target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 9}
+    miner_operations = operations(resources=[target], idle=3)
+    miner_operations.world.probe["inventory"] = {
+        "containers": [],
+        "resourceStocks": [{
+            "type": "metals",
+            "containers": [{
+                "container": {
+                    "id": f"stranded-{index}", "kind": "container", "capacity": 1,
+                },
+                "amount": 1,
+            } for index in range(2)],
+        }],
+    }
+    miner_operations.world.sector = {"snapshot": {"sector": {"objects": []}}}
+    miner_operations.containers = ContainerService(miner_operations.world)
+
+    decision = MinerCampaignService(miner_operations).decide({
+        "miningEnabled": True, "resourceMode": "resources",
+        "ordinaryResources": ["metals"], "maximumMiningMannies": 4,
+    })
+
+    assert [task.action for task in decision.tasks] == [
+        "Release Miner Container", "Release Miner Container",
+    ]
+    assert {task.target for task in decision.tasks} == {"stranded-0", "stranded-1"}
+    assert all(task.metadata["mode"] == "drifting" for task in decision.tasks)
 
 
 def test_all_resources_selects_fuel_and_enabled_ordinary_resources():

@@ -1369,6 +1369,17 @@ container IDs are persisted with the probe's role settings; refreshes and
 restarts must resume the same phase rather than submit a later step early or
 select a different container. Container mutations remain one-Manny commands
 and pass through authoritative preflight.
+Recovered full containers may be reported only through
+`inventory.resourceStocks[].containers[]`, rather than duplicated in the
+top-level attached-container list. Operational container normalization must
+merge both representations so the release phase and its preflight see the same
+attached cargo shown in inventory; placement-only telemetry must never make a
+Miner abandon a full container and begin another campaign.
+Full additional containers holding a selected ordinary resource may predate or
+outlive their persisted campaign pointer. A Miner must release that stranded
+cargo through bounded idle-Manny tasks as well; cleanup excludes probe-core
+storage, partial containers, active detachments, and containers owned by a live
+campaign.
 
 If the persisted container is absent from both attached and detached live
 inventory, the campaign may select a new empty container only when no active

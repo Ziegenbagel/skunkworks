@@ -218,9 +218,31 @@ class MinerCampaignService:
             if decision.campaign_state:
                 next_states.append(dict(decision.campaign_state))
 
-        tasks = tuple(task for decision in decisions for task in decision.tasks)
+        campaign_tasks = tuple(task for decision in decisions for task in decision.tasks)
+        reserved_ids = {
+            str(state.get("containerId")) for state in next_states
+            if state.get("containerId") not in {None, ""}
+        }
+        cleanup_tasks = self._orphaned_full_container_release_tasks(
+            resources,
+            excluded_container_ids=reserved_ids,
+            maximum_count=max(
+                0, len(self.operations.mining.idle_mannies()) - len(campaign_tasks),
+            ),
+            container_mutation_counts=container_mutation_counts,
+        )
+        tasks = campaign_tasks + cleanup_tasks
         active = [decision for decision in decisions if decision.campaign_state]
         if not active:
+            if cleanup_tasks:
+                return MinerCampaignDecision(
+                    tasks=cleanup_tasks,
+                    phase="release_stranded_containers", paused=False,
+                    summary=(f"Releasing {len(cleanup_tasks)} full untracked Miner "
+                             "container(s) for Transport pickup."),
+                    reserve_ordinary_mannies=0,
+                    campaign_state={"campaigns": []} if campaign_limit > 1 else {},
+                )
             return MinerCampaignDecision(
                 phase=decisions[0].phase if decisions else "waiting_for_resource",
                 paused=False,
@@ -252,6 +274,55 @@ class MinerCampaignService:
                 else next_states[0]
             ),
         )
+
+    def _orphaned_full_container_release_tasks(
+        self, resources, *, excluded_container_ids=(), maximum_count=0,
+        container_mutation_counts=None,
+    ):
+        """Release full Miner cargo that predates or lost campaign state."""
+        if maximum_count <= 0:
+            return ()
+        excluded = {str(value) for value in excluded_container_ids}
+        selected = set(resources)
+        inventory = self.operations.world.probe.get("inventory", {})
+        placement_resources = {}
+        for stock in inventory.get("resourceStocks", ()) or ():
+            resource = str(stock.get("type") or "")
+            if resource not in selected:
+                continue
+            for placement in stock.get("containers", ()) or ():
+                container = placement.get("container") or {}
+                if container.get("kind") != "container":
+                    continue
+                identifier = container.get("id")
+                if identifier not in {None, ""}:
+                    placement_resources.setdefault(str(identifier), set()).add(resource)
+
+        tasks = []
+        expected_sector = self._sector(self.operations.world.probe)
+        for container in self.operations.containers.attached():
+            container_id = str(container.get("id", container.get("containerId", "")))
+            if (not container_id or container_id in excluded
+                    or container_id not in placement_resources
+                    or self._container_used(container) < 0.999
+                    or "detach" in self._active_container_task_types(container_id)):
+                continue
+            cycle = int((container_mutation_counts or {}).get(container_id, 0))
+            tasks.append(Task(
+                action="Release Miner Container", category="miner_logistics",
+                target=container_id, priority=1, workflow_authorized=True,
+                idempotency_scope=(f"miner-container:{container_id}:cycle:"
+                                   f"{cycle}:release-orphan"),
+                reason=(f"Detach full untracked Miner container {container_id} "
+                        "to drift for Transport pickup."),
+                metadata={
+                    "minerCampaign": True, "mode": "drifting",
+                    "expectedSector": expected_sector,
+                },
+            ))
+            if len(tasks) >= maximum_count:
+                break
+        return tuple(tasks)
 
     def _ordinary_single_container_campaign(
         self, state, resources, worker_limit, *, excluded_container_ids=(),

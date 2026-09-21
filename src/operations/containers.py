@@ -16,14 +16,41 @@ class ContainerService:
         self.world = world
 
     def attached(self):
-        return tuple(
-            container
-            for container in self.world.probe.get(
-                "inventory",
-                {},
-            ).get("containers", ())
+        inventory = self.world.probe.get("inventory", {})
+        attached = {
+            str(container.get("id")): dict(container)
+            for container in inventory.get("containers", ()) or ()
             if container.get("kind") == "container"
-        )
+            and container.get("id") not in {None, ""}
+        }
+
+        # A recovered full container may be represented only by the resource
+        # placement that owns its contents.  Treat that placement as attached
+        # inventory too; otherwise the Miner campaign loses sight of the
+        # recovered container before it can release it for Transport pickup.
+        placement_amounts = {}
+        placement_containers = {}
+        for stock in inventory.get("resourceStocks", ()) or ():
+            for placement in stock.get("containers", ()) or ():
+                container = placement.get("container") or {}
+                if container.get("kind") != "container":
+                    continue
+                identifier = container.get("id")
+                if identifier in {None, ""}:
+                    continue
+                key = str(identifier)
+                placement_containers.setdefault(key, dict(container))
+                placement_amounts[key] = placement_amounts.get(key, 0.0) + float(
+                    placement.get("amount", 0) or 0
+                )
+
+        for key, amount in placement_amounts.items():
+            container = attached.setdefault(key, placement_containers[key])
+            container["usedCapacity"] = max(
+                float(container.get("usedCapacity", container.get("used", 0)) or 0),
+                amount,
+            )
+        return tuple(attached.values())
 
     def detached(self):
         snapshot = self.world.sector.get("snapshot") or {}
