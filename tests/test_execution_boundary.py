@@ -1790,6 +1790,35 @@ class ExecutionBoundaryTests(unittest.TestCase):
         ).blockers(prepared.command)
         self.assertIn("repair_required_before_travel", blockers)
 
+    def test_auto_travel_preflight_preserves_live_arrival_fuel_floor(self):
+        self.operations.world.probe["fuel"] = {
+            "deuterium": 21, "maxDeuterium": 100,
+        }
+        command = Command(
+            type=CommandType.MOVE_PROBE,
+            probe_id=1,
+            payload={"target": {"x": 1, "y": 1, "z": 0}},
+            reason="Explorer frontier route",
+            priority=1,
+            source_action="Move Probe",
+            metadata={
+                "workflowAuthorized": True,
+                "minimumArrivalFuelPercent": 20,
+            },
+        )
+
+        validator = PreflightValidator(self.operations, probe_id=1)
+        self.assertIn(
+            "fuel_reserve_floor_required_before_travel",
+            validator.blockers(command),
+        )
+
+        self.operations.world.probe["fuel"]["deuterium"] = 22
+        self.assertNotIn(
+            "fuel_reserve_floor_required_before_travel",
+            validator.blockers(command),
+        )
+
     def test_auto_travel_preflight_rechecks_locally_claimed_and_deployed_mannies(self):
         command = Command(
             type=CommandType.MOVE_PROBE,

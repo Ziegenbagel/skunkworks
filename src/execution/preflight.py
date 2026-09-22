@@ -186,6 +186,19 @@ class PreflightValidator:
             blockers.extend(
                 self.operations.travel.automatic_manny_departure_blockers(coordinates)
             )
+            try:
+                minimum_fuel_percent = float(
+                    command.metadata.get("minimumArrivalFuelPercent", 0) or 0
+                )
+            except (TypeError, ValueError):
+                minimum_fuel_percent = 0
+            fuel = self.operations.world.probe.get("fuel") or {}
+            fuel_amount = float(fuel.get("deuterium", 0) or 0)
+            fuel_maximum = float(fuel.get("maxDeuterium", 0) or 0)
+            arrival_fuel = fuel_amount - self.operations.travel.fuel_cost()
+            required_arrival_fuel = fuel_maximum * minimum_fuel_percent / 100
+            if arrival_fuel < required_arrival_fuel - 0.00001:
+                blockers.append("fuel_reserve_floor_required_before_travel")
             trigger = self._automatic_repair_threshold(command, "Trigger")
             target = self._automatic_repair_threshold(command, "Target")
             integrity = self._live_integrity()

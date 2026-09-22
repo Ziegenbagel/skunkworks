@@ -40,8 +40,22 @@ class ExplorerCampaignService:
             )
         if resource_need:
             resource, target_amount = resource_need
-            source = self._nearest_resource_source(current, resource)
+            maximum_hops = None
+            if resource == "deuterium":
+                fuel = getattr(self.operations.world, "probe", {}).get("fuel") or {}
+                available = float(fuel.get("deuterium", 0) or 0)
+                fuel_cost = float(self.operations.travel.fuel_cost())
+                maximum_hops = int((available + 0.00001) // fuel_cost) if fuel_cost > 0 else None
+            source = self._nearest_resource_source(
+                current, resource, maximum_hops=maximum_hops,
+            )
             if source is None:
+                if resource == "deuterium":
+                    return ExplorerDecision(
+                        "fuel_resupply_manual_hold",
+                        "Fuel has reached its safety floor and no known Deuterium source is reachable with the remaining tank reserve. Automatic travel is paused; manual refueling operations are required.",
+                        paused=True,
+                    )
                 return ExplorerDecision(
                     "resupply_wait",
                     f"{resource.replace('_', ' ').title()} is below its global floor, but no reachable known source exists inside SCUT.",
@@ -144,7 +158,7 @@ class ExplorerCampaignService:
     def _physically_explored(record):
         return int(record.visit_count or 0) > 0
 
-    def _nearest_resource_source(self, current, resource):
+    def _nearest_resource_source(self, current, resource, *, maximum_hops=None):
         # The focused sector snapshot is newer and more complete than the
         # retained galaxy observation. If the normal mining service can select
         # this resource here, resupply in place rather than claiming no known
@@ -160,7 +174,9 @@ class ExplorerCampaignService:
                 candidates.append((0, record.coordinates))
                 continue
             route = self.operations.travel.route_to(record.coordinates)
-            if route and self.operations.travel_safety.scut_route_covered(current, route) is True:
+            if (route
+                    and (maximum_hops is None or len(route) <= maximum_hops)
+                    and self.operations.travel_safety.scut_route_covered(current, route) is True):
                 candidates.append((len(route), record.coordinates))
         return min(candidates, default=(None, None), key=lambda item: item[0])[1]
 

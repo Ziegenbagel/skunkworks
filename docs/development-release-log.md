@@ -1,5 +1,12 @@
 # Development Release Log
 
+- Fixed automatic Explorer travel consuming the configured fuel safety floor.
+  Planning now refuels the next leg above the protected arrival reserve, and
+  live move preflight rejects any departure that would cross that floor.
+  Explorers at the boundary now redirect to the nearest known SCUT-covered
+  Deuterium source affordable with their remaining fuel, or pause and issue a
+  critical manual-refueling notification when no source is reachable.
+
 - Fixed ordinary-resource Miners retaining recovered full containers aboard.
   Containers reported only through resource-stock placements are now
   normalized as attached inventory, allowing the campaign to detach them for

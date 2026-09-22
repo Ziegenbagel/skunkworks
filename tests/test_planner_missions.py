@@ -318,6 +318,24 @@ class PlannerMissionTests(unittest.TestCase):
         self.assertIn("mining", categories)
         self.assertIn("fuel", categories)
 
+    def test_pending_travel_refills_leg_cost_above_arrival_fuel_floor(self):
+        tasks = Planner(
+            build_operations(fuel=21),
+            DesiredState(
+                fuel=FuelGoal(20),
+                travel=TravelGoal(SectorCoordinates(1, 1, 0)),
+            ),
+        ).tasks()
+
+        fuel_task = next(task for task in tasks if task.category == "fuel")
+        travel_task = next(task for task in tasks if task.category == "travel")
+        self.assertEqual(fuel_task.quantity, 1)
+        self.assertIn("pending travel leg", fuel_task.reason)
+        self.assertIn(
+            "fuel_reserve_floor_required_before_travel",
+            travel_task.constraints,
+        )
+
     def test_equal_priority_mining_balances_against_active_commitments(self):
         operations = build_operations(metals=0)
         operations.world.sector["resources"].extend([

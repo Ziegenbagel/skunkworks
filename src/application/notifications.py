@@ -147,6 +147,17 @@ class NotificationCoordinator:
                     "approvals", "Skunkworks approval required", message,
                     "warning",
                 ))
+        explorer = dashboard.get("automationRuntime", {}).get("explorer") or {}
+        if explorer.get("phase") == "fuel_resupply_manual_hold":
+            message = str(explorer.get("summary") or "Explorer requires manual refueling.")
+            result.append(NotificationCandidate(
+                self._key(
+                    "explorer-fuel-hold", dashboard.get("focus", {}).get("id"),
+                    message,
+                ),
+                "critical", "Explorer requires manual refueling", message,
+                "critical",
+            ))
         return result
 
     def take_new(self, dashboard, policy=None, prime=False):

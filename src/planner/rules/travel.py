@@ -83,6 +83,14 @@ def plan(operations, desired_state) -> list[Task]:
         if assessment is not None
         else ()
     )
+    fuel = operations.world.probe.get("fuel") or {}
+    fuel_amount = float(fuel.get("deuterium", 0) or 0)
+    fuel_maximum = float(fuel.get("maxDeuterium", 0) or 0)
+    fuel_floor_amount = fuel_maximum * float(
+        desired_state.fuel.minimum_percent
+    ) / 100
+    if route and fuel_amount - operations.travel.fuel_cost() < fuel_floor_amount - 0.00001:
+        blockers.append("fuel_reserve_floor_required_before_travel")
     next_hop_assessment = (
         operations.travel_safety.assess(
             route[0],
@@ -157,6 +165,9 @@ def plan(operations, desired_state) -> list[Task]:
             metadata={
                 "automaticRepairTriggerPercent": float(repair.trigger_percent),
                 "automaticRepairTargetPercent": float(repair.target_percent),
+                "minimumArrivalFuelPercent": float(
+                    desired_state.fuel.minimum_percent
+                ),
             },
             priority=NORMAL,
         )

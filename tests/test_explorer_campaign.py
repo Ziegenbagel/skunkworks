@@ -14,7 +14,21 @@ class Travel:
         return self.current
 
     def route_to(self, target):
-        return (target,)
+        route = []
+        current = self.current
+        while current != target:
+            distance = current.distance_to(target)
+            current = min(
+                (point for point in current.neighbors()
+                 if point.distance_to(target) < distance),
+                key=lambda point: (point.distance_to(target), point.x, point.y, point.z),
+            )
+            route.append(current)
+        return tuple(route)
+
+    @staticmethod
+    def fuel_cost():
+        return 2
 
 
 class Safety:
@@ -35,7 +49,10 @@ def operations(*, objects=(), blocked=()):
         travel=Travel(current),
         travel_safety=Safety(blocked),
         galaxy=SimpleNamespace(known_sectors=galaxy.sectors),
-        world=SimpleNamespace(sector={"snapshot": {"sector": {"objects": objects}}}),
+        world=SimpleNamespace(
+            probe={"fuel": {"deuterium": 50, "maxDeuterium": 100}},
+            sector={"snapshot": {"sector": {"objects": objects}}},
+        ),
     ), galaxy
 
 
@@ -174,6 +191,44 @@ def test_global_resource_floor_redirects_explorer_to_known_scut_source():
     assert decision.destination == SectorCoordinates(1, 1, 0)
 
 
+def test_fuel_floor_redirects_only_to_source_reachable_on_remaining_reserve():
+    ops, galaxy = operations()
+    ops.world.probe["fuel"]["deuterium"] = 2
+    reachable = SectorCoordinates(1, 1, 0)
+    galaxy.record_observation({"sector": {
+        "relativeCoordinates": {"x": reachable.x, "y": reachable.y, "z": reachable.z},
+        "objects": [{"resources": {"deuterium": 20}}],
+    }})
+
+    decision = ExplorerCampaignService(ops).decide(
+        resource_need=("deuterium", 100),
+    )
+
+    assert decision.phase == "resupply_travel"
+    assert decision.destination == reachable
+
+
+def test_unreachable_deuterium_source_pauses_for_manual_refueling():
+    ops, galaxy = operations()
+    ops.world.probe["fuel"]["deuterium"] = 2
+    unreachable = SectorCoordinates(2, 2, 0)
+    galaxy.record_observation({"sector": {
+        "relativeCoordinates": {
+            "x": unreachable.x, "y": unreachable.y, "z": unreachable.z,
+        },
+        "objects": [{"resources": {"deuterium": 20}}],
+    }})
+
+    decision = ExplorerCampaignService(ops).decide(
+        resource_need=("deuterium", 100),
+    )
+
+    assert decision.phase == "fuel_resupply_manual_hold"
+    assert decision.paused is True
+    assert decision.destination is None
+    assert "manual refueling operations" in decision.summary
+
+
 def test_resupply_route_recognizes_modern_nested_resource_observations():
     ops, galaxy = operations()
     modern_source = SectorCoordinates(1, 1, 0)
@@ -234,12 +289,13 @@ def test_live_current_sector_metal_source_wins_over_missing_map_observation():
     assert "global 2 ECE floor" in decision.summary
 
 
-def test_explorer_treats_display_precision_resource_floor_as_satisfied():
+def test_explorer_treats_projected_arrival_at_fuel_floor_as_satisfied():
     ops = SimpleNamespace(
         world=SimpleNamespace(probe={
-            "fuel": {"deuterium": 20.0, "maxDeuterium": 100.0},
+            "fuel": {"deuterium": 22.0, "maxDeuterium": 100.0},
         }),
-        probes=SimpleNamespace(fuel_percent=lambda: 20.0),
+        travel=SimpleNamespace(fuel_cost=lambda: 2.0),
+        probes=SimpleNamespace(fuel_percent=lambda: 22.0),
         mining=SimpleNamespace(active_commitments=lambda: {}),
         inventory=SimpleNamespace(
             reserve_shortages=lambda _goals: {"metals": 0.0},
@@ -253,12 +309,13 @@ def test_explorer_treats_display_precision_resource_floor_as_satisfied():
     assert MissionControlDataService._explorer_resource_need(ops, desired) is None
 
 
-def test_explorer_interrupts_only_when_resource_is_genuinely_below_floor():
+def test_explorer_interrupts_before_next_leg_would_cross_fuel_floor():
     ops = SimpleNamespace(
         world=SimpleNamespace(probe={
-            "fuel": {"deuterium": 19.99, "maxDeuterium": 100.0},
+            "fuel": {"deuterium": 21.99, "maxDeuterium": 100.0},
         }),
-        probes=SimpleNamespace(fuel_percent=lambda: 19.99),
+        travel=SimpleNamespace(fuel_cost=lambda: 2.0),
+        probes=SimpleNamespace(fuel_percent=lambda: 21.99),
         mining=SimpleNamespace(active_commitments=lambda: {}),
         inventory=SimpleNamespace(reserve_shortages=lambda _goals: {}),
     )
@@ -270,8 +327,8 @@ def test_explorer_interrupts_only_when_resource_is_genuinely_below_floor():
         "deuterium", 100.0,
     )
 
-    ops.world.probe["fuel"]["deuterium"] = 20.0
-    ops.probes.fuel_percent = lambda: 20.0
+    ops.world.probe["fuel"]["deuterium"] = 22.0
+    ops.probes.fuel_percent = lambda: 22.0
     ops.inventory.reserve_shortages = lambda _goals: {"metals": 0.002}
     assert MissionControlDataService._explorer_resource_need(ops, desired) == (
         "metals", 2,

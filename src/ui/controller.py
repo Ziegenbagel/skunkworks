@@ -1181,12 +1181,25 @@ class MissionControlDataService:
             resource_need=resource_need,
             completed_inspections=self._completed_explorer_inspections(probe_id),
         )
-        # An operator-owned travel goal is never overwritten by role automation.
-        if decision.destination is not None and desired.travel is None:
-            desired = replace(desired, travel=TravelGoal(
-                target=decision.destination,
-                route_mode="segmented",
-            ))
+        # Ordinary frontier choices never overwrite an operator-owned goal.
+        # Fuel recovery is the exception: continuing toward the old target can
+        # spend the last reserve, so redirect to the verified source and allow
+        # that emergency route to use the remaining tank capacity.
+        fuel_recovery = (
+            decision.phase == "resupply_travel"
+            and resource_need is not None
+            and resource_need[0] == "deuterium"
+        )
+        if decision.destination is not None and (desired.travel is None or fuel_recovery):
+            desired = replace(
+                desired,
+                travel=TravelGoal(
+                    target=decision.destination,
+                    route_mode="segmented",
+                ),
+                **({"fuel": replace(desired.fuel, minimum_percent=0)}
+                   if fuel_recovery else {}),
+            )
         return desired, list(decision.tasks), {
             "phase": decision.phase,
             "paused": decision.paused,
@@ -1223,15 +1236,17 @@ class MissionControlDataService:
         # Reuse the exact same predicates as the ordinary fuel and mining
         # planners. The role must never pause for a shortage that those
         # planners consider satisfied or too small to issue as a game order.
-        if operations.probes.fuel_percent() < desired.fuel.minimum_percent:
-            fuel = operations.world.probe.get("fuel") or {}
-            maximum = float(fuel.get("maxDeuterium", 0) or 0)
+        fuel = operations.world.probe.get("fuel") or {}
+        maximum = float(fuel.get("maxDeuterium", 0) or 0)
+        available = float(fuel.get("deuterium", 0) or 0)
+        arrival_floor = maximum * float(desired.fuel.minimum_percent) / 100
+        next_leg_cost = float(operations.travel.fuel_cost())
+        if available - next_leg_cost < arrival_floor - 0.00001:
             desired_amount = maximum * float(desired.fuel.minimum_percent) / 100
-            available = float(fuel.get("deuterium", 0) or 0)
             committed = float(
                 operations.mining.active_commitments().get("deuterium", 0) or 0
             )
-            if desired_amount - available - committed > 0.00001:
+            if desired_amount + next_leg_cost - available - committed > 0.00001:
                 return ("deuterium", maximum)
         shortages = operations.inventory.reserve_shortages(desired.resources)
         metals_shortage = float(shortages.get("metals", 0) or 0)

@@ -147,6 +147,35 @@ Relevant code/tests:
 
 ## Navigation Interface Invariants
 
+### Automatic travel preserves the configured fuel floor on arrival
+
+The fuel safety floor is an arrival reserve, not merely a threshold that starts
+refueling after it has already been consumed. Before every automatic movement
+leg, planning must reserve that leg's fuel cost above the configured percentage
+and request Deuterium replenishment when needed. Live move preflight must
+recalculate against authoritative tank telemetry and block departure whenever
+the projected arrival amount would fall below the floor. A stale plan may never
+spend the protected reserve.
+When an Explorer reaches the floor boundary, its role first searches durable
+galaxy knowledge for the nearest verified Deuterium source inside SCUT. A
+source is eligible only when the entire route costs no more than the remaining
+tank reserve. That recovery route may consume the protected reserve because its
+sole destination is refueling. If no known source is affordable, automatic
+travel stays paused and exposes a deduplicated critical notification requiring
+manual refueling; it must never continue toward the exploration target.
+
+Relevant code/tests:
+
+- `src/planner/rules/fuel.py`
+- `src/planner/rules/travel.py`
+- `src/execution/preflight.py`
+- `src/operations/explorer_campaign.py`
+- `src/application/notifications.py`
+- `tests/test_planner_missions.py`
+- `tests/test_execution_boundary.py`
+- `tests/test_explorer_campaign.py`
+- `tests/test_notifications.py`
+
 ### Selection decoration never replaces map-object identity
 
 Live-sector selection styling must not contain a second object illustration or

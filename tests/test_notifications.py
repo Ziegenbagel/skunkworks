@@ -38,6 +38,23 @@ def test_discoveries_and_approvals_respect_category_controls():
     assert {item.category for item in fresh} == {"discoveries", "approvals"}
 
 
+def test_unreachable_explorer_fuel_source_creates_critical_notification():
+    dashboard = {
+        "focus": {"id": 7, "name": "Explorer 1"},
+        "automationRuntime": {"explorer": {
+            "phase": "fuel_resupply_manual_hold",
+            "summary": "Automatic travel is paused; manual refueling operations are required.",
+        }},
+    }
+
+    candidates = NotificationCoordinator(Preferences()).candidates(dashboard)
+
+    assert len(candidates) == 1
+    assert candidates[0].category == "critical"
+    assert candidates[0].severity == "critical"
+    assert candidates[0].title == "Explorer requires manual refueling"
+
+
 def test_test_notification_requires_saved_policy_and_supported_delivery():
     preferences = Preferences()
     controller = MissionControlController(
