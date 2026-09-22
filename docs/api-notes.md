@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v135, verified
-against the live contract on 2026-09-16.
+Skunkworks supports deployed API v103 through upstream API v137, verified
+against the live contract on 2026-09-21.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -118,6 +118,20 @@ entire batch, including missile reservations and scheduled events. Skunkworks'
 existing typed-confirm single-launch control remains unchanged; its generic
 batch gateway preserves the new request and response contract for future
 reviewed multi-launch workflows.
+
+API v136 adds probe-scoped bulk alert controls. Skunkworks exposes
+`POST /api/probe/{probeId}/alerts/mark-all-read`, which marks only that probe's
+persistent alerts read. It does not alter sector damage warnings. The separate
+bulk-delete route is intentionally not exposed because it irreversibly removes
+all persistent alerts.
+
+API v137 adds `hidden_on_dormant_construct` container deployment for discovered
+Others mothership wrecks, including exhausted wrecks. Other dormant constructs
+are invalid targets. The cache is recovered with source `dormant_construct` and
+is presented distinctly from asteroid caches and drifting containers. Mining
+may explicitly target a cache already placed on its wreck, but Skunkworks does
+not autonomously create wreck caches. Deuterium remains excluded from detached
+container storage.
 
 API v124 changes motorized-asteroid impact alerts. The launcher receives the
 result only while still physically present in the impact sector; an impacted

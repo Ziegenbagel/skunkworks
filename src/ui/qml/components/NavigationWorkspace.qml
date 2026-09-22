@@ -89,6 +89,7 @@ PanelFrame {
     signal makeDefaultProbeRequested()
     signal mindSnapshotReassignRequested()
     signal alertDeleteRequested(string alertId, string domain)
+    signal alertsMarkAllReadRequested()
     signal mannyCancelRequested(string mannyId)
     signal fleetNamingRequested(var policy, bool applyExisting)
     signal shutdownRequested()
@@ -463,6 +464,7 @@ PanelFrame {
                     recovery: root.dashboardData.terminalRecovery || ({})
                     onMindSnapshotReassignRequested: root.mindSnapshotReassignRequested()
                     onAlertDeleteRequested: (alertId, domain) => root.alertDeleteRequested(alertId, domain)
+                    onAlertsMarkAllReadRequested: root.alertsMarkAllReadRequested()
                     onGalaxyMapRequested: root.galaxyMapRequested()
                 }
             }

@@ -384,6 +384,10 @@ Rectangle {
                 horizontalAlignment: onLeft ? Text.AlignRight : Text.AlignLeft
                 text: {
                     const name = freeMarker.modelData.name || String(freeMarker.modelData.type).toUpperCase();
+                    if (String(freeMarker.modelData.mode) === "hidden_on_dormant_construct")
+                        return name + " · WRECK CACHE";
+                    if (String(freeMarker.modelData.mode) === "hidden_on_asteroid")
+                        return name + " · ASTEROID CACHE";
                     if (String(freeMarker.modelData.type) !== "others_ship")
                         return name;
                     const state = String(freeMarker.modelData.status || "detected").split("_").join(" ").toUpperCase();

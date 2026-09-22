@@ -122,6 +122,14 @@ class ProbeGateway:
             json=changes,
         )
 
+    def mark_all_alerts_read(self, probe_id):
+        """Mark every persistent alert for one probe read (API v136+)."""
+
+        return self.client.request(
+            "POST",
+            f"/api/probe/{probe_id}/alerts/mark-all-read",
+        )
+
     def delete_alert(self, probe_id, alert_id):
         """Delete one persistent alert owned by the selected probe (API v112+)."""
 

@@ -341,6 +341,7 @@ class UiPreparationTests(unittest.TestCase):
             self.assertEqual(len(alerts), 5)
             self.assertEqual(alerts[0]["summary"], "Alert 5")
             self.assertEqual(alerts[-1]["summary"], "Alert 1")
+            self.assertTrue(all(alert["status"] == "unread" for alert in alerts))
 
     def test_archive_is_separate_from_game_logbook(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -1760,11 +1761,11 @@ class UiPreparationTests(unittest.TestCase):
         notices = []
         controller._set_operation_notice = notices.append
 
-        controller._notify_unreviewed_api_version(136)
-        controller._notify_unreviewed_api_version(136)
+        controller._notify_unreviewed_api_version(138)
+        controller._notify_unreviewed_api_version(138)
 
         self.assertEqual(notices, [
-            "NEW GAME API v136 DETECTED · CONTINUING IN COMPATIBILITY MODE",
+            "NEW GAME API v138 DETECTED · CONTINUING IN COMPATIBILITY MODE",
         ])
 
     def test_production_includes_active_manny_crafting_and_mining(self):
@@ -2347,6 +2348,43 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(inventory["inspectableObjects"][0]["id"], "wreck-others-1")
         self.assertEqual(sector["objects"][0]["type"], "others_mothership_wreck")
         self.assertEqual(sector["objects"][0]["resourceAmounts"]["metals"], 2.5)
+
+    def test_api_v137_exhausted_wreck_and_hidden_cache_are_manual_inventory_targets(self):
+        world = build_operations().world
+        wreck = {
+            "id": "wreck-exhausted",
+            "type": "unknown",
+            "name": "Others Mothership Wreck",
+            "mass": 450000,
+            "massUnit": "kilogram",
+            "radius": 18,
+            "radiusUnit": "meter",
+            "mannyMineable": False,
+            "resourceAmounts": {},
+        }
+        cache = {
+            "id": "wreck-cache-1",
+            "type": "detached_container",
+            "name": "Wreck Cache",
+            "mode": "hidden_on_dormant_construct",
+            "targetObjectId": "wreck-exhausted",
+            "capacity": 1,
+        }
+        world.sector["snapshot"] = {"sector": {"objects": [wreck, cache]}}
+
+        inventory = MissionControlViewModelBuilder._inventory_management(world)
+        sector = MissionControlViewModelBuilder(build_operations())._sector_view(
+            world, {"x": 0, "y": 0, "z": 0},
+        )
+
+        self.assertEqual(inventory["sectorTargets"][0], {
+            "id": "wreck-exhausted",
+            "name": "Others Mothership Wreck",
+            "type": "others_mothership_wreck",
+        })
+        self.assertEqual(inventory["recoverableObjects"][0]["mode"], "hidden_on_dormant_construct")
+        cache_view = next(item for item in sector["objects"] if item["id"] == "wreck-cache-1")
+        self.assertEqual(cache_view["targetObjectId"], "wreck-exhausted")
 
     def test_observed_others_ship_keeps_precise_state_and_motion(self):
         item = MissionControlViewModelBuilder._sector_object({

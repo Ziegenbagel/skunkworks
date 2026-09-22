@@ -212,6 +212,8 @@ class MissionControlViewModelBuilder:
                 }:
                     target_type = "others_ship"
                 target_kind = "planet" if "planet" in target_type else "asteroid" if "asteroid" in target_type else ""
+                if target_type == "others_mothership_wreck":
+                    target_kind = "others_mothership_wreck"
                 if not target_kind and value.get("mannyMineable", False):
                     target_kind = target_type or "mineable_object"
                 target_id = str(value.get("id", ""))
@@ -291,7 +293,10 @@ class MissionControlViewModelBuilder:
                         })
                 is_container = "container" in target_type
                 is_recoverable = value.get("recoverable") or value.get("salvageable") or (
-                    is_container and value.get("mode") in {"drifting", "hidden_on_asteroid"}
+                    is_container and value.get("mode") in {
+                        "drifting", "hidden_on_asteroid",
+                        "hidden_on_dormant_construct",
+                    }
                 )
                 if is_recoverable and target_id and target_id not in seen_recoverable:
                     seen_recoverable.add(target_id)
@@ -1339,6 +1344,7 @@ class MissionControlViewModelBuilder:
                 else item.get("resources") or {}
             ),
             "mode": item.get("mode"),
+            "targetObjectId": item.get("targetObjectId"),
             "status": item.get("status"),
             "observedClass": item.get("observedClass"),
             "movement": item.get("movement") or {},
@@ -1398,6 +1404,7 @@ class MissionControlViewModelBuilder:
             alerts.append({
                 "id": str(event.get("id", "event")),
                 "domain": event["domain"],
+                "status": payload.get("status", "unread"),
                 "deletable": True,
                 "code": str(payload.get("code") or phase or event.get("id", "event")),
                 "phase": phase,

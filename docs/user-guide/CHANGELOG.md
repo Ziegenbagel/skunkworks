@@ -1,5 +1,12 @@
 # Operator Manual Revision History
 
+## 1.10 — 2026-09-21
+
+- Added reviewed API v137 compatibility, probe-scoped bulk alert read status,
+  and manual storage-cache deployment and recovery on Others mothership wrecks.
+- Clarified that bulk read status preserves alert history and that Skunkworks
+  does not autonomously deploy wreck caches.
+
 ## 1.9 — 2026-09-16
 
 - Added reviewed API v135 compatibility. Single missile-launch responses now

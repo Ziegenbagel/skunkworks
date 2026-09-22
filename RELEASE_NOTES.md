@@ -1,5 +1,13 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.5
+
+- Added reviewed compatibility with Von Neumann Game API v137.
+- Added a probe-scoped **Mark All Persistent Alerts Read** control without
+  deleting alert history or affecting sector damage warnings.
+- Added manual deployment and recovery of storage caches on discovered Others
+  mothership wrecks, with clear wreck-cache identification in Live Sector.
+
 ## Skunkworks 1.1.4
 
 - Added reviewed compatibility with Von Neumann Game API v135, including the

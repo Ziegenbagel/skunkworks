@@ -979,6 +979,10 @@ def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
     assert "alertDeleteRequested" in navigation
     assert "deleteAlert(alertId, domain)" in app
     assert "def deleteAlert" in controller
+    assert "MARK ALL PERSISTENT ALERTS READ" in safety
+    assert "alertsMarkAllReadRequested" in navigation
+    assert "markAllAlertsRead()" in app
+    assert "def markAllAlertsRead" in controller
     assert "operationNotice" in app
     assert "AUTOMATION AND TANKER CHECKS" in settings
     assert "FOCUSED PROBE DETAILS" in settings
@@ -986,6 +990,16 @@ def test_alert_deletion_save_feedback_and_clear_diagnostics_are_exposed():
     assert "FLEET LIST CACHE USED" in settings
     assert "GAME API BUDGET" in settings
     assert "BACKGROUND WORK DEFERRED TO PROTECT FOREGROUND CAPACITY" in settings
+
+
+def test_api_v137_manual_wreck_container_caches_are_exposed():
+    inventory = Path("src/ui/qml/components/InventoryWorkspace.qml").read_text(encoding="utf-8")
+    sector = Path("src/ui/qml/components/SectorView.qml").read_text(encoding="utf-8")
+
+    assert "HIDDEN ON OTHERS WRECK" in inventory
+    assert "hidden_on_dormant_construct" in inventory
+    assert '"dormant_construct"' in inventory
+    assert "WRECK CACHE" in sector
 
 
 def test_full_page_lists_avoid_nested_scroll_regions():
