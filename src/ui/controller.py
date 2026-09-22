@@ -910,6 +910,13 @@ class MissionControlDataService:
         self.data_engine.delete_record(domain, alert_id, self._selected_probe_id)
         return result
 
+    def mark_all_alerts_read(self):
+        if self._selected_probe_id is None:
+            raise RuntimeError("Select a probe before updating alerts.")
+        return self.capabilities.probes.mark_all_alerts_read(
+            self._selected_probe_id,
+        )
+
     def automation_view(self, operations=None, probe_id=None, excluded_fabrication=()):
         operations = operations or self._operations
         if probe_id is None:
@@ -6252,6 +6259,13 @@ class MissionControlController(QObject):
         self._inventory_mutation(
             lambda: self.service.delete_alert(alert_id, domain),
             "ALERT DELETED",
+        )
+
+    @Slot()
+    def markAllAlertsRead(self):
+        self._inventory_mutation(
+            self.service.mark_all_alerts_read,
+            "ALL PERSISTENT ALERTS MARKED READ",
         )
 
     @Slot(str)

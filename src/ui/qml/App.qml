@@ -567,6 +567,12 @@ ApplicationWindow {
                 window.backend.deleteAlert(alertId, domain);
         }
 
+        function onAlertsMarkAllReadRequested() {
+            AudioManager.play("save");
+            if (window.backend)
+                window.backend.markAllAlertsRead();
+        }
+
         function onMannyCancelRequested(mannyId) {
             AudioManager.play("warning");
             if (window.backend)

@@ -9,9 +9,13 @@ Item {
     property var alerts: []
     property var recovery: ({})
     property var pendingAlert: ({})
+    readonly property bool hasUnreadPersistentAlerts: root.alerts.some(item =>
+        String(item.domain || "") === "alerts"
+        && String(item.status || "unread") === "unread")
     property double currentEpochMs: Date.now()
     signal mindSnapshotReassignRequested()
     signal alertDeleteRequested(string alertId, string domain)
+    signal alertsMarkAllReadRequested()
     signal galaxyMapRequested()
 
     function countdown(epochMs) {
@@ -36,15 +40,25 @@ Item {
         model: root.alerts
         cacheBuffer: 240
         headerPositioning: ListView.InlineHeader
-        header: GroupBox {
+        header: Column {
             width: safetyAlertList.width
-            visible: Boolean(root.recovery.available)
-            height: visible ? implicitHeight : 0
-            title: "CRITICAL · TERMINAL PROBE RECOVERY"
-            ColumnLayout { anchors.fill: parent; spacing: 10
-                Label { Layout.fillWidth: true; text: String(root.recovery.probeName || "Default probe").toUpperCase() + " · " + String(root.recovery.status || "terminal").split("_").join(" ").toUpperCase(); color: Constants.criticalColor; font.bold: true; font.pixelSize: 19; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
-                Label { Layout.fillWidth: true; text: "The game permits reassignment of the last stable mind snapshot to a fresh probe chassis. This deletes the terminal probe state and resets the local coordinate reference frame so the new origin becomes FCC 0 / 0 / 0."; color: Constants.warningColor; font.pixelSize: 16; lineHeight: 1.25; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
-                Button { text: "REVIEW MIND-SNAPSHOT REASSIGNMENT"; onClicked: recoveryConfirmation.open() }
+            spacing: 12
+            Button {
+                visible: root.hasUnreadPersistentAlerts
+                height: visible ? implicitHeight : 0
+                text: "MARK ALL PERSISTENT ALERTS READ"
+                onClicked: root.alertsMarkAllReadRequested()
+            }
+            GroupBox {
+                width: parent.width
+                visible: Boolean(root.recovery.available)
+                height: visible ? implicitHeight : 0
+                title: "CRITICAL · TERMINAL PROBE RECOVERY"
+                ColumnLayout { anchors.fill: parent; spacing: 10
+                    Label { Layout.fillWidth: true; text: String(root.recovery.probeName || "Default probe").toUpperCase() + " · " + String(root.recovery.status || "terminal").split("_").join(" ").toUpperCase(); color: Constants.criticalColor; font.bold: true; font.pixelSize: 19; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+                    Label { Layout.fillWidth: true; text: "The game permits reassignment of the last stable mind snapshot to a fresh probe chassis. This deletes the terminal probe state and resets the local coordinate reference frame so the new origin becomes FCC 0 / 0 / 0."; color: Constants.warningColor; font.pixelSize: 16; lineHeight: 1.25; wrapMode: Text.WrapAtWordBoundaryOrAnywhere }
+                    Button { text: "REVIEW MIND-SNAPSHOT REASSIGNMENT"; onClicked: recoveryConfirmation.open() }
+                }
             }
         }
         delegate: Rectangle {

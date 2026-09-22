@@ -399,6 +399,8 @@ Rectangle {
                     const type = String(freeMarker.modelData.type).toLowerCase();
                     if (type.indexOf("container") >= 0) {
                         const mode = String(freeMarker.modelData.mode || "").toLowerCase();
+                        if (mode === "hidden_on_dormant_construct")
+                            return name + " · WRECK CACHE · ANCHORED TO " + String(freeMarker.modelData.targetObjectName || freeMarker.modelData.targetObjectId || "OTHERS WRECK");
                         if (mode === "hidden_on_asteroid" || freeMarker.modelData.targetObjectId)
                             return name + " · ANCHORED TO " + String(freeMarker.modelData.targetObjectName || freeMarker.modelData.targetObjectId || "ASTEROID");
                         return name + " · DRIFTING";

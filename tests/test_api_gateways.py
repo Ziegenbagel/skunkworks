@@ -63,6 +63,13 @@ class ApiGatewayTests(unittest.TestCase):
             ("DELETE", "/api/probe/42/damage-warnings/9", {}),
         ])
 
+    def test_v136_mark_all_alerts_read_is_probe_scoped(self):
+        self.api.probes.mark_all_alerts_read(42)
+
+        self.assertEqual(self.client.calls[-1], (
+            "POST", "/api/probe/42/alerts/mark-all-read", {},
+        ))
+
     def test_v113_blueprint_sharing_is_probe_scoped(self):
         self.api.probes.share_improvement_blueprint(
             42, "distributed_thrust_anchoring", 314,

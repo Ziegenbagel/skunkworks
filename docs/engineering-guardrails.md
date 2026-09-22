@@ -188,6 +188,36 @@ Relevant code/tests:
 - `src/ui/qml/components/MapObjectMarker.qml`
 - `tests/test_ui_assets.py::test_selected_map_marker_does_not_cover_or_shrink_the_object_icon`
 
+### Persistent alert bulk updates remain probe scoped and non-destructive
+
+The operator may explicitly mark every persistent alert for the focused probe
+read. That control must use the probe-scoped API route, must not delete alert
+history, and must not alter the separate sector damage-warning stream. A
+successful command triggers the normal authoritative refresh rather than
+locally pretending that every alert changed.
+
+Relevant code/tests:
+
+- `src/api/gateways/probes.py`
+- `src/ui/controller.py`
+- `tests/test_api_gateways.py`
+- `tests/test_ui_assets.py`
+
+### Wreck caches are an explicit manual capability
+
+API v137 storage caches may target a discovered Others mothership wreck,
+including an exhausted wreck. Other dormant constructs remain invalid. The
+presentation layer must preserve the cache mode and recovery source so the
+operator can distinguish a wreck cache from an asteroid cache or drifting
+container. Miner automation remains on its approved asteroid-container
+workflow unless a separate product decision authorizes wreck caching.
+
+Relevant code/tests:
+
+- `src/presentation/mission_control.py`
+- `src/ui/qml/components/InventoryWorkspace.qml`
+- `tests/test_ui_assets.py`
+
 ### Map selections create drafts, not commands
 
 Passing a selected Galaxy Map sector to Navigation is a local interface action.
