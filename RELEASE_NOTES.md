@@ -1,5 +1,9 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.6
+
+- Recognizes Von Neumann Game API v139 as supported, removing the unreviewed-version warning.
+
 ## Skunkworks 1.1.5
 
 - Added reviewed compatibility with Von Neumann Game API v137.

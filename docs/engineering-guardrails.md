@@ -799,6 +799,17 @@ The complete procedure is authoritative in `docs/development-workflow.md`.
 
 ## API and Safety Invariants
 
+### Others-only API additions preserve the probe-control boundary
+
+API v138 documents Others harvesting and v139 adds Others inventory jettisoning.
+Neither authorizes changing probe routes, cargo semantics, or automation.
+Reviewed version acceptance extends through v139; newer versions remain usable
+with an unreviewed warning, while versions older than v103 remain blocked.
+
+Relevant test:
+
+- `tests/test_api_contract.py::GameClientContractTests::test_reviewed_versions_end_at_v139_but_newer_api_remains_usable`
+
 ### Missile response remains explicit, probe-scoped, and restart-safe
 
 `weapon_targeted` and sector missiles with `targetsCurrentProbe=true` are live

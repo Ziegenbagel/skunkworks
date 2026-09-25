@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v137, verified
-against the live contract on 2026-09-21.
+Skunkworks supports deployed API v103 through upstream API v139, verified
+against the live contract on 2026-09-25.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -132,6 +132,19 @@ is presented distinctly from asteroid caches and drifting containers. Mining
 may explicitly target a cache already placed on its wreck, but Skunkworks does
 not autonomously create wreck caches. Deuterium remains excluded from detached
 container storage.
+
+API v138 documents the already-required `targetObjectId` and positive integer
+`auxiliaryCount` body fields on the Others-ship harvest route, without changing
+its behavior. API v139 adds `POST /api/others/ships/{shipId}/inventory/jettisons`
+for unreserved Others inventory resources or missiles; propulsion-tank fuel is
+not inventory cargo. Both changes are outside Skunkworks' probe-control surface
+and require no probe gateway or automation changes.
+
+Verification sources: the live `/api/version` response and
+[public probe OpenAPI contract](https://neumann-probe.net/openapi.yaml) report
+v139; the [game changelog](https://neumann-probe.net/changelog) records the
+v138 and v139 Others-only changes on September 23 and 24. The public probe
+schema does not include those Others mutation routes.
 
 API v124 changes motorized-asteroid impact alerts. The launcher receives the
 result only while still physically present in the impact sector; an impacted

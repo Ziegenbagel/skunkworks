@@ -78,9 +78,10 @@ fleet work defer before consuming that capacity.
 
 ## API Contract Boundary
 
-Skunkworks supports deployed API v103 through reviewed upstream API v137. The
-boundary rejects older contracts and unreviewed newer contracts, preserves canonical public
-identifiers, and isolates HTTP concerns from application reasoning.
+Skunkworks supports deployed API v103 through reviewed upstream API v139. The
+boundary rejects older contracts and warns while provisionally accepting newer
+unreviewed contracts. It preserves canonical public identifiers and isolates
+HTTP concerns from application reasoning.
 
 New response representations are normalized by the Intelligence Layer.
 Operational services and the Planner must never depend directly on API
