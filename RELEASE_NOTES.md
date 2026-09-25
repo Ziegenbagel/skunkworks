@@ -39,6 +39,10 @@
   on the querying probe's send-time sector, replacing that player's previous
   estimate when queried again.
 
+## Skunkworks 1.1.6
+
+- Recognizes Von Neumann Game API v139 as supported, removing the unreviewed-version warning.
+
 ## Skunkworks 1.1.5
 
 - Added reviewed compatibility with Von Neumann Game API v137.

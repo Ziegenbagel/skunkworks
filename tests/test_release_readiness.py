@@ -30,7 +30,7 @@ def test_published_release_notes_are_operator_facing_bullet_lists():
     assert sections
     assert versions == (
         {f"1.0.{patch}" for patch in range(13)}
-        | {"1.1.0", "1.1.1", "1.1.2", "1.1.3", "1.1.4", "1.1.5"}
+        | {"1.1.0", "1.1.1", "1.1.2", "1.1.3", "1.1.4", "1.1.5", "1.1.6"}
     )
     assert ".dev" not in notes.casefold()
     assert "development branch" not in notes.casefold()
