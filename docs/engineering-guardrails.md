@@ -542,6 +542,12 @@ integer at the controller/data-service boundary, and use tolerant numeric ID
 matching for persisted fleet roles. A representation mismatch must never abort
 a probe switch or replace live telemetry with the stale-snapshot error state.
 
+The same mutation-boundary rule applies to numeric relay identifiers. Relay
+activation and transit-beacon installation must normalize integer-valued Qt or
+telemetry representations (including `805.0`) to the API's integer `relayId`
+before dispatch. Missing, fractional, non-finite, zero, and negative values
+must fail locally without sending a Manny task.
+
 Relevant code/tests:
 
 - `src/ui/controller.py::_coerce_integral_id`

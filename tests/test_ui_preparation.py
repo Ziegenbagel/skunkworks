@@ -1701,6 +1701,54 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(client.calls[-1][2]["json"]["targetProbeId"], 42)
 
+    def test_relay_tasks_coerce_integral_decimal_ids_to_integers(self):
+        class Client:
+            def __init__(self):
+                self.calls = []
+
+            def request(self, method, path, **kwargs):
+                self.calls.append((method, path, kwargs))
+                return {"accepted": True}
+
+        client = Client()
+        with tempfile.TemporaryDirectory() as temporary:
+            service = MissionControlDataService(
+                client=client,
+                data_engine=DataEngine(Path(temporary) / "relay.sqlite3"),
+            )
+            service._selected_probe_id = 7
+
+            service.inventory_manny_action(
+                "turn-on-relay", "manny-a", {"relayId": "805.0"},
+            )
+            service.inventory_manny_action(
+                "install-scut-transit-beacon", "manny-b", {"relayId": 806.0},
+            )
+
+        self.assertEqual(client.calls[-2][2]["json"], {"relayId": 805})
+        self.assertEqual(client.calls[-1][2]["json"], {"relayId": 806})
+
+    def test_relay_tasks_reject_fractional_or_missing_ids(self):
+        class Client:
+            def request(self, method, path, **kwargs):
+                raise AssertionError("Invalid relay IDs must not reach the API.")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            service = MissionControlDataService(
+                client=Client(),
+                data_engine=DataEngine(Path(temporary) / "relay-invalid.sqlite3"),
+            )
+            service._selected_probe_id = 7
+
+            for relay_id in (None, "", "805.5", 0, -1):
+                with self.subTest(relay_id=relay_id):
+                    with self.assertRaisesRegex(
+                        ValueError, "Select a valid current-sector relay",
+                    ):
+                        service.inventory_manny_action(
+                            "turn-on-relay", "manny-a", {"relayId": relay_id},
+                        )
+
     def test_periodic_check_pauses_automation_for_too_old_api(self):
         controller = MissionControlController()
         controller._dashboard = {"connection": "connected"}

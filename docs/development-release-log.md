@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Fixed relay activation and SCUT transit-beacon installation failing when Qt
+  represented the game's integer relay identifier as an integral decimal such
+  as `805.0`; both commands now validate and normalize the identifier before
+  sending the Manny task.
+
 - Fixed automatic Explorer travel consuming the configured fuel safety floor.
   Planning now refuels the next leg above the protected arrival reserve, and
   live move preflight rejects any departure that would cross that floor.

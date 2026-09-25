@@ -2890,10 +2890,22 @@ class MissionControlDataService:
         if action not in allowed:
             raise ValueError(f"Unsupported manual inventory action: {action}")
         payload = dict(payload or {})
+        if action in {"turn-on-relay", "install-scut-transit-beacon"}:
+            try:
+                relay_id = _coerce_integral_id(
+                    payload.get("relayId"), label="relay",
+                )
+            except ValueError:
+                raise ValueError("Select a valid current-sector relay.") from None
+            if relay_id <= 0:
+                raise ValueError("Select a valid current-sector relay.")
+            payload["relayId"] = relay_id
         if action in {"transfer-deuterium-to-probe", "transfer-to-probe"}:
             try:
-                target_probe_id = int(payload.get("targetProbeId"))
-            except (TypeError, ValueError):
+                target_probe_id = _coerce_integral_id(
+                    payload.get("targetProbeId"), label="receiver probe",
+                )
+            except ValueError:
                 raise ValueError("Select a valid same-sector target probe.") from None
             if target_probe_id <= 0:
                 raise ValueError("Select a valid same-sector target probe.")
