@@ -766,6 +766,8 @@ def test_settings_exposes_policy_gated_automation_queue_and_approval():
     assert "COMPLETE PLANNER STATUS · ALL PRIORITIES AND WAITING GOALS" in settings
     assert "WAITING FOR · " in settings
     assert "automationApprovalRequested" in settings
+    assert 'text: "APPROVE ONCE"' in settings
+    assert 'visible: String(commandRow.modelData.disposition) === "awaiting_approval"' in settings
     assert "saveExecutionPolicy" in app
     assert "runAutomationCycle" in app
 

@@ -91,6 +91,7 @@ class AutomationRuntime:
         if (
             command.type not in self.policy.allowed_command_types
             and not command.metadata.get("workflowAuthorized", False)
+            and not approved
         ):
             return self._finish(command, "cancelled", ("command_not_allowlisted",))
         if self.policy.mode == ExecutionMode.APPROVE and not approved:

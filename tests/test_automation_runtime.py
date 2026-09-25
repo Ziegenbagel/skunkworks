@@ -82,6 +82,34 @@ class AutomationRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(self.replans, ["succeeded"])
 
+    def test_explicit_approval_bypasses_automatic_allowlist_once(self):
+        self.runtime.policy = ExecutionPolicy(
+            mode=ExecutionMode.AUTOMATIC,
+            live_execution_enabled=True,
+            allowed_command_types=frozenset(),
+        )
+
+        result = self.runtime.execute(self.prepared, approved=True)
+
+        self.assertEqual(result.status, "succeeded")
+        self.assertEqual(
+            self.mannies.calls,
+            [(1, 101, "craft", {"recipe": "storage_container"})],
+        )
+
+    def test_unapproved_command_cannot_bypass_automatic_allowlist(self):
+        self.runtime.policy = ExecutionPolicy(
+            mode=ExecutionMode.AUTOMATIC,
+            live_execution_enabled=True,
+            allowed_command_types=frozenset(),
+        )
+
+        result = self.runtime.execute(self.prepared)
+
+        self.assertEqual(result.status, "cancelled")
+        self.assertEqual(result.blockers, ("command_not_allowlisted",))
+        self.assertEqual(self.mannies.calls, [])
+
     def test_completed_repeatable_command_can_run_again_after_fresh_preflight(self):
         first = self.runtime.execute(self.prepared, approved=True)
         second = self.runtime.execute(self.prepared, approved=True)

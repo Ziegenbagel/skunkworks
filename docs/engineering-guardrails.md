@@ -1168,6 +1168,13 @@ Relevant code/tests:
 - Moving/unreachable probes receive a limited world model rather than silently
   falling back to the default probe.
 - Compatibility checks and command allowlists remain at the mutation boundary.
+- The command allowlist controls unattended Automatic execution, not explicit
+  one-time operator approval. Every unblocked `awaiting_approval` proposal must
+  expose an approval action in Require Approval and Automatic modes. That exact
+  fingerprint may bypass the allowlist once only after live execution is
+  enabled and the runtime repeats authoritative refresh, safety, reservation,
+  risk-acknowledgement, idempotency, and lease checks. Approval must never
+  mutate the saved allowlist or authorize a later command implicitly.
 - Safety, risk acknowledgement, reservations, storage capacity, and execution
   leases are revalidated before dispatch.
 - Business errors remain visible and specific; do not collapse them into generic

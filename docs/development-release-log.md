@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Added the missing one-time approval control for queued automation commands.
+  Require Approval orders and commands excluded from the Automatic allowlist
+  can now be approved individually without changing the saved allowlist, while
+  still receiving fresh safety, reservation, risk, and live-state checks.
+
 - Fixed relay activation and SCUT transit-beacon installation failing when Qt
   represented the game's integer relay identifier as an integral decimal such
   as `805.0`; both commands now validate and normalize the identifier before

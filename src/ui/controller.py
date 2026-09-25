@@ -2037,18 +2037,34 @@ class MissionControlDataService:
             return {"status": "awaiting_approval", "message": "Select and approve a queued command."}
         if policy.mode == ExecutionMode.AUTOMATIC:
             if fingerprint is not None:
-                # Automatic commands normally execute only when their
-                # disposition is ready. A risk acknowledgement is the one
-                # operator-gated exception: execute the exact fingerprint the
-                # operator acknowledged instead of filtering it back out as
-                # awaiting_risk_acknowledgement.
+                # An exact fingerprint comes only from an operator action in
+                # the proposed queue. It may approve one command excluded
+                # from unattended execution by the allowlist, or acknowledge
+                # one command's displayed travel risks. The runtime still
+                # refreshes and preflights the command before dispatch.
                 prepared = candidates[0]
-                if prepared.disposition not in {
-                    "ready", "awaiting_risk_acknowledgement"
-                } or not risk_acknowledged:
+                if prepared.disposition == "awaiting_approval":
+                    runtime = AutomationRuntime(
+                        capabilities=self.capabilities,
+                        data_engine=self.data_engine,
+                        policy=policy,
+                        dispatcher=CapabilityDispatcher(self.capabilities),
+                        refresh=self._refresh_operations,
+                        revalidate=self._runtime_revalidation_blockers,
+                    )
+                    result = runtime.execute(
+                        prepared,
+                        approved=True,
+                        risk_acknowledged=risk_acknowledged,
+                    )
+                    return self._execution_result(prepared, result)
+                if (
+                    prepared.disposition != "awaiting_risk_acknowledgement"
+                    or not risk_acknowledged
+                ):
                     return {
                         "status": "idle",
-                        "message": "The selected automatic command still requires risk acknowledgement.",
+                        "message": "The selected command is not waiting for operator approval.",
                     }
                 runtime = AutomationRuntime(
                     capabilities=self.capabilities,
@@ -2060,6 +2076,7 @@ class MissionControlDataService:
                 )
                 result = runtime.execute(
                     prepared,
+                    approved=True,
                     risk_acknowledged=True,
                 )
                 return self._execution_result(prepared, result)

@@ -694,5 +694,52 @@ def test_automatic_risk_acknowledgement_executes_the_selected_command():
     assert result["status"] == "succeeded"
     assert executions == [(
         move.command.fingerprint,
-        {"risk_acknowledged": True},
+        {"approved": True, "risk_acknowledged": True},
+    )]
+
+
+def test_automatic_operator_approval_executes_one_non_allowlisted_command():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+    service._refresh_operations = lambda probe_id: None
+    command = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT,
+        7,
+        {"recipe": "storage_container"},
+        "replenish container stock",
+        1,
+        target_id="manny-a",
+    ), "awaiting_approval")
+    service.automation_view = lambda probe_id=None: setattr(
+        service, "_prepared_commands", (command,)
+    ) or {}
+    executions = []
+
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, prepared, **kwargs):
+            executions.append((prepared.command.fingerprint, kwargs))
+            return ExecutionResult(
+                "succeeded", prepared.command, response={"accepted": True}
+            )
+
+    policy = ExecutionPolicy(
+        mode=ExecutionMode.AUTOMATIC,
+        live_execution_enabled=True,
+        allowed_command_types=frozenset(),
+    )
+    with (
+        patch("src.ui.controller.ExecutionPolicyStore.load", return_value=policy),
+        patch("src.ui.controller.AutomationRuntime", Runtime),
+    ):
+        result = service.run_automation_cycle(command.command.fingerprint)
+
+    assert result["status"] == "succeeded"
+    assert executions == [(
+        command.command.fingerprint,
+        {"approved": True, "risk_acknowledged": False},
     )]

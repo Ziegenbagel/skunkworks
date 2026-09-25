@@ -641,10 +641,12 @@ Item {
                                     }
                                 }
                                 Button {
-                                    text: "APPROVE"
-                                    visible: String(root.runtimeData.mode) === "approve"
+                                    text: "APPROVE ONCE"
+                                    visible: String(commandRow.modelData.disposition) === "awaiting_approval"
                                     enabled: !(commandRow.modelData.blockers || []).length && !root.runtimeData.emergencyStopActive
                                     onClicked: root.automationApprovalRequested(String(commandRow.modelData.fingerprint), riskAcknowledgement.checked)
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: "Approve this command once. Safety, reservations, live state, and risk acknowledgement are checked again before it is sent. This does not add the command type to automatic execution."
                                 }
                             }
                         }
