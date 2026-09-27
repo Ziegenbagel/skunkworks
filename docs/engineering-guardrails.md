@@ -1597,6 +1597,10 @@ Deployment, activation, and beacon installation advance on live telemetry;
 accepted commands remain deduplicated across worker changes and restarts.
 Home restocking persists an identified request, and the Hub protects the
 requested completed components from unrelated crafting or probe assembly.
+Relay kits target one Integrated Circuit per relay independently of beacon
+placement. Beacon refills have their own opt-in and stock target; only shortages
+are requested. Disabling beacon refills must not add beacons to new requests or
+cause repeated departure/resupply cycles when placement still requires one.
 A Hub handoff transfers a dedicated container to an owned local stationary
 receiver. Unrelated items, resources, and Mannys prohibit the handoff. A missing
 container alone is not delivery evidence: the exact handoff must have an

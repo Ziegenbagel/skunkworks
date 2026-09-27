@@ -112,6 +112,54 @@ def test_empty_stock_returns_home_then_requests_missing_kit_and_resumes():
     assert result.phase == "restocked" and "supplyRequest" not in result.state
 
 
+@pytest.mark.parametrize("beacon_mode", ["final", "every", "none"])
+def test_refill_beacon_quantity_is_independent_and_circuits_cover_each_relay(beacon_mode):
+    config = settings(relayStock=4, beaconMode=beacon_mode, refillBeacons=True,
+                      beaconStock=7, infrastructureCampaign={"returning":True})
+    result = RelayCampaignService(operations(kit(relays=1, beacons=2))).decide(config)
+    assert result.state["supplyRequest"]["items"] == {
+        "scut_relay":3, "integrated_circuit":3, "scut_transit_beacon":5,
+    }
+    config["infrastructureCampaign"] = result.state
+    assert RelayCampaignService(operations(kit(relays=4, beacons=6))).decide(config).phase == "restocking"
+    assert RelayCampaignService(operations(kit(relays=4, beacons=7))).decide(config).phase == "restocked"
+
+
+def test_disabled_beacon_refills_do_not_order_beacons_or_loop_departure():
+    config = settings(refillBeacons=False, beaconStock=7,
+                      infrastructureCampaign={"returning":True})
+    result = RelayCampaignService(operations()).decide(config)
+    assert result.state["supplyRequest"]["items"] == {"scut_relay":2, "integrated_circuit":2}
+    config["infrastructureCampaign"] = result.state
+    result = RelayCampaignService(operations(kit(beacons=0))).decide(config)
+    assert result.phase == "beacon_refill_disabled"
+    assert result.destination is None and result.state["returning"]
+    assert "supplyRequest" not in result.state
+
+
+def test_no_beacon_placement_can_restock_without_beacons():
+    config = settings(beaconMode="none", refillBeacons=False,
+                      infrastructureCampaign={"returning":True})
+    result = RelayCampaignService(operations(kit(beacons=0))).decide(config)
+    assert result.phase == "restocked"
+
+
+def test_disabling_beacon_placement_releases_an_unfinished_site():
+    config = settings(beaconMode="none", refillBeacons=False,
+                      infrastructureCampaign={"target":{"x":2,"y":0,"z":0},
+                                              "relayId":"9", "placeBeacon":True})
+    ops = operations(kit(beacons=0), here=P(2,0,0),
+                     local=[{"id":9,"type":"scut_relay","status":"on"}])
+    result = RelayCampaignService(ops).decide(config)
+    assert result.phase == "site_complete" and not result.tasks
+
+
+@pytest.mark.parametrize("quantity", [0, 21])
+def test_beacon_refill_target_is_validated(quantity):
+    with pytest.raises(ValueError, match="Beacon restock quantity"):
+        validate_settings("relay_placement", settings(refillBeacons=True, beaconStock=quantity))
+
+
 def test_hub_loads_output_and_handoff_uses_live_container_not_manny_transfer():
     request = {"id":"batch-1","targetProbeId":2,"items":{"scut_relay":1}}
     config = {"infrastructureEnabled":True,"outputRequest":request}

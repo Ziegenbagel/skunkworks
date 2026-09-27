@@ -20,7 +20,7 @@ the baseline. Enable incoming container recovery to collect raw-resource
 supplies delivered by Transport; the Hub does not generate ordinary-resource
 mining orders for its production shortages.
 
-Returning Relay Placement probes request refill kits automatically. To send
+Returning SCUT Network Expansion probes request refill kits automatically. To send
 other finished items, choose an owned receiver, a recipe ID, and quantity, then
 queue one output batch. The receiver must rendezvous with the Hub and have
 fresh storage telemetry, permanent unloading capacity, and a free attachment
@@ -35,7 +35,7 @@ is disabled. Larger batches use successive containers, with the previous
 receipt finished before another handoff. Insufficient storage produces a hold;
 it never causes supplied items to be jettisoned.
 
-## Relay Placement
+## SCUT Network Expansion
 
 Choose one of the three sections:
 
@@ -47,7 +47,12 @@ Choose one of the three sections:
 3. **Expand in a chosen direction** uses the vector from home through the
    entered coordinates and can continue beyond that point.
 
-Set the home sector and refill-kit size. Choose a beacon on the final usable
+Set the home sector and relay refill target. One Integrated Circuit per relay
+is included automatically. Optionally enable beacon refills and choose a separate
+beacon stock target; the Hub supplies only the missing quantities. Changes apply
+to the next refill request; an existing delivery finishes its queued batch. With beacon
+refills disabled, depleted beacons hold the probe at home if placement still
+requires them. Choose a beacon on the final usable
 relay in stock, on every relay, or no beacons. The role deploys a carried relay,
 activates it with an Integrated Circuit, and installs the selected beacon,
 waiting for live completion at each step. Exhausted stock sends it home for Hub

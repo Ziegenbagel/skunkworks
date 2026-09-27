@@ -147,11 +147,11 @@ class RelayCampaignService:
         def decision(phase, summary, **kwargs):
             return InfrastructureDecision(phase, summary, state=dict(state), **kwargs)
         if not settings.get("infrastructureEnabled"):
-            return decision("paused", "Relay placement is paused.")
+            return decision("paused", "SCUT Network Expansion is paused.")
         home = coordinates(settings.get("home"))
         current = self.operations.travel.current_sector()
         if home is None or current is None:
-            return decision("blocked", "Set a valid home sector before enabling relay placement.")
+            return decision("blocked", "Set a valid home sector before enabling SCUT Network Expansion.")
         if settings.get("expansionMode") == "signal" and not state.get("signalDirection"):
             direction = self.signal_direction(alerts)
             if not direction:
@@ -161,8 +161,10 @@ class RelayCampaignService:
         beacon_mode = settings.get("beaconMode", "final")
         target_stock = max(1, int(settings.get("relayStock", 4)))
         kit = {"scut_relay": target_stock, "integrated_circuit": target_stock}
-        if beacon_mode != "none":
-            kit["scut_transit_beacon"] = target_stock if beacon_mode == "every" else 1
+        refill_beacons = settings.get("refillBeacons", beacon_mode != "none")
+        if refill_beacons:
+            default_beacons = target_stock if beacon_mode == "every" else 1
+            kit["scut_transit_beacon"] = int(settings.get("beaconStock", default_beacons))
         target = coordinates(state.get("target"))
         if target:
             if current != target:
@@ -207,7 +209,7 @@ class RelayCampaignService:
                 return decision("deploying", task.reason, tasks=(task,))
             if relay.get("status") != "on":
                 action, explanation = "Activate SCUT Relay", "Activating the placed relay with an Integrated Circuit."
-            elif state.get("placeBeacon") and not relay.get("isTransitBeacon", relay.get("hasTransitBeacon", False)):
+            elif beacon_mode != "none" and state.get("placeBeacon") and not relay.get("isTransitBeacon", relay.get("hasTransitBeacon", False)):
                 action, explanation = "Install SCUT Beacon", "Installing the selected transit beacon before leaving this relay."
             else:
                 state = {k: v for k, v in state.items() if k not in {"target", "relayId", "itemId", "existingRelays", "placeBeacon", "deployFingerprint"}}
@@ -248,6 +250,8 @@ class RelayCampaignService:
                                               "items": {k:n for k,n in missing.items() if n}}
                 return decision("restocking", "At home, waiting for the Hub to supply the requested relay kit.")
             state.pop("supplyRequest", None)
+            if not refill_beacons and beacon_mode != "none" and available.get("scut_transit_beacon", 0) < 1:
+                return decision("beacon_refill_disabled", "At home with no beacons. Enable beacon refills, supply one manually, or choose no beacon placement.")
             state.pop("returning", None)
             if state.get("resumeTarget"):
                 state["target"] = state.pop("resumeTarget")
@@ -571,6 +575,9 @@ def validate_settings(role, settings):
             raise ValueError("Choose final-relay, every-relay, or no beacons.")
         if not 1 <= int(settings.get("relayStock", 4)) <= 20:
             raise ValueError("Relay restock quantity must be between 1 and 20.")
+        if settings.get("refillBeacons", settings.get("beaconMode", "final") != "none"):
+            if not 1 <= int(settings.get("beaconStock", 1)) <= 20:
+                raise ValueError("Beacon restock quantity must be between 1 and 20.")
     request = settings.get("outputRequest")
     if role == "hub" and request:
         if not request.get("id") or int(request.get("targetProbeId", -1)) < 0:

@@ -595,7 +595,7 @@ the `codex/<feature-name>` convention, and return to `develop` only after their
 focused regression tests pass. No 1.2 development commit receives a public
 `v*` tag until the integrated release candidate is promoted to `main`.
 
-- Testable Relay Placement role: automatic coverage expansion, signal-direction
+- Testable SCUT Network Expansion role: automatic coverage expansion, signal-direction
   expansion, or coordinate-direction expansion; final/every/no beacon policy
   and home Hub restocking. Candidate selection uses mapped stars in verified
   SCUT coverage; unknown areas require further scans.

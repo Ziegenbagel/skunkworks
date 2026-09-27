@@ -18,7 +18,9 @@ ColumnLayout {
             beaconMode: ["final", "every", "none"][beaconMode.currentIndex],
             home: {x: homeX.value, y: homeY.value, z: homeZ.value},
             direction: {x: directionX.value, y: directionY.value, z: directionZ.value},
-            relayStock: restockCount.value};
+            relayStock: restockCount.value,
+            refillBeacons: refillBeacons.checked,
+            beaconStock: beaconStock.value};
     }
     function hubSettings(request) {
         const result = {infrastructureEnabled: enabledRole.checked, receiveContainers: receiveContainers.checked};
@@ -32,7 +34,7 @@ ColumnLayout {
               + "\n" + String(root.runtime.summary || "Save settings and evaluate an automation cycle to see the next action.")
         color: Constants.cyanColor; font.family: Constants.technicalFont
     }
-    CheckBox { id: enabledRole; palette.windowText: Constants.textColor; text: root.role === "hub" ? "ENABLE HUB SUPPLY" : "ENABLE RELAY PLACEMENT"; checked: Boolean(root.settings.infrastructureEnabled) }
+    CheckBox { id: enabledRole; palette.windowText: Constants.textColor; text: root.role === "hub" ? "ENABLE HUB SUPPLY" : "ENABLE SCUT NETWORK EXPANSION"; checked: Boolean(root.settings.infrastructureEnabled) }
     ButtonGroup { id: expansionModes }
     GroupBox {
         palette.windowText: Constants.textColor
@@ -79,8 +81,20 @@ ColumnLayout {
                 Label { text: "RELAYS PER REFILL KIT"; color: Constants.warningColor }
                 SpinBox { id: restockCount; from: 1; to: 20; value: Number(root.settings.relayStock || 4) }
             }
+            Label { Layout.fillWidth: true; text: "INTEGRATED CIRCUITS · " + restockCount.value + " (ONE PER RELAY FOR ACTIVATION)"; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
+            CheckBox {
+                id: refillBeacons
+                text: "REFILL TRANSIT BEACONS AT HOME"
+                checked: root.settings.refillBeacons === undefined ? beaconMode.currentIndex !== 2 : Boolean(root.settings.refillBeacons)
+            }
+            RowLayout {
+                enabled: refillBeacons.checked
+                Label { text: "BEACONS PER REFILL KIT"; color: Constants.warningColor }
+                SpinBox { id: beaconStock; from: 1; to: 20; value: Number(root.settings.beaconStock || (beaconMode.currentIndex === 1 ? restockCount.value : 1)) }
+            }
+            Label { Layout.fillWidth: true; text: "Refill quantities are stock targets: the Hub supplies only what is missing. Beacon quantity is independent of relay quantity and beacon placement frequency. Changes apply to the next refill request."; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
             Label { Layout.fillWidth: true; text: "Returns home when relays, activation circuits, or required beacons run out. An enabled Hub at home builds and hands over the kit. Normal fuel, repair, Manny-return, and travel checks remain active."; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
-            Button { text: "SAVE RELAY ROLE SETTINGS"; onClicked: root.saveRequested(root.relaySettings()) }
+            Button { text: "SAVE SCUT NETWORK EXPANSION SETTINGS"; onClicked: root.saveRequested(root.relaySettings()) }
         }
     }
     GroupBox {

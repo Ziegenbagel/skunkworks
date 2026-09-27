@@ -567,7 +567,7 @@ Planned additions include:
 - Operational Health and Risk Assessment
 
 
-Hub and relay-placement campaigns persist in fleet-role metadata. Hubs reuse
+Hub and SCUT Network Expansion campaigns persist in fleet-role metadata. Hubs reuse
 Desired State production goals, accept raw-resource container deliveries, and
 load requested finished items into dedicated containers for local handoff.
 Relay placement selects mapped stars by FCC coverage gain, optionally weighted

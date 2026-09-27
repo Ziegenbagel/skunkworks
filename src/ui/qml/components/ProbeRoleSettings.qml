@@ -29,6 +29,9 @@ Item {
     function roleFor(probeId) {
         return String((settingsData.probeRoles || {})[String(probeId)] || "unassigned");
     }
+    function roleLabel(role) {
+        return role === "relay_placement" ? "SCUT Network Expansion" : role;
+    }
     function probeName(probeId) {
         for (let i = 0; i < availableProbes.length; ++i)
             if (Number(availableProbes[i].id) === Number(probeId))
@@ -85,9 +88,9 @@ Item {
                                     Label { Layout.preferredWidth: 210; Layout.maximumWidth: 210; text: String(roleRow.modelData.model || "generic").replace(/_/g, " ").toUpperCase(); color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                                 ComboBox {
                                         Layout.preferredWidth: 270
-                                    model: root.roleOptions
+                                    model: root.roleOptions.map(role => root.roleLabel(role))
                                     currentIndex: Math.max(0, root.roleOptions.indexOf(root.roleFor(roleRow.modelData.id)))
-                                    onActivated: root.roleAssignmentRequested(Number(roleRow.modelData.id), String(currentText))
+                                    onActivated: root.roleAssignmentRequested(Number(roleRow.modelData.id), root.roleOptions[currentIndex])
                                 }
                                     Label { Layout.fillWidth: true; elide: Text.ElideRight; text: roleRow.modelData.sectorLabel || "SECTOR UNKNOWN"; color: Constants.cyanColor; font.family: Constants.technicalFont }
                             }
@@ -97,7 +100,7 @@ Item {
             }
                 Label {
                     Layout.fillWidth: true
-                    text: "FOCUSED ROLE · " + root.focusedRole.replace(/_/g, " ").toUpperCase()
+                    text: "FOCUSED ROLE · " + root.roleLabel(root.focusedRole).replace(/_/g, " ").toUpperCase()
                     color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 16; font.bold: true
                 }
                 Item {
