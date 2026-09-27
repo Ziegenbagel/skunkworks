@@ -1,8 +1,10 @@
 import json
+from dataclasses import replace
 import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import requests
@@ -12,7 +14,7 @@ from src.execution import Command, CommandType, ExecutionMode
 from src.operations.operations import Operations
 from src.operations.logistics import FleetRoleService
 from src.models.galaxy import SectorCoordinates
-from src.planner.desired_state import DesiredState, FuelGoal, TravelGoal
+from src.planner.desired_state import DesiredState, FuelGoal, TravelGoal, UpgradeGoal
 from src.planner.desired_state_store import DesiredStateStore
 from src.presentation import MissionControlViewModelBuilder
 from src.ui.controller import (
@@ -33,6 +35,27 @@ class ImmediatePool:
 
 
 class UiPreparationTests(unittest.TestCase):
+    def test_selected_upgrade_goal_is_saved_without_issuing_a_game_command(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            from tests.test_upgrade_goals import scenario
+            operations, _desired = scenario(Path(temporary))
+            engine = operations.data_engine
+            DesiredStateStore(engine).save(DesiredState.unconfigured(), 1)
+            service = SimpleNamespace(
+                data_engine=engine, _operations=operations,
+                automation_view=lambda **kwargs: {"mode": "observe", "liveExecutionEnabled": False},
+            )
+            controller = MissionControlController(service, thread_pool=ImmediatePool())
+            controller._focused_probe_id = 1
+            controller._dashboard = {"automation": {}}
+            with patch.object(controller, "_start_refresh"):
+                controller.startUpgradeGoal("compression")
+                goal = DesiredStateStore(engine).load(1).upgrade
+                self.assertEqual(goal.improvement_id, "compression")
+                controller.cancelUpgradeGoal()
+            self.assertIsNone(DesiredStateStore(engine).load(1).upgrade)
+
+
     def test_active_probe_upgrades_include_only_completed_probe_improvements(self):
         improvements = {"improvements": (
             {"id": "reinforced_couplings", "name": "Reinforced Couplings", "description": "Stronger.", "done": True},
@@ -2257,7 +2280,10 @@ class UiPreparationTests(unittest.TestCase):
                 },
             }
 
+            upgrade = UpgradeGoal("compression", "saved-scope")
+            DesiredStateStore(engine).save(DesiredState(upgrade=upgrade), 1)
             controller.saveAutomationSettings({"minimumFuelPercent": 35})
+            self.assertEqual(DesiredStateStore(engine).load(1).upgrade, upgrade)
 
             automation = controller.dashboard["automation"]
             self.assertEqual(automation["probeRoles"], {"1": "hub", "2": "miner"})
@@ -2332,9 +2358,13 @@ class UiPreparationTests(unittest.TestCase):
                 fuel=FuelGoal(42),
                 travel=TravelGoal(SectorCoordinates(2, 2, 0)),
             )
+            source = replace(source, upgrade=UpgradeGoal("compression", "source-scope"))
+            target_upgrade = UpgradeGoal("couplings", "target-scope")
             DesiredStateStore(engine).save(source, 1)
+            DesiredStateStore(engine).save(DesiredState(upgrade=target_upgrade), 2)
 
             controller.copyAutomationSettings(2)
+            self.assertEqual(DesiredStateStore(engine).load(2).upgrade, target_upgrade)
 
             copied = DesiredStateStore(engine).load(2)
             self.assertEqual(copied.fuel.minimum_percent, 42)

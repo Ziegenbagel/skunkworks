@@ -369,6 +369,10 @@ def test_fleet_workspace_exposes_live_probe_upgrade_controls():
     app = Path("src/ui/qml/App.qml").read_text(encoding="utf-8")
     controller = Path("src/ui/controller.py").read_text(encoding="utf-8")
 
+    assert "PREPARE AND INSTALL" in fleet
+    assert "CANCEL UPGRADE GOAL" in fleet
+    assert "upgradeGoalRequested" in manual
+    assert "onUpgradeGoalRequested" in app
     assert "MANUAL PROBE UPGRADE" in fleet
     assert "INSTALL UPGRADE" in fleet
     assert "REQUIRED COMPONENTS AND MATERIALS" in fleet

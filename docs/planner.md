@@ -260,6 +260,18 @@ Constraint Analysis
 
 ---
 
+# Selected probe upgrades
+
+One optional `upgradeGoal` per probe records an improvement ID, campaign scope,
+and priority. The upgrade service reads live catalog requirements and stored and
+active production. The planner mines missing resources, crafts the next missing
+component (consumers before ingredients), and emits an `Install Probe Upgrade`
+command only when every direct input is stored. Stock needed for the upgrade is
+protected from competing automation at preparation and fresh preflight. Progress
+and cancellation are available beside the manual upgrade controls. An accepted
+installation remains pending until live completion; its durable journal receipt
+prevents duplicate installation and kit rebuilding across restarts.
+
 # Planner Outputs
 
 The Planner produces an ordered task queue.

@@ -13,6 +13,7 @@ class CommandType(StrEnum):
     MANNY_TRANSFER_DEUTERIUM = "manny_transfer_deuterium"
     MANNY_REFILL_DEUTERIUM_TANK = "manny_refill_deuterium_tank"
     MANNY_ASSEMBLE_PROBE = "manny_assemble_probe"
+    MANNY_UPGRADE = "manny_upgrade"
     MANNY_REPAIR = "manny_repair"
     MANNY_INSPECT_SECTOR_OBJECT = "manny_inspect_sector_object"
     MANNY_RECOVER_STORAGE_CONTAINER = "manny_recover_storage_container"
@@ -36,6 +37,12 @@ class Command:
 
     @property
     def fingerprint(self):
+        if self.type == CommandType.MANNY_UPGRADE:
+            # A selected installation is one operation across workers/restarts.
+            return hashlib.sha256(json.dumps({
+                "type": self.type.value, "probeId": self.probe_id,
+                "payload": self.payload, "scope": self.metadata.get("upgradeScope"),
+            }, sort_keys=True).encode("utf-8")).hexdigest()
         identity_metadata = dict(self.metadata)
         target_id = self.target_id
         if self.type in {

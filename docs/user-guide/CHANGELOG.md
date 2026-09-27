@@ -1,5 +1,10 @@
 # Operator Manual Revision History
 
+## Development — 2026-09-27
+
+- Documented Prepare and Install upgrade goals, protected stock, progress,
+  cancellation, restart behavior, and execution-mode controls.
+
 ## 1.10 — 2026-09-17
 
 - Corrected generic-probe assembly so its required two empty containers are

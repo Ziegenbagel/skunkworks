@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Added **Prepare and Install** for a selected probe upgrade. Skunkworks mines
+  and crafts missing inputs, protects required stock from competing automation,
+  and installs when ready. Goals survive restarts and can be cancelled without
+  cancelling already accepted game tasks.
+
 - Added the missing one-time approval control for queued automation commands.
   Require Approval orders and commands excluded from the Automatic allowlist
   can now be approved individually without changing the saved allowlist, while

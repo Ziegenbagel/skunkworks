@@ -3,13 +3,14 @@
 
 FABRICATION_ACTIONS = frozenset({
     "Craft Item", "Assemble Probe", "Prepare Manufacturing",
-    "Prepare Probe Assembly",
+    "Prepare Probe Assembly", "Install Probe Upgrade", "Prepare Probe Upgrade",
 })
 
 TIER_BY_CATEGORY = {
     "miner_logistics": 0,
     "safety": 0,
     "inventory": 0,
+    "upgrade": 0,
     "fleet_assembly": 1,
     "manufacturing": 2,
     "transport": 3,
@@ -31,6 +32,7 @@ STAGE_BY_CATEGORY = {
     "miner_logistics": 0,
     "safety": 0,
     "inventory": 0,
+    "upgrade": 1,
     "fleet_assembly": 1,
     "manufacturing": 1,
     "transport": 2,

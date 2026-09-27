@@ -1191,6 +1191,33 @@ Relevant code/tests:
 - Business errors remain visible and specific; do not collapse them into generic
   cancellation messages.
 
+### Selected upgrade campaigns own their required stock
+
+A probe may have one explicitly selected durable upgrade campaign. Requirements
+come from the live improvement catalog. Active crafts cover acquisition demand,
+but only stored inputs authorize installation. Missing materials are mined into
+probe storage; only the next component craft is funded, including the direct
+installation resource reserve. Required stored items and resources remain
+protected from other automation regardless of its priority, while surplus stays
+available. The shared preflight repeats these reservations after live refresh.
+Cancellation releases local claims without cancelling already accepted game tasks.
+General target edits and copying targets must preserve each probe's own campaign.
+A Miner campaign yields its reserved workers during preparation without deleting
+its saved phase. At most one upgrade component craft starts per automation cycle,
+so lagging telemetry cannot overproduce the kit on additional idle Mannys.
+
+An accepted installation has one durable identity across Manny selections and
+restarts. Until live completion, neither telemetry lag nor missing consumed inputs
+may start a duplicate installation or rebuild its kit. Cancelling installation in
+the game requires cancelling/reselecting the local goal before another attempt.
+Observe Only, Require Approval, live-execution disable, and emergency stop still
+apply to all campaign commands; selecting a goal never changes these policies.
+
+Relevant tests:
+
+- `tests/test_upgrade_goals.py`
+- `tests/test_ui_preparation.py`
+
 ### Manual probe upgrades disclose their complete inputs
 
 Selecting an available probe improvement in Manual Control shows every required

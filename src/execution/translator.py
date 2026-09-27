@@ -18,6 +18,7 @@ class TaskCommandTranslator:
             return None
 
         handler = {
+            "Install Probe Upgrade": self._upgrade,
             "Craft Item": self._craft,
             "Mine Resource": self._mine,
             "Mine Deuterium": self._mine,
@@ -183,6 +184,15 @@ class TaskCommandTranslator:
             metadata={"mannyName": manny.get("name") or "Manny"},
         )
 
+    def _upgrade(self, task):
+        from src.operations.upgrades import installation_command
+        from src.planner.desired_state import UpgradeGoal
+        manny = self._claim_idle_manny()
+        if manny is None:
+            return None
+        return installation_command(self.probe_id,
+            UpgradeGoal(task.target, task.metadata["upgradeScope"], task.priority), manny["id"])
+
     def _craft(self, task):
         recipe = self.operations.manufacturing.recipes.get(
             task.target
@@ -308,6 +318,8 @@ class TaskCommandTranslator:
             priority=task.priority,
             source_action=task.action,
             metadata={
+                **task.metadata,
+                "workflowAuthorized": bool(task.workflow_authorized),
                 "requestedNeed": round(float(task.quantity), 3),
                 "orderAmount": target_amount,
                 "apiTargetAmount": api_target_amount,

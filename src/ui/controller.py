@@ -41,7 +41,8 @@ from src.presentation import MissionControlViewModelBuilder
 from src.recipes.manager import RecipeManager
 from src.safety.policy import TravelSafetyPolicyStore
 from src.safety.resources import ResourceSafetyPolicyStore
-from src.planner.desired_state import DesiredState, FuelGoal, TravelGoal
+from src.planner.desired_state import DesiredState, FuelGoal, TravelGoal, UpgradeGoal
+from src.operations.upgrades import UpgradeService
 from src.planner.desired_state_store import DesiredStateStore
 from src.models.galaxy import SectorCoordinates
 from src.snapshot.manager import SnapshotManager
@@ -1035,6 +1036,8 @@ class MissionControlDataService:
                 "reason": task.reason,
                 "blockers": list(task.constraints),
             } for task in tasks],
+            "upgrade": UpgradeService(operations).assess(desired.upgrade)
+                if operations is not None and probe_id is not None else {},
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
             "explorer": explorer_view if operations is not None and probe_id is not None else {},
             "miner": miner_view if operations is not None and probe_id is not None else {},
@@ -1042,6 +1045,12 @@ class MissionControlDataService:
 
     def _reconcile_miner_campaign(self, operations, probe_id, desired):
         """Project Miner settings into stationary, bounded mining work."""
+        if desired.upgrade and UpgradeService(operations).assess(desired.upgrade)["status"] not in {"complete", "installing"}:
+            # A fully staffed Miner normally reserves every complete crew group.
+            # The explicit upgrade must be able to acquire an idle worker and
+            # mine into onboard storage; retain the saved container campaign.
+            return desired, [], {"enabled": False, "phase": "upgrade", "paused": True,
+                "summary": "Miner campaign paused while preparing the selected upgrade."}
         if not hasattr(self.data_engine, "fleet_roles"):
             return desired, [], {}
         role_rows = [dict(item) for item in FleetRoleService(self.data_engine).all("probe")]
@@ -1322,6 +1331,7 @@ class MissionControlDataService:
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_ASSEMBLE_PROBE,
+            CommandType.MANNY_UPGRADE,
         }
         ready_fabrication = [
             item for item in prepared
@@ -1997,6 +2007,7 @@ class MissionControlDataService:
         command = prepared.command
         output_label = (
             command.payload.get("recipe")
+            or command.payload.get("improvement")
             or command.metadata.get("model")
             or command.metadata.get("resource")
             or ""
@@ -2163,6 +2174,7 @@ class MissionControlDataService:
         mining_allocations = {}
         claimed_manny_ids = set()
         completed_exclusive_types = set()
+        completed_upgrade_crafts = set()
         results = []
         for _ in range(policy.max_commands_per_cycle):
             # The previous execution's preflight already refreshed the world.
@@ -2181,6 +2193,8 @@ class MissionControlDataService:
                 if item.command.probe_id == self._selected_probe_id
                 and item.disposition == "ready"
                 and item.command.type not in completed_exclusive_types
+                and not (item.command.type in {CommandType.MANNY_CRAFT, CommandType.ATOMIC_PRINTER_CRAFT}
+                         and item.command.metadata.get("upgradeScope") in completed_upgrade_crafts)
                 and self._cycle_attempt_key(item.command) not in failed_attempts
             ), None)
             if prepared is None:
@@ -2214,6 +2228,7 @@ class MissionControlDataService:
                     CommandType.MANNY_CRAFT,
                     CommandType.ATOMIC_PRINTER_CRAFT,
                     CommandType.MANNY_ASSEMBLE_PROBE,
+                    CommandType.MANNY_UPGRADE,
                 }:
                     failed_target = (
                         prepared.command.payload.get("recipe")
@@ -2241,10 +2256,17 @@ class MissionControlDataService:
                     CommandType.MANNY_TRANSFER_DEUTERIUM,
                     CommandType.MANNY_REFILL_DEUTERIUM_TANK,
                     CommandType.MANNY_ASSEMBLE_PROBE,
+                    CommandType.MANNY_UPGRADE,
                     CommandType.MANNY_REPAIR,
                 }
             ):
                 claimed_manny_ids.add(str(prepared.command.target_id))
+            if prepared.command.type in {CommandType.MANNY_CRAFT, CommandType.ATOMIC_PRINTER_CRAFT}:
+                scope = prepared.command.metadata.get("upgradeScope")
+                if scope:
+                    # Fund one next component, then wait for its accepted work
+                    # to enter telemetry before allocating another upgrade craft.
+                    completed_upgrade_crafts.add(scope)
             if prepared.command.type == CommandType.MANNY_MINE:
                 resource = tuple(prepared.command.payload.get("resources") or ("resource",))[0]
                 mining_allocations[resource]["committed"] += float(
@@ -2254,6 +2276,7 @@ class MissionControlDataService:
                 )
             if prepared.command.type in {
                 CommandType.MANNY_REPAIR,
+                CommandType.MANNY_UPGRADE,
                 CommandType.MANNY_TRANSFER_DEUTERIUM,
             }:
                 # These commands complete one probe-level goal, not one share
@@ -2393,6 +2416,7 @@ class MissionControlDataService:
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_ASSEMBLE_PROBE,
+            CommandType.MANNY_UPGRADE,
         }
         if any(
             item.command.type in fabrication_types
@@ -5234,6 +5258,10 @@ class MissionControlController(QObject):
                 self.service.data_engine
                 if self.service is not None else self.settings_engine
             )
+            # Upgrade campaigns are probe-specific instructions, maintained by
+            # their dedicated controls rather than the general targets editor.
+            payload["upgradeGoal"] = DesiredStateStore(data_engine).load(
+                self._focused_probe_id).to_dict()["upgradeGoal"]
             state = DesiredState.from_dict(payload)
             DesiredStateStore(data_engine).save(
                 state, self._focused_probe_id,
@@ -5303,7 +5331,8 @@ class MissionControlController(QObject):
             store = DesiredStateStore(data_engine)
             # A route is an active probe-specific instruction, not a reusable
             # target or safety floor.
-            copied = replace(store.load(source_probe_id), travel=None)
+            copied = replace(store.load(source_probe_id), travel=None,
+                             upgrade=store.load(target_probe_id).upgrade)
             store.save(copied, target_probe_id)
             return target_probe_id
 
@@ -5487,6 +5516,47 @@ class MissionControlController(QObject):
         self._run_background_call(
             "command", lambda: self.service.manual_repair(manny_id, integrity_percent),
             self._command_accepted, pending_message="SENDING REPAIR ORDER",
+        )
+
+    @Slot(str)
+    def startUpgradeGoal(self, improvement_id):
+        self._save_upgrade_goal(str(improvement_id))
+
+    @Slot()
+    def cancelUpgradeGoal(self):
+        self._save_upgrade_goal(None)
+
+    def _save_upgrade_goal(self, improvement_id):
+        probe_id = self._focused_probe_id
+        if self.service is None or probe_id < 0:
+            self._set_error("Select and refresh a probe before configuring an upgrade.")
+            return
+
+        def save():
+            from uuid import uuid4
+            store = DesiredStateStore(self.service.data_engine)
+            current = store.load(probe_id)
+            if improvement_id:
+                operations = self.service._operations
+                if operations is None or operations.world.probe["id"] != probe_id:
+                    raise ValueError("Refresh the selected probe before starting an upgrade goal.")
+                if current.upgrade and UpgradeService(operations).assess(current.upgrade)["status"] != "complete":
+                    raise ValueError("Cancel the existing upgrade goal before selecting another.")
+                goal = UpgradeGoal(improvement_id, str(uuid4()))
+                view = UpgradeService(operations).assess(goal)
+                if view["status"] not in {"preparing", "ready"}:
+                    raise ValueError("Select an unlocked, unfinished probe upgrade.")
+            else:
+                goal = None
+            state = replace(current, upgrade=goal)
+            store.save(state, probe_id)
+            return state, self.service.automation_view(probe_id=probe_id)
+
+        self._run_background_call(
+            "settings", save,
+            lambda result: self._accept_automation_settings_save(result)
+                if self._focused_probe_id == probe_id else None,
+            pending_message="SAVING UPGRADE GOAL" if improvement_id else "CANCELLING UPGRADE GOAL",
         )
 
     @Slot(str, str)

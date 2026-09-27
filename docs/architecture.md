@@ -97,6 +97,16 @@ The gateways expose every supported game control while remaining separate from
 planning and automation policy. This document is the canonical capability and
 component-boundary reference.
 
+## Selected Upgrade Campaigns
+
+`UpgradeService` interprets live improvement requirements and checks protected
+stock. The probe-scoped Desired State persists one selected campaign without a
+schema migration. Its planner rule uses ordinary mining and crafting commands,
+followed by a typed Manny upgrade command. Shared preparation and live preflight
+protect the required stock; the action journal supplies durable installation
+identity. The UI saves a local goal and displays its observed progress through
+the ordinary automation projection. It never installs through a second executor.
+
 ## Probe Context
 
 `ProbeSelector` establishes the focused probe for each session. `ProbeContext`

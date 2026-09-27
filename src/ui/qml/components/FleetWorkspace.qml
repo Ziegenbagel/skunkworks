@@ -11,6 +11,7 @@ Item {
     property var probeData: ({})
     property var idleMannies: []
     property var improvements: []
+    property var upgradeGoal: ({})
     property var activeImprovements: []
     property var miningTargets: []
     property var inspectableObjects: []
@@ -20,6 +21,7 @@ Item {
     property real deuterium: 0
     property real maximumMiningOrderAmount: 0.55
     property bool manualOnly: false
+    property bool manualCommandsEnabled: true
     property var mannies: []
     property var namingPolicy: ({})
     property var pendingMiningOrder: ({})
@@ -50,6 +52,8 @@ Item {
     signal makeDefaultRequested()
     signal repairRequested(string mannyId, real integrityPercent)
     signal upgradeRequested(string mannyId, string improvementId)
+    signal upgradeGoalRequested(string improvementId)
+    signal upgradeGoalCancelRequested()
     signal miningRequested(string mannyId, var payload)
     signal inventoryMannyActionRequested(string action, string mannyId, var payload)
 
@@ -255,6 +259,7 @@ Item {
         }
         GroupBox {
             visible: root.manualOnly
+            enabled: root.manualCommandsEnabled
             title: "MANUAL PROBE REPAIR"; Layout.fillWidth: true
             RowLayout {
                 anchors.fill: parent; spacing: 12
@@ -277,9 +282,37 @@ Item {
                     ComboBox { id: upgradeManny; Layout.preferredWidth: 240; model: root.idleMannies; textRole: "name"; valueRole: "id" }
                     Button {
                         text: "INSTALL UPGRADE"
-                        enabled: upgradeChoice.currentIndex >= 0 && upgradeManny.currentIndex >= 0 && root.improvements.length > 0 && root.idleMannies.length > 0
+                        enabled: root.manualCommandsEnabled && upgradeChoice.currentIndex >= 0 && upgradeManny.currentIndex >= 0 && root.improvements.length > 0 && root.idleMannies.length > 0
                         onClicked: root.upgradeRequested(String(upgradeManny.currentValue), String(upgradeChoice.currentValue))
                     }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Button {
+                        text: "PREPARE AND INSTALL"
+                        enabled: upgradeChoice.currentIndex >= 0 && root.improvements.length > 0
+                            && (!root.upgradeGoal.active || root.upgradeGoal.status === "complete")
+                        onClicked: root.upgradeGoalRequested(String(upgradeChoice.currentValue))
+                    }
+                    Button {
+                        text: "CANCEL UPGRADE GOAL"
+                        visible: Boolean(root.upgradeGoal.active)
+                        onClicked: root.upgradeGoalCancelRequested()
+                    }
+                    Label {
+                        Layout.fillWidth: true; wrapMode: Text.Wrap
+                        text: "Mines and crafts missing inputs, protects upgrade stock, then installs with an idle Manny. Uses your current automation mode."
+                        color: Constants.mutedTextColor
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap
+                    visible: Boolean(root.upgradeGoal.active)
+                    text: String(root.upgradeGoal.name || "UPGRADE") + " · "
+                        + String(root.upgradeGoal.status || "").toUpperCase() + " — "
+                        + String(root.upgradeGoal.summary || "")
+                        + " Cancelling releases local reservations; accepted game tasks continue."
+                    color: Constants.cyanColor
                 }
                 Label {
                     Layout.fillWidth: true
@@ -338,6 +371,7 @@ Item {
         }
         GroupBox {
             visible: root.manualOnly
+            enabled: root.manualCommandsEnabled
             title: "MANUAL MINING ORDER"; Layout.fillWidth: true
             ColumnLayout {
                 anchors.fill: parent; spacing: 8
@@ -420,6 +454,7 @@ Item {
         }
         GroupBox {
             visible: root.manualOnly
+            enabled: root.manualCommandsEnabled
             title: "SECTOR OBJECT INSPECTION"; Layout.fillWidth: true
             GridLayout {
                 anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10
@@ -450,6 +485,7 @@ Item {
         }
         GroupBox {
             visible: root.manualOnly
+            enabled: root.manualCommandsEnabled
             title: "SAME-SECTOR PROBE TRANSFERS"; Layout.fillWidth: true
             GridLayout {
                 anchors.fill: parent; columns: 4; columnSpacing: 14; rowSpacing: 10

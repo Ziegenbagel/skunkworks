@@ -471,7 +471,7 @@ def test_mining_only_fallback_preserves_capacity_for_material_ready_recipe():
     )
 
     with (
-        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=DesiredState.unconfigured()),
         patch("src.ui.controller.Planner") as planner,
         patch("src.ui.controller.CommandPreparer") as preparer,
     ):
@@ -497,7 +497,7 @@ def test_dependency_mining_lookahead_waits_for_continuous_idle_grace():
 
     with (
         patch("src.ui.controller.time.monotonic", return_value=219.9),
-        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=DesiredState.unconfigured()),
         patch("src.ui.controller.Planner") as planner,
         patch("src.ui.controller.CommandPreparer") as preparer,
     ):
@@ -508,7 +508,7 @@ def test_dependency_mining_lookahead_waits_for_continuous_idle_grace():
 
     with (
         patch("src.ui.controller.time.monotonic", return_value=220.0),
-        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=DesiredState.unconfigured()),
         patch("src.ui.controller.Planner") as planner,
         patch("src.ui.controller.CommandPreparer") as preparer,
     ):
@@ -572,9 +572,9 @@ def test_unavailable_fabrication_does_not_hide_immediate_background_mining():
     with (
         patch("src.ui.controller.time.monotonic", return_value=150.0),
         patch("src.ui.controller.ExecutionPolicyStore.load", return_value=ExecutionPolicy()),
-        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=DesiredState.unconfigured()),
         patch.object(service, "_reconcile_completed_autonomous_travel", side_effect=lambda _o, _p, d: d),
-        patch.object(service, "_reconcile_transport_operation", return_value=(SimpleNamespace(), [], None)),
+        patch.object(service, "_reconcile_transport_operation", return_value=(DesiredState.unconfigured(), [], None)),
         patch.object(service, "_reserve_tanker_delivery_tasks", return_value=[]),
         patch("src.ui.controller.Planner") as planner,
         patch("src.ui.controller.CommandPreparer") as preparer,
@@ -598,9 +598,9 @@ def test_authoritative_queue_enables_dependency_lookahead_after_idle_grace():
     with (
         patch("src.ui.controller.time.monotonic", return_value=220.0),
         patch("src.ui.controller.ExecutionPolicyStore.load", return_value=ExecutionPolicy()),
-        patch("src.ui.controller.DesiredStateStore.load", return_value=SimpleNamespace()),
+        patch("src.ui.controller.DesiredStateStore.load", return_value=DesiredState.unconfigured()),
         patch.object(service, "_reconcile_completed_autonomous_travel", side_effect=lambda _o, _p, d: d),
-        patch.object(service, "_reconcile_transport_operation", return_value=(SimpleNamespace(), [], None)),
+        patch.object(service, "_reconcile_transport_operation", return_value=(DesiredState.unconfigured(), [], None)),
         patch.object(service, "_reserve_tanker_delivery_tasks", return_value=[]),
         patch("src.ui.controller.Planner") as planner,
         patch("src.ui.controller.CommandPreparer") as preparer,
@@ -743,3 +743,56 @@ def test_automatic_operator_approval_executes_one_non_allowlisted_command():
         command.command.fingerprint,
         {"approved": True, "risk_acknowledged": False},
     )]
+
+
+def test_upgrade_component_is_not_overproduced_while_live_snapshot_lags():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+    service._refresh_operations = lambda probe_id: None
+    repair_a = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "scut_relay"},
+        "upgrade kit", 1, target_id="manny-a", metadata={"upgradeScope": "selected"},
+    ), "ready")
+    repair_b = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "scut_relay"},
+        "upgrade kit", 1, target_id="manny-b", metadata={"upgradeScope": "selected"},
+    ), "ready")
+    craft = PreparedCommand(Command(
+        CommandType.MANNY_CRAFT, 7, {"recipe": "steel_plate"},
+        "continue unrelated work", 2, target_id="manny-c",
+    ), "ready")
+    queues = iter(((repair_a,), (repair_b, craft), ()))
+    service.automation_view = lambda probe_id=None, **kwargs: setattr(
+        service, "_prepared_commands", next(queues)
+    ) or {}
+    service._prepare_next_cycle_mining = lambda policy, failed: None
+    executed = []
+
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, prepared, **kwargs):
+            executed.append((prepared.command.type, prepared.command.target_id))
+            return ExecutionResult(
+                "succeeded", prepared.command, response={"accepted": True}
+            )
+
+    policy = ExecutionPolicy(
+        mode=ExecutionMode.AUTOMATIC,
+        live_execution_enabled=True,
+        allowed_command_types=frozenset({
+            CommandType.MANNY_REPAIR, CommandType.MANNY_CRAFT,
+        }),
+        max_commands_per_cycle=10,
+    )
+    with patch("src.ui.controller.AutomationRuntime", Runtime):
+        result = service._run_replanning_automatic_cycle(policy)
+
+    assert result["status"] == "succeeded"
+    assert executed == [
+        (CommandType.MANNY_CRAFT, "manny-a"),
+        (CommandType.MANNY_CRAFT, "manny-c"),
+    ]

@@ -15,6 +15,7 @@ class CapabilityDispatcher:
             CommandType.MANNY_TRANSFER_DEUTERIUM: self._manny_transfer_deuterium,
             CommandType.MANNY_REFILL_DEUTERIUM_TANK: self._manny_refill_deuterium_tank,
             CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,
+            CommandType.MANNY_UPGRADE: self._manny_upgrade,
             CommandType.MANNY_REPAIR: self._manny_repair,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT: self._manny_inspect_sector_object,
             CommandType.MANNY_RECOVER_STORAGE_CONTAINER: self._manny_recover_storage_container,
@@ -74,6 +75,11 @@ class CapabilityDispatcher:
             command.target_id,
             "assemble-probe",
             command.payload,
+        )
+
+    def _manny_upgrade(self, command):
+        return self.capabilities.mannies.start_task(
+            command.probe_id, command.target_id, "improve-probe", command.payload,
         )
 
     def _manny_repair(self, command):

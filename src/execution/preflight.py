@@ -31,6 +31,7 @@ class PreflightValidator:
             CommandType.MANNY_REFILL_DEUTERIUM_TANK,
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
+            CommandType.MANNY_UPGRADE,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT,
             CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
             CommandType.MANNY_DETACH_STORAGE_CONTAINER,
@@ -52,6 +53,7 @@ class PreflightValidator:
             CommandType.MANNY_REFILL_DEUTERIUM_TANK,
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
+            CommandType.MANNY_UPGRADE,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT,
             CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
             CommandType.MANNY_DETACH_STORAGE_CONTAINER,
@@ -129,6 +131,20 @@ class PreflightValidator:
             if expected is not None and current != expected:
                 blockers.append("transport_wrong_sector")
 
+        from src.operations.upgrades import UpgradeService
+        from src.planner.desired_state import UpgradeGoal
+        from src.planner.desired_state_store import DesiredStateStore
+        engine = getattr(self.operations, "data_engine", None)
+        goal = DesiredStateStore(engine).load(self.probe_id).upgrade if engine is not None else None
+        if command.type == CommandType.MANNY_UPGRADE:
+            if engine is not None and (goal is None or goal.scope != command.metadata.get("upgradeScope")
+                    or goal.improvement_id != command.payload.get("improvement")):
+                blockers.append("upgrade_goal_changed")
+            check_goal = goal or UpgradeGoal(command.payload.get("improvement", ""), command.metadata.get("upgradeScope", ""))
+            view = UpgradeService(self.operations).assess(check_goal)
+            if view["status"] != "ready":
+                blockers.append("upgrade_not_ready")
+        blockers.extend(UpgradeService(self.operations).command_blockers(command, goal))
         return tuple(dict.fromkeys(blockers))
 
     def warnings(self, command):

@@ -4,6 +4,7 @@ from .task import Task
 from .desired_state import DesiredState
 from .scheduling import ordered_tasks
 from .rules import (
+    upgrades,
     fuel,
     fleet,
     idle,
@@ -55,6 +56,7 @@ class Planner:
         # Its component work and dependency mining should be considered before
         # ordinary production quantities. Across different priorities, the
         # configured number is authoritative and is reconsidered every cycle.
+        tasks.extend(upgrades.plan(self.operations, self.desired_state))
         tasks.extend(fleet.plan(self.operations, self.desired_state))
         tasks.extend(
             manufacturing.plan(

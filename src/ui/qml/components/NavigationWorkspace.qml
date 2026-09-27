@@ -78,6 +78,8 @@ PanelFrame {
     signal manualCraftRequested(string recipeId, string mannyId)
     signal manualRepairRequested(string mannyId, real integrityPercent)
     signal manualUpgradeRequested(string mannyId, string improvementId)
+    signal upgradeGoalRequested(string improvementId)
+    signal upgradeGoalCancelRequested()
     signal manualMiningRequested(string mannyId, var payload)
     signal manualProbeAssemblyRequested(string mannyId, string model, var containerIds)
     signal asteroidTrajectoryRequested(string asteroidId, var payload)
@@ -445,6 +447,8 @@ PanelFrame {
                     focusedProbeId: root.focusedProbeId
                     onCraftRequested: (recipeId, mannyId) => root.manualCraftRequested(recipeId, mannyId)
                     onRepairRequested: (mannyId, integrityPercent) => root.manualRepairRequested(mannyId, integrityPercent)
+                    onUpgradeGoalRequested: (improvementId) => root.upgradeGoalRequested(improvementId)
+                    onUpgradeGoalCancelRequested: root.upgradeGoalCancelRequested()
                     onUpgradeRequested: (mannyId, improvementId) => root.manualUpgradeRequested(mannyId, improvementId)
                     onMiningRequested: (mannyId, payload) => root.manualMiningRequested(mannyId, payload)
                     onProbeAssemblyRequested: (mannyId, model, containerIds) => root.manualProbeAssemblyRequested(mannyId, model, containerIds)

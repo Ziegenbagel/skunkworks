@@ -47,6 +47,13 @@ class CommandPreparer:
         # model based on caller order.
         tasks = ordered_tasks(tasks)
         prepared = []
+        from src.operations.upgrades import UpgradeService
+        from src.planner.desired_state import UpgradeGoal
+        upgrade_data = next((task.metadata["upgradeGoal"] for task in tasks
+                             if task.metadata.get("upgradeGoal")), None)
+        upgrade_goal = (UpgradeGoal(upgrade_data["improvementId"], upgrade_data["scope"], upgrade_data["priority"])
+                        if upgrade_data else None)
+
         # A non-executable manufacturing goal can still own the raw material
         # already accumulated for its next unit.  Seed those partial claims
         # before translating commands so a cheaper, lower-priority recipe
@@ -77,6 +84,7 @@ class CommandPreparer:
 
             blockers = list(self.validator.blockers(command))
             blockers.extend(reservation_blockers)
+            blockers.extend(UpgradeService(self.translator.operations).command_blockers(command, upgrade_goal))
             warnings = self.validator.warnings(command)
 
             if (
@@ -193,7 +201,7 @@ class CommandPreparer:
                 task.target,
                 quantity=1,
                 include_operational_constraints=False,
-                use_inventory_items=(task.category == "fleet_assembly"),
+                use_inventory_items=(task.category in {"fleet_assembly", "upgrade"}),
             )
             if plan is None:
                 continue
@@ -253,12 +261,16 @@ class CommandPreparer:
             # must not be treated as consumers of physical assembly inventory.
             # Fleet-component work is the exception: that chain deliberately
             # works with the stored kit allocated to its assembly goal.
-            use_inventory_items=(manual or task.category == "fleet_assembly"),
+            use_inventory_items=(manual or task.category in {"fleet_assembly", "upgrade"}),
         )
         if plan is None:
             return []
         resources, items = manufacturing.available_inputs()
 
+        # A recipe's provisional consumption is not a pre-existing kit claim
+        # against that same recipe. Keep earlier goals separate for upgrade
+        # component work, which may legitimately consume its intermediates.
+        prior_item_claims = {key: list(value) for key, value in item_claims.items()}
         conflicts = []
         for resource, required in plan["required_resources"].items():
             available = float(resources.get(resource, 0))
@@ -289,7 +301,7 @@ class CommandPreparer:
             # a permanent component-chain deadlock (for example, a linear
             # actuator that consumes the currently stored integrated circuit).
             # Unrelated production and manual orders remain protected.
-            owns_assembly_chain = task.category == "fleet_assembly"
+            owns_assembly_chain = task.category in {"fleet_assembly", "upgrade"}
             if (
                 task.action == "Craft Item"
                 and not owns_assembly_chain
@@ -310,7 +322,7 @@ class CommandPreparer:
         if task.action == "Craft Item":
             recursive_items = self._recursive_item_requirements(task.target)
             for item_type, required in recursive_items.items():
-                claims = item_claims.get(item_type, ())
+                claims = (prior_item_claims if task.category == "upgrade" else item_claims).get(item_type, ())
                 # Assembly-chain recipes and ordinary production use the same
                 # global priority rule. At an equal priority, fleet assembly's
                 # scheduling tier sorts first and therefore retains its kit.

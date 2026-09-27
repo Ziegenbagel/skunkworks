@@ -17,6 +17,8 @@ Item {
     signal craftRequested(string recipeId, string mannyId)
     signal repairRequested(string mannyId, real integrityPercent)
     signal upgradeRequested(string mannyId, string improvementId)
+    signal upgradeGoalRequested(string improvementId)
+    signal upgradeGoalCancelRequested()
     signal miningRequested(string mannyId, var payload)
     signal probeAssemblyRequested(string mannyId, string model, var containerIds)
     signal containerRenameRequested(string containerId, string label)
@@ -73,7 +75,7 @@ Item {
         }
         Label {
             Layout.fillWidth: true
-            text: "One-time operator orders are kept separate from autonomous goals. Every live command still uses API validation, reservations, and Manny availability checks."
+            text: "Manual orders run once. Prepare and Install saves a resumable upgrade goal. Every live command still uses API validation, reservations, and Manny availability checks."
             color: Constants.mutedTextColor
             font.pixelSize: 14
             wrapMode: Text.Wrap
@@ -90,12 +92,12 @@ Item {
             TabButton { text: "COMBAT CONTROL SYSTEMS" }
         }
         StackLayout {
-            enabled: root.manualCommandsEnabled
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: tabs.currentIndex
 
             Item {
+                enabled: root.manualCommandsEnabled
                 RowLayout {
                     anchors.fill: parent
                     spacing: 14
@@ -252,11 +254,13 @@ Item {
 
             FleetWorkspace {
                 manualOnly: true
+                manualCommandsEnabled: root.manualCommandsEnabled
                 probes: root.probes
                 focusedProbeId: root.focusedProbeId
                 probeData: root.dashboardData.probe || ({})
                 idleMannies: (root.dashboardData.inventoryManagement || {}).idleMannies || []
                 improvements: root.dashboardData.probeImprovements || []
+                upgradeGoal: (root.dashboardData.automationRuntime || {}).upgrade || ({})
                 activeImprovements: root.dashboardData.activeProbeImprovements || []
                 miningTargets: (root.dashboardData.inventoryManagement || {}).miningTargets || []
                 inspectableObjects: (root.dashboardData.inventoryManagement || {}).inspectableObjects || []
@@ -266,12 +270,15 @@ Item {
                 deuterium: Number((root.dashboardData.inventoryManagement || {}).deuterium || 0)
                 maximumMiningOrderAmount: Number((root.dashboardData.automation || {}).maximumMiningOrderAmount || 0.55)
                 onRepairRequested: (mannyId, integrityPercent) => root.repairRequested(mannyId, integrityPercent)
+                onUpgradeGoalRequested: (improvementId) => root.upgradeGoalRequested(improvementId)
+                onUpgradeGoalCancelRequested: root.upgradeGoalCancelRequested()
                 onUpgradeRequested: (mannyId, improvementId) => root.upgradeRequested(mannyId, improvementId)
                 onMiningRequested: (mannyId, payload) => root.miningRequested(mannyId, payload)
                 onInventoryMannyActionRequested: (action, mannyId, payload) => root.inventoryMannyActionRequested(action, mannyId, payload)
             }
 
             InventoryWorkspace {
+                enabled: root.manualCommandsEnabled
                 inventoryData: root.dashboardData.inventoryManagement || ({})
                 onContainerRenameRequested: (containerId, label) => root.containerRenameRequested(containerId, label)
                 onStorageRulesSaveRequested: (containerId, rules) => root.storageRulesSaveRequested(containerId, rules)
@@ -282,6 +289,7 @@ Item {
             }
 
             Item {
+                enabled: root.manualCommandsEnabled
                 ScrollView {
                     id: asteroidControls
                     objectName: "manualAsteroidScroll"
@@ -395,6 +403,7 @@ Item {
             }
 
             Item {
+                enabled: root.manualCommandsEnabled
                 ScrollView {
                     id: combatControls
                     anchors.fill: parent

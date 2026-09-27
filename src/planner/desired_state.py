@@ -128,6 +128,21 @@ class FleetGoal:
 
 
 @dataclass(frozen=True)
+class UpgradeGoal:
+    """One explicitly selected, probe-scoped installation campaign."""
+
+    improvement_id: str
+    scope: str
+    priority: int = 1
+
+    def __post_init__(self):
+        if not self.improvement_id or not self.scope:
+            raise ValueError("Upgrade goal requires an improvement and unique scope.")
+        if not 1 <= self.priority <= 10:
+            raise ValueError("Goal priority must be between 1 and 10.")
+
+
+@dataclass(frozen=True)
 class DesiredState:
     """Declarative player goals with no planning logic."""
 
@@ -146,6 +161,7 @@ class DesiredState:
     maximum_safe_hop_distance: int = 1
     travel: TravelGoal | None = None
     fleet: tuple[FleetGoal, ...] = field(default_factory=tuple)
+    upgrade: UpgradeGoal | None = None
 
     def __post_init__(self):
         amount = float(self.maximum_mining_order_amount)
@@ -178,7 +194,10 @@ class DesiredState:
     def from_dict(cls, value):
         travel_target = value.get("travelTarget")
         legacy_priorities = value.get("priorityScaleMax") != 10
+        upgrade = value.get("upgradeGoal")
         return cls(
+            upgrade=(UpgradeGoal(upgrade["improvementId"], upgrade["scope"], int(upgrade.get("priority", 1)))
+                     if upgrade else None),
             production=tuple(
                 ProductionGoal(
                     recipe_id=recipe_id,
@@ -263,6 +282,9 @@ class DesiredState:
 
     def to_dict(self):
         return {
+            "upgradeGoal": ({"improvementId": self.upgrade.improvement_id,
+                             "scope": self.upgrade.scope, "priority": self.upgrade.priority}
+                            if self.upgrade else None),
             "priorityScaleMax": 10,
             "production": [
                 {

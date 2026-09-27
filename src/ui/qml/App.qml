@@ -495,6 +495,14 @@ ApplicationWindow {
                 window.backend.queueManualRepair(mannyId, integrityPercent);
         }
 
+        function onUpgradeGoalRequested(improvementId) {
+            if (window.backend) window.backend.startUpgradeGoal(improvementId);
+        }
+
+        function onUpgradeGoalCancelRequested() {
+            if (window.backend) window.backend.cancelUpgradeGoal();
+        }
+
         function onManualUpgradeRequested(mannyId, improvementId) {
             AudioManager.play("confirm");
             if (window.backend)
