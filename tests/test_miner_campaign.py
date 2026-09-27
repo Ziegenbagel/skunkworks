@@ -164,6 +164,8 @@ def test_ordinary_miner_reselects_live_empty_container_after_saved_one_disappear
     assert decision.campaign_state == {
         "resourceType": "metals", "asteroidId": "asteroid-1",
         "containerId": "live-box-0", "phase": "deploy_container", "cycle": 0,
+        "crewMannyIds": [f"manny-{index}" for index in range(4)],
+        "crewReady": False,
     }
     assert "Deploying an empty container" in decision.summary
     assert "reserve replenishment" in decision.summary
@@ -821,3 +823,65 @@ def test_controller_uses_live_receiver_after_cached_fleet_sector_lags():
     assert tasks[0].action == "Transfer Deuterium"
     assert tasks[0].target == "9"
     assert tasks[0].quantity == 80
+
+
+def cohort_settings(**state):
+    return {"miningEnabled": True, "resourceMode": "resources",
+            "ordinaryResources": ["metals"], "ordinaryContainerCampaign": {
+                "resourceType": "metals", "asteroidId": "asteroid-1",
+                "containerId": "box-1", "phase": "mine_container", **state}}
+
+
+def cohort_operations(idle=4, active_mannies=None, used=0):
+    return operations(idle=idle, active_mannies=active_mannies,
+        resources=[{"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}],
+        detached=[{"id": "detached-container-box-1", "containerId": "box-1",
+                   "type": "detached_container", "mode": "hidden_on_asteroid",
+                   "targetObjectId": "asteroid-1", "capacity": 1, "usedCapacity": used}])
+
+
+def test_container_waits_for_four_reserved_mannies_before_first_fill():
+    decision = MinerCampaignService(cohort_operations(idle=3)).decide(cohort_settings())
+    assert not decision.tasks
+    assert set(decision.reserved_manny_ids) == {"manny-0", "manny-1", "manny-2"}
+    assert "all four" in decision.summary
+    ready = MinerCampaignService(cohort_operations()).decide(cohort_settings(**decision.campaign_state))
+    assert len(ready.tasks) == 4
+    assert {task.metadata["assignedMannyId"] for task in ready.tasks} == set(ready.reserved_manny_ids)
+
+
+def test_container_keeps_named_crew_and_waits_for_busy_member():
+    crew = ["manny-0", "manny-1", "manny-2", "deployer"]
+    decision = MinerCampaignService(cohort_operations(idle=4, active_mannies=[{
+        "id": "deployer", "canReceiveOrders": False,
+        "currentTask": {"type": "detach_container", "payload": {"containerId": "box-1"}},
+    }])).decide(cohort_settings(crewMannyIds=crew, crewReady=False))
+    assert not decision.tasks
+    assert set(decision.reserved_manny_ids) == set(crew)
+    assert "manny-3" not in decision.reserved_manny_ids
+
+
+def test_early_returning_member_does_not_receive_second_fill_order():
+    decision = MinerCampaignService(cohort_operations()).decide(
+        cohort_settings(crewMannyIds=[f"manny-{i}" for i in range(4)], crewReady=True),
+        accepted_container_fills={"detached-container-box-1": .25},
+        accepted_container_workers={"detached-container-box-1": {"manny-0"}})
+    assert len(decision.tasks) == 3
+    assert {t.metadata["assignedMannyId"] for t in decision.tasks} == {"manny-1", "manny-2", "manny-3"}
+
+
+def test_full_container_recovery_uses_original_crew_member():
+    crew = [f"manny-{i}" for i in range(1, 5)]
+    decision = MinerCampaignService(cohort_operations(idle=5, used=1)).decide(
+        cohort_settings(crewMannyIds=crew, crewReady=True))
+    assert decision.tasks[0].action == "Recover Miner Container"
+    assert decision.tasks[0].metadata["assignedMannyId"] in crew
+    assert decision.tasks[0].metadata["assignedMannyId"] != "manny-0"
+
+
+def test_reserved_recovery_never_substitutes_an_outside_worker():
+    from src.execution.translator import TaskCommandTranslator
+    ops = operations(idle=1)
+    task = Task(action="Recover Miner Container", target="box", reason="Recover with crew",
+                metadata={"minerCampaign":True, "assignedMannyId":"busy-crew-member"})
+    assert TaskCommandTranslator(ops,1,reserved_manny_ids=("busy-crew-member",)).translate(task) is None

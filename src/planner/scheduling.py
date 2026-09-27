@@ -8,6 +8,7 @@ FABRICATION_ACTIONS = frozenset({
 
 TIER_BY_CATEGORY = {
     "miner_logistics": 0,
+    "infrastructure": 0,
     "safety": 0,
     "inventory": 0,
     "upgrade": 0,
@@ -30,6 +31,7 @@ STAGE_BY_CATEGORY = {
     # receiver arrives, complete that handoff before unrelated work can consume
     # the cycle or the reserved worker.
     "miner_logistics": 0,
+    "infrastructure": 0,
     "safety": 0,
     "inventory": 0,
     "upgrade": 1,

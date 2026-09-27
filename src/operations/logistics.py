@@ -53,6 +53,7 @@ class FleetRoleService:
     VALID_ROLES = frozenset(
         {
             "hub",
+            "relay_placement",
             "miner",
             "transport",
             "deuterium_tanker",

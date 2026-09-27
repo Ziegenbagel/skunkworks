@@ -391,20 +391,21 @@ detachment commands pass through the same refresh, preflight, idempotency, and
 all-Mannys-aboard execution boundary as other automatic orders.
 
 Ordinary-resource Miner campaigns use durable per-probe container state
-machines. The planner runs one campaign for each complete configured Manny
+machines. The planner runs one campaign for each complete four-Manny
 group, selects and deploys a distinct empty attached container for each,
 routes up to four 0.25-ECE Manny mining orders explicitly into each container,
 waits for live completion, recovers each full container, and detaches it to
 drift for a Transport route. Mannys left outside a complete group remain
 available for crafting and logistics. The selected resource, asteroid,
-container, and phase of every parallel campaign persist in fleet-role metadata;
+container, named crew IDs, and phase of every parallel campaign persist in fleet-role metadata;
 only authoritative container telemetry advances the workflow. A configurable empty-container reserve is maintained
 through the existing typed crafting pipeline. Live empty containers and active
 container crafts satisfy that reserve, while the shared production preflight
 continues to protect components committed to higher- or equal-priority probe
 assembly.
-Incomplete Manny groups are not owned by the container state machines. Normal
-target planning may use that remainder for craft work first and then for
+Unassigned Mannys remain available outside complete groups. A deployed container
+may hold a partial crew while waiting for replacements, but never starts its
+fill until all four assigned members are idle. Normal target planning may use the unassigned remainder for craft work first and then for
 ordinary-resource shortages; fallback mining explicitly returns to probe
 storage rather than silently filling a campaign container.
 
@@ -564,3 +565,19 @@ Planned additions include:
 - Mission Control
 - Automation Engine
 - Operational Health and Risk Assessment
+
+
+Hub and relay-placement campaigns persist in fleet-role metadata. Hubs reuse
+Desired State production goals, accept raw-resource container deliveries, and
+load requested finished items into dedicated containers for local handoff.
+Relay placement selects mapped stars by FCC coverage gain, optionally weighted
+along the signal-alert vector or a user-selected coordinate direction. Each
+site owns its item/relay identity until activation and its chosen beacon policy
+are confirmed. Exhausted kits generate a durable home supply request.
+
+Hub container receipts are durable Operations independent of the receiver's
+role. The receiver publishes fresh storage capacity and its upgrade-aware safe
+container limit, unloads supplied items into permanent storage, and returns only
+confirmed-empty delivery containers to drift. A receipt holds ordinary travel
+until its accepted return is confirmed. The Hub recovers these identified
+returns for reuse, even when general drifting-cargo recovery is disabled.

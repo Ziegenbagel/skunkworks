@@ -95,6 +95,9 @@ class UpgradeService:
         """Protect the next upgrade's physical stock regardless of other priorities."""
         if goal is None:
             return ()
+        if command.metadata.get("hubReceipt") and command.type in {CommandType.MANNY_LOAD_HUB_OUTPUT, CommandType.MANNY_DETACH_STORAGE_CONTAINER}:
+            # Local unloading retains stock; receipt preflight permits only empty returns.
+            return ()
         view = self.assess(goal)
         if view["status"] in {"complete", "installing"}:
             return ()
@@ -105,6 +108,8 @@ class UpgradeService:
             CommandType.MANNY_CRAFT, CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_ASSEMBLE_PROBE, CommandType.MANNY_REPAIR,
             CommandType.MANNY_TRANSFER_DEUTERIUM, CommandType.MANNY_DETACH_STORAGE_CONTAINER,
+            CommandType.DEPLOY_SCUT_RELAY, CommandType.MANNY_ACTIVATE_RELAY,
+            CommandType.MANNY_INSTALL_BEACON, CommandType.MANNY_LOAD_HUB_OUTPUT,
             CommandType.MOVE_PROBE,
         }:
             return ("upgrade_requirements_unavailable",)
@@ -127,13 +132,21 @@ class UpgradeService:
             from src.planner.assembly import PROBE_ASSEMBLY_REQUIREMENTS
             needed_items = dict(PROBE_ASSEMBLY_REQUIREMENTS.get(command.payload.get("model"), ()))
             needed_items["storage_container"] = needed_items.get("storage_container", 0) + 2
+        elif command.type in {CommandType.DEPLOY_SCUT_RELAY, CommandType.MANNY_ACTIVATE_RELAY, CommandType.MANNY_INSTALL_BEACON}:
+            item_type = {CommandType.DEPLOY_SCUT_RELAY: "scut_relay", CommandType.MANNY_ACTIVATE_RELAY: "integrated_circuit",
+                         CommandType.MANNY_INSTALL_BEACON: "scut_transit_beacon"}[command.type]
+            needed_items = {item_type: 1}
+        elif command.type == CommandType.MANNY_LOAD_HUB_OUTPUT and not command.metadata.get("hubReceipt"):
+            item = next((i for i in self.operations.world.probe.get("inventory", {}).get("items", [])
+                         if str(i.get("id")) == str(command.payload.get("itemId"))), {})
+            needed_items = {item.get("type"): 1}
         elif command.type == CommandType.MANNY_REPAIR:
             needed_resources = {"metals": float(command.payload.get("integrityPercent", 0)) * 0.01}
         elif command.type == CommandType.MOVE_PROBE:
             needed_resources = {"deuterium": self.operations.travel.fuel_cost() / 100}
         elif command.type == CommandType.MANNY_TRANSFER_DEUTERIUM:
             needed_resources = {"deuterium": float(command.payload.get("amount", 0)) / 100}
-        elif command.type == CommandType.MANNY_DETACH_STORAGE_CONTAINER:
+        elif command.type == CommandType.MANNY_DETACH_STORAGE_CONTAINER and not command.metadata.get("hubReceipt"):
             if any(held_items.values()) or any(held_resources.values()):
                 return ("cargo_reserved_by_upgrade",)
         if any(items.get(key, 0) - held_items.get(key, 0) < amount

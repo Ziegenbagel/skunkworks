@@ -18,6 +18,13 @@ class TaskCommandTranslator:
             return None
 
         handler = {
+            "Deploy SCUT Relay": self._infrastructure,
+            "Activate SCUT Relay": self._infrastructure,
+            "Install SCUT Beacon": self._infrastructure,
+            "Load Hub Output": self._infrastructure,
+            "Unload Hub Supply": self._infrastructure,
+            "Return Hub Container": self._detach_transport_container,
+            "Deliver Hub Container": self._detach_transport_container,
             "Install Probe Upgrade": self._upgrade,
             "Craft Item": self._craft,
             "Mine Resource": self._mine,
@@ -44,9 +51,34 @@ class TaskCommandTranslator:
             })
         return command
 
+    def _infrastructure(self, task):
+        action = "Load Hub Output" if task.action == "Unload Hub Supply" else task.action
+        kind, payload = {
+            "Deploy SCUT Relay": (CommandType.DEPLOY_SCUT_RELAY, {"itemId": task.target}),
+            "Activate SCUT Relay": (CommandType.MANNY_ACTIVATE_RELAY, {"relayId": task.target}),
+            "Install SCUT Beacon": (CommandType.MANNY_INSTALL_BEACON, {"relayId": task.target}),
+            "Load Hub Output": (CommandType.MANNY_LOAD_HUB_OUTPUT, {
+                "kind": "item", "itemId": task.target, "toContainerId": task.metadata.get("toContainerId")}),
+        }[action]
+        member = None
+        if kind != CommandType.DEPLOY_SCUT_RELAY:
+            member = self._claim_idle_manny()
+            if member is None:
+                return None
+        if "relayId" in payload:
+            try:
+                payload["relayId"] = int(payload["relayId"])
+            except (TypeError, ValueError):
+                return None
+        return Command(type=kind, probe_id=self.probe_id, target_id=member["id"] if member else None,
+                       payload=payload, reason=task.reason, priority=task.priority, source_action=task.action,
+                       metadata={**task.metadata, "workflowAuthorized": bool(task.workflow_authorized)})
+
     def _recover_transport_container(self, task):
         manny = self._claim_idle_manny(
             allow_reserved=bool(task.metadata.get("minerCampaign")),
+            required_id=task.metadata.get("assignedMannyId"),
+            excluded_ids=task.metadata.get("excludedMannyIds", ()),
         )
         if manny is None or not task.target:
             return None
@@ -71,6 +103,8 @@ class TaskCommandTranslator:
     def _detach_transport_container(self, task):
         manny = self._claim_idle_manny(
             allow_reserved=bool(task.metadata.get("minerCampaign")),
+            required_id=task.metadata.get("assignedMannyId"),
+            excluded_ids=task.metadata.get("excludedMannyIds", ()),
         )
         if manny is None or not task.target:
             return None
@@ -146,6 +180,8 @@ class TaskCommandTranslator:
     def _transfer_deuterium(self, task):
         manny = self._claim_idle_manny(
             allow_reserved=bool(task.metadata.get("minerCampaign")),
+            required_id=task.metadata.get("assignedMannyId"),
+            excluded_ids=task.metadata.get("excludedMannyIds", ()),
         )
         if manny is None:
             return None
@@ -259,6 +295,8 @@ class TaskCommandTranslator:
         idle_count = len(self.operations.mining.idle_mannies())
         manny = self._claim_idle_manny(
             allow_reserved=bool(task.metadata.get("minerCampaign")),
+            required_id=task.metadata.get("assignedMannyId"),
+            excluded_ids=task.metadata.get("excludedMannyIds", ()),
         )
         resource_type = task.resource_type
 
@@ -440,8 +478,11 @@ class TaskCommandTranslator:
             metadata=metadata,
         )
 
-    def _claim_idle_manny(self, *, allow_reserved=False):
-        mannies = self.operations.mining.idle_mannies()
+    def _claim_idle_manny(self, *, allow_reserved=False, required_id=None, excluded_ids=()):
+        excluded = {str(value) for value in excluded_ids}
+        mannies = [item for item in self.operations.mining.idle_mannies()
+                   if str(item["id"]) not in excluded
+                   and (required_id is None or str(item["id"]) == str(required_id))]
         if allow_reserved:
             reserved = next((
                 item for item in mannies

@@ -18,6 +18,10 @@ class CommandType(StrEnum):
     MANNY_INSPECT_SECTOR_OBJECT = "manny_inspect_sector_object"
     MANNY_RECOVER_STORAGE_CONTAINER = "manny_recover_storage_container"
     MANNY_DETACH_STORAGE_CONTAINER = "manny_detach_storage_container"
+    DEPLOY_SCUT_RELAY = "deploy_scut_relay"
+    MANNY_ACTIVATE_RELAY = "manny_activate_relay"
+    MANNY_INSTALL_BEACON = "manny_install_beacon"
+    MANNY_LOAD_HUB_OUTPUT = "manny_load_hub_output"
     MOVE_PROBE = "move_probe"
     CANCEL_PROBE_MOVE = "cancel_probe_move"
 
@@ -46,6 +50,9 @@ class Command:
         identity_metadata = dict(self.metadata)
         target_id = self.target_id
         if self.type in {
+            CommandType.MANNY_ACTIVATE_RELAY,
+            CommandType.MANNY_INSTALL_BEACON,
+            CommandType.MANNY_LOAD_HUB_OUTPUT,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT,
             CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
             CommandType.MANNY_DETACH_STORAGE_CONTAINER,
@@ -64,6 +71,8 @@ class Command:
         # mutation itself. Keeping it out of the identity lets the exact hop
         # acknowledged by the operator remain selectable after consent is
         # persisted on the durable route goal.
+        for key in ("assignedMannyId", "campaignCrew", "excludedMannyIds"):
+            identity_metadata.pop(key, None)
         identity_metadata.pop("routeRiskAcknowledged", None)
         canonical = json.dumps(
             {

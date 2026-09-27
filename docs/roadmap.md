@@ -595,7 +595,10 @@ the `codex/<feature-name>` convention, and return to `develop` only after their
 focused regression tests pass. No 1.2 development commit receives a public
 `v*` tag until the integrated release candidate is promoted to `main`.
 
-- Automated SCUT network design.
+- Testable Relay Placement role: automatic coverage expansion, signal-direction
+  expansion, or coordinate-direction expansion; final/every/no beacon policy
+  and home Hub restocking. Candidate selection uses mapped stars in verified
+  SCUT coverage; unknown areas require further scans.
 - Hub-placement optimization.
 - Fuel-station and infrastructure network planning.
 - Advanced explorer campaigns and frontier coverage optimization. Initial
@@ -606,7 +609,7 @@ focused regression tests pass. No 1.2 development commit receives a public
   modes. The first testable phase keeps the probe stationary and uses all idle
   Mannys for Deuterium mining until the tank is full; once full, exactly one
   Manny is reserved for transfer while the others continue mining and may wait
-  with recovered fuel. The configured one-to-four worker limit applies to
+  with recovered fuel. A persisted four-Manny crew applies to
   ordinary-resource mining of selected local Metals, Ice, and Carbon Compound
   deposits toward depletion within available storage. Ordinary travel remains
   locked while mining is enabled; missile escape may interrupt the campaign
@@ -698,3 +701,15 @@ The following require verified game support before automation:
 
 They may be researched and displayed as hypotheses, but must not become
 automatic behavior until verified.
+
+
+### Current 1.2 role testing
+
+Ordinary-resource Miner containers now reserve four named Mannys before filling;
+one of that crew recovers the full container. Hub supply maintains configured
+production goals, accepts raw-container deliveries, and fulfils local output
+batches and returning relay kits. Stocked probes unload and return the temporary
+containers for Hub recovery before departure; safe attachment limits are
+checked before another handoff. These are development features, not a public
+release. Use Probe Role Settings and observe/approve mode to inspect a workflow
+before enabling automatic execution for its participating probes.

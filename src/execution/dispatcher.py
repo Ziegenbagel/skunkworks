@@ -20,6 +20,10 @@ class CapabilityDispatcher:
             CommandType.MANNY_INSPECT_SECTOR_OBJECT: self._manny_inspect_sector_object,
             CommandType.MANNY_RECOVER_STORAGE_CONTAINER: self._manny_recover_storage_container,
             CommandType.MANNY_DETACH_STORAGE_CONTAINER: self._manny_detach_storage_container,
+            CommandType.DEPLOY_SCUT_RELAY: self._deploy_relay,
+            CommandType.MANNY_ACTIVATE_RELAY: self._activate_relay,
+            CommandType.MANNY_INSTALL_BEACON: self._install_beacon,
+            CommandType.MANNY_LOAD_HUB_OUTPUT: self._load_hub_output,
             CommandType.MOVE_PROBE: self._move_probe,
             CommandType.CANCEL_PROBE_MOVE: self._cancel_probe_move,
         }
@@ -115,3 +119,17 @@ class CapabilityDispatcher:
 
     def _cancel_probe_move(self, command):
         return self.capabilities.probes.cancel_move(command.probe_id)
+
+    def _deploy_relay(self, command):
+        return self.capabilities.storage.jettison(command.probe_id, command.payload["itemId"])
+
+    def _activate_relay(self, command):
+        return self.capabilities.mannies.start_task(command.probe_id, command.target_id,
+                                                   "turn-on-relay", command.payload)
+
+    def _install_beacon(self, command):
+        return self.capabilities.mannies.start_task(command.probe_id, command.target_id,
+                                                   "install-scut-transit-beacon", command.payload)
+
+    def _load_hub_output(self, command):
+        return self.capabilities.storage.move(command.probe_id, {**command.payload, "actorMannyId": command.target_id})

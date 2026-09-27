@@ -13,7 +13,7 @@ Item {
     property int focusedProbeId: -1
     property int defaultProbeId: -1
     readonly property bool canManageRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
-    readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
+    readonly property var roleOptions: ["unassigned", "hub", "relay_placement", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
     readonly property string focusedRole: roleFor(focusedProbeId)
     readonly property var focusedSettings: (settingsData.probeRoleSettings || {})[String(focusedProbeId)] || ({})
     readonly property var minerReceiverProbes: availableProbes.filter(
@@ -193,14 +193,14 @@ Item {
                                 Label { visible: !mineMetals.checked && !mineIce.checked && !mineCarbon.checked; text: "SELECT AT LEAST ONE ORDINARY RESOURCE BEFORE SAVING."; color: Constants.criticalColor; font.family: Constants.technicalFont; font.bold: true }
                                 RowLayout {
                                     Label { text: "MANNYS PER MINING CONTAINER"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
-                                    SpinBox { id: miningMannies; from: 1; to: 4; value: Number(root.focusedSettings.maximumMiningMannies || 4) }
+                                    SpinBox { id: miningMannies; from: 4; to: 4; value: 4; enabled: false }
                                 }
                                 RowLayout {
                                     Label { text: "MINIMUM EMPTY CONTAINER RESERVE"; color: Constants.warningColor; font.family: Constants.technicalFont; font.bold: true }
                                     SpinBox { id: minimumEmptyContainers; from: 1; to: 20; value: Number(root.focusedSettings.minimumEmptyContainers || 2) }
                                     Label { text: "CRAFTED AUTOMATICALLY · ASSEMBLY RESERVATIONS REMAIN PROTECTED"; color: Constants.mutedTextColor; font.family: Constants.technicalFont }
                                 }
-                                Label { Layout.fillWidth: true; text: "Selected resources use parallel durable container cycles: deploy, fill with the configured Manny group, recover, and release for Transport pickup. Ten Mannys at four per container run two campaigns and leave two available for crafting or logistics."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
+                                Label { Layout.fillWidth: true; text: "Selected resources use parallel durable container cycles: deploy, reserve four named Mannys, wait for the whole crew, fill, recover with a crew member, and release for Transport pickup. Ten Mannys at four per container run two campaigns and leave two available for crafting or logistics."; color: Constants.mutedTextColor; font.family: Constants.technicalFont; wrapMode: Text.Wrap }
                             }
                         }
                         Button {
@@ -215,6 +215,15 @@ Item {
                             }
                         }
                     }
+                }
+                InfrastructureRoleSettings {
+                    Layout.fillWidth: true
+                    visible: root.focusedRole === "hub" || root.focusedRole === "relay_placement"
+                    role: root.focusedRole
+                    settings: root.focusedSettings
+                    runtime: root.runtimeData.infrastructure || ({})
+                    receivers: root.minerReceiverProbes
+                    onSaveRequested: settings => root.roleSettingsSaveRequested(root.focusedProbeId, settings)
                 }
                 GroupBox {
                     visible: root.focusedRole === "explorer"

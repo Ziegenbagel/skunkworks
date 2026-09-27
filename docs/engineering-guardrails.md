@@ -1576,3 +1576,52 @@ As of 2026-08-22, the offline suite has one unrelated stale source assertion for
 the removed heading `WHY HIGHER-PRIORITY ORDERS ARE WAITING`. Do not misattribute
 that failure to automation, persistence, or refresh changes; either restore the
 intended UI guidance or update the obsolete assertion in a dedicated change.
+
+## Named Miner Crews and Infrastructure Campaigns
+
+A deployed ordinary-resource mining container owns four specific Manny IDs,
+not a count of arbitrary idle workers. Persist the crew before dispatching its
+fill; wait until all four are idle together before the first mining order.
+Retain crew ownership through filling, recovery, and release. Accepted fill
+orders identify workers already used in this cycle; a fast returning worker
+must not receive a second fill order while another crew member is still due.
+Recovery uses a member of that container's crew. Other campaigns, background
+mining, and manufacturing must not borrow reserved crew members. Worker
+assignment metadata must not change the identity of a one-time container order.
+
+Infrastructure role decisions produce typed commands through the existing
+execution boundary. A relay site must be a mapped star inside verified FCC
+SCUT coverage; gain is measured against live network radii. Signal expansion
+uses the saved alert direction and origin, never an invented source distance.
+Deployment, activation, and beacon installation advance on live telemetry;
+accepted commands remain deduplicated across worker changes and restarts.
+Home restocking persists an identified request, and the Hub protects the
+requested completed components from unrelated crafting or probe assembly.
+A Hub handoff transfers a dedicated container to an owned local stationary
+receiver. Unrelated items, resources, and Mannys prohibit the handoff. A missing
+container alone is not delivery evidence: the exact handoff must have an
+accepted journal entry. Partial container batches retain their remaining item
+counts. Role settings saves preserve campaign state. Normal execution modes,
+STOP, upgrade reservations, travel checks, and fresh preflight remain active.
+
+Relevant tests:
+
+- `tests/test_miner_campaign.py::test_container_waits_for_four_reserved_mannies_before_first_fill`
+- `tests/test_miner_campaign.py::test_container_keeps_named_crew_and_waits_for_busy_member`
+- `tests/test_miner_campaign.py::test_early_returning_member_does_not_receive_second_fill_order`
+- `tests/test_miner_campaign.py::test_full_container_recovery_uses_original_crew_member`
+- `tests/test_infrastructure_campaign.py`
+
+Hub supply containers are temporary packaging, not permanent additions to the
+receiver. Publish fresh recipient storage space and its model/improvement-aware
+safe container limit before handoff; do not add a container at that limit.
+An identified receipt survives role changes and restarts. Unload items into
+non-delivery storage, verify the delivery container has no items, resources,
+Mannys, or reported used capacity, and only then detach it to drift for Hub
+recovery. Full permanent storage pauses unloading; it never permits discarding
+stock. Pending receipts hold ordinary departure. Returned packaging is recovered
+by the Hub even if general incoming-cargo collection is disabled.
+
+- `tests/test_infrastructure_campaign.py::test_hub_does_not_deliver_above_receiver_safe_container_limit`
+- `tests/test_infrastructure_campaign.py::test_receiver_unloads_then_returns_only_confirmed_empty_container`
+- `tests/test_infrastructure_campaign.py::test_receiver_never_discards_stock_when_permanent_storage_is_full`

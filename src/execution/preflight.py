@@ -26,12 +26,16 @@ class PreflightValidator:
         if command.type in {
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
+            CommandType.DEPLOY_SCUT_RELAY,
             CommandType.MANNY_MINE,
             CommandType.MANNY_TRANSFER_DEUTERIUM,
             CommandType.MANNY_REFILL_DEUTERIUM_TANK,
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
             CommandType.MANNY_UPGRADE,
+            CommandType.MANNY_ACTIVATE_RELAY,
+            CommandType.MANNY_INSTALL_BEACON,
+            CommandType.MANNY_LOAD_HUB_OUTPUT,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT,
             CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
             CommandType.MANNY_DETACH_STORAGE_CONTAINER,
@@ -54,6 +58,9 @@ class PreflightValidator:
             CommandType.MANNY_ASSEMBLE_PROBE,
             CommandType.MANNY_REPAIR,
             CommandType.MANNY_UPGRADE,
+            CommandType.MANNY_ACTIVATE_RELAY,
+            CommandType.MANNY_INSTALL_BEACON,
+            CommandType.MANNY_LOAD_HUB_OUTPUT,
             CommandType.MANNY_INSPECT_SECTOR_OBJECT,
             CommandType.MANNY_RECOVER_STORAGE_CONTAINER,
             CommandType.MANNY_DETACH_STORAGE_CONTAINER,
@@ -130,6 +137,12 @@ class PreflightValidator:
                     expected = None
             if expected is not None and current != expected:
                 blockers.append("transport_wrong_sector")
+
+        from src.operations.hub_receiving import receipt_blockers
+        blockers.extend(receipt_blockers(self.operations, command))
+        from src.operations.infrastructure import infrastructure_blockers, command_blockers
+        blockers.extend(infrastructure_blockers(self.operations, command))
+        blockers.extend(command_blockers(self.operations, command))
 
         from src.operations.upgrades import UpgradeService
         from src.planner.desired_state import UpgradeGoal

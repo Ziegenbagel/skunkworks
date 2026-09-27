@@ -928,6 +928,8 @@ class MissionControlDataService:
             tasks = ()
         else:
             desired = DesiredStateStore(self.data_engine).load(probe_id)
+            from src.operations.hub_receiving import HubReceivingService
+            receiving = HubReceivingService(operations).reconcile()
             desired = self._apply_probe_role_goals(
                 desired, operations, probe_id,
             )
@@ -950,6 +952,9 @@ class MissionControlDataService:
             desired, miner_tasks, miner_view = self._reconcile_miner_campaign(
                 operations, probe_id, desired,
             )
+            desired, infrastructure_tasks, infrastructure_view = self._reconcile_infrastructure_campaign(
+                operations, probe_id, desired,
+            )
             tasks = Planner(
                 operations,
                 desired,
@@ -965,6 +970,9 @@ class MissionControlDataService:
                 ]
             tasks.extend(transport_tasks)
             tasks.extend(explorer_tasks)
+            if infrastructure_view.get("role") == "hub" and infrastructure_view.get("enabled"):
+                tasks = [task for task in tasks if task.action != "Mine Resource" or task.metadata.get("upgradeScope")]
+            tasks.extend(infrastructure_tasks)
             if miner_view.get("enabled"):
                 managed = set(miner_view.get("managedResources", ()))
                 projected_tasks = []
@@ -990,6 +998,10 @@ class MissionControlDataService:
                     projected_tasks.append(task)
                 tasks = projected_tasks
             tasks.extend(miner_tasks)
+            if receiving.phase:
+                tasks = [task for task in tasks if task.category == "safety"] + list(receiving.tasks)
+                miner_view = {}
+                infrastructure_view = {"phase": receiving.phase, "summary": receiving.summary}
             tasks.sort(key=task_order_key)
             excluded_fabrication = set(excluded_fabrication)
             preparation_tasks = [
@@ -1005,15 +1017,15 @@ class MissionControlDataService:
                     policy.max_commands_per_cycle, len(preparation_tasks),
                 ),
             )
-            reserved_manny_ids = ()
-            reserved_count = int(miner_view.get("reserveOrdinaryMannies", 0) or 0)
-            if miner_view.get("reserveTransferManny"):
-                reserved_count += 1
-            if reserved_count:
-                idle_mannies = operations.mining.idle_mannies()
-                reserved_manny_ids = tuple(
-                    item["id"] for item in idle_mannies[:reserved_count]
-                )
+            idle_mannies = (operations.mining.idle_mannies()
+                            if getattr(operations, "mining", None) is not None else [])
+            crew_ids = set(miner_view.get("reservedMannyIds", ()))
+            reserved_manny_ids = tuple(item["id"] for item in idle_mannies if str(item["id"]) in crew_ids)
+            reserved_count = 1 if miner_view.get("reserveTransferManny") else 0
+            if not crew_ids:
+                reserved_count += int(miner_view.get("reserveOrdinaryMannies", 0) or 0)
+            extra = [item["id"] for item in idle_mannies if str(item["id"]) not in crew_ids]
+            reserved_manny_ids += tuple(extra[:reserved_count])
             self._automation_reserved_manny_ids = reserved_manny_ids
             prepared_commands = CommandPreparer(
                 operations, probe_id, preparation_policy,
@@ -1041,7 +1053,51 @@ class MissionControlDataService:
             "emergencyStopActive": self.data_engine.emergency_stop_active(),
             "explorer": explorer_view if operations is not None and probe_id is not None else {},
             "miner": miner_view if operations is not None and probe_id is not None else {},
+            "infrastructure": infrastructure_view if operations is not None and probe_id is not None else {},
         }
+
+    def _reconcile_infrastructure_campaign(self, operations, probe_id, desired):
+        from src.operations.infrastructure import RelayCampaignService, HubCampaignService, role_rows, point
+        from src.planner.desired_state import ProductionGoal
+        rows = role_rows(self.data_engine)
+        row = next((r for r in rows if _integral_ids_equal(r["asset_id"], probe_id)), None)
+        if row is None or row["role"] not in {"hub", "relay_placement"}:
+            return desired, [], {}
+        settings = row["settings"]
+        from src.operations.hub_receiving import receipts
+        if receipts(self.data_engine, probe_id):
+            return desired, [], {}
+        if desired.upgrade is not None and UpgradeService(operations).assess(desired.upgrade)["status"] not in {"complete", "installing"}:
+            return desired, [], {"role": row["role"], "phase": "upgrade_hold", "summary": "Preparing the selected upgrade before infrastructure work."}
+        if row["role"] == "hub":
+            decision = HubCampaignService(operations).decide(settings, rows)
+        else:
+            alerts = []
+            for record in self.data_engine.records("alerts"):
+                try:
+                    alerts.append(json.loads(record["payload_json"]))
+                except (KeyError, TypeError, ValueError):
+                    pass
+            decision = RelayCampaignService(operations).decide(settings, alerts)
+        if decision.state != settings.get("infrastructureCampaign", {}):
+            settings = {**settings, "infrastructureCampaign": decision.state}
+            FleetRoleService(self.data_engine).assign("probe", probe_id, row["role"], metadata=settings)
+        delivery = decision.state.get("delivery") or {}
+        if delivery.get("dispatchFingerprint") and delivery.get("containerId"):
+            from src.operations.hub_receiving import stage_receipt
+            stage_receipt(self.data_engine, probe_id, delivery["targetProbeId"], delivery["containerId"],
+                f"{delivery['id']}:{delivery.get('shipment', 0)}", point(operations.travel.current_sector()),
+                delivery["dispatchFingerprint"])
+        if decision.destination is not None and desired.travel is None:
+            desired = replace(desired, travel=TravelGoal(decision.destination, route_mode="segmented"))
+        if decision.production:
+            goals = {g.recipe_id: g for g in desired.production}
+            for recipe, quantity in decision.production.items():
+                old = goals.get(recipe)
+                goals[recipe] = ProductionGoal(recipe, max(quantity, old.quantity if old else 0), min(old.priority if old else 2, 2))
+            desired = replace(desired, production=tuple(goals.values()))
+        return desired, list(decision.tasks), {"role": row["role"], "enabled": bool(settings.get("infrastructureEnabled")),
+            "phase": decision.phase, "summary": decision.summary}
 
     def _reconcile_miner_campaign(self, operations, probe_id, desired):
         """Project Miner settings into stationary, bounded mining work."""
@@ -1095,6 +1151,7 @@ class MissionControlDataService:
             maximum_mining_order_amount=desired.maximum_mining_order_amount,
             accepted_container_fills=campaign_evidence["fills"],
             container_mutation_counts=campaign_evidence["mutations"],
+            accepted_container_workers=campaign_evidence.get("workers", {}),
         )
         campaign_before = settings.get("ordinaryContainerCampaign") or {}
         campaign_after = decision.campaign_state
@@ -1112,6 +1169,7 @@ class MissionControlDataService:
             "managedResources": list(decision.managed_resources),
             "reserveTransferManny": decision.reserve_transfer_manny,
             "reserveOrdinaryMannies": decision.reserve_ordinary_mannies,
+            "reservedMannyIds": list(decision.reserved_manny_ids),
             "travelLocked": travel_locked,
         }
 
@@ -1126,9 +1184,10 @@ class MissionControlDataService:
         elif history is not None:
             rows = [row for row in history(probe_id) if row["status"] == "succeeded"]
         else:
-            return {"fills": {}, "mutations": {}}
+            return {"fills": {}, "mutations": {}, "workers": {}}
         fills = {}
         mutations = {}
+        workers = {}
         for row in rows:
             try:
                 command = json.loads(row["command_json"] or "{}")
@@ -1145,6 +1204,8 @@ class MissionControlDataService:
                 continue
             key = str(container_id)
             if command_type == CommandType.MANNY_MINE.value:
+                if command.get("targetId") is not None:
+                    workers.setdefault(key, set()).add(str(command["targetId"]))
                 fills[key] = fills.get(key, 0.0) + float(
                     payload.get("targetAmount", 0) or 0,
                 )
@@ -1163,7 +1224,9 @@ class MissionControlDataService:
                     # make the newly empty container appear full.
                     fills[key] = 0.0
                     fills[f"detached-container-{key}"] = 0.0
-        return {"fills": fills, "mutations": mutations}
+                    workers[key] = set()
+                    workers[f"detached-container-{key}"] = set()
+        return {"fills": fills, "mutations": mutations, "workers": workers}
 
     def _reconcile_explorer_campaign(self, operations, probe_id, desired):
         """Project an enabled Explorer role into safe travel and Manny tasks."""
@@ -5652,6 +5715,11 @@ class MissionControlController(QObject):
                 saved["ordinaryContainerCampaign"] = existing[
                     "ordinaryContainerCampaign"
                 ]
+            if "infrastructureCampaign" in existing:
+                saved["infrastructureCampaign"] = existing["infrastructureCampaign"]
+            if row["role"] in {"hub", "relay_placement"}:
+                from src.operations.infrastructure import validate_settings
+                validate_settings(row["role"], saved)
             roles.assign("probe", probe_id, row["role"], metadata=saved)
             return saved
 

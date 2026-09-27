@@ -1,6 +1,6 @@
 """Explainable, opt-in decisions for a stationary Miner-role probe."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from src.planner.task import Task
 from src.operations.logistics import TankerLogisticsService
@@ -15,6 +15,7 @@ class MinerCampaignDecision:
     managed_resources: tuple[str, ...] = ()
     reserve_transfer_manny: bool = False
     reserve_ordinary_mannies: int = 0
+    reserved_manny_ids: tuple[str, ...] = ()
     campaign_state: dict | None = None
 
 
@@ -27,7 +28,7 @@ class MinerCampaignService:
         self.operations = operations
 
     def decide(self, settings, *, target_probe=None, maximum_mining_order_amount=0.55,
-               accepted_container_fills=None, container_mutation_counts=None):
+               accepted_container_fills=None, container_mutation_counts=None, accepted_container_workers=None):
         if not settings.get("miningEnabled", False):
             return MinerCampaignDecision()
         mode = str(settings.get("resourceMode") or "deuterium")
@@ -39,9 +40,7 @@ class MinerCampaignService:
             selected.extend(item for item in self.ORDINARY_RESOURCES if item in enabled)
         managed = tuple(dict.fromkeys(selected))
         idle = self.operations.mining.idle_mannies()
-        ordinary_worker_limit = max(
-            1, min(4, int(settings.get("maximumMiningMannies", 4) or 4))
-        )
+        ordinary_worker_limit = 4
         fuel = self.operations.world.probe.get("fuel") or {}
         fuel_amount = float(fuel.get("deuterium", 0) or 0)
         fuel_maximum = float(fuel.get("maxDeuterium", 0) or 0)
@@ -58,6 +57,7 @@ class MinerCampaignService:
                 settings, ordinary_managed, ordinary_worker_limit,
                 accepted_container_fills=accepted_container_fills,
                 container_mutation_counts=container_mutation_counts,
+                accepted_container_workers=accepted_container_workers,
             )
             reserve_task = self._empty_container_reserve_task(settings)
             # In combined mode the container workflow and deuterium mining may
@@ -117,6 +117,8 @@ class MinerCampaignService:
                 need -= order
                 remaining_workers -= 1
         if ordinary is not None:
+            tasks = [replace(task, metadata={**task.metadata,
+                     "excludedMannyIds": list(ordinary.reserved_manny_ids)}) for task in tasks]
             tasks.extend(ordinary.tasks)
         if reserve_task is not None:
             tasks.append(reserve_task)
@@ -149,6 +151,7 @@ class MinerCampaignService:
                 reserve_ordinary_mannies=(
                     ordinary.reserve_ordinary_mannies if ordinary is not None else 0
                 ),
+                reserved_manny_ids=ordinary.reserved_manny_ids if ordinary else (),
                 campaign_state=(ordinary.campaign_state if ordinary is not None else None),
             )
         if ordinary is not None:
@@ -157,6 +160,7 @@ class MinerCampaignService:
                 managed_resources=managed,
                 reserve_transfer_manny=deuterium_full,
                 reserve_ordinary_mannies=ordinary.reserve_ordinary_mannies,
+                reserved_manny_ids=ordinary.reserved_manny_ids,
                 campaign_state=ordinary.campaign_state,
             )
         deuterium_wait = self._deuterium_wait_status(settings, target_probe)
@@ -175,7 +179,7 @@ class MinerCampaignService:
 
     def _ordinary_container_campaign(
         self, settings, resources, worker_limit, *, accepted_container_fills=None,
-        container_mutation_counts=None,
+        container_mutation_counts=None, accepted_container_workers=None,
     ):
         accepted_container_fills = accepted_container_fills or {}
         container_mutation_counts = container_mutation_counts or {}
@@ -190,11 +194,13 @@ class MinerCampaignService:
             states = []
 
         crew_count = len(self.operations.mannies.all())
-        campaign_limit = max(1, crew_count // worker_limit)
-        states = states[:campaign_limit]
+        campaign_limit = max(1, crew_count // worker_limit, len(states))
         decisions = []
         next_states = []
-        allocated_idle = 0
+        idle_ids = [str(item["id"]) for item in self.operations.mining.idle_mannies()]
+        live_ids = {str(item["id"]) for item in self.operations.mannies.all()}
+        reserved_crews = {str(value) for state in states for value in state.get("crewMannyIds", ())}
+        assigned_crews = set()
 
         for index in range(campaign_limit):
             state = states[index] if index < len(states) else {}
@@ -204,17 +210,65 @@ class MinerCampaignService:
                 if item.get("containerId") not in {None, ""}
             }
             reserved_container_ids.discard(current_container_id)
+            crew = [str(value) for value in state.get("crewMannyIds", ())
+                    if str(value) in live_ids and str(value) not in assigned_crews]
+            # Adopt workers already operating a legacy campaign before claiming
+            # idle members. Never take a member of another persisted crew.
+            referenced = {current_container_id}
+            detached = self._detached_container(current_container_id)
+            if detached:
+                referenced.add(str(detached.get("id")))
+            for manny in self.operations.mannies.all():
+                member = str(manny["id"])
+                payload = self._manny_task_payload(manny)
+                if current_container_id and any(str(payload.get(key) or "") in referenced
+                        for key in ("containerId", "targetContainerId", "objectId")):
+                    if member not in crew and member not in assigned_crews:
+                        crew.append(member)
+            for member in idle_ids:
+                if len(crew) >= worker_limit:
+                    break
+                if member not in crew and member not in assigned_crews and member not in reserved_crews:
+                    crew.append(member)
+            crew = crew[:worker_limit]
+            crew_idle = [member for member in crew if member in idle_ids]
+            ready = bool(state.get("crewReady")) and len(crew) == worker_limit
+            if len(crew) == worker_limit and len(crew_idle) == worker_limit:
+                ready = True
+            if len(crew) == worker_limit and self._active_mining_count(*referenced):
+                ready = True  # migrate an already-started legacy fill
             decision = self._ordinary_single_container_campaign(
                 state, resources, worker_limit,
                 excluded_container_ids=reserved_container_ids,
-                available_idle_count=max(
-                    0, len(self.operations.mining.idle_mannies()) - allocated_idle,
-                ),
+                available_idle_count=len(crew_idle),
                 accepted_container_fills=accepted_container_fills,
                 container_mutation_counts=container_mutation_counts,
             )
+            if decision.phase == "deploy_container":
+                ready = False  # the deploying member must return before the cohort starts
+            if decision.campaign_state:
+                next_state = {**decision.campaign_state, "crewMannyIds": crew, "crewReady": ready}
+                actual_id = str(decision.campaign_state.get("containerId") or current_container_id)
+                actual_detached = self._detached_container(actual_id)
+                workers_used = set((accepted_container_workers or {}).get(actual_id, ()))
+                if actual_detached:
+                    workers_used.update((accepted_container_workers or {}).get(str(actual_detached.get("id")), ()))
+                candidates = iter(crew_idle)
+                fill_candidates = iter(member for member in crew_idle if member not in workers_used)
+                assigned = []
+                for task in decision.tasks:
+                    if task.action == "Mine Resource" and not ready:
+                        continue
+                    member = next(fill_candidates if task.action == "Mine Resource" else candidates, None)
+                    if member is None:
+                        continue
+                    assigned.append(replace(task, metadata={**task.metadata,
+                        "assignedMannyId": member, "campaignCrew": crew}))
+                decision = replace(decision, tasks=tuple(assigned), campaign_state=next_state,
+                    summary=(decision.summary if ready or decision.phase != "mine_container" else
+                             f"Holding container until all four reserved Mannys are ready ({len(crew_idle)}/4 idle)."))
+                assigned_crews.update(crew)
             decisions.append(decision)
-            allocated_idle += len(decision.tasks)
             if decision.campaign_state:
                 next_states.append(dict(decision.campaign_state))
 
@@ -231,6 +285,8 @@ class MinerCampaignService:
             ),
             container_mutation_counts=container_mutation_counts,
         )
+        cleanup_tasks = tuple(replace(task, metadata={**task.metadata,
+                              "excludedMannyIds": list(assigned_crews)}) for task in cleanup_tasks)
         tasks = campaign_tasks + cleanup_tasks
         active = [decision for decision in decisions if decision.campaign_state]
         if not active:
@@ -260,14 +316,11 @@ class MinerCampaignService:
                 f"{worker_limit} Mannys per container. "
                 + " ".join(decision.summary for decision in active)
             )
-        active_campaign_mannies = self._active_campaign_manny_count(next_states)
-        reserve_ordinary_mannies = min(
-            len(self.operations.mining.idle_mannies()),
-            max(0, campaign_limit * worker_limit - active_campaign_mannies),
-        )
+        reserve_ordinary_mannies = len(set(idle_ids) & assigned_crews)
         return MinerCampaignDecision(
             tasks=tasks, phase=phase, paused=False, summary=summary,
             reserve_ordinary_mannies=reserve_ordinary_mannies,
+            reserved_manny_ids=tuple(sorted(assigned_crews)),
             campaign_state=(
                 {"campaigns": next_states}
                 if campaign_limit > 1 or len(next_states) > 1
