@@ -13,6 +13,53 @@ from src.planner.task import Task
 import pytest
 
 
+@pytest.mark.parametrize("demand", ["reserve", "craft", "package"])
+def test_enabled_hub_preserves_local_mining_for_resource_and_crafting_goals(tmp_path, demand):
+    from unittest.mock import patch
+    from dataclasses import replace
+    from src.data import DataEngine
+    from src.planner.desired_state import DesiredState, ResourceGoal, ProductionGoal
+    from src.planner.desired_state_store import DesiredStateStore
+    from src.ui.controller import MissionControlDataService
+    from src.operations.infrastructure import InfrastructureDecision
+    from tests.test_planner_missions import build_operations
+
+    ops = build_operations(metals=0)
+    ops.world.fleet = {"probes":[]}
+    engine = ops.data_engine = DataEngine(tmp_path / "hub.sqlite3")
+    config = {"infrastructureEnabled":True}
+    desired = DesiredState.unconfigured()
+    if demand == "reserve":
+        desired = replace(desired, resources=(ResourceGoal("metals", 2),))
+    elif demand == "craft":
+        desired = replace(desired, production=(ProductionGoal("storage_container", 1),))
+    else:
+        config["outputRequests"] = [{"id":"package", "targetProbeId":2, "items":{"storage_container":1}}]
+    engine.assign_fleet_role("probe", 1, "hub", metadata=config)
+    DesiredStateStore(engine).save(desired, 1)
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service.data_engine = engine
+    service.recipes = ops.manufacturing.recipes
+    service._apply_probe_role_goals = lambda desired, *_: desired
+    service._reconcile_completed_autonomous_travel = lambda _ops, _id, desired: desired
+    service._reconcile_transport_operation = lambda _ops, _id, desired: (desired, [], None)
+    service._reserve_tanker_delivery_tasks = lambda *_: []
+    service._reconcile_explorer_campaign = lambda _ops, _id, desired: (desired, [], {})
+    service._reconcile_miner_campaign = lambda _ops, _id, desired: (desired, [], {})
+    service._dependency_mining_idle_grace_elapsed = lambda _: True
+    with patch("src.operations.hub_receiving.HubReceivingService.reconcile", return_value=InfrastructureDecision("", "")):
+        view = service.automation_view(ops, 1)
+    assert any(t["action"] == "Mine Resource" for t in view["planning"])
+    mining = [p for p in service._prepared_commands if p.command.type == C.MANNY_MINE]
+    assert mining
+    assert mining[0].command.payload["resources"] == ["metals"]
+    assert "targetContainerId" not in mining[0].command.payload
+    ops.world.sector["resources"] = []
+    with patch("src.operations.hub_receiving.HubReceivingService.reconcile", return_value=InfrastructureDecision("", "")):
+        service.automation_view(ops, 1)
+    assert not any(p.command.type == C.MANNY_MINE for p in service._prepared_commands)
+
+
 def test_hub_collects_two_refills_and_decimal_manual_receiver_while_waiting():
     ops = operations(role="hub")
     ops.world.fleet = {"probes": []}

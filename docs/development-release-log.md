@@ -1,5 +1,9 @@
 # Development Release Log
 
+- Fixed Hub Supply suppressing local mining for resource reserves, ordinary
+  crafting, and queued packages. Hubs now retain the shared planner's mining
+  orders alongside incoming container deliveries.
+
 - Hub Supply now keeps multiple automatic refill and manual package requests,
   prepares stock while receivers wait, and advances ready recipients independently.
   The package editor offers component dropdowns, quantities, and additional rows.

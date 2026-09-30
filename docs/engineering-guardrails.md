@@ -1593,6 +1593,15 @@ intended UI guidance or update the obsolete assertion in a dedicated change.
 
 ## Named Miner Crews and Infrastructure Campaigns
 
+Enabling Hub Supply must preserve ordinary local mining for configured resource
+reserves, production dependencies, and package crafting. Container deliveries
+supplement local acquisition; the Hub role must not filter the shared planner's
+mining tasks. Normal source availability, storage, worker, priority, reservation,
+and execution-policy checks still apply. Regression coverage:
+`test_enabled_hub_preserves_local_mining_for_resource_and_crafting_goals` in
+`tests/test_infrastructure_campaign.py` exercises the automation service through
+command preparation for all three demand sources and for absent local deposits.
+
 Hub package preparation must not depend on receiver readiness. Collect all
 enabled expansion refill requests for this Hub's home sector and all manually
 queued packages, sum their remaining production reservations, and let a ready

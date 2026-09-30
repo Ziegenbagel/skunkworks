@@ -120,7 +120,7 @@ ColumnLayout {
         palette.windowText: Constants.textColor
         visible: root.role === "hub"; title: "PRODUCTION AND INCOMING SUPPLIES"; Layout.fillWidth: true
         ColumnLayout { anchors.fill: parent
-            Label { Layout.fillWidth: true; text: "Maintains the production targets configured in Automation and builds refill kits requested by relay probes returning here. Raw materials come from Miner and Transport deliveries."; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
+            Label { Layout.fillWidth: true; text: "Maintains the reserve and production targets configured in Automation and builds requested refill kits. Mines local resource shortages and accepts Miner and Transport deliveries."; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
             CheckBox { id: receiveContainers; text: "RECOVER DRIFTING SUPPLY CONTAINERS"; checked: root.settings.receiveContainers !== false }
             Button { text: "SAVE HUB ROLE SETTINGS"; onClicked: root.saveRequested(root.hubSettings(null)) }
         }

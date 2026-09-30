@@ -970,8 +970,6 @@ class MissionControlDataService:
                 ]
             tasks.extend(transport_tasks)
             tasks.extend(explorer_tasks)
-            if infrastructure_view.get("role") == "hub" and infrastructure_view.get("enabled"):
-                tasks = [task for task in tasks if task.action != "Mine Resource" or task.metadata.get("upgradeScope")]
             tasks.extend(infrastructure_tasks)
             if miner_view.get("enabled"):
                 managed = set(miner_view.get("managedResources", ()))

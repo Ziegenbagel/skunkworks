@@ -27,12 +27,14 @@ restart. Enable each expansion role to generate its automatic refill requests.
 
 Enable **Hub Supply** in Probe Role Settings. Existing production targets remain
 the baseline. Enable incoming container recovery to collect raw-resource
-supplies delivered by Transport; the Hub does not generate ordinary-resource
-mining orders for its production shortages.
+supplies delivered by Transport. The Hub also mines local resources for its
+configured reserves and crafting shortages using the normal planner and safety
+checks. Check a depleted Metals reserve and a blocked craft with a mineable
+local deposit: both should produce mining work when workers and storage permit.
 
 Returning SCUT Network Expansion probes request refill kits automatically. To send
-other finished items, choose an owned receiver, a recipe ID, and quantity, then
-queue one output batch. The receiver must rendezvous with the Hub and have
+other finished items, choose an owned receiver, select components and quantities,
+then queue a package. The receiver must rendezvous with the Hub and have
 fresh storage telemetry, permanent unloading capacity, and a free attachment
 slot below its safe container limit. Both probes need suitable execution modes
 for their parts of the workflow.
