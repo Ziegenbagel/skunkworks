@@ -15,6 +15,16 @@ crew visibly waits instead of trickling miners into the campaign.
 
 ## Hub
 
+Choose a recipient, click **Add Component**, select a component and quantity,
+and add more rows as needed. **Queue Package** appends a separate request; repeat
+for another recipient. The evaluated supply queue includes automatic SCUT
+refills and shows each recipient's remaining items and waiting/loading status.
+Verify a waiting recipient does not prevent production or another recipient's
+shipment. A package larger than one container must retain its remaining items
+after an accepted handoff, then wait for unloading/empty-container return before
+the next shipment to that receiver. Requests and shipment progress survive a
+restart. Enable each expansion role to generate its automatic refill requests.
+
 Enable **Hub Supply** in Probe Role Settings. Existing production targets remain
 the baseline. Enable incoming container recovery to collect raw-resource
 supplies delivered by Transport; the Hub does not generate ordinary-resource

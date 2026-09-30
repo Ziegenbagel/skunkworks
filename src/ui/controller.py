@@ -1071,6 +1071,25 @@ class MissionControlDataService:
             return desired, [], {"role": row["role"], "phase": "upgrade_hold", "summary": "Preparing the selected upgrade before infrastructure work."}
         if row["role"] == "hub":
             decision = HubCampaignService(operations).decide(settings, rows)
+            from src.operations.hub_receiving import readiness, publish_live_readiness
+            # Receiver cycles can be farther apart than readiness's TTL. Read
+            # pending recipients directly rather than waiting for their turn.
+            refreshed = False
+            for target_id in dict.fromkeys(p["targetProbeId"] for p in decision.packages):
+                if readiness(self.data_engine, target_id):
+                    continue
+                try:
+                    response = self.client.get_probe(target_id)
+                    target = response.get("probe", response)
+                    publish_live_readiness(self.data_engine, target)
+                except Exception:
+                    continue
+                fleet = operations.world.fleet or {}
+                fleet["probes"] = [p for p in fleet.get("probes", []) if not _integral_ids_equal(p.get("id"), target_id)] + [target]
+                operations.world.fleet = fleet
+                refreshed = True
+            if refreshed:
+                decision = HubCampaignService(operations).decide(settings, rows)
         else:
             alerts = []
             for record in self.data_engine.records("alerts"):
@@ -1097,7 +1116,9 @@ class MissionControlDataService:
                 goals[recipe] = ProductionGoal(recipe, max(quantity, old.quantity if old else 0), min(old.priority if old else 2, 2))
             desired = replace(desired, production=tuple(goals.values()))
         return desired, list(decision.tasks), {"role": row["role"], "enabled": bool(settings.get("infrastructureEnabled")),
-            "phase": decision.phase, "summary": decision.summary}
+            "phase": decision.phase, "summary": decision.summary, "packages": list(decision.packages),
+            "componentOptions": [{"id":r["id"], "name":r.get("name", r["id"])}
+                for r in self.recipes.all() if r["id"] not in {"manny", "additional_container"}]}
 
     def _reconcile_miner_campaign(self, operations, probe_id, desired):
         """Project Miner settings into stationary, bounded mining work."""
@@ -5729,6 +5750,9 @@ class MissionControlController(QObject):
                 ]
             if "infrastructureCampaign" in existing:
                 saved["infrastructureCampaign"] = existing["infrastructureCampaign"]
+            if row["role"] == "hub":
+                from src.operations.infrastructure import merge_hub_settings
+                saved = merge_hub_settings(existing, saved, getattr(self.service, "recipes", None))
             if row["role"] in {"hub", "relay_placement"}:
                 from src.operations.infrastructure import validate_settings
                 validate_settings(row["role"], saved)

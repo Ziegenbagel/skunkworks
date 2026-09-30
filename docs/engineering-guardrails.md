@@ -1593,6 +1593,23 @@ intended UI guidance or update the obsolete assertion in a dedicated change.
 
 ## Named Miner Crews and Infrastructure Campaigns
 
+Hub package preparation must not depend on receiver readiness. Collect all
+enabled expansion refill requests for this Hub's home sector and all manually
+queued packages, sum their remaining production reservations, and let a ready
+recipient progress past a blocked recipient. Normalize integral Qt receiver IDs
+before lookup. Append manual requests against persisted settings so a stale
+editor cannot overwrite earlier packages. Each package owns its loading
+container; other packages cannot borrow its cargo. Split oversized packages into
+successive shipments and decrement remaining quantities only after journaled
+handoff success and observed container departure. Receiver unload/return and
+safe-container checks still gate each shipment. Publish refill demand when an
+expansion probe begins returning, so the Hub can prepare before arrival.
+If receiver-cycle readiness expires, a fresh targeted probe read may publish
+capacity using conservative base container limits; never refresh a timestamp
+from cached fleet data. Regression coverage: `tests/test_infrastructure_campaign.py`
+(multi-request collection, stale-editor append, independent container ownership,
+mixed-package splitting, early refill publication, fresh readiness).
+
 A deployed ordinary-resource mining container owns four specific Manny IDs,
 not a count of arbitrary idle workers. Deployment itself must wait for all four
 assigned members to be idle; an incomplete group must not deploy a second

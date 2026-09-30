@@ -10,6 +10,8 @@ ColumnLayout {
     property var settings: ({})
     property var runtime: ({})
     property var receivers: []
+    property var components: root.runtime.componentOptions || []
+    ListModel { id: packageRows }
     signal saveRequested(var settings)
     spacing: 12
     function relaySettings() {
@@ -24,9 +26,26 @@ ColumnLayout {
     }
     function hubSettings(request) {
         const result = {infrastructureEnabled: enabledRole.checked, receiveContainers: receiveContainers.checked};
-        if (request) result.outputRequest = request;
-        else if (settings.outputRequest) result.outputRequest = settings.outputRequest;
+        if (request) result.enqueuePackage = request;
         return result;
+    }
+    function packageItems() {
+        let items = {};
+        for (let i = 0; i < packageRows.count; ++i) {
+            const row = packageRows.get(i);
+            items[row.componentId] = (items[row.componentId] || 0) + row.quantity;
+        }
+        return items;
+    }
+    function addComponent() {
+        if (root.components.length)
+            packageRows.append({componentId: String(root.components[0].id), quantity: 1});
+    }
+    function itemSummary(items) {
+        return Object.keys(items || {}).map(function(key) {
+            const option = root.components.find(function(c) { return c.id === key; });
+            return items[key] + " × " + (option ? option.name : key.replace(/_/g, " "));
+        }).join(", ");
     }
     Label {
         Layout.fillWidth: true; wrapMode: Text.Wrap
@@ -108,17 +127,46 @@ ColumnLayout {
     }
     GroupBox {
         palette.windowText: Constants.textColor
-        visible: root.role === "hub"; title: "SEND AN OUTPUT BATCH"; Layout.fillWidth: true
+        visible: root.role === "hub"; title: "CREATE A SUPPLY PACKAGE"; Layout.fillWidth: true
         ColumnLayout { anchors.fill: parent; spacing: 10
             ComboBox { id: receiver; Layout.fillWidth: true; model: root.receivers; textRole: "name"; valueRole: "id" }
-            RowLayout {
-                TextField { id: outputRecipe; Layout.fillWidth: true; placeholderText: "Recipe ID, e.g. scut_relay or steel_bar" }
-                SpinBox { id: outputCount; from: 1; to: 100; value: 1 }
+            Repeater {
+                model: packageRows
+                delegate: RowLayout {
+                    id: componentRow
+                    required property int index
+                    required property string componentId
+                    required property int quantity
+                    ComboBox {
+                        Layout.fillWidth: true; model: root.components; textRole: "name"; valueRole: "id"
+                        currentIndex: root.components.findIndex(function(c) { return c.id === componentRow.componentId; })
+                        onActivated: packageRows.setProperty(componentRow.index, "componentId", String(currentValue))
+                    }
+                    SpinBox { from: 1; to: 1000; editable: true; value: componentRow.quantity
+                        onValueModified: packageRows.setProperty(componentRow.index, "quantity", value) }
+                    Button { text: "REMOVE"; onClicked: packageRows.remove(componentRow.index) }
+                }
             }
-            Label { Layout.fillWidth: true; text: "Builds and loads the selected items into a dedicated container, then hands it to the receiver when both probes are here. The receiver unloads its stock and returns the empty containers for Hub recovery before leaving. Each click requests one batch."; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
-            Button { text: "QUEUE OUTPUT BATCH"; enabled: receiver.currentIndex >= 0 && outputRecipe.text.trim().length > 0 && enabledRole.checked
-                onClicked: { let items = {}; items[outputRecipe.text.trim()] = outputCount.value;
-                    root.saveRequested(root.hubSettings({id: "manual-" + Date.now(), targetProbeId: Number(receiver.currentValue), items: items})); }
+            Button { text: "ADD COMPONENT"; enabled: root.components.length > 0
+                onClicked: root.addComponent() }
+            Label { Layout.fillWidth: true; text: "Packages split into as many containers as needed. Each receiver unloads and returns its temporary container before receiving the next shipment. Other probes' packages can progress while a receiver is waiting."; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
+            Button { text: "QUEUE PACKAGE"; enabled: receiver.currentIndex >= 0 && packageRows.count > 0 && enabledRole.checked
+                onClicked: root.saveRequested(root.hubSettings({id: "manual-" + Date.now() + "-" + Math.random().toString(36).slice(2), targetProbeId: Number(receiver.currentValue), items: root.packageItems()}))
+            }
+        }
+    }
+    GroupBox {
+        palette.windowText: Constants.textColor
+        visible: root.role === "hub"; title: "SUPPLY QUEUE · PLANNED PACKAGES"; Layout.fillWidth: true
+        ColumnLayout { anchors.fill: parent
+            Label { visible: !(root.runtime.packages || []).length; text: "No packages evaluated yet. Saved requests appear after the next automation cycle."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
+            Repeater { model: root.runtime.packages || []
+                delegate: Label {
+                    required property var modelData
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: Constants.textColor
+                    text: modelData.targetName + " · " + (modelData.source === "automatic" ? "AUTO REFILL" : "MANUAL PACKAGE")
+                        + "\n" + root.itemSummary(modelData.items) + "\n" + modelData.summary
+                }
             }
         }
     }

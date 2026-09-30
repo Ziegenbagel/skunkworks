@@ -13,6 +13,112 @@ from src.planner.task import Task
 import pytest
 
 
+def test_hub_collects_two_refills_and_decimal_manual_receiver_while_waiting():
+    ops = operations(role="hub")
+    ops.world.fleet = {"probes": []}
+    rows = [{"role":"relay_placement", "asset_id":str(i), "settings":settings(
+        infrastructureCampaign={"supplyRequest":{"id":f"auto-{i}", "items":{"scut_relay":2, "integrated_circuit":2}}})}
+        for i in (2,3)]
+    config = {"infrastructureEnabled":True,
+              "outputRequest":{"id":"manual", "targetProbeId":4.0, "items":{"scut_transit_beacon":3}}}
+    result = HubCampaignService(ops).decide(config, rows)
+    assert len(result.packages) == 3
+    assert result.production == {"scut_relay":4, "integrated_circuit":4, "scut_transit_beacon":3}
+    assert result.packages[-1]["targetProbeId"] == 4
+    config["infrastructureCampaign"] = result.state
+    assert len(HubCampaignService(ops).decide(config, rows).packages) == 3
+
+
+def test_hub_append_preserves_packages_from_stale_editor_and_legacy():
+    from src.operations.infrastructure import merge_hub_settings
+    recipes = {"scut_relay":{}, "integrated_circuit":{}}
+    legacy = {"outputRequest":{"id":"old", "targetProbeId":2, "items":{"scut_relay":1}}}
+    payload = {"enqueuePackage":{"id":"new", "targetProbeId":3.0,
+               "items":{"scut_relay":2.0, "integrated_circuit":2}}}
+    first = merge_hub_settings(legacy, payload, recipes)
+    second = merge_hub_settings(first, {"enqueuePackage":{"id":"third", "targetProbeId":4,
+                               "items":{"scut_relay":1}}}, recipes)
+    repeated = merge_hub_settings(second, payload, recipes)
+    assert [p["id"] for p in repeated["outputRequests"]] == ["old", "new", "third"]
+    assert repeated["outputRequests"][1]["targetProbeId"] == 3
+    with pytest.raises(ValueError):
+        merge_hub_settings(second, {"enqueuePackage":{"id":"bad", "targetProbeId":4,
+                           "items":{"unknown":1}}}, recipes)
+
+
+def test_hub_blocked_package_cannot_borrow_another_packages_container():
+    item = {"id":"relay", "type":"scut_relay", "containerSpace":.5, "container":{"id":"reserved"}}
+    ops = operations([item], role="hub", attached=[{"id":"reserved", "usedCapacity":.5}, {"id":"empty", "usedCapacity":0}])
+    config = {"infrastructureEnabled":True, "infrastructureCampaign":{"packageQueue":[
+        {"id":"waiting", "targetProbeId":99, "items":{"scut_relay":1}, "containerId":"reserved"},
+        {"id":"ready", "targetProbeId":2, "items":{"scut_relay":1}}]}}
+    result = HubCampaignService(ops).decide(config)
+    assert not result.tasks
+    assert result.state["packageQueue"][1]["containerId"] == "empty"
+    ops.world.probe["inventory"]["items"].append({"id":"available", "type":"scut_relay", "containerSpace":.5})
+    result = HubCampaignService(ops).decide({**config, "infrastructureCampaign":result.state})
+    assert result.tasks[0].target == "available"
+    assert result.tasks[0].metadata["toContainerId"] == "empty"
+
+
+def test_hub_splits_mixed_package_and_counts_only_accepted_shipments():
+    items = [{"id":"r1", "type":"scut_relay", "containerSpace":.75, "container":{"id":"box"}},
+             {"id":"r2", "type":"scut_relay", "containerSpace":.75},
+             {"id":"c1", "type":"integrated_circuit", "containerSpace":.5}]
+    attached = [{"id":"box", "usedCapacity":.75, "freeCapacity":.25}]
+    ops = operations(items, role="hub", attached=attached)
+    config = {"infrastructureEnabled":True, "infrastructureCampaign":{"delivery":{
+        "id":"mixed", "targetProbeId":2.0, "containerId":"box", "items":{"scut_relay":2,"integrated_circuit":1}}}}
+    first = HubCampaignService(ops).decide(config)
+    assert first.tasks[0].action == "Deliver Hub Container"
+    config["infrastructureCampaign"] = first.state
+    attached.clear()
+    assert HubCampaignService(ops).decide(config).phase == "container_missing"
+    ops.data_engine.action_was_successful = lambda _: True
+    second = HubCampaignService(ops).decide(config)
+    assert second.state["delivery"]["items"] == {"scut_relay":1, "integrated_circuit":1}
+    assert second.state["delivery"]["shipment"] == 1
+    assert not second.state["completedRequests"]
+    # Resume after receiver return: two more differently sized shipments.
+    for item, remaining in [(items[1], {"integrated_circuit":1}), (items[2], {})]:
+        config["infrastructureCampaign"] = second.state
+        attached.append({"id":"box", "usedCapacity":0, "freeCapacity":1})
+        ops.world.probe["inventory"]["items"] = [i for i in items[1:] if i["type"] in second.state["delivery"]["items"]]
+        loading = HubCampaignService(ops).decide(config)
+        assert loading.tasks[0].action == "Load Hub Output"
+        assert loading.tasks[0].target == item["id"]
+        item["container"] = {"id":"box"}
+        attached[0].update(usedCapacity=item["containerSpace"], freeCapacity=1-item["containerSpace"])
+        config["infrastructureCampaign"] = loading.state
+        handoff = HubCampaignService(ops).decide(config)
+        assert handoff.tasks[0].action == "Deliver Hub Container"
+        config["infrastructureCampaign"] = handoff.state
+        attached.clear()
+        second = HubCampaignService(ops).decide(config)
+        assert (second.state.get("delivery") or {}).get("items", {}) == remaining
+    assert second.state["completedRequests"] == ["mixed"]
+    assert second.state["packageQueue"] == []
+
+
+def test_returning_expansion_publishes_missing_kit_before_arrival():
+    ops = operations([], here=P(2,0,0))
+    result = RelayCampaignService(ops).decide(settings(infrastructureCampaign={"returning":True}))
+    assert result.destination == P(0,0,0)
+    assert result.state["supplyRequest"]["items"] == {"scut_relay":2,"integrated_circuit":2,"scut_transit_beacon":1}
+
+
+def test_live_receiver_readiness_uses_fresh_inventory_and_safe_limit():
+    from src.operations.hub_receiving import publish_live_readiness, readiness
+    values = {}
+    engine = SimpleNamespace(set_preference=lambda k,v:values.update({k:v}), get_preference=lambda k,d:values.get(k,d))
+    publish_live_readiness(engine, {"id":2,"model":"generic", "sector":{"relative":vars(P(0,0,0))},
+        "inventory":{"containers":[{"id":"own","kind":"container","capacity":1,"usedCapacity":.25}]}})
+    result = readiness(engine,2)
+    assert result["safeLimit"] == 4
+    assert result["containerCount"] == 1
+    assert result["freeCapacity"] == .75
+
+
 def operations(items=(), *, here=P(0,0,0), local=(), stars=(P(2,0,0), P(-2,0,0)), role="relay_placement", settings=None, attached=()):
     probe = {"id":1, "status":"idle", "inventory":{"items":list(items)}, "sector":{"relative":vars(here)}}
     sector = {"objects":[{"type":"star", "id":"star"}, *local]}

@@ -1,5 +1,12 @@
 # Development Release Log
 
+- Hub Supply now keeps multiple automatic refill and manual package requests,
+  prepares stock while receivers wait, and advances ready recipients independently.
+  The package editor offers component dropdowns, quantities, and additional rows.
+  Larger packages ship across successive containers; each receiver still unloads
+  and returns its temporary container before another handoff. Integral decimal
+  receiver IDs and expired receiver readiness no longer strand valid requests.
+
 - Fixed ordinary-resource Miner deployments starting without a complete idle
   crew and a cycle limit that staggered quarter-container orders across several
   automation cycles. SCUT Network Expansion now explains when Hub resupply is

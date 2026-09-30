@@ -1,6 +1,7 @@
 """Durable Hub supply and SCUT expansion decisions; no network mutations."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from decimal import Decimal, InvalidOperation
 from copy import deepcopy
 from math import sqrt
 import json
@@ -58,6 +59,45 @@ def inventory_items(operations):
     return operations.world.probe.get("inventory", {}).get("items", [])
 
 
+def probe_id(value):
+    """Normalize Qt's integral decimal IDs without truncating invalid values."""
+    try:
+        number = Decimal(str(value))
+        if number.is_finite() and number > 0 and number == number.to_integral_value():
+            return int(number)
+    except (InvalidOperation, ValueError):
+        pass
+    raise ValueError("Choose a valid package receiver.")
+
+
+def manual_packages(settings):
+    requests = list(settings.get("outputRequests") or ())
+    legacy = settings.get("outputRequest")
+    if legacy and not any(r.get("id") == legacy.get("id") for r in requests):
+        requests.insert(0, legacy)
+    return requests
+
+
+def merge_hub_settings(existing, submitted, recipes):
+    """Append against persisted requests, never a stale UI copy of the queue."""
+    saved = dict(submitted)
+    request = saved.pop("enqueuePackage", None)
+    saved.pop("outputRequest", None)
+    saved["outputRequests"] = deepcopy(manual_packages(existing))
+    if request:
+        request = deepcopy(request)
+        request["targetProbeId"] = probe_id(request.get("targetProbeId"))
+        if not request.get("id") or not request.get("items"):
+            raise ValueError("Choose a receiver and at least one component.")
+        for kind, quantity in request["items"].items():
+            if kind in {"manny", "additional_container"} or recipes is None or recipes.get(kind) is None:
+                raise ValueError("Choose a component from the recipe list.")
+            request["items"][kind] = probe_id(quantity)
+        if not any(r["id"] == request["id"] for r in saved["outputRequests"]):
+            saved["outputRequests"].append(request)
+    return saved
+
+
 def local_relays(operations):
     return {str(row["id"]): row for row in objects(operations.world.sector)
             if row.get("type") == "scut_relay" and row.get("id") is not None}
@@ -71,6 +111,7 @@ class InfrastructureDecision:
     tasks: tuple = ()
     destination: SectorCoordinates | None = None
     production: dict = field(default_factory=dict)
+    packages: tuple = ()
 
 
 class RelayCampaignService:
@@ -145,6 +186,14 @@ class RelayCampaignService:
     def decide(self, settings, alerts=()):
         state = deepcopy(settings.get("infrastructureCampaign") or {})
         def decision(phase, summary, **kwargs):
+            if phase == "returning" and not state.get("supplyRequest"):
+                available_now = stock(self.operations)
+                missing = {k:max(0, n-int(available_now.get(k,0))) for k,n in kit.items()}
+                if any(missing.values()):
+                    state["restockGeneration"] = int(state.get("restockGeneration",0))+1
+                    state["supplyRequest"] = {
+                        "id":f"relay-{self.operations.world.probe['id']}-{state.get('cycle',0)}-{state['restockGeneration']}",
+                        "items":{k:n for k,n in missing.items() if n}}
             return InfrastructureDecision(phase, summary, state=dict(state), **kwargs)
         if not settings.get("infrastructureEnabled"):
             return decision("paused", "SCUT Network Expansion is paused.")
@@ -314,6 +363,79 @@ class HubCampaignService:
         return targets
 
     def decide(self, settings, roles=()):
+        """Collect every package before deciding which shipment can advance."""
+        state = deepcopy(settings.get("infrastructureCampaign") or {})
+        if not settings.get("infrastructureEnabled"):
+            return InfrastructureDecision("paused", "Hub automation is paused.", state=state)
+        current = self.operations.travel.current_sector()
+        queue = deepcopy(state.get("packageQueue") or [])
+        legacy = state.get("delivery")
+        if legacy and not any(r["id"] == legacy["id"] for r in queue):
+            queue.insert(0, deepcopy(legacy))
+        completed = list(state.get("completedRequests") or [])
+        incoming = []
+        for row in roles:
+            config = row.get("settings", {})
+            request = (config.get("infrastructureCampaign") or {}).get("supplyRequest")
+            if (row["role"] == "relay_placement" and config.get("infrastructureEnabled")
+                    and request and row.get("asset_id") is not None
+                    and current is not None and coordinates(config.get("home")) == current):
+                incoming.append({**request, "targetProbeId":probe_id(row["asset_id"]), "source":"automatic"})
+        incoming.extend({**r, "source":"manual"} for r in manual_packages(settings))
+        for request in incoming:
+            if request["id"] not in completed and not any(r["id"] == request["id"] for r in queue):
+                queue.append(deepcopy(request))
+        queue = [r for r in queue if r["id"] not in completed]
+        for request in queue:
+            request["targetProbeId"] = probe_id(request["targetProbeId"])
+        # Keep accepted shipments and their identities through receiver waits.
+        # A blocked recipient must not prevent another package from progressing.
+        chosen = None
+        chosen_id = None
+        packaging_target = 0
+        for request in list(queue):
+            other_boxes = {str(r["containerId"]) for r in queue
+                           if r["id"] != request["id"] and r.get("containerId")}
+            projected = {**settings, "infrastructureCampaign":{**state, "delivery":request}}
+            result = self._advance_delivery(projected, roles, excluded_container_ids=other_boxes)
+            advanced = result.state.get("delivery")
+            index = next(i for i,r in enumerate(queue) if r["id"] == request["id"])
+            if advanced:
+                queue[index] = {**advanced, "phase":result.phase, "summary":result.summary}
+            else:
+                queue.pop(index)
+            completed = list(dict.fromkeys(completed + list(result.state.get("completedRequests", []))))
+            packaging_target = max(packaging_target, result.production.get("additional_container", 0))
+            if chosen is None or result.tasks or result.phase == "delivered":
+                chosen, chosen_id = result, request["id"]
+            if result.tasks or result.phase == "delivered":
+                break
+        if chosen is None:
+            projected = {**settings, "infrastructureCampaign":{**state, "delivery":None}}
+            chosen = self._advance_delivery(projected, roles)
+        state["packageQueue"] = queue
+        state["completedRequests"] = completed
+        selected = next((r for r in queue if r["id"] == chosen_id), None)
+        if selected:
+            state["delivery"] = deepcopy(selected)
+        else:
+            state.pop("delivery", None)
+        requested = {}
+        for request in queue:
+            for component, quantity in request["items"].items():
+                requested[component] = requested.get(component, 0) + int(quantity)
+        production = self.production_targets(requested)
+        if packaging_target:
+            production["additional_container"] = packaging_target
+        fleet = {probe_id(p["id"]):p for p in (self.operations.world.fleet or {}).get("probes", [])}
+        packages = tuple({"id":r["id"], "targetProbeId":r["targetProbeId"],
+            "targetName":fleet.get(r["targetProbeId"], {}).get("name") or f"Probe {r['targetProbeId']}",
+            "items":dict(r["items"]), "shipment":int(r.get("shipment",0)),
+            "source":r.get("source","manual"), "phase":r.get("phase","queued"),
+            "summary":r.get("summary","Queued for preparation.")} for r in queue)
+        return replace(chosen, state=state, production=production, packages=packages)
+
+    def _advance_delivery(self, settings, roles=(), *, excluded_container_ids=()):
         state = deepcopy(settings.get("infrastructureCampaign") or {})
         def decision(phase, summary, **kwargs):
             return InfrastructureDecision(phase, summary, state=dict(state), **kwargs)
@@ -354,22 +476,7 @@ class HubCampaignService:
                 return decision("recovering_return", task.reason, tasks=(task,))
         delivery = state.get("delivery")
         completed = state.get("completedRequests", [])
-        fleet = {str(p["id"]): p for p in (self.operations.world.fleet or {}).get("probes", [])}
-        if not delivery:
-            requests = []
-            for row in roles:
-                settings_ = row.get("settings", {})
-                campaign = settings_.get("infrastructureCampaign") or {}
-                request = campaign.get("supplyRequest")
-                if row["role"] == "relay_placement" and settings_.get("infrastructureEnabled") and request and coordinates(settings_.get("home")) == current:
-                    requests.append({**request, "targetProbeId": int(row["asset_id"])})
-            manual = settings.get("outputRequest")
-            if manual:
-                requests.append(manual)
-            delivery = next((dict(r) for r in requests if r.get("id") not in completed
-                             and str(r.get("targetProbeId")) in fleet), None)
-            if delivery:
-                state["delivery"] = delivery
+        fleet = {probe_id(p["id"]): p for p in (self.operations.world.fleet or {}).get("probes", [])}
         if not delivery:
             # Transport routes drop resource containers at the Hub. Recover
             # them through the same authoritative container boundary.
@@ -382,15 +489,14 @@ class HubCampaignService:
                         metadata={"source": "drifting", "expectedSector": point(current)})
                     return decision("receiving", task.reason, tasks=(task,))
             return decision("producing", "Maintaining configured production targets; waiting for a delivery request.")
-        target = fleet.get(str(delivery["targetProbeId"]))
+        target = fleet.get(probe_id(delivery["targetProbeId"]))
         target_sector_data = (target or {}).get("sector") or {}
         target_sector = coordinates(target_sector_data.get("relative") or target_sector_data.get("relativeCoordinates"))
-        if target is None or target_sector != current or target.get("status") not in {"idle", "arrived"}:
-            return decision("waiting_for_receiver", "Waiting for the selected receiver to rendezvous at the Hub.")
         requested = {k:int(n) for k,n in delivery.get("items", {}).items() if int(n) > 0}
         if not requested:
             return decision("blocked", "The output batch must contain at least one item.")
-        attached = {str(c["id"]): c for c in self.operations.containers.attached()}
+        attached = {str(c["id"]): c for c in self.operations.containers.attached()
+                    if str(c["id"]) not in excluded_container_ids}
         container_id = delivery.get("containerId")
         if container_id and container_id not in attached:
             engine = getattr(self.operations, "data_engine", None)
@@ -401,11 +507,14 @@ class HubCampaignService:
                          for key,n in delivery.get("items", {}).items()}
             if any(remaining.values()):
                 state["delivery"] = {"id":delivery["id"], "targetProbeId":delivery["targetProbeId"],
+                                     "source":delivery.get("source","manual"),
                                      "items": {k:n for k,n in remaining.items() if n}, "shipment":int(delivery.get("shipment", 0))+1}
             else:
                 state["completedRequests"] = completed + [delivery["id"]]
                 state.pop("delivery", None)
             return decision("delivered", "Accepted output handoff confirmed; preparing any remaining items.")
+        if target is None or target_sector != current or target.get("status") not in {"idle", "arrived"}:
+            return decision("waiting_for_receiver", "Preparing stock; waiting for the selected receiver to rendezvous at the Hub.")
         from src.operations.hub_receiving import readiness, receipts
         ready = readiness(getattr(self.operations, "data_engine", None), int(target["id"]))
         if not ready or coordinates(ready.get("sector")) != current:
@@ -421,9 +530,10 @@ class HubCampaignService:
                               and float(c.get("capacity", 1)) >= 1), None)
             if not container:
                 return decision("preparing_container", "Crafting an empty container for the output batch.",
-                                production={**self.production_targets(requested), "additional_container": len(attached)+1})
+                                production={**self.production_targets(requested), "additional_container": len(self.operations.containers.attached())+1})
             container_id = delivery["containerId"] = str(container["id"])
-        items = inventory_items(self.operations)
+        items = [i for i in inventory_items(self.operations)
+                 if str((i.get("container") or {}).get("id")) not in excluded_container_ids]
         cargo = [i for i in items if str((i.get("container") or {}).get("id")) == container_id]
         counts = {k: sum(int(i.get("quantity", 1)) for i in cargo if i.get("type") == k) for k in requested}
         # A container is never handed off with unrelated resources, Mannys, or
@@ -441,8 +551,19 @@ class HubCampaignService:
         loaded_size = sum(float(i.get("containerSpace", 0) or 0) for i in cargo)
         receiver_free = max(0, float(ready.get("freeCapacity", 0))-loaded_size)
         free = min(self.operations.containers.free_capacity(attached[container_id]), receiver_free)
-        pending_items = [i for i in items if i.get("type") in requested and counts[i["type"]] < requested[i["type"]]]
-        full = bool(cargo) and (free <= 0.00001 or (pending_items and all(float(i.get("containerSpace", 0) or 0) > free + 0.00001 for i in pending_items)))
+        # Infer remaining component sizes from the live recipe or a stored
+        # example even before the next unit finishes crafting.
+        recipes = getattr(self.operations.manufacturing, "recipes", None)
+        sizes = []
+        for kind, quantity in requested.items():
+            if counts[kind] >= quantity:
+                continue
+            recipe = recipes.get(kind) if recipes else None
+            size = ((recipe or {}).get("output") or {}).get("containerSpace")
+            if size is None:
+                size = next((i.get("containerSpace",0) for i in items if i.get("type") == kind), 0)
+            sizes.append(float(size or 0))
+        full = bool(cargo) and (free <= 0.00001 or (sizes and all(size > free + .00001 for size in sizes)))
         if loaded_size > float(ready.get("freeCapacity", 0)) + .00001:
             return decision("receiver_storage_full", "Receiver needs more permanent storage space to unload this batch.")
         if all(counts[k] >= requested[k] for k in requested) or full:
@@ -460,7 +581,7 @@ class HubCampaignService:
             if counts[item_type] >= count:
                 continue
             item = next((i for i in items if i.get("type") == item_type and i.get("id") and i not in cargo
-                         and int(i.get("quantity", 1)) == 1 and not i.get("currentTask")
+                         and 0 < int(i.get("quantity", 1)) <= count-counts[item_type] and not i.get("currentTask")
                          and float(i.get("containerSpace", 0) or 0) <= free + 0.00001), None)
             if item:
                 task = Task(action="Load Hub Output", target=str(item["id"]), category="infrastructure", priority=1,
@@ -484,8 +605,14 @@ def protected_role_items(operations):
         # Protect all carried relays/beacons; activation is the only owner of ICs.
         available = stock(operations)
         return {key: available.get(key, 0) for key in ("scut_relay", "scut_transit_beacon", "integrated_circuit")}
-    delivery = (settings.get("infrastructureCampaign") or {}).get("delivery") or {}
-    return delivery.get("items", {}) if row["role"] == "hub" else {}
+    state = settings.get("infrastructureCampaign") or {}
+    requests = state.get("packageQueue") or ([state["delivery"]] if state.get("delivery") else [])
+    protected = {}
+    if row["role"] == "hub":
+        for request in requests:
+            for kind, amount in request.get("items", {}).items():
+                protected[kind] = protected.get(kind,0)+int(amount)
+    return protected
 
 
 def infrastructure_blockers(operations, command):
@@ -627,12 +754,14 @@ def validate_settings(role, settings):
         if settings.get("refillBeacons", settings.get("beaconMode", "final") != "none"):
             if not 1 <= int(settings.get("beaconStock", 1)) <= 20:
                 raise ValueError("Beacon restock quantity must be between 1 and 20.")
-    request = settings.get("outputRequest")
-    if role == "hub" and request:
-        if not request.get("id") or int(request.get("targetProbeId", -1)) < 0:
+    for request in manual_packages(settings) if role == "hub" else ():
+        if not request.get("id"):
             raise ValueError("Choose an output receiver.")
-        if not request.get("items") or any(k in {"manny", "additional_container"} or int(n) < 1 for k,n in request["items"].items()):
+        probe_id(request.get("targetProbeId"))
+        if not request.get("items") or any(k in {"manny", "additional_container"} for k in request["items"]):
             raise ValueError("Choose a positive crafted-item quantity for the output batch.")
+        for amount in request["items"].values():
+            probe_id(amount)
 
 
 def assembly_claims(operations):

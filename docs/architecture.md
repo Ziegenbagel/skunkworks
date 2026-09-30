@@ -578,6 +578,15 @@ along the signal-alert vector or a user-selected coordinate direction. Each
 site owns its item/relay identity until activation and its chosen beacon policy
 are confirmed. Exhausted kits generate a durable home supply request.
 
+Hub package requests form a durable queue shared by automatic expansion refills
+and manual multi-component packages. Production targets include every remaining
+package, even while recipients are away or blocked. The scheduler can advance a
+ready recipient past a waiting recipient; containers remain owned by their
+package. Manual settings saves append a request against persisted settings,
+rather than replacing the queue from a UI snapshot. Shipments split according to
+container and recipient storage capacity, retaining request and shipment IDs
+until accepted handoffs are observed. The editor uses the loaded recipe catalog.
+
 Hub container receipts are durable Operations independent of the receiver's
 role. The receiver publishes fresh storage capacity and its upgrade-aware safe
 container limit, unloads supplied items into permanent storage, and returns only

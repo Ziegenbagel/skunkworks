@@ -30,6 +30,28 @@ def readiness(engine, probe_id):
     return {}
 
 
+def publish_live_readiness(engine, probe):
+    """Publish a just-fetched receiver, using conservative unmodified limits."""
+    from types import SimpleNamespace
+    from src.operations.containers import ContainerService
+    from src.safety.travel import TravelSafetyService
+    world = SimpleNamespace(probe=probe, hazard_context={})
+    containers = ContainerService(world)
+    safety = TravelSafetyService(world, None, None)
+    pending = receipts(engine, int(probe["id"]))
+    incoming = {op.metadata["containerId"] for op in pending}
+    sector = probe.get("sector") or {}
+    where = coordinates(sector.get("relative") or sector.get("relativeCoordinates"))
+    engine.set_preference(f"hub_receiving:{int(probe['id'])}", json.dumps({
+        "at": time.time(), "sector": point(where) if where else None,
+        "freeCapacity": sum(containers.free_capacity(c) for c in probe["inventory"].get("containers", [])
+                            if str(c.get("id")) not in incoming),
+        "containerCount": safety.additional_container_count(),
+        "safeLimit": max(0, safety.container_break_threshold()-1),
+        "receiving": bool(pending),
+    }))
+
+
 def stage_receipt(engine, source_id, target_id, container_id, request_id, sector, fingerprint):
     if engine is None or not hasattr(engine, "operation_records"):
         return
