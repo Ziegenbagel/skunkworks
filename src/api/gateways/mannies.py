@@ -86,6 +86,10 @@ class MannyGateway:
     ):
         if task not in self.TASK_ROUTES:
             raise ValueError(f"Unknown Manny task: {task}")
+        if task == "recover-storage-container" and payload is not None and "mannyId" in payload:
+            occupant_id = payload["mannyId"]
+            if not isinstance(occupant_id, str) or not occupant_id.strip():
+                raise ValueError("Select a valid inspected container occupant, or omit mannyId to recover the whole container.")
 
         return self.client.request(
             "POST",

@@ -18,6 +18,22 @@ class ApiGatewayTests(unittest.TestCase):
         self.client = RecordingClient()
         self.api = GameCapabilities(self.client)
 
+    def test_v141_container_occupant_recovery_keeps_rescuer_and_occupant_distinct(self):
+        for source in ("drifting", "asteroid", "dormant_construct"):
+            payload = {"objectId":"detached-box", "source":source, "mannyId":"abandoned-occupant"}
+            self.api.mannies.start_task(42, "rescuer", "recover-storage-container", payload)
+            self.assertEqual(self.client.calls[-1], ("POST",
+                "/api/probe/42/mannies/rescuer/recover-storage-container", {"json":payload}))
+        self.api.mannies.start_task(42, "rescuer", "recover-storage-container", {"objectId":"detached-box"})
+        self.assertNotIn("mannyId", self.client.calls[-1][2]["json"])
+
+    def test_v141_container_recovery_rejects_empty_optional_occupant(self):
+        for value in (None, "", "  ", 7):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                self.api.mannies.start_task(42, "rescuer", "recover-storage-container",
+                    {"objectId":"detached-box", "mannyId":value})
+        self.assertEqual(self.client.calls, [])
+
     def test_probe_operations_are_explicitly_targeted(self):
         self.api.probes.move(
             42,

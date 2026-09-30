@@ -12,8 +12,8 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v139, verified
-against the live contract on 2026-09-25.
+Skunkworks supports deployed API v103 through upstream API v141, verified
+against the live contract on 2026-09-29.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
@@ -140,11 +140,27 @@ for unreserved Others inventory resources or missiles; propulsion-tank fuel is
 not inventory cargo. Both changes are outside Skunkworks' probe-control surface
 and require no probe gateway or automation changes.
 
+API v140 documents the existing Others fleet-move response and partial refusal
+results without changing probe behavior. API v141 preserves Mannys and cargo
+inside accidentally lost containers as abandoned occupants. After inspection,
+local detailed scans expose `abandonedMannies`; inspection reports expose
+`containerReport.mannies`. These occupants are not separate drifting objects.
+Whole-container recovery recruits all occupants; optional `mannyId` on
+`recover-storage-container` selects one inspected occupant instead. The rescuer
+remains the Manny named in the URL. Blank and null occupant IDs are invalid.
+Both recovery modes reserve the container; individual recovery may wait for
+space. Voluntary detachment of occupied containers remains prohibited.
+
+The September 29 server fix also makes probe-bound mining wait for its carrier
+to return to the sector and finish travel. Detached-container mining can continue
+remotely. Skunkworks retains authoritative Manny completion checks and does not
+infer docking from a local ETA. SCUT relays cannot receive waypoint bookmarks.
+
 Verification sources: the live `/api/version` response and
 [public probe OpenAPI contract](https://neumann-probe.net/openapi.yaml) report
-v139; the [game changelog](https://neumann-probe.net/changelog) records the
-v138 and v139 Others-only changes on September 23 and 24. The public probe
-schema does not include those Others mutation routes.
+v141; the [game changelog](https://neumann-probe.net/changelog) records v140 on
+September 27 and v141 on September 29. Review and tests use public contracts
+and synthetic fixtures; no live mutation is required.
 
 API v124 changes motorized-asteroid impact alerts. The launcher receives the
 result only while still physically present in the impact sector; an impacted
