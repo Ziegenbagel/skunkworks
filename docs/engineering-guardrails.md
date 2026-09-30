@@ -238,6 +238,20 @@ Relevant test:
 
 ## Manny Dispatch Invariants
 
+### Detached-container occupants remain distinct from the recovery worker
+
+API v141 exposes abandoned occupants only after container inspection. Keep
+`abandonedMannies` nested beneath the observed container; do not invent separate
+drifting objects or promote occupants into the owned, idle Manny pool. Individual
+recovery uses the rescuer in the endpoint path and the selected occupant's opaque
+ID in payload `mannyId`. Whole-container recovery omits that optional field;
+null and blank occupant IDs are invalid. Both operations remain manual reviewed
+commands and the server owns recruitment, cargo, reservation and completion.
+SCUT relays cannot receive waypoint bookmarks, even if stale observations list
+one among bookmark candidates.
+
+Relevant tests: `tests/test_api_gateways.py`, `tests/test_ui_preparation.py`.
+
 ### One cycle can use multiple distinct Mannys
 
 An accepted order may not appear immediately in game telemetry. During one

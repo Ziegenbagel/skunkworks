@@ -1,5 +1,11 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.7
+
+- Supports Von Neumann Game API v141.
+- Added individual Manny recovery from inspected detached containers; whole-container recovery remains available.
+- SCUT relays are no longer offered as waypoint bookmark targets.
+
 ## Skunkworks 1.1.6
 
 - Recognizes Von Neumann Game API v139 as supported, removing the unreviewed-version warning.

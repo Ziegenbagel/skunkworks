@@ -309,8 +309,15 @@ class MissionControlViewModelBuilder:
                         "capacity": float(value.get("capacity", 0) or 0),
                         "freeCapacity": float(value.get("freeCapacity", value.get("capacity", 0)) or 0),
                         "rules": value.get("rules") or {},
+                        "abandonedMannies": tuple({
+                            "id": str(occupant["id"]),
+                            "name": occupant.get("name") or str(occupant["id"]),
+                            "state": occupant.get("state", "abandoned"),
+                            "cargo": occupant.get("cargo") or {},
+                        } for occupant in (value.get("abandonedMannies") or ())
+                            if isinstance(occupant, dict) and occupant.get("id")) if is_container else (),
                     })
-                if bookmark_candidates and target_id and target_id not in seen_bookmarks:
+                if bookmark_candidates and target_type != "scut_relay" and target_id and target_id not in seen_bookmarks:
                     seen_bookmarks.add(target_id)
                     bookmark_targets.append({
                         "id": target_id,

@@ -26,6 +26,16 @@ Item {
         return Number.isInteger(value) && value > 0 ? value : -1;
     }
 
+    function recoveryOperation(object, rescuerId, occupantId) {
+        const isContainer = String(object.type).indexOf("container") >= 0;
+        const payload = {"objectId":String(object.id)};
+        if (isContainer) {
+            payload.source = object.mode === "hidden_on_asteroid" ? "asteroid" : object.mode === "hidden_on_dormant_construct" ? "dormant_construct" : "drifting";
+            if (occupantId) payload.mannyId = String(occupantId);
+        }
+        return {"kind":"manny", "action":isContainer ? "recover-storage-container" : "salvage", "mannyId":String(rescuerId), "payload":payload};
+    }
+
     readonly property var preferredContentOptions: [
         {"text": "ANY CONTENTS", "value": "any"},
         {"text": "METALS", "value": "metals"},
@@ -215,10 +225,16 @@ Item {
 
                     Label { text: "RECOVERY MANNY"; color: Constants.cyanColor; font.bold: true }
                     ComboBox { id: recoveryManny; textRole: "name"; valueRole: "id"; model: root.inventoryData.idleMannies || []; Layout.fillWidth: true }
-                    Label { text: "DRIFTING OBJECT"; color: Constants.cyanColor; font.bold: true }
+                    Label { text: "RECOVERY OBJECT"; color: Constants.cyanColor; font.bold: true }
                     ComboBox { id: recoveryObject; textRole: "name"; valueRole: "id"; model: root.inventoryData.recoverableObjects || []; Layout.fillWidth: true }
-                    Item { Layout.columnSpan: 3; Layout.fillWidth: true }
-                    Button { text: "REVIEW RECOVERY"; enabled: recoveryManny.count > 0 && recoveryObject.count > 0; onClicked: { const object = recoveryObject.model[recoveryObject.currentIndex]; const isContainer = String(object.type).indexOf("container") >= 0; const source = object.mode === "hidden_on_asteroid" ? "asteroid" : object.mode === "hidden_on_dormant_construct" ? "dormant_construct" : "drifting"; root.pendingOperation = {"kind":"manny", "action":isContainer ? "recover-storage-container" : "salvage", "mannyId":String(recoveryManny.currentValue), "payload":isContainer ? {"objectId":String(recoveryObject.currentValue), "source":source} : {"objectId":String(recoveryObject.currentValue)}}; operationConfirmation.open(); } }
+                    Label { text: "RECOVER"; color: Constants.cyanColor; font.bold: true }
+                    ComboBox {
+                        id: recoveryOccupant; objectName: "recoveryOccupant"; textRole: "name"; valueRole: "id"; Layout.fillWidth: true; Layout.columnSpan: 2; Layout.minimumWidth: 240
+                        model: [{"id":"", "name":"WHOLE OBJECT / ALL OCCUPANTS"}].concat(recoveryObject.currentIndex >= 0 ? (recoveryObject.model[recoveryObject.currentIndex].abandonedMannies || []) : [])
+                        onModelChanged: currentIndex = 0
+                    }
+                    Button { text: "REVIEW RECOVERY"; enabled: recoveryManny.count > 0 && recoveryObject.count > 0; onClicked: { root.pendingOperation = root.recoveryOperation(recoveryObject.model[recoveryObject.currentIndex], recoveryManny.currentValue, recoveryOccupant.currentValue); operationConfirmation.open(); } }
+                    Label { Layout.columnSpan: 4; Layout.fillWidth: true; text: "Inspect a container to reveal its Mannys. Whole-container recovery recruits everyone inside. Individual recovery leaves the container in place and waits if onboard space is insufficient."; color: Constants.mutedTextColor; wrapMode: Text.Wrap }
                 }
             }
 
