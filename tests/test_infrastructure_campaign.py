@@ -236,6 +236,60 @@ def test_hub_does_not_deliver_above_receiver_safe_container_limit():
     assert result.phase == "receiver_container_limit" and not result.tasks
 
 
+def test_expansion_explains_full_container_limit_while_preserving_resupply_request():
+    ops = operations(kit(1, beacons=0))
+    ops.travel_safety.additional_container_count = lambda: 3
+    ops.travel_safety.container_break_threshold = lambda: 4
+    config = settings(infrastructureCampaign={"returning":True})
+    blocked = RelayCampaignService(ops).decide(config)
+    assert blocked.phase == "restock_container_limit"
+    assert "3 attached containers, safe limit 3" in blocked.summary
+    assert not blocked.tasks and blocked.destination is None
+    request = blocked.state["supplyRequest"]
+    ops.travel_safety.additional_container_count = lambda: 2
+    resumed = RelayCampaignService(ops).decide(settings(infrastructureCampaign=blocked.state))
+    assert resumed.phase == "restocking"
+    assert resumed.state["supplyRequest"] == request
+
+
+def test_stocked_expansion_resumes_without_refill_or_empty_container_release():
+    ops = operations(kit(), attached=[{"id":"empty", "usedCapacity":0}])
+    ops.travel_safety.additional_container_count = lambda: 3
+    ops.travel_safety.container_break_threshold = lambda: 4
+    config = settings(infrastructureCampaign={"returning":True, "supplyRequest":{
+        "id":"old-request", "items":{"scut_relay":2, "integrated_circuit":2, "scut_transit_beacon":1}}})
+    result = RelayCampaignService(ops).decide(config)
+    assert result.phase == "restocked"
+    assert not result.tasks
+    assert "supplyRequest" not in result.state
+    next_step = RelayCampaignService(ops).decide(settings(infrastructureCampaign=result.state))
+    assert next_step.phase == "travelling"
+
+
+def test_expansion_returns_only_empty_container_for_resupply_and_hub_recovers_it():
+    ops = operations(kit(1, beacons=0), attached=[{"id":"empty", "usedCapacity":0}])
+    ops.travel_safety.additional_container_count = lambda: 3
+    ops.travel_safety.container_break_threshold = lambda: 4
+    config = settings(infrastructureCampaign={"returning":True})
+    result = RelayCampaignService(ops).decide(config)
+    assert result.phase == "making_resupply_slot"
+    config["infrastructureCampaign"] = result.state
+    ops.data_engine.fleet_roles = lambda _: [{"asset_id":"1", "role":"relay_placement", "metadata_json":json.dumps(config)}]
+    command = TaskCommandTranslator(ops,1).translate(result.tasks[0])
+    assert command.payload == {"containerId":"empty", "mode":"drifting"}
+    assert not command_blockers(ops,command)
+    assert not infrastructure_blockers(ops,command)
+    ops.world.probe["inventory"]["items"].append({"id":"cargo", "type":"scut_relay", "container":{"id":"empty"}})
+    assert "resupply_slot_container_unavailable" in command_blockers(ops,command)
+    assert RelayCampaignService(ops).decide(config).phase == "restock_container_limit"
+    hub = operations(role="hub")
+    hub.containers.detached = lambda: [{"id":"detached-empty", "containerId":"empty", "mode":"drifting"}]
+    returned = HubCampaignService(hub).decide({"infrastructureEnabled":True, "receiveContainers":False},
+        [{"role":"relay_placement", "settings":config}])
+    assert returned.phase == "recovering_return"
+    assert returned.tasks[0].target == "detached-empty"
+
+
 def test_receiver_unloads_then_returns_only_confirmed_empty_container(tmp_path):
     from src.data import DataEngine
     from src.operations.hub_receiving import HubReceivingService, stage_receipt, receipt_blockers, receipts

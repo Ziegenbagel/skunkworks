@@ -257,6 +257,8 @@ class MinerCampaignService:
                 fill_candidates = iter(member for member in crew_idle if member not in workers_used)
                 assigned = []
                 for task in decision.tasks:
+                    if task.action == "Deploy Miner Container" and len(crew_idle) != worker_limit:
+                        continue
                     if task.action == "Mine Resource" and not ready:
                         continue
                     member = next(fill_candidates if task.action == "Mine Resource" else candidates, None)
@@ -265,7 +267,9 @@ class MinerCampaignService:
                     assigned.append(replace(task, metadata={**task.metadata,
                         "assignedMannyId": member, "campaignCrew": crew}))
                 decision = replace(decision, tasks=tuple(assigned), campaign_state=next_state,
-                    summary=(decision.summary if ready or decision.phase != "mine_container" else
+                    summary=(f"Waiting to deploy until all four reserved Mannys are ready ({len(crew_idle)}/4 idle)."
+                             if any(t.action == "Deploy Miner Container" for t in decision.tasks) and len(crew_idle) != worker_limit else
+                             decision.summary if ready or decision.phase != "mine_container" else
                              f"Holding container until all four reserved Mannys are ready ({len(crew_idle)}/4 idle)."))
                 assigned_crews.update(crew)
             decisions.append(decision)

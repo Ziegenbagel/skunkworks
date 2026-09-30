@@ -647,6 +647,38 @@ def test_cycle_mining_allocation_uses_full_orders_then_caps_final_remainder():
     assert sum(accepted) == 0.4
 
 
+def test_automatic_cycle_dispatches_two_complete_container_crews():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.capabilities = SimpleNamespace()
+    service.data_engine = SimpleNamespace()
+    commands = [PreparedCommand(Command(CommandType.MANNY_MINE, 7,
+        {"objectId":"asteroid", "resources":["metals"], "targetAmount":.25,
+         "targetContainerId":f"box-{i//4}"}, "Fill crew share", 1,
+        target_id=f"manny-{i}", metadata={"minerCampaign":True, "requestedNeed":.25,
+                                        "orderAmount":.25}), "ready") for i in range(8)]
+    queues = iter([(c,) for c in commands] + [()])
+    service.automation_view = lambda **kwargs: setattr(service, "_prepared_commands", next(queues)) or {}
+    service._refresh_operations = lambda _: None
+    accepted = []
+    class Runtime:
+        def __init__(self, **kwargs):
+            pass
+        def execute(self, prepared, **kwargs):
+            accepted.append(prepared.command)
+            return ExecutionResult("succeeded", prepared.command, response={"accepted":True})
+    policy = ExecutionPolicy(mode=ExecutionMode.AUTOMATIC, live_execution_enabled=True,
+        allowed_command_types=frozenset({CommandType.MANNY_MINE}), max_commands_per_cycle=10)
+    with patch("src.ui.controller.AutomationRuntime", Runtime):
+        result = service._run_replanning_automatic_cycle(policy)
+    assert result["status"] == "succeeded"
+    assert len(accepted) == 8
+    for container in ("box-0", "box-1"):
+        crew = [c for c in accepted if c.payload["targetContainerId"] == container]
+        assert len({c.target_id for c in crew}) == 4
+        assert sum(c.payload["targetAmount"] for c in crew) == 1
+
+
 def test_automatic_risk_acknowledgement_executes_the_selected_command():
     service = MissionControlDataService.__new__(MissionControlDataService)
     service._selected_probe_id = 7

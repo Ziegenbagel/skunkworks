@@ -122,6 +122,11 @@ class PreflightValidator:
             }
             if str(command.payload.get("containerId")) not in container_ids:
                 blockers.append("transport_container_not_attached")
+            if command.metadata.get("minerCampaign") and command.payload.get("mode") == "hidden_on_asteroid":
+                crew = {str(value) for value in command.metadata.get("campaignCrew", ())}
+                idle = {str(m["id"]) for m in self.operations.mining.idle_mannies()}
+                if len(crew) != 4 or not crew <= idle or str(command.target_id) not in crew:
+                    blockers.append("miner_crew_not_ready")
 
         if command.type in {
             CommandType.MANNY_RECOVER_STORAGE_CONTAINER,

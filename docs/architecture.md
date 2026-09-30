@@ -403,6 +403,9 @@ through the existing typed crafting pipeline. Live empty containers and active
 container crafts satisfy that reserve, while the shared production preflight
 continues to protect components committed to higher- or equal-priority probe
 assembly.
+Deployment waits for the complete named crew to be idle. Container mining uses
+the campaign fill ledger rather than the ordinary resource-deficit cycle cap,
+so all four workers can dispatch in the same bounded cycle.
 Unassigned Mannys remain available outside complete groups. A deployed container
 may hold a partial crew while waiting for replacements, but never starts its
 fill until all four assigned members are idle. Normal target planning may use the unassigned remainder for craft work first and then for

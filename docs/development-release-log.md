@@ -1,5 +1,11 @@
 # Development Release Log
 
+- Fixed ordinary-resource Miner deployments starting without a complete idle
+  crew and a cycle limit that staggered quarter-container orders across several
+  automation cycles. SCUT Network Expansion now explains when Hub resupply is
+  blocked because the receiving probe has no safe delivery-container slot, and
+  returns a confirmed-empty container automatically when one is available.
+
 - Added **Prepare and Install** for a selected probe upgrade. Skunkworks mines
   and crafts missing inputs, protects required stock from competing automation,
   and installs when ready. Goals survive restarts and can be cancelled without

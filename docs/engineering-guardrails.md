@@ -1580,7 +1580,9 @@ intended UI guidance or update the obsolete assertion in a dedicated change.
 ## Named Miner Crews and Infrastructure Campaigns
 
 A deployed ordinary-resource mining container owns four specific Manny IDs,
-not a count of arbitrary idle workers. Persist the crew before dispatching its
+not a count of arbitrary idle workers. Deployment itself must wait for all four
+assigned members to be idle; an incomplete group must not deploy a second
+container. Persist the crew before dispatching its
 fill; wait until all four are idle together before the first mining order.
 Retain crew ownership through filling, recovery, and release. Accepted fill
 orders identify workers already used in this cycle; a fast returning worker
@@ -1588,6 +1590,15 @@ must not receive a second fill order while another crew member is still due.
 Recovery uses a member of that container's crew. Other campaigns, background
 mining, and manufacturing must not borrow reserved crew members. Worker
 assignment metadata must not change the identity of a one-time container order.
+Container fills use their campaign's accepted-fill ledger, not the shared
+resource-deficit cycle cap: a quarter-ECE worker order is not the entire resource
+need. Every ready crew member must be eligible in the same bounded execution
+cycle, including crews filling another container with the same resource.
+
+Regression tests:
+- `tests/test_miner_campaign.py::test_container_deployment_requires_complete_idle_crew`
+- `tests/test_execution_boundary.py::ExecutionBoundaryTests::test_miner_deployment_rechecks_entire_named_crew`
+- `tests/test_replanning_automation_cycle.py::test_automatic_cycle_dispatches_two_complete_container_crews`
 
 Infrastructure role decisions produce typed commands through the existing
 execution boundary. A relay site must be a mapped star inside verified FCC
@@ -1601,6 +1612,17 @@ Relay kits target one Integrated Circuit per relay independently of beacon
 placement. Beacon refills have their own opt-in and stock target; only shortages
 are requested. Disabling beacon refills must not add beacons to new requests or
 cause repeated departure/resupply cycles when placement still requires one.
+The receiving expansion probe must explain when its attached-container count
+leaves no safe delivery slot, preserve the pending supply request, and resume
+when capacity is available. At home it may detach an authoritatively empty
+additional container to open that slot; preflight rechecks the role, request,
+home sector, selected container and emptiness. The Hub recovers these identified
+returns even when general incoming-cargo collection is disabled. Existing cargo
+is never discarded to unblock resupply.
+`tests/test_infrastructure_campaign.py::test_expansion_explains_full_container_limit_while_preserving_resupply_request`
+guards that wait state.
+`tests/test_infrastructure_campaign.py::test_expansion_returns_only_empty_container_for_resupply_and_hub_recovers_it`
+guards the automatic empty-container return.
 A Hub handoff transfers a dedicated container to an owned local stationary
 receiver. Unrelated items, resources, and Mannys prohibit the handoff. A missing
 container alone is not delivery evidence: the exact handoff must have an

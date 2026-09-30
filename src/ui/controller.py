@@ -2330,7 +2330,8 @@ class MissionControlDataService:
                     # Fund one next component, then wait for its accepted work
                     # to enter telemetry before allocating another upgrade craft.
                     completed_upgrade_crafts.add(scope)
-            if prepared.command.type == CommandType.MANNY_MINE:
+            if (prepared.command.type == CommandType.MANNY_MINE
+                    and not self._is_container_campaign_mining(prepared.command)):
                 resource = tuple(prepared.command.payload.get("resources") or ("resource",))[0]
                 mining_allocations[resource]["committed"] += float(
                     prepared.command.metadata.get(
@@ -2393,11 +2394,22 @@ class MissionControlDataService:
             manny["canReceiveOrders"] = False
 
     @staticmethod
+    def _is_container_campaign_mining(command):
+        return bool(command.metadata.get("minerCampaign")
+                    and command.payload.get("targetContainerId"))
+
+    @staticmethod
     def _bound_cycle_mining_allocation(prepared, allocations):
         """Prevent accepted orders outrunning telemetry and the target deficit."""
 
         command = prepared.command
         if command.type != CommandType.MANNY_MINE:
+            return prepared
+        # Each named crew member owns a bounded quarter-container order.
+        # Campaign telemetry and accepted journal fills bound the total; the
+        # ordinary resource-deficit ledger would treat the first 0.25 order as
+        # the entire fleet need and stop the rest of both crews this cycle.
+        if MissionControlDataService._is_container_campaign_mining(command):
             return prepared
         resource = tuple(command.payload.get("resources") or ("resource",))[0]
         unit_scale = max(1.0, float(command.metadata.get("apiUnitScale", 1) or 1))

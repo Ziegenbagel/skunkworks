@@ -248,6 +248,29 @@ class RelayCampaignService:
                     state["restockGeneration"] = int(state.get("restockGeneration", 0))+1
                     state["supplyRequest"] = {"id": f"relay-{self.operations.world.probe['id']}-{state.get('cycle', 0)}-{state['restockGeneration']}",
                                               "items": {k:n for k,n in missing.items() if n}}
+                safety = self.operations.travel_safety
+                if hasattr(safety, "additional_container_count") and hasattr(safety, "container_break_threshold"):
+                    count = safety.additional_container_count()
+                    limit = max(0, safety.container_break_threshold()-1)
+                    if count >= limit:
+                        from src.operations.hub_receiving import empty_container
+                        empty = next((c for c in self.operations.containers.attached()
+                                      if empty_container(self.operations, str(c["id"]))), None)
+                        if empty is not None:
+                            container_id = str(empty["id"])
+                            state["resupplySlotContainer"] = container_id
+                            returned = state.setdefault("resupplyReturns", {})
+                            returned[container_id] = state["supplyRequest"]["id"]
+                            task = Task(action="Return Hub Container", category="infrastructure", priority=1,
+                                target=container_id, reason="Return an empty container to make room for Hub resupply.",
+                                workflow_authorized=True,
+                                idempotency_scope=state["supplyRequest"]["id"]+":slot:"+container_id,
+                                metadata={"resupplySlot":True, "expectedSector":point(home), "mode":"drifting"})
+                            return decision("making_resupply_slot", task.reason, tasks=(task,))
+                        return decision("restock_container_limit",
+                            f"Hub resupply blocked: {count} attached containers, safe limit {limit}. "
+                            "Consolidate cargo and return an empty container to leave one delivery slot; "
+                            "the Hub cannot send another container yet.")
                 return decision("restocking", "At home, waiting for the Hub to supply the requested relay kit.")
             state.pop("supplyRequest", None)
             if not refill_beacons and beacon_mode != "none" and available.get("scut_transit_beacon", 0) < 1:
@@ -300,6 +323,21 @@ class HubCampaignService:
         if current is None:
             return decision("waiting", "Waiting for the Hub's sector telemetry.")
         engine = getattr(self.operations, "data_engine", None)
+        for row in roles:
+            config = row.get("settings", {})
+            if coordinates(config.get("home")) != current:
+                continue
+            returned_ids = (config.get("infrastructureCampaign") or {}).get("resupplyReturns", {})
+            returned = next((c for c in self.operations.containers.detached()
+                             if c.get("mode") == "drifting"
+                             and str(c.get("containerId", c.get("id"))) in returned_ids), None)
+            if returned:
+                container_id = str(returned.get("containerId", returned.get("id")))
+                task = Task(action="Recover Transport Container", category="infrastructure", priority=1,
+                    target=str(returned["id"]), reason="Recover the empty container returned to open a resupply slot.",
+                    workflow_authorized=True, idempotency_scope=returned_ids[container_id]+":slot:recover:"+container_id,
+                    metadata={"source":"drifting", "expectedSector":point(current)})
+                return decision("recovering_return", task.reason, tasks=(task,))
         if engine is not None and hasattr(engine, "operation_records"):
             from src.operations.mission import OperationStore, OperationState
             returns = {op.metadata["containerId"]: op for op in OperationStore(engine).all(OperationState.COMPLETED)
@@ -463,7 +501,7 @@ def infrastructure_blockers(operations, command):
     elif command.type == C.MANNY_ASSEMBLE_PROBE:
         from src.planner.assembly import PROBE_ASSEMBLY_REQUIREMENTS
         needed = dict(PROBE_ASSEMBLY_REQUIREMENTS.get(command.payload.get("model"), ()))
-    elif command.type == C.MANNY_DETACH_STORAGE_CONTAINER and not (command.metadata.get("hubCampaign") or command.metadata.get("hubReceipt")):
+    elif command.type == C.MANNY_DETACH_STORAGE_CONTAINER and not (command.metadata.get("hubCampaign") or command.metadata.get("hubReceipt") or command.metadata.get("resupplySlot")):
         return ("cargo_reserved_by_infrastructure",)
     available = stock(operations)
     if any(available.get(key, 0)-min(n, available.get(key, 0)) < needed.get(key, 0) for key,n in protected.items()):
@@ -476,7 +514,8 @@ def command_blockers(operations, command):
     from src.execution.commands import CommandType as C
     kinds = {C.DEPLOY_SCUT_RELAY, C.MANNY_ACTIVATE_RELAY, C.MANNY_INSTALL_BEACON, C.MANNY_LOAD_HUB_OUTPUT}
     hub_delivery = command.type == C.MANNY_DETACH_STORAGE_CONTAINER and command.metadata.get("hubCampaign")
-    if command.type not in kinds and not hub_delivery:
+    resupply_slot = command.type == C.MANNY_DETACH_STORAGE_CONTAINER and command.metadata.get("resupplySlot")
+    if command.type not in kinds and not hub_delivery and not resupply_slot:
         return ()
     blockers = []
     current = operations.travel.current_sector()
@@ -490,6 +529,16 @@ def command_blockers(operations, command):
         blockers.append("infrastructure_role_changed")
     elif row and command.metadata.get("relayCampaign") and row["role"] != "relay_placement":
         blockers.append("infrastructure_role_changed")
+    if resupply_slot:
+        from src.operations.hub_receiving import empty_container
+        settings = row["settings"] if row else {}
+        state = settings.get("infrastructureCampaign") or {}
+        if (not row or row["role"] != "relay_placement" or not state.get("supplyRequest")
+                or not state.get("returning") or coordinates(settings.get("home")) != current
+                or str(command.payload.get("containerId")) != str(state.get("resupplySlotContainer"))
+                or command.payload.get("mode") != "drifting"
+                or not empty_container(operations, str(command.payload.get("containerId")))):
+            blockers.append("resupply_slot_container_unavailable")
     if row and command.metadata.get("relayCampaign"):
         state = row["settings"].get("infrastructureCampaign") or {}
         if coordinates(state.get("target")) != current:

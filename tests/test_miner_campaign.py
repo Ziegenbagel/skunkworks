@@ -63,7 +63,7 @@ def test_deuterium_miner_uses_all_needed_mannies_while_tank_has_capacity():
 def test_ordinary_resource_miner_deploys_empty_container_before_mining():
     target = {"id": "asteroid-1", "resource_type": "metals", "available_amount": 10}
     decision = MinerCampaignService(operations(
-        idle=1, resources=[target],
+        idle=4, resources=[target],
         attached=[{"id": "box-1", "kind": "container", "usedCapacity": 0}],
     )).decide({
         "miningEnabled": True, "resourceMode": "resources",
@@ -848,6 +848,24 @@ def test_container_waits_for_four_reserved_mannies_before_first_fill():
     ready = MinerCampaignService(cohort_operations()).decide(cohort_settings(**decision.campaign_state))
     assert len(ready.tasks) == 4
     assert {task.metadata["assignedMannyId"] for task in ready.tasks} == set(ready.reserved_manny_ids)
+
+
+def test_container_deployment_requires_complete_idle_crew():
+    config = {"miningEnabled": True, "resourceMode": "resources", "ordinaryResources": ["metals"]}
+    def decide(idle, config):
+        return MinerCampaignService(operations(idle=idle,
+            resources=[{"id":"asteroid-1", "resource_type":"metals", "available_amount":10}],
+            attached=[{"id":f"box-{i}", "kind":"container", "usedCapacity":0} for i in range(2)]
+        )).decide(config)
+    waiting = decide(3, config)
+    assert not waiting.tasks
+    assert "Waiting to deploy" in waiting.summary
+    ready = decide(4, {**config, "ordinaryContainerCampaign":waiting.campaign_state})
+    assert len(ready.tasks) == 1
+    assert len(ready.tasks[0].metadata["campaignCrew"]) == 4
+    partial_second = decide(7, config)
+    assert len(partial_second.tasks) == 1
+    assert partial_second.tasks[0].action == "Deploy Miner Container"
 
 
 def test_container_keeps_named_crew_and_waits_for_busy_member():

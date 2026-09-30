@@ -454,6 +454,19 @@ class ExecutionBoundaryTests(unittest.TestCase):
             "objectId": "box-1", "source": "asteroid",
         })
 
+    def test_miner_deployment_rechecks_entire_named_crew(self):
+        from src.execution.preflight import PreflightValidator
+        crew = [f"crew-{i}" for i in range(4)]
+        self.operations.world.mannies = {"mannies":[
+            {"id":member, "currentTask":None, "canReceiveOrders":True} for member in crew]}
+        command = Command(CommandType.MANNY_DETACH_STORAGE_CONTAINER, 1,
+            {"containerId":"box", "mode":"hidden_on_asteroid", "objectId":"asteroid"},
+            "Deploy", 1, target_id=crew[0], metadata={"minerCampaign":True, "campaignCrew":crew})
+        validator = PreflightValidator(self.operations, 1)
+        self.assertNotIn("miner_crew_not_ready", validator.blockers(command))
+        self.operations.world.mannies["mannies"][3]["canReceiveOrders"] = False
+        self.assertIn("miner_crew_not_ready", validator.blockers(command))
+
     def test_task_idempotency_scope_reaches_non_travel_command_identity(self):
         from src.planner.task import Task
         first = TaskCommandTranslator(self.operations, 1).translate(Task(
