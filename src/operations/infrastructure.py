@@ -297,29 +297,6 @@ class RelayCampaignService:
                     state["restockGeneration"] = int(state.get("restockGeneration", 0))+1
                     state["supplyRequest"] = {"id": f"relay-{self.operations.world.probe['id']}-{state.get('cycle', 0)}-{state['restockGeneration']}",
                                               "items": {k:n for k,n in missing.items() if n}}
-                safety = self.operations.travel_safety
-                if hasattr(safety, "additional_container_count") and hasattr(safety, "container_break_threshold"):
-                    count = safety.additional_container_count()
-                    limit = max(0, safety.container_break_threshold()-1)
-                    if count >= limit:
-                        from src.operations.hub_receiving import empty_container
-                        empty = next((c for c in self.operations.containers.attached()
-                                      if empty_container(self.operations, str(c["id"]))), None)
-                        if empty is not None:
-                            container_id = str(empty["id"])
-                            state["resupplySlotContainer"] = container_id
-                            returned = state.setdefault("resupplyReturns", {})
-                            returned[container_id] = state["supplyRequest"]["id"]
-                            task = Task(action="Return Hub Container", category="infrastructure", priority=1,
-                                target=container_id, reason="Return an empty container to make room for Hub resupply.",
-                                workflow_authorized=True,
-                                idempotency_scope=state["supplyRequest"]["id"]+":slot:"+container_id,
-                                metadata={"resupplySlot":True, "expectedSector":point(home), "mode":"drifting"})
-                            return decision("making_resupply_slot", task.reason, tasks=(task,))
-                        return decision("restock_container_limit",
-                            f"Hub resupply blocked: {count} attached containers, safe limit {limit}. "
-                            "Consolidate cargo and return an empty container to leave one delivery slot; "
-                            "the Hub cannot send another container yet.")
                 return decision("restocking", "At home, waiting for the Hub to supply the requested relay kit.")
             state.pop("supplyRequest", None)
             if not refill_beacons and beacon_mode != "none" and available.get("scut_transit_beacon", 0) < 1:
@@ -361,7 +338,7 @@ class HubCampaignService:
             return ready, "receiver_unloading", "Receiver must unload and return its previous Hub container."
         count, limit = ready.get("containerCount", 0), ready.get("safeLimit", 0)
         if count >= limit:
-            return ready, "receiver_container_limit", f"Receiver has {count} additional containers; safe maximum is {limit}. One free slot is required for handoff."
+            return ready, "", f"Temporary delivery allowed while stationary ({count} containers; travel-safe maximum {limit}). Unload and return delivery container before departure."
         return ready, "", f"Receiver at Hub: {count}/{limit} additional containers; {float(ready.get('freeCapacity',0)):.2f} ECE free for unloading."
 
     def production_targets(self, requested):
@@ -609,6 +586,9 @@ class HubCampaignService:
         if all(counts[k] >= requested[k] for k in requested) or full:
             if receiver_blocker:
                 return decision(receiver_blocker, "Shipment packed. " + receiver_summary)
+            from src.operations.hub_receiving import cargo_fits_storage
+            if not cargo_fits_storage(cargo, ready):
+                return decision("receiver_storage_full", "Shipment packed; its contents do not fit into the receiver's own storage slots. Free permanent space before handoff.")
             delivery["shippedItems"] = counts
             delivery["dispatching"] = True
             task = Task(action="Deliver Hub Container", target=container_id, category="infrastructure", priority=1,

@@ -21,7 +21,9 @@ observed loaded cargo and its container. A packed shipment may wait for a
 receiver; that wait must not prevent packing. Verify an upgraded receiver uses
 its own safe maximum and that fresh arrival telemetry overrides an old fleet
 position. The handoff line reports the actual container count and safe maximum;
-a receiver exactly at the maximum still needs one free delivery slot.
+a receiver at or above the maximum may accept one temporary delivery while
+stationary, provided all cargo fits its own individual storage slots. Verify
+departure remains blocked until the delivery container is unloaded and returned.
 
 Choose a recipient, click **Add Component**, select a component and quantity,
 and add more rows as needed. **Queue Package** appends a separate request; repeat
@@ -43,8 +45,8 @@ local deposit: both should produce mining work when workers and storage permit.
 Returning SCUT Network Expansion probes request refill kits automatically. To send
 other finished items, choose an owned receiver, select components and quantities,
 then queue a package. The receiver must rendezvous with the Hub and have
-fresh storage telemetry, permanent unloading capacity, and a free attachment
-slot below its safe container limit. Both probes need suitable execution modes
+fresh storage telemetry and permanent unloading capacity. The travel container
+limit does not block a temporary stationary delivery. Both probes need suitable execution modes
 for their parts of the workflow.
 
 The Hub loads a dedicated container and hands it over. The receiver unloads

@@ -161,19 +161,89 @@ ColumnLayout {
         ColumnLayout { anchors.fill: parent
             Label { visible: !(root.runtime.packages || []).length; text: "No packages evaluated yet. Saved requests appear after the next automation cycle."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
             Repeater { model: root.runtime.packages || []
-                delegate: Label {
+                delegate: Frame {
+                    id: packageCard
                     required property var modelData
-                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: Constants.textColor
-                    text: modelData.targetName + " · " + (modelData.source === "automatic" ? "AUTO REFILL" : "MANUAL PACKAGE")
-                        + " · SHIPMENT " + (Number(modelData.shipment || 0) + 1)
-                        + "\nRemaining to send: " + root.itemSummary(modelData.items)
-                        + "\nStill to craft: " + (root.itemSummary(modelData.missingItems) || "None")
-                        + "\nCrafting now: " + (root.itemSummary(modelData.craftingItems) || "None")
-                        + "\nAvailable to load: " + (root.itemSummary(modelData.availableItems) || "None")
-                        + "\nLoaded: " + (root.itemSummary(modelData.loadedItems) || "None")
-                        + "\nContainer: " + (modelData.containerId || "Not assigned")
-                        + "\nPlan: " + modelData.summary
-                        + "\nHandoff: " + (modelData.receiverSummary || "Waiting for receiver check")
+                    property int countWidth: width < 650 ? 58 : 82
+                    Layout.fillWidth: true
+                    Layout.topMargin: 8
+                    padding: 16
+                    background: Rectangle { color: Constants.panelColor; border.color: Constants.lineColor; radius: 4 }
+                    ColumnLayout {
+                        anchors.fill: parent; spacing: 12
+                        Label {
+                            text: packageCard.modelData.targetName
+                            Layout.fillWidth: true; wrapMode: Text.Wrap
+                            color: Constants.cyanColor; font.pixelSize: 18; font.bold: true
+                        }
+                        Label {
+                            text: (packageCard.modelData.source === "automatic" ? "Automatic refill" : "Manual package")
+                                + "   ·   Shipment " + (Number(packageCard.modelData.shipment || 0) + 1)
+                            color: Constants.textColor; font.pixelSize: 14
+                            Layout.fillWidth: true; wrapMode: Text.Wrap
+                        }
+                        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Constants.lineColor }
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: 8
+                            Label { text: "COMPONENT"; Layout.fillWidth: true; color: Constants.mutedTextColor; font.pixelSize: 12 }
+                            Repeater { model: ["TO SEND", "TO CRAFT", "CRAFTING", "TO LOAD", "LOADED"]
+                                delegate: Label {
+                                    required property string modelData
+                                    text: modelData; Layout.preferredWidth: packageCard.countWidth
+                                    horizontalAlignment: Text.AlignRight; wrapMode: Text.Wrap
+                                    color: Constants.mutedTextColor; font.pixelSize: 12
+                                }
+                            }
+                        }
+                        Repeater {
+                            model: Object.keys(Object.assign({}, packageCard.modelData.items || {}, packageCard.modelData.loadedItems || {}))
+                            delegate: RowLayout {
+                                id: componentProgress
+                                required property string modelData
+                                Layout.fillWidth: true; spacing: 8
+                                Label {
+                                    Layout.fillWidth: true; Layout.minimumWidth: 100; wrapMode: Text.Wrap
+                                    text: { const option = root.components.find(function(c) { return c.id === componentProgress.modelData; });
+                                        return option ? option.name : componentProgress.modelData.replace(/_/g, " "); }
+                                    color: Constants.textColor; font.pixelSize: 15
+                                }
+                                Repeater { model: ["items", "missingItems", "craftingItems", "availableItems", "loadedItems"]
+                                    delegate: Label {
+                                        required property string modelData
+                                        property int count: Number((packageCard.modelData[modelData] || {})[componentProgress.modelData] || 0)
+                                        text: count > 0 ? String(count) : "—"
+                                        Layout.preferredWidth: packageCard.countWidth
+                                        horizontalAlignment: Text.AlignRight
+                                        color: count > 0 ? (modelData === "loadedItems" ? Constants.nominalColor : Constants.textColor) : Constants.mutedTextColor
+                                        font.pixelSize: 15; font.family: Constants.technicalFont
+                                    }
+                                }
+                            }
+                        }
+                        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Constants.lineColor }
+                        Label {
+                            text: "NEXT STEP  ·  " + (packageCard.modelData.summary || "Queued for preparation.")
+                            Layout.fillWidth: true; wrapMode: Text.Wrap
+                            color: Constants.textColor; font.pixelSize: 14
+                        }
+                        Label {
+                            text: "HANDOFF  ·  " + (packageCard.modelData.receiverSummary || "Waiting for receiver check")
+                            Layout.fillWidth: true; wrapMode: Text.Wrap
+                            color: packageCard.modelData.receiverBlocker ? Constants.warningColor : Constants.cyanColor
+                            font.pixelSize: 14
+                        }
+                        ToolButton {
+                            id: packageDetails
+                            text: checked ? "Hide container details ▴" : "Container details ▾"
+                            checkable: true
+                        }
+                        Label {
+                            visible: packageDetails.checked
+                            text: "Container: " + (packageCard.modelData.containerId || "Not assigned")
+                            Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
+                            color: Constants.mutedTextColor; font.pixelSize: 13; font.family: Constants.technicalFont
+                        }
+                    }
                 }
             }
         }

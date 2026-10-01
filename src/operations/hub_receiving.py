@@ -47,6 +47,8 @@ def publish_live_readiness(engine, probe, hazard_context=None):
         "status": probe.get("status"),
         "freeCapacity": sum(containers.free_capacity(c) for c in probe["inventory"].get("containers", [])
                             if str(c.get("id")) not in incoming),
+        "storageFreeCapacities": [containers.free_capacity(c) for c in probe["inventory"].get("containers", [])
+                                  if c.get("id") is not None and str(c["id"]) not in incoming],
         "containerCount": safety.additional_container_count(),
         "safeLimit": max(0, safety.container_break_threshold()-1),
         "receiving": bool(pending),
@@ -97,6 +99,7 @@ class HubReceivingService:
             "at":observed_at, "sector":point(current) if current else None,
             "status":self.operations.world.probe.get("status"),
             "freeCapacity":free, "containerCount":count, "safeLimit":safe_limit,
+            "storageFreeCapacities":[self.operations.containers.free_capacity(c) for c in storage if c.get("id") is not None],
             "receiving":bool(pending),
         }))
         if not pending:
@@ -126,11 +129,12 @@ class HubReceivingService:
         items = [i for i in inventory_items(self.operations) if str((i.get("container") or {}).get("id")) == container_id]
         metadata = {"hubReceipt":op.id, "expectedSector":data["sector"]}
         if items:
-            for item in items:
+            for item in sorted(items, key=lambda i: float(i.get("containerSpace",0) or 0), reverse=True):
                 if item.get("currentTask") or item.get("type") in {"manny", "additional_container"}:
                     continue
                 size = float(item.get("containerSpace", 0) or 0)
-                target = next((c for c in storage if c.get("id") is not None and self.operations.containers.free_capacity(c) + .00001 >= size), None)
+                target = min((c for c in storage if c.get("id") is not None and self.operations.containers.free_capacity(c) + .00001 >= size),
+                             key=self.operations.containers.free_capacity, default=None)
                 if target:
                     task = Task(action="Unload Hub Supply", category="infrastructure", priority=1, target=str(item["id"]),
                         reason="Move supplied stock into the receiving probe's own storage.", workflow_authorized=True,
@@ -149,6 +153,21 @@ class HubReceivingService:
             metadata={**task.metadata,"idempotencyScope":task.idempotency_scope}).fingerprint
         OperationStore(self.engine).save(replace(op, metadata=data))
         return InfrastructureDecision("returning_container",task.reason,tasks=(task,))
+
+
+def cargo_fits_storage(items, ready):
+    """Conservative best-fit placement into permanent receiver storage only."""
+    capacities = list(ready.get("storageFreeCapacities") or [])
+    if not capacities:
+        return False
+    for item in sorted(items, key=lambda i: float(i.get("containerSpace",0) or 0), reverse=True):
+        size = float(item.get("containerSpace",0) or 0)
+        candidates = [i for i, free in enumerate(capacities) if free + .00001 >= size]
+        if not candidates:
+            return False
+        slot = min(candidates, key=lambda i: capacities[i])
+        capacities[slot] -= size
+    return True
 
 
 def empty_container(operations, container_id):

@@ -1074,7 +1074,8 @@ class MissionControlDataService:
             # pending recipients directly rather than waiting for their turn.
             refreshed = False
             for target_id in dict.fromkeys(p["targetProbeId"] for p in decision.packages):
-                if readiness(self.data_engine, target_id).get("status"):
+                ready = readiness(self.data_engine, target_id)
+                if ready.get("status") and "storageFreeCapacities" in ready:
                     continue
                 try:
                     response = self.client.get_probe(target_id)

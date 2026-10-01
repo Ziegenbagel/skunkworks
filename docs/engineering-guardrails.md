@@ -1610,8 +1610,8 @@ before lookup. Append manual requests against persisted settings so a stale
 editor cannot overwrite earlier packages. Each package owns its loading
 container; other packages cannot borrow its cargo. Split oversized packages into
 successive shipments and decrement remaining quantities only after journaled
-handoff success and observed container departure. Receiver unload/return and
-safe-container checks still gate each shipment. Publish refill demand when an
+handoff success and observed container departure. Receiver storage and
+unload/return checks still gate each shipment. Publish refill demand when an
 expansion probe begins returning, so the Hub can prepare before arrival.
 Receiver readiness must include location, stationary status, storage and the
 receiver's own installed upgrades/damage-warning limit in one fresh observation.
@@ -1658,17 +1658,11 @@ Relay kits target one Integrated Circuit per relay independently of beacon
 placement. Beacon refills have their own opt-in and stock target; only shortages
 are requested. Disabling beacon refills must not add beacons to new requests or
 cause repeated departure/resupply cycles when placement still requires one.
-The receiving expansion probe must explain when its attached-container count
-leaves no safe delivery slot, preserve the pending supply request, and resume
-when capacity is available. At home it may detach an authoritatively empty
-additional container to open that slot; preflight rechecks the role, request,
-home sector, selected container and emptiness. The Hub recovers these identified
-returns even when general incoming-cargo collection is disabled. Existing cargo
-is never discarded to unblock resupply.
-`tests/test_infrastructure_campaign.py::test_expansion_explains_full_container_limit_while_preserving_resupply_request`
-guards that wait state.
-`tests/test_infrastructure_campaign.py::test_expansion_returns_only_empty_container_for_resupply_and_hub_recovers_it`
-guards the automatic empty-container return.
+The receiving expansion probe preserves its supply request and permanent
+storage at the travel container limit. It must not discard its own empty
+storage merely to make a temporary delivery slot. Legacy slot-return commands
+still require authoritatively empty containers, and the Hub recovers already
+returned containers even when general incoming collection is disabled.
 A Hub handoff transfers a dedicated container to an owned local stationary
 receiver. Unrelated items, resources, and Mannys prohibit the handoff. A missing
 container alone is not delivery evidence: the exact handoff must have an
@@ -1686,7 +1680,12 @@ Relevant tests:
 
 Hub supply containers are temporary packaging, not permanent additions to the
 receiver. Publish fresh recipient storage space and its model/improvement-aware
-safe container limit before handoff; do not add a container at that limit.
+travel-safe container limit before handoff. Per the updated Hub workflow,
+stationary receivers may temporarily exceed that limit for one delivery.
+Every delivered item must fit into fresh individual permanent storage slots,
+excluding all pending delivery containers. Total free capacity alone is not
+sufficient. Handoff uses the same largest-item-first, best-fit placement order
+as unloading. Missing or insufficient storage telemetry prevents handoff.
 An identified receipt survives role changes and restarts. Unload items into
 non-delivery storage, verify the delivery container has no items, resources,
 Mannys, or reported used capacity, and only then detach it to drift for Hub
@@ -1694,6 +1693,7 @@ recovery. Full permanent storage pauses unloading; it never permits discarding
 stock. Pending receipts hold ordinary departure. Returned packaging is recovered
 by the Hub even if general incoming-cargo collection is disabled.
 
-- `tests/test_infrastructure_campaign.py::test_hub_does_not_deliver_above_receiver_safe_container_limit`
+- `tests/test_infrastructure_campaign.py::test_hub_allows_temporary_delivery_at_or_above_travel_container_limit`
+- `tests/test_infrastructure_campaign.py::test_temporary_delivery_requires_contents_to_fit_permanent_storage_slots`
 - `tests/test_infrastructure_campaign.py::test_receiver_unloads_then_returns_only_confirmed_empty_container`
 - `tests/test_infrastructure_campaign.py::test_receiver_never_discards_stock_when_permanent_storage_is_full`

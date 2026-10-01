@@ -1,5 +1,14 @@
 # Development Release Log
 
+- Hub deliveries may temporarily exceed a stationary receiver's travel container
+  limit when each item fits its permanent storage. Receipts still block travel
+  until unloading and empty-container return are confirmed. Expansion probes
+  preserve their own empty storage during refills.
+
+- Supply Queue now separates packages into readable cards with larger recipient
+  headings, aligned component counts, distinct next-step and handoff messages,
+  and expandable container details.
+
 - Fixed Hub handoff checks using stale fleet positions and base container limits
   for upgraded receivers. Packages can be packed before rendezvous. Each queue
   entry now separates loaded/available/crafting/missing components, shipment and
