@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Fixed Hub handoff checks using stale fleet positions and base container limits
+  for upgraded receivers. Packages can be packed before rendezvous. Each queue
+  entry now separates loaded/available/crafting/missing components, shipment and
+  container identity, and receiver location/capacity blockers.
+
 - Fixed Hub Supply suppressing local mining for resource reserves, ordinary
   crafting, and queued packages. Hubs now retain the shared planner's mining
   orders alongside incoming container deliveries.

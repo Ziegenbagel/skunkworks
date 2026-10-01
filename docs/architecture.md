@@ -587,6 +587,11 @@ package. Manual settings saves append a request against persisted settings,
 rather than replacing the queue from a UI snapshot. Shipments split according to
 container and recipient storage capacity, retaining request and shipment IDs
 until accepted handoffs are observed. The editor uses the loaded recipe catalog.
+Packing can proceed before the receiver arrives; only handoff requires current
+receiver readiness. Targeted readiness fetches the receiver's probe, improvements
+and damage warnings, retaining its location/status alongside storage and limits.
+The queue reports remaining, loaded, available, actively crafting and missing
+components separately from receiver blockers, without double-counting stock.
 
 Hub container receipts are durable Operations independent of the receiver's
 role. The receiver publishes fresh storage capacity and its upgrade-aware safe

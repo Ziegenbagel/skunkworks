@@ -1613,9 +1613,15 @@ successive shipments and decrement remaining quantities only after journaled
 handoff success and observed container departure. Receiver unload/return and
 safe-container checks still gate each shipment. Publish refill demand when an
 expansion probe begins returning, so the Hub can prepare before arrival.
-If receiver-cycle readiness expires, a fresh targeted probe read may publish
-capacity using conservative base container limits; never refresh a timestamp
-from cached fleet data. Regression coverage: `tests/test_infrastructure_campaign.py`
+Receiver readiness must include location, stationary status, storage and the
+receiver's own installed upgrades/damage-warning limit in one fresh observation.
+Never overwrite its upgraded limit with the base limit during a targeted read,
+or veto its fresh location with an older fleet row. Missing telemetry blocks
+handoff, not fabrication or container packing. Package progress separates
+observed loaded cargo, allocated available stock, active production, unstarted
+shortages and handoff blockers. Allocate shared stock/active crafts only once
+across packages. Never label a planned load as accepted or observed cargo.
+Regression coverage: `tests/test_infrastructure_campaign.py`
 (multi-request collection, stale-editor append, independent container ownership,
 mixed-package splitting, early refill publication, fresh readiness).
 

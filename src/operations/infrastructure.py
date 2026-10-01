@@ -345,6 +345,25 @@ class HubCampaignService:
     def __init__(self, operations):
         self.operations = operations
 
+    def receiver_state(self, target_id, fingerprint=None):
+        from src.operations.hub_receiving import readiness, receipts
+        ready = readiness(getattr(self.operations, "data_engine", None), probe_id(target_id))
+        if not ready:
+            return ready, "receiver_refresh", "Receiver telemetry needs refreshing before handoff."
+        if coordinates(ready.get("sector")) != self.operations.travel.current_sector():
+            return ready, "waiting_for_receiver", "Receiver has not arrived at the Hub sector."
+        fleet = (self.operations.world.fleet or {}).get("probes", [])
+        target = next((p for p in fleet if probe_id(p["id"]) == probe_id(target_id)), {})
+        if ready.get("status", target.get("status")) not in {"idle", "arrived"}:
+            return ready, "waiting_for_receiver", "Receiver is not stationary at the Hub."
+        if any(op.metadata.get("handoffFingerprint") != fingerprint
+               for op in receipts(getattr(self.operations, "data_engine", None), probe_id(target_id))):
+            return ready, "receiver_unloading", "Receiver must unload and return its previous Hub container."
+        count, limit = ready.get("containerCount", 0), ready.get("safeLimit", 0)
+        if count >= limit:
+            return ready, "receiver_container_limit", f"Receiver has {count} additional containers; safe maximum is {limit}. One free slot is required for handoff."
+        return ready, "", f"Receiver at Hub: {count}/{limit} additional containers; {float(ready.get('freeCapacity',0)):.2f} ECE free for unloading."
+
     def production_targets(self, requested):
         targets = dict(requested)
         available = stock(self.operations)
@@ -388,16 +407,19 @@ class HubCampaignService:
         queue = [r for r in queue if r["id"] not in completed]
         for request in queue:
             request["targetProbeId"] = probe_id(request["targetProbeId"])
+            request.setdefault("requestedItems", dict(request["items"]))
         # Keep accepted shipments and their identities through receiver waits.
         # A blocked recipient must not prevent another package from progressing.
         chosen = None
         chosen_id = None
+        evaluated = set()
         packaging_target = 0
         for request in list(queue):
             other_boxes = {str(r["containerId"]) for r in queue
                            if r["id"] != request["id"] and r.get("containerId")}
             projected = {**settings, "infrastructureCampaign":{**state, "delivery":request}}
             result = self._advance_delivery(projected, roles, excluded_container_ids=other_boxes)
+            evaluated.add(request["id"])
             advanced = result.state.get("delivery")
             index = next(i for i,r in enumerate(queue) if r["id"] == request["id"])
             if advanced:
@@ -428,12 +450,41 @@ class HubCampaignService:
         if packaging_target:
             production["additional_container"] = packaging_target
         fleet = {probe_id(p["id"]):p for p in (self.operations.world.fleet or {}).get("probes", [])}
-        packages = tuple({"id":r["id"], "targetProbeId":r["targetProbeId"],
+        pool = dict(stock(self.operations))
+        active_count = getattr(self.operations.manufacturing, "active_production_count", lambda _: 0)
+        active_pool = {kind:active_count(kind) for r in queue for kind in r["items"]}
+        loaded_by_id = {}
+        for r in queue:
+            loaded = {}
+            for item in inventory_items(self.operations):
+                if r.get("containerId") and str((item.get("container") or {}).get("id")) == r["containerId"]:
+                    kind = item.get("type")
+                    loaded[kind] = loaded.get(kind, 0) + int(item.get("quantity", 1))
+            loaded_by_id[r["id"]] = loaded
+            for kind, amount in loaded.items():
+                pool[kind] = max(0, pool.get(kind, 0)-amount)
+        packages = []
+        for r in queue:
+            loaded = loaded_by_id[r["id"]]
+            available, missing, crafting = {}, {}, {}
+            for kind, amount in r["items"].items():
+                allocated = min(max(0, amount-loaded.get(kind,0)), pool.get(kind,0))
+                pool[kind] = pool.get(kind,0)-allocated
+                available[kind] = allocated
+                shortage = max(0, amount-loaded.get(kind,0)-allocated)
+                crafting[kind] = min(shortage, active_pool.get(kind,0))
+                active_pool[kind] = active_pool.get(kind,0)-crafting[kind]
+                missing[kind] = shortage-crafting[kind]
+            ready, blocker, receiver_summary = self.receiver_state(r["targetProbeId"], r.get("dispatchFingerprint"))
+            packages.append({"id":r["id"], "targetProbeId":r["targetProbeId"],
             "targetName":fleet.get(r["targetProbeId"], {}).get("name") or f"Probe {r['targetProbeId']}",
             "items":dict(r["items"]), "shipment":int(r.get("shipment",0)),
-            "source":r.get("source","manual"), "phase":r.get("phase","queued"),
-            "summary":r.get("summary","Queued for preparation.")} for r in queue)
-        return replace(chosen, state=state, production=production, packages=packages)
+            "requestedItems":r["requestedItems"], "loadedItems":loaded, "availableItems":available,
+            "missingItems":missing, "craftingItems":crafting, "containerId":r.get("containerId", ""),
+            "receiverSummary":receiver_summary, "receiverBlocker":blocker,
+            "source":r.get("source","manual"), "phase":r.get("phase","queued") if r["id"] in evaluated else "queued",
+            "summary":r.get("summary","Queued for preparation.") if r["id"] in evaluated else "Waiting for the Hub's next packing turn."})
+        return replace(chosen, state=state, production=production, packages=tuple(packages))
 
     def _advance_delivery(self, settings, roles=(), *, excluded_container_ids=()):
         state = deepcopy(settings.get("infrastructureCampaign") or {})
@@ -489,9 +540,6 @@ class HubCampaignService:
                         metadata={"source": "drifting", "expectedSector": point(current)})
                     return decision("receiving", task.reason, tasks=(task,))
             return decision("producing", "Maintaining configured production targets; waiting for a delivery request.")
-        target = fleet.get(probe_id(delivery["targetProbeId"]))
-        target_sector_data = (target or {}).get("sector") or {}
-        target_sector = coordinates(target_sector_data.get("relative") or target_sector_data.get("relativeCoordinates"))
         requested = {k:int(n) for k,n in delivery.get("items", {}).items() if int(n) > 0}
         if not requested:
             return decision("blocked", "The output batch must contain at least one item.")
@@ -507,24 +555,14 @@ class HubCampaignService:
                          for key,n in delivery.get("items", {}).items()}
             if any(remaining.values()):
                 state["delivery"] = {"id":delivery["id"], "targetProbeId":delivery["targetProbeId"],
+                                     "requestedItems":delivery.get("requestedItems", dict(delivery["items"])),
                                      "source":delivery.get("source","manual"),
                                      "items": {k:n for k,n in remaining.items() if n}, "shipment":int(delivery.get("shipment", 0))+1}
             else:
                 state["completedRequests"] = completed + [delivery["id"]]
                 state.pop("delivery", None)
             return decision("delivered", "Accepted output handoff confirmed; preparing any remaining items.")
-        if target is None or target_sector != current or target.get("status") not in {"idle", "arrived"}:
-            return decision("waiting_for_receiver", "Preparing stock; waiting for the selected receiver to rendezvous at the Hub.")
-        from src.operations.hub_receiving import readiness, receipts
-        ready = readiness(getattr(self.operations, "data_engine", None), int(target["id"]))
-        if not ready or coordinates(ready.get("sector")) != current:
-            return decision("receiver_refresh", "Waiting for fresh receiver storage and safe-container-limit telemetry.")
-        if ready.get("containerCount", 0) >= ready.get("safeLimit", 0):
-            return decision("receiver_container_limit", "Receiver is at its safe container limit; return an empty container before another handoff.")
-        other_receipts = [op for op in receipts(getattr(self.operations, "data_engine", None), int(target["id"]))
-                          if op.metadata.get("handoffFingerprint") != delivery.get("dispatchFingerprint")]
-        if other_receipts:
-            return decision("receiver_unloading", "Waiting for the receiver to unload and return its previous Hub container.")
+        ready, receiver_blocker, receiver_summary = self.receiver_state(delivery["targetProbeId"], delivery.get("dispatchFingerprint"))
         if not container_id:
             container = next((c for c in attached.values() if float(c.get("usedCapacity", c.get("used", 0)) or 0) == 0
                               and float(c.get("capacity", 1)) >= 1), None)
@@ -549,8 +587,10 @@ class HubCampaignService:
         scope = f"hub:{delivery['id']}:{delivery.get('shipment', 0)}"
         metadata = {"hubCampaign": True, "expectedSector": point(current), "requestId": delivery["id"]}
         loaded_size = sum(float(i.get("containerSpace", 0) or 0) for i in cargo)
-        receiver_free = max(0, float(ready.get("freeCapacity", 0))-loaded_size)
+        receiver_free = max(0, float(ready.get("freeCapacity", 0))-loaded_size) if not receiver_blocker else float("inf")
         free = min(self.operations.containers.free_capacity(attached[container_id]), receiver_free)
+        if not receiver_blocker and receiver_free <= .00001 and not cargo:
+            return decision("receiver_storage_full", "Stock preparation continues; receiver has no permanent space to unload another shipment.")
         # Infer remaining component sizes from the live recipe or a stored
         # example even before the next unit finishes crafting.
         recipes = getattr(self.operations.manufacturing, "recipes", None)
@@ -564,17 +604,19 @@ class HubCampaignService:
                 size = next((i.get("containerSpace",0) for i in items if i.get("type") == kind), 0)
             sizes.append(float(size or 0))
         full = bool(cargo) and (free <= 0.00001 or (sizes and all(size > free + .00001 for size in sizes)))
-        if loaded_size > float(ready.get("freeCapacity", 0)) + .00001:
+        if not receiver_blocker and loaded_size > float(ready.get("freeCapacity", 0)) + .00001:
             return decision("receiver_storage_full", "Receiver needs more permanent storage space to unload this batch.")
         if all(counts[k] >= requested[k] for k in requested) or full:
+            if receiver_blocker:
+                return decision(receiver_blocker, "Shipment packed. " + receiver_summary)
             delivery["shippedItems"] = counts
             delivery["dispatching"] = True
             task = Task(action="Deliver Hub Container", target=container_id, category="infrastructure", priority=1,
                         reason="Hand the completed output batch to the selected probe.", workflow_authorized=True,
-                        idempotency_scope=scope+":deliver", metadata={**metadata, "mode":"attach_to_probe", "objectId": str(target["id"])})
+                        idempotency_scope=scope+":deliver", metadata={**metadata, "mode":"attach_to_probe", "objectId": str(delivery["targetProbeId"])})
             from src.execution.commands import Command, CommandType
             delivery["dispatchFingerprint"] = Command(type=CommandType.MANNY_DETACH_STORAGE_CONTAINER,
-                probe_id=self.operations.world.probe["id"], payload={"containerId":container_id, "mode":"attach_to_probe", "objectId":str(target["id"])},
+                probe_id=self.operations.world.probe["id"], payload={"containerId":container_id, "mode":"attach_to_probe", "objectId":str(delivery["targetProbeId"])},
                 reason=task.reason, priority=1, metadata={**task.metadata, "idempotencyScope":task.idempotency_scope}).fingerprint
             return decision("delivering", task.reason, tasks=(task,), production=self.production_targets(requested))
         for item_type, count in requested.items():
@@ -723,9 +765,6 @@ def command_blockers(operations, command):
         if item and str((item.get("container") or {}).get("id")) == str(command.payload.get("toContainerId")):
             blockers.append("hub_item_already_loaded")
     if hub_delivery:
-        target = next((p for p in (operations.world.fleet or {}).get("probes", []) if str(p["id"]) == str(command.payload.get("objectId"))), None)
-        if target is None or target.get("status") not in {"idle", "arrived"} or coordinates((target.get("sector") or {}).get("relative") or (target.get("sector") or {}).get("relativeCoordinates")) != current:
-            blockers.append("hub_receiver_unavailable")
         if row:
             expected = HubCampaignService(operations).decide(row["settings"], rows)
             if not any(t.action == "Deliver Hub Container" and t.target == command.payload.get("containerId")

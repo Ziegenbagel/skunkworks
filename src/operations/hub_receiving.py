@@ -30,12 +30,12 @@ def readiness(engine, probe_id):
     return {}
 
 
-def publish_live_readiness(engine, probe):
-    """Publish a just-fetched receiver, using conservative unmodified limits."""
+def publish_live_readiness(engine, probe, hazard_context=None):
+    """Publish one coherent live receiver observation, including its upgrades."""
     from types import SimpleNamespace
     from src.operations.containers import ContainerService
     from src.safety.travel import TravelSafetyService
-    world = SimpleNamespace(probe=probe, hazard_context={})
+    world = SimpleNamespace(probe=probe, hazard_context=hazard_context or {})
     containers = ContainerService(world)
     safety = TravelSafetyService(world, None, None)
     pending = receipts(engine, int(probe["id"]))
@@ -44,6 +44,7 @@ def publish_live_readiness(engine, probe):
     where = coordinates(sector.get("relative") or sector.get("relativeCoordinates"))
     engine.set_preference(f"hub_receiving:{int(probe['id'])}", json.dumps({
         "at": time.time(), "sector": point(where) if where else None,
+        "status": probe.get("status"),
         "freeCapacity": sum(containers.free_capacity(c) for c in probe["inventory"].get("containers", [])
                             if str(c.get("id")) not in incoming),
         "containerCount": safety.additional_container_count(),
@@ -94,6 +95,7 @@ class HubReceivingService:
             observed_at = 0
         self.engine.set_preference(f"hub_receiving:{probe_id}", json.dumps({
             "at":observed_at, "sector":point(current) if current else None,
+            "status":self.operations.world.probe.get("status"),
             "freeCapacity":free, "containerCount":count, "safeLimit":safe_limit,
             "receiving":bool(pending),
         }))

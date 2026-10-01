@@ -13,6 +13,81 @@ from src.planner.task import Task
 import pytest
 
 
+def test_hub_packs_before_receiver_arrives_and_shows_loaded_stock():
+    ops = operations([{"id":"relay", "type":"scut_relay", "containerSpace":.1}], role="hub",
+                     attached=[{"id":"box", "usedCapacity":0}])
+    ops.data_engine.get_preference = lambda *_: "{}"
+    config = {"infrastructureEnabled":True, "outputRequests":[{"id":"p", "targetProbeId":2, "items":{"scut_relay":1}}]}
+    result = HubCampaignService(ops).decide(config)
+    assert result.tasks[0].action == "Load Hub Output"
+    assert result.packages[0]["availableItems"] == {"scut_relay":1}
+    assert result.packages[0]["receiverBlocker"] == "receiver_refresh"
+    config["infrastructureCampaign"] = result.state
+    ops.world.probe["inventory"]["items"][0]["container"] = {"id":"box"}
+    packed = HubCampaignService(ops).decide(config)
+    assert not packed.tasks
+    assert packed.summary.startswith("Shipment packed.")
+    assert packed.packages[0]["loadedItems"] == {"scut_relay":1}
+    assert packed.packages[0]["missingItems"] == {"scut_relay":0}
+
+
+def test_hub_fresh_receiver_location_overrides_stale_fleet_and_upgrade_limit():
+    from src.operations.hub_receiving import publish_live_readiness
+    ops = operations([{"id":"relay", "type":"scut_relay", "containerSpace":.1, "container":{"id":"box"}}],
+                     role="hub", attached=[{"id":"box", "usedCapacity":.1}])
+    values = {}
+    ops.data_engine.set_preference = lambda k,v:values.update({k:v})
+    ops.data_engine.get_preference = lambda k,d:values.get(k,d)
+    ops.world.fleet["probes"][0].update(status="moving", sector={"relative":vars(P(10,0,0))})
+    receiver = {"id":2,"status":"idle","model":"generic","sector":{"relative":vars(P(0,0,0))},
+                "inventory":{"containers":[{"id":str(i),"kind":"container","capacity":1,"usedCapacity":0} for i in range(5)]}}
+    publish_live_readiness(ops.data_engine,receiver,{"improvements":{"improvements":[{"id":"reinforced_couplings","done":True}]}})
+    config = {"infrastructureEnabled":True,"infrastructureCampaign":{"delivery":{
+        "id":"p","targetProbeId":2,"items":{"scut_relay":1},"containerId":"box"}}}
+    result = HubCampaignService(ops).decide(config)
+    assert result.tasks[0].action == "Deliver Hub Container"
+    assert "5/9" in result.packages[0]["receiverSummary"]
+    ops.data_engine.fleet_roles = lambda _: [{"asset_id":"1","role":"hub","metadata_json":json.dumps(config)}]
+    command = TaskCommandTranslator(ops,1).translate(result.tasks[0])
+    assert not command_blockers(ops, command)
+
+
+def test_hub_package_progress_does_not_double_count_shared_stock_or_active_crafts():
+    ops = operations(kit(1,0),role="hub")
+    ops.manufacturing.active_production_count = lambda kind: 1 if kind == "scut_relay" else 0
+    config = {"infrastructureEnabled":True,"outputRequests":[
+        {"id":str(i),"targetProbeId":i,"items":{"scut_relay":2}} for i in (2,3)]}
+    result = HubCampaignService(ops).decide(config)
+    assert sum(p["availableItems"]["scut_relay"] for p in result.packages) == 1
+    assert sum(p["craftingItems"]["scut_relay"] for p in result.packages) == 1
+    assert sum(p["missingItems"]["scut_relay"] for p in result.packages) == 2
+
+
+def test_hub_targeted_refresh_fetches_receivers_own_upgrade_context(tmp_path):
+    from src.data import DataEngine
+    from src.ui.controller import MissionControlDataService
+    from src.planner.desired_state import DesiredState
+    ops = operations([{"id":"relay","type":"scut_relay","containerSpace":.1,"container":{"id":"box"}}],
+                     role="hub", attached=[{"id":"box","usedCapacity":.1}])
+    engine = ops.data_engine = DataEngine(tmp_path / "receiving.sqlite3")
+    engine.assign_fleet_role("probe",1,"hub", metadata={"infrastructureEnabled":True,
+        "infrastructureCampaign":{"delivery":{"id":"p","targetProbeId":2,"containerId":"box","items":{"scut_relay":1}}}})
+    target = {"id":2,"status":"idle","sector":{"relative":vars(P(0,0,0))},"inventory":{"containers":[
+        {"id":str(i),"kind":"container","capacity":1,"usedCapacity":0} for i in range(5)]}}
+    calls = []
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service.data_engine = engine
+    service.recipes = SimpleNamespace(all=lambda: [])
+    service.client = SimpleNamespace(get_probe=lambda i: calls.append(("probe",i)) or target)
+    service.capabilities = SimpleNamespace(probes=SimpleNamespace(
+        improvements=lambda i: calls.append(("improvements",i)) or {"improvements":[{"id":"reinforced_couplings","done":True}]},
+        damage_warnings=lambda i: calls.append(("warnings",i)) or {}))
+    _, tasks, view = service._reconcile_infrastructure_campaign(ops,1,DesiredState.unconfigured())
+    assert calls == [("probe",2),("improvements",2),("warnings",2)]
+    assert tasks[0].action == "Deliver Hub Container"
+    assert "5/9" in view["packages"][0]["receiverSummary"]
+
+
 @pytest.mark.parametrize("demand", ["reserve", "craft", "package"])
 def test_enabled_hub_preserves_local_mining_for_resource_and_crafting_goals(tmp_path, demand):
     from unittest.mock import patch
@@ -70,7 +145,7 @@ def test_hub_collects_two_refills_and_decimal_manual_receiver_while_waiting():
               "outputRequest":{"id":"manual", "targetProbeId":4.0, "items":{"scut_transit_beacon":3}}}
     result = HubCampaignService(ops).decide(config, rows)
     assert len(result.packages) == 3
-    assert result.production == {"scut_relay":4, "integrated_circuit":4, "scut_transit_beacon":3}
+    assert result.production == {"scut_relay":4, "integrated_circuit":4, "scut_transit_beacon":3, "additional_container":1}
     assert result.packages[-1]["targetProbeId"] == 4
     config["infrastructureCampaign"] = result.state
     assert len(HubCampaignService(ops).decide(config, rows).packages) == 3
@@ -382,8 +457,8 @@ def test_settings_reject_invalid_direction_and_forbidden_output():
 
 
 def test_hub_does_not_deliver_above_receiver_safe_container_limit():
-    config = {"infrastructureEnabled":True,"outputRequest":{"id":"batch","targetProbeId":2,"items":{"scut_relay":1}}}
-    ops = operations(kit(1),role="hub")
+    config = {"infrastructureEnabled":True,"infrastructureCampaign":{"delivery":{"id":"batch","targetProbeId":2,"items":{"scut_relay":1}, "containerId":"box"}}}
+    ops = operations([{"id":"relay", "type":"scut_relay", "container":{"id":"box"}}],role="hub", attached=[{"id":"box","usedCapacity":.1}])
     ops.data_engine.get_preference = lambda *_: json.dumps({"at":time.time(),"sector":{"x":0,"y":0,"z":0},"containerCount":4,"safeLimit":4,"freeCapacity":5})
     result = HubCampaignService(ops).decide(config)
     assert result.phase == "receiver_container_limit" and not result.tasks

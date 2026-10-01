@@ -42,7 +42,7 @@ ColumnLayout {
             packageRows.append({componentId: String(root.components[0].id), quantity: 1});
     }
     function itemSummary(items) {
-        return Object.keys(items || {}).map(function(key) {
+        return Object.keys(items || {}).filter(function(key) { return items[key] > 0; }).map(function(key) {
             const option = root.components.find(function(c) { return c.id === key; });
             return items[key] + " × " + (option ? option.name : key.replace(/_/g, " "));
         }).join(", ");
@@ -165,7 +165,15 @@ ColumnLayout {
                     required property var modelData
                     Layout.fillWidth: true; wrapMode: Text.Wrap; color: Constants.textColor
                     text: modelData.targetName + " · " + (modelData.source === "automatic" ? "AUTO REFILL" : "MANUAL PACKAGE")
-                        + "\n" + root.itemSummary(modelData.items) + "\n" + modelData.summary
+                        + " · SHIPMENT " + (Number(modelData.shipment || 0) + 1)
+                        + "\nRemaining to send: " + root.itemSummary(modelData.items)
+                        + "\nStill to craft: " + (root.itemSummary(modelData.missingItems) || "None")
+                        + "\nCrafting now: " + (root.itemSummary(modelData.craftingItems) || "None")
+                        + "\nAvailable to load: " + (root.itemSummary(modelData.availableItems) || "None")
+                        + "\nLoaded: " + (root.itemSummary(modelData.loadedItems) || "None")
+                        + "\nContainer: " + (modelData.containerId || "Not assigned")
+                        + "\nPlan: " + modelData.summary
+                        + "\nHandoff: " + (modelData.receiverSummary || "Waiting for receiver check")
                 }
             }
         }

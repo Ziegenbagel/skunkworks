@@ -1074,12 +1074,15 @@ class MissionControlDataService:
             # pending recipients directly rather than waiting for their turn.
             refreshed = False
             for target_id in dict.fromkeys(p["targetProbeId"] for p in decision.packages):
-                if readiness(self.data_engine, target_id):
+                if readiness(self.data_engine, target_id).get("status"):
                     continue
                 try:
                     response = self.client.get_probe(target_id)
                     target = response.get("probe", response)
-                    publish_live_readiness(self.data_engine, target)
+                    improvements = self.capabilities.probes.improvements(target_id)
+                    warnings = self.capabilities.probes.damage_warnings(target_id)
+                    publish_live_readiness(self.data_engine, target,
+                        {"improvements":improvements, "damageWarnings":warnings})
                 except Exception:
                     continue
                 fleet = operations.world.fleet or {}

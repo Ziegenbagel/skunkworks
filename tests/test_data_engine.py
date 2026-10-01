@@ -47,6 +47,11 @@ class DataEngineTests(unittest.TestCase):
                 """
             )
 
+        # This exercises migration, not retention; keep the fixture inside
+        # the retention window regardless of when the suite runs.
+        with closing(sqlite3.connect(legacy_path)) as connection:
+            connection.execute("UPDATE archive_reports SET created_at = strftime('%Y-%m-%dT%H:%M:%S+00:00', 'now')")
+            connection.commit()
         migrated = DataEngine(legacy_path)
 
         report = dict(migrated.archive_reports()[0])

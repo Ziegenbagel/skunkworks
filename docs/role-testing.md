@@ -15,6 +15,14 @@ crew visibly waits instead of trickling miners into the campaign.
 
 ## Hub
 
+The supply queue separates preparation from handoff. Each package shows items
+still to craft, active crafting, available stock allocated to that package,
+observed loaded cargo and its container. A packed shipment may wait for a
+receiver; that wait must not prevent packing. Verify an upgraded receiver uses
+its own safe maximum and that fresh arrival telemetry overrides an old fleet
+position. The handoff line reports the actual container count and safe maximum;
+a receiver exactly at the maximum still needs one free delivery slot.
+
 Choose a recipient, click **Add Component**, select a component and quantity,
 and add more rows as needed. **Queue Package** appends a separate request; repeat
 for another recipient. The evaluated supply queue includes automatic SCUT
