@@ -1664,8 +1664,19 @@ storage merely to make a temporary delivery slot. Legacy slot-return commands
 still require authoritatively empty containers, and the Hub recovers already
 returned containers even when general incoming collection is disabled.
 A Hub handoff transfers a dedicated container to an owned local stationary
-receiver. Unrelated items, resources, and Mannys prohibit the handoff. A missing
-container alone is not delivery evidence: the exact handoff must have an
+receiver. Unrelated items, resources, and Mannys prohibit the handoff.
+Delivery-container cleanup must not require manual intervention when safe
+onboard transfers are possible: move unrelated/surplus cargo into other Hub
+storage, excluding all other queued package and pending receipt containers.
+Use the storage-move API's distinct item, resource and Manny payloads. Do not
+move busy cargo, use a moved Manny as its own actor, discard cargo, or hand off
+until refreshed inventory confirms cleanup. Full storage pauses cleanup.
+Persist transfer identity through telemetry lag and revalidate exact source,
+destination, contents and capacity before dispatch. Regression coverage:
+`test_hub_automatically_clears_unrelated_cargo_without_shipping_or_discarding_it`
+and `test_hub_cleanup_never_uses_another_packages_container_or_moves_busy_cargo`
+in `tests/test_infrastructure_campaign.py`.
+A missing container alone is not delivery evidence: the exact handoff must have an
 accepted journal entry. Partial container batches retain their remaining item
 counts. Role settings saves preserve campaign state. Normal execution modes,
 STOP, upgrade reservations, travel checks, and fresh preflight remain active.

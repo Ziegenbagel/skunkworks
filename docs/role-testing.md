@@ -15,6 +15,13 @@ crew visibly waits instead of trickling miners into the campaign.
 
 ## Hub
 
+If unrelated cargo enters a reserved delivery container, the Hub should show
+**clearing container**, move it to other unreserved onboard storage, and resume
+packing after the move appears in inventory. Check a stored Manny as well as
+an ordinary item or resource. The transfer actor must differ from a moved
+Manny. Full destination storage or busy cargo must wait without discarding
+anything or handing off mixed contents.
+
 The supply queue separates preparation from handoff. Each package shows items
 still to craft, active crafting, available stock allocated to that package,
 observed loaded cargo and its container. A packed shipment may wait for a

@@ -13,6 +13,58 @@ from src.planner.task import Task
 import pytest
 
 
+@pytest.mark.parametrize("kind", ["steel_bar", "manny", "metals"])
+def test_hub_automatically_clears_unrelated_cargo_without_shipping_or_discarding_it(kind):
+    config = {"infrastructureEnabled":True, "infrastructureCampaign":{"delivery":{
+        "id":"package", "targetProbeId":2, "containerId":"box", "items":{"scut_relay":1}}}}
+    wanted = {"id":"relay","type":"scut_relay","containerSpace":.1,"container":{"id":"box"}}
+    extra = {"id":"extra","type":kind,"containerSpace":.2,"container":{"id":"box"}}
+    boxes = [{"id":"box","usedCapacity":.3,"freeCapacity":.7}, {"id":"core","kind":"core","freeCapacity":.3}]
+    ops = operations([wanted] + ([] if kind == "metals" else [extra]), role="hub",attached=boxes,settings=config)
+    ops.world.probe["inventory"]["containers"] = boxes
+    if kind == "metals":
+        ops.world.probe["inventory"]["resourceStocks"] = [{"type":"metals","containers":[{"amount":.2,"container":{"id":"box"}}]}]
+    result = HubCampaignService(ops).decide(config)
+    assert result.phase == "clearing_container"
+    task = result.tasks[0]
+    if kind == "manny":
+        ops.mining.idle_mannies = lambda: [{"id":"extra"},{"id":"worker"}]
+    command = TaskCommandTranslator(ops,1).translate(task)
+    expected = {"kind":"resource","resourceType":"metals","amount":.2,"fromContainerId":"box"} if kind == "metals" else (
+        {"kind":"manny","targetMannyId":"extra"} if kind == "manny" else {"kind":"item","itemId":"extra"})
+    assert command.payload == {**expected,"toContainerId":"core"}
+    calls = []
+    CapabilityDispatcher(SimpleNamespace(storage=SimpleNamespace(move=lambda *args:calls.append(args)))).dispatch(command)
+    assert calls == [(1,{**command.payload,"actorMannyId":"worker"})]
+    config["infrastructureCampaign"] = result.state
+    ops.data_engine.fleet_roles = lambda _: [{"asset_id":"1","role":"hub","metadata_json":json.dumps(config)}]
+    assert not command_blockers(ops,command)
+    assert TaskCommandTranslator(ops,1).translate(HubCampaignService(ops).decide(config).tasks[0]).fingerprint == command.fingerprint
+    boxes[1]["freeCapacity"] = 0
+    assert "hub_cleanup_changed" in command_blockers(ops,command)
+    assert not HubCampaignService(ops).decide(config).tasks
+    boxes[1]["freeCapacity"] = .3
+    if kind == "metals":
+        ops.world.probe["inventory"]["resourceStocks"] = []
+    else:
+        extra["container"] = {"id":"core"}
+    assert HubCampaignService(ops).decide(config).tasks[0].action == "Deliver Hub Container"
+
+
+def test_hub_cleanup_never_uses_another_packages_container_or_moves_busy_cargo():
+    config = {"infrastructureEnabled":True,"infrastructureCampaign":{"packageQueue":[
+        {"id":"one","targetProbeId":2,"containerId":"box","items":{"scut_relay":1}},
+        {"id":"two","targetProbeId":3,"containerId":"other","items":{"scut_relay":1}}]}}
+    extra = {"id":"manny","type":"manny","containerSpace":.1,"container":{"id":"box"}}
+    boxes = [{"id":"box","usedCapacity":.1},{"id":"other","usedCapacity":0,"freeCapacity":1}]
+    ops = operations([extra],role="hub",attached=boxes)
+    ops.world.probe["inventory"]["containers"] = boxes
+    assert not any(t.action == "Clear Hub Container" for t in HubCampaignService(ops).decide(config).tasks)
+    boxes.append({"id":"core","freeCapacity":1})
+    ops.world.mannies["mannies"] = [{"id":"manny","currentTask":"crafting"}]
+    assert not any(t.action == "Clear Hub Container" for t in HubCampaignService(ops).decide(config).tasks)
+
+
 def test_hub_packs_before_receiver_arrives_and_shows_loaded_stock():
     ops = operations([{"id":"relay", "type":"scut_relay", "containerSpace":.1}], role="hub",
                      attached=[{"id":"box", "usedCapacity":0}])

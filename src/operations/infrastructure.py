@@ -322,6 +322,68 @@ class HubCampaignService:
     def __init__(self, operations):
         self.operations = operations
 
+    def cleanup_task(self, delivery, excluded_container_ids=()):
+        """Move only surplus/unrelated contents to unreserved onboard storage."""
+        source = str(delivery["containerId"])
+        inventory = self.operations.world.probe.get("inventory", {})
+        destinations = [c for c in inventory.get("containers", [])
+                        if c.get("id") is not None and str(c["id"]) not in {source, *excluded_container_ids}]
+        from src.operations.hub_receiving import receipts
+        incoming = {op.metadata["containerId"] for op in receipts(getattr(self.operations,"data_engine",None), self.operations.world.probe["id"])}
+        destinations = [c for c in destinations if str(c["id"]) not in incoming]
+        cargo = [i for i in inventory_items(self.operations) if str((i.get("container") or {}).get("id")) == source]
+        represented = {str(i.get("mannyId") or i.get("id")) for i in cargo if i.get("type") == "manny"}
+        recipes = getattr(self.operations.manufacturing, "recipes", None)
+        manny_recipe = recipes.get("manny") if recipes else None
+        for manny in self.operations.world.mannies.get("mannies", []):
+            if str((manny.get("container") or {}).get("id")) == source and str(manny.get("id")) not in represented:
+                cargo.append({**manny,"type":"manny","containerSpace":manny.get("containerSpace",
+                    ((manny_recipe or {}).get("output") or {}).get("containerSpace"))})
+        remaining = dict(delivery["items"])
+        candidates = []
+        for item in cargo:
+            kind, quantity = item.get("type"), int(item.get("quantity",1))
+            if remaining.get(kind,0) >= quantity:
+                remaining[kind] -= quantity
+                continue
+            if item.get("currentTask") or kind == "additional_container":
+                continue
+            payload = {"kind":"item", "itemId":str(item["id"])}
+            if kind == "manny":
+                manny_id = str(item.get("mannyId") or item["id"])
+                manny = next((m for m in self.operations.world.mannies.get("mannies",[]) if str(m.get("id")) == manny_id), {})
+                if manny.get("currentTask"):
+                    continue
+                payload = {"kind":"manny", "targetMannyId":manny_id}
+            if item.get("containerSpace") is not None:
+                candidates.append((payload, float(item["containerSpace"]), kind))
+        for row in inventory.get("resourceStocks", []):
+            if row.get("type") not in {"metals", "ice", "carbon_compounds"}:
+                continue
+            for placement in row.get("containers", []):
+                if str((placement.get("container") or {}).get("id")) == source and float(placement.get("amount",0)) > 0:
+                    candidates.append(({"kind":"resource", "resourceType":row["type"], "fromContainerId":source},
+                                       float(placement["amount"]), row["type"]))
+        for payload, size, label in candidates:
+            suitable = [c for c in destinations if self.operations.containers.free_capacity(c) >= (min(size,.01) if payload["kind"] == "resource" else size)]
+            if not suitable:
+                continue
+            destination = min(suitable, key=self.operations.containers.free_capacity)
+            payload = {**payload,"toContainerId":str(destination["id"])}
+            if payload["kind"] == "resource":
+                payload["amount"] = min(size,self.operations.containers.free_capacity(destination))
+            signature = json.dumps(payload, sort_keys=True)
+            if delivery.get("cleanupSignature") != signature:
+                delivery["cleanupGeneration"] = int(delivery.get("cleanupGeneration",0))+1
+                delivery["cleanupSignature"] = signature
+            return Task(action="Clear Hub Container", category="infrastructure", priority=1,
+                target=source, reason=f"Move unrelated {label.replace('_',' ')} into other Hub storage before packing.",
+                workflow_authorized=True,
+                idempotency_scope=f"hub:{delivery['id']}:{delivery.get('shipment',0)}:cleanup:{delivery['cleanupGeneration']}",
+                metadata={"hubCampaign":True,"hubCleanup":True,"requestId":delivery["id"],
+                    "expectedSector":point(self.operations.travel.current_sector()), "storageMove":payload})
+        return None
+
     def receiver_state(self, target_id, fingerprint=None):
         from src.operations.hub_receiving import readiness, receipts
         ready = readiness(getattr(self.operations, "data_engine", None), probe_id(target_id))
@@ -560,7 +622,11 @@ class HubCampaignService:
         extra_cargo |= any(str((m.get("container") or {}).get("id")) == container_id
                            for m in self.operations.world.mannies.get("mannies", []))
         if extra_cargo:
-            return decision("cargo_conflict", "The delivery container contains unrelated cargo. Clear it before resuming.")
+            task = self.cleanup_task(delivery, excluded_container_ids)
+            if task:
+                return decision("clearing_container", task.reason, tasks=(task,))
+            return decision("cargo_conflict", "Waiting to clear delivery cargo: suitable Hub storage, idle cargo, or cargo-size telemetry is unavailable.")
+        delivery.pop("cleanupSignature", None)
         scope = f"hub:{delivery['id']}:{delivery.get('shipment', 0)}"
         metadata = {"hubCampaign": True, "expectedSector": point(current), "requestId": delivery["id"]}
         loaded_size = sum(float(i.get("containerSpace", 0) or 0) for i in cargo)
@@ -734,7 +800,14 @@ def command_blockers(operations, command):
                 blockers.append("relay_not_beacon_ready")
             if available.get("scut_transit_beacon", 0) < 1:
                 blockers.append("relay_beacon_missing")
-    if command.type == C.MANNY_LOAD_HUB_OUTPUT:
+    if command.type == C.MANNY_LOAD_HUB_OUTPUT and command.metadata.get("hubCleanup"):
+        expected = HubCampaignService(operations).decide(row["settings"], rows) if row else InfrastructureDecision("", "")
+        if not any(t.action == "Clear Hub Container" and t.metadata.get("storageMove") == command.payload
+                   and t.idempotency_scope == command.metadata.get("idempotencyScope") for t in expected.tasks):
+            blockers.append("hub_cleanup_changed")
+        if str(command.target_id) == str(command.payload.get("targetMannyId")):
+            blockers.append("hub_cleanup_actor_is_cargo")
+    elif command.type == C.MANNY_LOAD_HUB_OUTPUT:
         item = next((i for i in items if str(i.get("id")) == str(command.payload.get("itemId"))), None)
         container = next((c for c in operations.world.probe.get("inventory", {}).get("containers", [])
                           if str(c["id"]) == str(command.payload.get("toContainerId"))), None)

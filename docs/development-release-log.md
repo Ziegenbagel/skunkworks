@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Hub packages automatically clear unrelated items, resources and stored Mannys
+  into other available Hub storage before packing. Cleanup preserves cargo,
+  avoids other packages' containers, and waits when cargo is busy or storage
+  space is unavailable.
+
 - Hub deliveries may temporarily exceed a stationary receiver's travel container
   limit when each item fits its permanent storage. Receipts still block travel
   until unloading and empty-container return are confirmed. Expansion probes

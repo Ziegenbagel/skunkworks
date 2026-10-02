@@ -592,6 +592,10 @@ receiver readiness. Targeted readiness fetches the receiver's probe, improvement
 and damage warnings, retaining its location/status alongside storage and limits.
 The queue reports remaining, loaded, available, actively crafting and missing
 components separately from receiver blockers, without double-counting stock.
+Before packing or handoff, the Hub clears unrelated contents into unreserved
+onboard storage through typed storage-move commands. Items, resources and Mannys
+retain their distinct API payloads. Cleanup progress and command identity remain
+in the package record until live inventory permits packing to continue.
 
 Hub container receipts are durable Operations independent of the receiver's
 role. The receiver publishes fresh storage capacity and its upgrade-aware safe
