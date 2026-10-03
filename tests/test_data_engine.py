@@ -42,7 +42,7 @@ class DataEngineTests(unittest.TestCase):
                 );
                 INSERT INTO archive_reports VALUES (
                     'daily:legacy', 'Legacy daily', 'daily_probe_report',
-                    'content', '2026-09-01T00:00:00+00:00'
+                    'content', strftime('%Y-%m-%dT%H:%M:%f+00:00', 'now')
                 );
                 """
             )

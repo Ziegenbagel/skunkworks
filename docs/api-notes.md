@@ -10,10 +10,20 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 # Verified Observations
 
+## API v142–v143 review (2026-10-03)
+
+The live `/api/version` reports v143. The public probe OpenAPI contract differs
+from the reviewed v141 snapshot only in its version metadata and version example.
+The [game changelog](https://neumann-probe.net/changelog) records v142 reporting
+Others cancellation as `cancel_requested`, with scheduler-owned completion, and
+v143 documenting Others `planet_harvest` responses and lifecycle without changing
+harvesting behavior. Skunkworks has no Others control integration; no probe
+command, payload, or automation semantics change in this compatibility patch.
+
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v141, verified
-against the live contract on 2026-09-29.
+Skunkworks supports deployed API v103 through upstream API v143, verified
+against the live contract on 2026-10-03.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning

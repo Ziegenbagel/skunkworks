@@ -1725,3 +1725,11 @@ by the Hub even if general incoming-cargo collection is disabled.
 - `tests/test_infrastructure_campaign.py::test_temporary_delivery_requires_contents_to_fit_permanent_storage_slots`
 - `tests/test_infrastructure_campaign.py::test_receiver_unloads_then_returns_only_confirmed_empty_container`
 - `tests/test_infrastructure_campaign.py::test_receiver_never_discards_stock_when_permanent_storage_is_full`
+
+### API v143 review preserves probe semantics
+
+The v142 cancellation status and v143 harvesting documentation concern Others
+control, not probe commands. Extend reviewed compatibility through v143 without
+changing probe payloads or treating an accepted cancellation as completion.
+Versions above v143 remain usable but unreviewed; versions below v103 remain
+blocked. Regression coverage: `tests/test_api_contract.py`.
