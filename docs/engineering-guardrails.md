@@ -1077,3 +1077,11 @@ As of 2026-08-22, the offline suite has one unrelated stale source assertion for
 the removed heading `WHY HIGHER-PRIORITY ORDERS ARE WAITING`. Do not misattribute
 that failure to automation, persistence, or refresh changes; either restore the
 intended UI guidance or update the obsolete assertion in a dedicated change.
+
+### API v143 review preserves probe semantics
+
+The v142 cancellation status and v143 harvesting documentation concern Others
+control, not probe commands. Extend reviewed compatibility through v143 without
+changing probe payloads or treating an accepted cancellation as completion.
+Versions above v143 remain usable but unreviewed; versions below v103 remain
+blocked. Regression coverage: `tests/test_api_contract.py`.

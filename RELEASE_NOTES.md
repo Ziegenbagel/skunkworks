@@ -1,5 +1,9 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.8
+
+- Recognizes Von Neumann Game API v143 as supported, removing the unreviewed-version warning.
+
 ## Skunkworks 1.1.7
 
 - Supports Von Neumann Game API v141.
