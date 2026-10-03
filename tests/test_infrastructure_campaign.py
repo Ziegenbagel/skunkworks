@@ -392,6 +392,71 @@ def test_empty_stock_returns_home_then_requests_missing_kit_and_resumes():
     assert result.phase == "restocked" and "supplyRequest" not in result.state
 
 
+@pytest.mark.parametrize("beacon_available", [True, False])
+def test_signal_refill_returns_to_frontier_before_selecting_another_site(beacon_available):
+    from tests.test_planner_missions import build_operations
+    frontier = P(3, 3, 0)
+    config = settings(expansionMode="signal", infrastructureCampaign={
+        "signalDirection":{"origin":vars(P(0,0,0)), "vector":{"x":1,"y":1,"z":0}},
+        "completedSites":[vars(frontier)],
+    })
+    returning = RelayCampaignService(operations(here=frontier)).decide(config)
+    assert returning.destination == P(0,0,0)
+    assert returning.state["resumePosition"] == vars(frontier)
+    # Round-trip the persisted campaign, as a restart during refill would.
+    config["infrastructureCampaign"] = json.loads(json.dumps(returning.state))
+    waiting = RelayCampaignService(operations()).decide(config)
+    assert waiting.phase == "restocking" and waiting.destination is None
+    config["infrastructureCampaign"] = waiting.state
+    stocked = RelayCampaignService(operations(kit())).decide(config)
+    assert stocked.phase == "restocked"
+    config["infrastructureCampaign"] = stocked.state
+    resumed = RelayCampaignService(operations(kit())).decide(config)
+    assert resumed.phase == "resuming" and resumed.destination == frontier
+    assert "target" not in resumed.state and not resumed.tasks
+
+    live = build_operations()
+    live.world.hazard_context = {"scutNetworks":[{"network":{"id":1,"relays":[
+        {"status":"on", "isTransitBeacon":beacon_available, "coverageRadiusSectors":10,
+         "sector":{"relative":vars(p)}} for p in (P(0,0,0), frontier)
+    ]}}]}
+    route = live.travel_safety.assess(resumed.destination, route_mode="segmented")
+    assert route.recommended.name == ("direct" if beacon_available else "segmented")
+    assert len(route.recommended.hops) == (1 if beacon_available else 3)
+    config["infrastructureCampaign"] = resumed.state
+    arrived = RelayCampaignService(operations(kit(), here=frontier, stars=())).decide(config)
+    assert "resumePosition" not in arrived.state
+    assert not arrived.tasks  # Never redeploy at the completed relay.
+
+
+def test_signal_existing_home_refill_recovers_last_completed_position():
+    config = settings(expansionMode="signal", infrastructureCampaign={
+        "returning":True, "completedSites":[vars(P(2,0,0))],
+        "signalDirection":{"origin":vars(P(0,0,0)), "vector":{"x":1,"y":0,"z":0}},
+    })
+    # Older saved campaigns may already be at home when this version starts.
+    result = RelayCampaignService(operations()).decide(config)
+    assert result.state.get("resumePosition") == vars(P(2,0,0))
+
+
+def test_signal_refill_preserves_unfinished_relay_identity():
+    frontier = P(2,0,0)
+    config = settings(expansionMode="signal", infrastructureCampaign={
+        "returning":True, "resumePosition":vars(frontier), "resumeTarget":vars(frontier),
+        "relayId":"9", "placeBeacon":True,
+        "signalDirection":{"origin":vars(P(0,0,0)), "vector":{"x":1,"y":0,"z":0}},
+    })
+    result = RelayCampaignService(operations(kit())).decide(config)
+    config["infrastructureCampaign"] = result.state
+    result = RelayCampaignService(operations(kit())).decide(config)
+    assert result.phase == "resuming" and result.state["relayId"] == "9"
+    config["infrastructureCampaign"] = result.state
+    result = RelayCampaignService(operations(kit(), here=frontier,
+        local=[{"id":9,"type":"scut_relay","status":"on"}])).decide(config)
+    assert result.tasks[0].action == "Install SCUT Beacon"
+    assert result.tasks[0].target == "9"
+
+
 @pytest.mark.parametrize("beacon_mode", ["final", "every", "none"])
 def test_refill_beacon_quantity_is_independent_and_circuits_cover_each_relay(beacon_mode):
     config = settings(relayStock=4, beaconMode=beacon_mode, refillBeacons=True,

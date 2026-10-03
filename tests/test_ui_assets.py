@@ -582,7 +582,10 @@ def test_secondary_risk_acknowledgement_displays_live_hazard_reasons():
     assert "I UNDERSTAND AND ACCEPT THESE DISPLAYED RISKS" in settings
     assert "cameraMoving || distantOverview ? [] : visibleEdges" not in galaxy
     assert "id: cameraSettle" in galaxy
-    assert "function fitVisibleMap()" in galaxy
+    assert "function fitVisibleMap(includeScut)" in galaxy
+    assert "node.scutCovered === true" in galaxy
+    assert 'text: "FIT SCUT NETWORK"' in galaxy
+    assert "root.fitVisibleMap(true)" in galaxy
     assert 'text: "FIT MAP"' in galaxy
     assert "automaticClipping: false" in galaxy
     assert "clipNear: 1; clipFar: 100000" in galaxy

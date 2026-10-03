@@ -578,6 +578,10 @@ Relay placement selects mapped stars by FCC coverage gain, optionally weighted
 along the signal-alert vector or a user-selected coordinate direction. Each
 site owns its item/relay identity until activation and its chosen beacon policy
 are confirmed. Exhausted kits generate a durable home supply request.
+Signal-source campaigns remember their expansion position through home resupply
+and return there before choosing another site. The shared travel assessment uses
+direct transit when both endpoints have active beacons on the same network,
+otherwise retaining segmented travel and its normal safety checks.
 
 Hub package requests form a durable queue shared by automatic expansion refills
 and manual multi-component packages. Production targets include every remaining

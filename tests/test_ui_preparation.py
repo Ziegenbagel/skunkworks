@@ -2940,7 +2940,14 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(score, 0.499999)
 
     def test_galaxy_view_exposes_active_scut_coverage_volumes(self):
+        from src.models.galaxy import GalaxyMap
+
         base = build_operations()
+        base.world.galaxy = GalaxyMap()
+        for x, y, z in ((4, -1, 3), (6, -1, 3), (6, 1, 5)):
+            base.world.galaxy.record_visit({
+                "relativeCoordinates": {"x": x, "y": y, "z": z}, "visitCount": 1,
+            })
         base.world.hazard_context = {"scutNetworks": [{"network": {
             "name": "Home Grid",
             "relays": [{
@@ -2963,6 +2970,16 @@ class UiPreparationTests(unittest.TestCase):
         boundary = {cell["id"] for cell in view["scutCoverageBoundary"]}
         self.assertIn("6:-1:3", boundary)
         self.assertNotIn("4:-1:3", boundary)  # Relay center is interior.
+        coverage = {(node["x"], node["y"], node["z"]): node["scutCovered"]
+                    for node in view["nodes"]}
+        self.assertTrue(coverage[(4, -1, 3)])  # Visible even with the shell offscreen.
+        self.assertTrue(coverage[(6, -1, 3)])
+        self.assertFalse(coverage[(6, 1, 5)])
+        base.world.hazard_context = {}
+        refreshed = MissionControlViewModelBuilder(base)._galaxy_view(
+            base.world, {"x": 0, "y": 0, "z": 0}
+        )
+        self.assertFalse(any(node["scutCovered"] for node in refreshed["nodes"]))
 
     def test_sector_view_condenses_multiple_depleted_asteroids(self):
         base = build_operations()

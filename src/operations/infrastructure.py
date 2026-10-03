@@ -186,6 +186,13 @@ class RelayCampaignService:
     def decide(self, settings, alerts=()):
         state = deepcopy(settings.get("infrastructureCampaign") or {})
         def decision(phase, summary, **kwargs):
+            if phase == "returning" and settings.get("expansionMode") == "signal" and not state.get("resumePosition"):
+                # Preserve the frontier across home resupply. This is a travel
+                # waypoint, not a new deployment target at an existing relay.
+                previous = current if current != home else coordinates(
+                    (state.get("completedSites") or [None])[-1])
+                if previous is not None and previous != home:
+                    state["resumePosition"] = point(previous)
             if phase == "returning" and not state.get("supplyRequest"):
                 available_now = stock(self.operations)
                 missing = {k:max(0, n-int(available_now.get(k,0))) for k,n in kit.items()}
@@ -201,6 +208,11 @@ class RelayCampaignService:
         current = self.operations.travel.current_sector()
         if home is None or current is None:
             return decision("blocked", "Set a valid home sector before enabling SCUT Network Expansion.")
+        if (settings.get("expansionMode") == "signal" and state.get("returning")
+                and not state.get("resumePosition")):
+            previous = state.get("resumeTarget") or (state.get("completedSites") or [None])[-1]
+            if coordinates(previous) is not None:
+                state["resumePosition"] = deepcopy(previous)
         if settings.get("expansionMode") == "signal" and not state.get("signalDirection"):
             direction = self.signal_direction(alerts)
             if not direction:
@@ -214,6 +226,12 @@ class RelayCampaignService:
         if refill_beacons:
             default_beacons = target_stock if beacon_mode == "every" else 1
             kit["scut_transit_beacon"] = int(settings.get("beaconStock", default_beacons))
+        resume_position = coordinates(state.get("resumePosition"))
+        if resume_position is not None and not state.get("returning"):
+            if current != resume_position:
+                return decision("resuming", "Returning to the previous expansion position; using direct beacon transit when available.",
+                                destination=resume_position)
+            state.pop("resumePosition", None)
         target = coordinates(state.get("target"))
         if target:
             if current != target:

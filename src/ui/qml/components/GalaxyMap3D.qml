@@ -196,8 +196,9 @@ Item {
         cameraOrigin.eulerRotation = rotation;
         camera.z = 950;
     }
-    function fitVisibleMap() {
-        const points = visibleNodes.length > 0 ? visibleNodes : nodes;
+    function fitVisibleMap(includeScut) {
+        const points = (visibleNodes.length > 0 ? visibleNodes : nodes)
+            .concat(includeScut ? (renderedGalaxyData.scutCoverageBoundary || []) : []);
         if (points.length === 0) return;
         let minX = Number(points[0].x), maxX = minX;
         let minY = Number(points[0].y), maxY = minY;
@@ -300,6 +301,20 @@ Item {
 
         Node {
             visible: !root.cameraMoving
+            Repeater3D {
+                model: root.showScutCoverage ? root.visibleNodes.filter(function(node) { return node.scutCovered === true; }) : []
+                delegate: Model {
+                    required property var modelData
+                    objectName: "scut-sector:" + String(modelData.id)
+                    source: "#Cylinder"
+                    position: root.positionFor(modelData)
+                    scale: Qt.vector3d(0.65, 0.025, 0.65)
+                    materials: DefaultMaterial {
+                        lighting: DefaultMaterial.NoLighting
+                        diffuseColor: "#28df91"; opacity: 0.65
+                    }
+                }
+            }
             Repeater3D {
                 model: root.showScutCoverage ? (root.renderedGalaxyData.scutCoverageBoundary || []) : []
                 delegate: CoverageCell {
@@ -679,8 +694,22 @@ Item {
                 }
                 CheckBox {
                     Layout.columnSpan: 2
-                    text: "SHOW SCUT COVERAGE BOUNDARY"
+                    text: "SHOW SCUT COVERAGE"
                     checked: root.showScutCoverage; onToggled: root.showScutCoverage = checked
+                }
+                Label {
+                    visible: root.showScutCoverage
+                    Layout.columnSpan: 2; Layout.fillWidth: true; wrapMode: Text.Wrap
+                    text: (root.renderedGalaxyData.scutRanges || []).length
+                        ? (root.renderedGalaxyData.scutRanges || []).length + " active relays · Green pads mark covered sectors. Fit the network to see its outer boundary."
+                        : "No current SCUT network data for this probe. Refresh the focused probe to check coverage."
+                    color: Constants.cyanColor; font.pixelSize: 13
+                }
+                Button {
+                    visible: root.showScutCoverage; Layout.columnSpan: 2
+                    text: "FIT SCUT NETWORK"
+                    enabled: (root.renderedGalaxyData.scutCoverageBoundary || []).length > 0
+                    onClicked: root.fitVisibleMap(true)
                 }
                 CheckBox {
                     Layout.columnSpan: 2

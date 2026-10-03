@@ -719,6 +719,13 @@ keep enabled overlays legible, and operators must be able to fit all currently
 visible sectors into one view without changing map filters. A focused probe in
 transit may legitimately have no current SCUT coverage overlay.
 
+SCUT coverage must remain visible on covered known sectors even when the network's
+outer boundary is offscreen. Coverage markers use the same exact FCC union as the
+boundary, clear when current network data disappears, and obey the coverage toggle.
+The map must offer a way to fit the full network boundary without changing filters.
+Regression coverage: `tests/test_ui_preparation.py::UiPreparationTests::test_galaxy_view_exposes_active_scut_coverage_volumes`
+and `tests/test_ui_assets.py`.
+
 Relevant code/tests:
 
 - `src/ui/qml/components/GalaxyMap3D.qml`
@@ -1654,6 +1661,16 @@ Deployment, activation, and beacon installation advance on live telemetry;
 accepted commands remain deduplicated across worker changes and restarts.
 Home restocking persists an identified request, and the Hub protects the
 requested completed components from unrelated crafting or probe assembly.
+Signal-source expansion also persists its pre-refill position separately from
+the next deployment target. After resupply it returns to that position before
+choosing a new site, without redeploying at the completed relay. Existing travel
+assessment selects one direct hop only for live active endpoint beacons sharing
+a network; missing beacon coverage retains ordinary segmented travel and all
+departure/preflight checks. Restarts preserve the resume waypoint, and older
+home-refill campaigns recover it from their last completed site. Regression:
+`test_signal_refill_returns_to_frontier_before_selecting_another_site` and
+`test_signal_existing_home_refill_recovers_last_completed_position` in
+`tests/test_infrastructure_campaign.py`, plus `tests/test_travel_safety.py`.
 Relay kits target one Integrated Circuit per relay independently of beacon
 placement. Beacon refills have their own opt-in and stock target; only shortages
 are requested. Disabling beacon refills must not add beacons to new requests or

@@ -708,6 +708,10 @@ class MissionControlViewModelBuilder:
                 ).neighbors()
             )
         )
+        # The exterior shell can be far offscreen when inspecting a sector
+        # deep inside a network. Mark known sectors independently of the shell.
+        for node in nodes:
+            node["scutCovered"] = SectorCoordinates(node["x"], node["y"], node["z"]) in covered_coordinates
         result = {
             "nodes": tuple(nodes),
             # Camera centering must not depend on the focused sector already
