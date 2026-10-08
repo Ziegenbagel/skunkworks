@@ -3083,3 +3083,27 @@ class UiPreparationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_active_remote_manny_shows_sector_without_appearing_in_local_sector():
+    remote = {"id":"remote", "name":"Remote miner", "currentTask":"mining",
+        "location":{"type":"sector", "sector":{"relative":{"x":2,"y":0,"z":0}}},
+        "taskVisibility":"scut_network", "taskProgressPercent":100,
+        "task":{"resourceType":"metals", "targetAmount":.25}}
+    local = {"id":"local", "currentTask":"inspecting_sector_object",
+        "location":{"type":"sector", "sector":{"relative":{"x":0,"y":0,"z":0}}}, "task":{}}
+    unknown = {"id":"unknown", "currentTask":"crafting", "task":{}}
+    aboard = {"id":"aboard", "currentTask":"crafting", "location":{"type":"probe"}, "task":{}}
+    base = build_operations()
+    base.world.mannies = {"mannies":[remote,local,unknown,aboard]}
+    builder = MissionControlViewModelBuilder(base)
+    cards = {row["id"]:row for row in builder._production(base.world.probe, base.world.mannies)}
+    assert "Location: FCC 2 / 0 / 0" in cards["remote"]["detailText"]
+    assert "Visibility: Remote via SCUT network" in cards["remote"]["detailText"]
+    assert "Location: Coordinates unavailable" in cards["unknown"]["detailText"]
+    assert "Location: Aboard probe" in cards["aboard"]["detailText"]
+    sector = builder._sector_view(base.world, {"x":0,"y":0,"z":0})
+    assert "remote" not in {m["id"] for m in sector["activeMannies"]}
+    assert "local" in {m["id"] for m in sector["activeMannies"]}
+    galaxy = builder._galaxy_view(base.world, {"x":0,"y":0,"z":0})
+    assert any(m["id"] == "remote" and m["x"] == 2 for m in galaxy["ownedMannyLocations"])

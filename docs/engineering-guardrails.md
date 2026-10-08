@@ -401,6 +401,23 @@ post-refresh dispatch loop.
 
 ### Accepted work must be reflected immediately in the UI
 
+An accepted automatic move or movement cancellation ends the dispatch cycle and
+invalidates the short-lived preflight cache. No further mining, fabrication, or
+duplicate move may use the stationary snapshot captured before that command.
+Otherwise a valid departure can be followed by mining orders in the sector the
+probe is already leaving. Fresh state is required for the next cycle; ordinary
+parallel Manny work remains allowed in cycles without an accepted movement.
+Regression: `test_accepted_movement_ends_cycle_before_stale_queue_can_launch_mining`
+in `tests/test_replanning_automation_cycle.py`.
+
+Active Manny cards expose the same authoritative location as idle cards, with
+remote SCUT visibility identified and unknown coordinates explicitly labeled.
+Workers whose reported sector differs from the focused sector must not appear
+as local workers beside the probe. They remain visible in the Galaxy Map's
+owned-Manny layer. A passed ETA never proves completion or return aboard.
+Regression: `test_active_remote_manny_shows_sector_without_appearing_in_local_sector`
+in `tests/test_ui_preparation.py`.
+
 Fleet automation processes probes serially. Publish each focused-probe result as
 soon as it completes; do not wait for the rest of the fleet. Until authoritative
 task telemetry arrives, show `ORDER ACCEPTED · SYNCING` and remove accepted
@@ -1733,3 +1750,21 @@ control, not probe commands. Extend reviewed compatibility through v143 without
 changing probe payloads or treating an accepted cancellation as completion.
 Versions above v143 remain usable but unreviewed; versions below v103 remain
 blocked. Regression coverage: `tests/test_api_contract.py`.
+
+### Hub package progress and advance preparation
+
+Pending package quantities must receive higher production priority than routine
+Hub stock and fleet goals, including saved priority-one bulk goals. Saved goals
+and resource reserves remain unchanged. Mining fallback must reuse the effective
+role plan and its exclusions, not rebuild only saved bulk goals. Revalidation
+may accept a smaller mining amount supported by the fresh plan when worker,
+deposit, sector, payload and safety metadata match; advisory deficit and worker
+count changes alone must not cancel it. Fresh blockers still prevent dispatch.
+
+An expansion probe away from home prepares one next kit with a durable request
+ID. Preparation allows crafting and packing, never handoff. Returning converts
+the same request to actual shortages without losing packed-container identity.
+Normal storage, receipt, execution-policy and departure checks remain required.
+Regression coverage: tests/test_infrastructure_campaign.py (package precedence
+and prepare-only refill tests), tests/test_replanning_automation_cycle.py
+(bounded mining revalidation and effective-plan fallback).

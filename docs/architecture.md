@@ -577,7 +577,11 @@ load requested finished items into dedicated containers for local handoff.
 Relay placement selects mapped stars by FCC coverage gain, optionally weighted
 along the signal-alert vector or a user-selected coordinate direction. Each
 site owns its item/relay identity until activation and its chosen beacon policy
-are confirmed. Exhausted kits generate a durable home supply request.
+are confirmed. Away expansion probes request preparation of their next full kit.
+These durable requests allow crafting and packing but prohibit handoff until
+the probe requests a refill; returning converts the same request to actual
+shortages. Pending packages take precedence over routine Hub stock and fleet
+goals in the effective plan without changing saved targets.
 Signal-source campaigns remember their expansion position through home resupply
 and return there before choosing another site. The shared travel assessment uses
 direct transit when both endpoints have active beacons on the same network,

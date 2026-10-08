@@ -828,3 +828,83 @@ def test_upgrade_component_is_not_overproduced_while_live_snapshot_lags():
         (CommandType.MANNY_CRAFT, "manny-a"),
         (CommandType.MANNY_CRAFT, "manny-c"),
     ]
+
+
+def test_accepted_movement_ends_cycle_before_stale_queue_can_launch_mining():
+    for command_type in (CommandType.MOVE_PROBE, CommandType.CANCEL_PROBE_MOVE):
+        service = MissionControlDataService.__new__(MissionControlDataService)
+        service._selected_probe_id = 7
+        service.capabilities = SimpleNamespace()
+        service.data_engine = SimpleNamespace()
+        service._refresh_operations = lambda _: None
+        service._preflight_operations_cached_at = 123.0
+        service._preflight_operations_probe_id = 7
+        move = PreparedCommand(Command(command_type, 7,
+            {"target":{"x":1,"y":1,"z":0}}, "travel", 1), "ready")
+        mining = PreparedCommand(Command(CommandType.MANNY_MINE, 7,
+            {"objectId":"old-sector-rock", "resources":["metals"], "targetAmount":.25},
+            "reserve", 2, target_id="worker"), "ready")
+        queues = iter(((move, mining), (move, mining), (mining,)))
+        service.automation_view = lambda **_: setattr(service, "_prepared_commands", next(queues)) or {}
+        service._prepare_next_cycle_mining = lambda *_: (_ for _ in ()).throw(
+            AssertionError("Mining fallback must not run after accepted movement"))
+        executed = []
+
+        class Runtime:
+            def __init__(self, **_): pass
+            def execute(self, prepared, **_):
+                executed.append(prepared.command.type)
+                return ExecutionResult("succeeded", prepared.command, response={"accepted":True})
+
+        policy = ExecutionPolicy(mode=ExecutionMode.AUTOMATIC, live_execution_enabled=True,
+            allowed_command_types=frozenset({command_type, CommandType.MANNY_MINE}), max_commands_per_cycle=10)
+        with patch("src.ui.controller.AutomationRuntime", Runtime):
+            result = service._run_replanning_automatic_cycle(policy)
+        assert result["status"] == "succeeded"
+        assert executed == [command_type]
+        assert service._preflight_operations_probe_id is None
+        assert service._preflight_operations_cached_at == 0
+
+
+def test_mining_revalidation_tolerates_deficit_bookkeeping_but_not_changed_order():
+    from dataclasses import replace
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    original=Command(CommandType.MANNY_MINE,7,
+        {'objectId':'rock','resources':['metals'],'targetAmount':.1},'mine',1,target_id='worker',
+        metadata={'sector':{'x':0,'y':0,'z':0},'requestedNeed':10,'plannedMiningWorkers':40,'orderAmount':.1})
+    fresh=replace(original,payload={**original.payload,'targetAmount':.25},
+        metadata={**original.metadata,'requestedNeed':9,'plannedMiningWorkers':36,'orderAmount':.25})
+    def check(candidate, blockers=()):
+        service.automation_view=lambda **_: setattr(service,'_prepared_commands',
+            [PreparedCommand(candidate,'ready' if not blockers else 'blocked',blockers)])
+        return service._runtime_revalidation_blockers(original,object())
+    assert check(fresh)==()
+    assert check(fresh,('insufficient_probe_storage',))==('insufficient_probe_storage',)
+    assert check(replace(fresh,payload={**fresh.payload,'targetAmount':.05}))==('planner_state_changed',)
+    assert check(replace(fresh,payload={**fresh.payload,'objectId':'different'}))==('planner_state_changed',)
+    assert check(replace(fresh,target_id='different'))==('planner_state_changed',)
+    assert check(replace(fresh,metadata={**fresh.metadata,'sector':{'x':1,'y':1,'z':0}}))==('planner_state_changed',)
+
+
+def test_mining_fallback_preserves_effective_role_plan():
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service._selected_probe_id = 7
+    service.data_engine = SimpleNamespace()
+    service._operations = SimpleNamespace(
+        mining=SimpleNamespace(idle_mannies=lambda: [object()]))
+    task = Task(action="Mine Resource", reason="Package inputs",
+                category="mining", target="rock", resource_type="metals", priority=1)
+    service._automation_planned_tasks = (task,)
+    command = PreparedCommand(Command(CommandType.MANNY_MINE, 7,
+        {"objectId": "rock", "resources": ["metals"], "targetAmount": .25},
+        "Package inputs", 1, target_id="worker"), "ready")
+    with (
+        patch("src.ui.controller.DesiredStateStore.load", return_value=DesiredState.unconfigured()),
+        patch("src.ui.controller.Planner") as planner,
+        patch("src.ui.controller.CommandPreparer") as preparer,
+    ):
+        preparer.return_value.prepare.return_value = (command,)
+        assert service._prepare_next_cycle_mining(ExecutionPolicy(), set()) == command
+        planner.assert_not_called()
+        assert all(call.args[0] == (task,)
+                   for call in preparer.return_value.prepare.call_args_list)

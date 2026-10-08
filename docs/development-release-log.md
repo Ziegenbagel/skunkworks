@@ -1,5 +1,15 @@
 # Development Release Log
 
+- Prioritize pending Hub packages ahead of routine bulk production, retain role
+  goals during mining fallback, and avoid cancelling valid bounded mining orders
+  for changed deficit estimates. Expansion probes prepare their next kit while
+  away and reuse that request for refill; preparation alone never permits handoff.
+
+- Stop automatic dispatch after an accepted movement command so stale local
+  work cannot send Mannys mining after departure. Active Manny task cards now
+  show their sector and remote SCUT visibility; remote workers no longer appear
+  beside the probe in Live Sector.
+
 - Hub packages automatically clear unrelated items, resources and stored Mannys
   into other available Hub storage before packing. Cleanup preserves cargo,
   avoids other packages' containers, and waits when cargo is busy or storage

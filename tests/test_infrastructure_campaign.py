@@ -759,3 +759,67 @@ def test_hub_builds_surplus_intermediate_instead_of_spending_delivery_kit():
     ops = operations([{"id":"c","type":"integrated_circuit"}],role="hub")
     ops.manufacturing.production_plan = lambda recipe,**_: {"consumed_inventory_items":{"integrated_circuit":1} if recipe == "scut_relay" else {}}
     assert HubCampaignService(ops).production_targets({"scut_relay":1,"integrated_circuit":1}) == {"scut_relay":1,"integrated_circuit":2}
+
+
+def test_expansion_prepares_next_kit_while_away_and_reuses_request_on_return():
+    config = settings()
+    outbound = RelayCampaignService(operations(kit(), here=P(2,0,0))).decide(config)
+    request = outbound.state['supplyRequest']
+    assert request['prepareOnly']
+    assert request['items'] == {'scut_relay':2,'integrated_circuit':2,'scut_transit_beacon':1}
+    config['infrastructureCampaign'] = json.loads(json.dumps(outbound.state))
+    config['infrastructureCampaign'].pop('target', None)
+    returning = RelayCampaignService(operations(here=P(2,0,0))).decide(config)
+    assert returning.state['supplyRequest']['id'] == request['id']
+    assert returning.state['supplyRequest']['prepareOnly'] is False
+    assert returning.state['restockGeneration'] == outbound.state['restockGeneration']
+
+
+def test_prepared_future_kit_cannot_ship_until_refill_and_preserves_packing():
+    request = {'id':'future','items':{'scut_relay':2},'prepareOnly':True}
+    rows = [{'role':'relay_placement','asset_id':'2','settings':settings(infrastructureCampaign={'supplyRequest':request})}]
+    boxes = [{'id':'box','capacity':1,'usedCapacity':.2,'freeCapacity':.8}]
+    items = [{'id':f'r{i}','type':'scut_relay','containerSpace':.1,'container':{'id':'box'}} for i in range(2)]
+    config = {'infrastructureEnabled':True,'infrastructureCampaign':{'packageQueue':[
+        {**request,'targetProbeId':2,'containerId':'box'}]}}
+    ops = operations(items,role='hub',attached=boxes)
+    prepared = HubCampaignService(ops).decide(config,rows)
+    assert not prepared.tasks
+    assert prepared.packages[0]['receiverBlocker'] == 'awaiting_refill'
+    config['infrastructureCampaign'] = json.loads(json.dumps(prepared.state))
+    request['prepareOnly'] = False
+    sending = HubCampaignService(ops).decide(config,rows)
+    assert sending.tasks[0].action == 'Deliver Hub Container'
+    assert sending.state['delivery']['containerId'] == 'box'
+    assert sending.state['delivery']['id'] == 'future'
+
+
+def test_hub_package_goal_precedes_bulk_stock_and_preserves_saved_goals(tmp_path):
+    from dataclasses import replace
+    from src.data import DataEngine
+    from src.ui.controller import MissionControlDataService
+    from src.planner.desired_state import DesiredState, ProductionGoal, ResourceGoal
+    from src.planner.planner import Planner
+    from tests.test_planner_missions import build_operations
+    ops = build_operations(metals=0)
+    ops.world.fleet = {'probes':[]}
+    engine = ops.data_engine = DataEngine(tmp_path/'priority.sqlite3')
+    engine.assign_fleet_role('probe',1,'hub',metadata={'infrastructureEnabled':True,
+        'outputRequests':[{'id':'delivery','targetProbeId':2,'items':{'storage_container':2}}]})
+    service = MissionControlDataService.__new__(MissionControlDataService)
+    service.data_engine=engine
+    service.recipes=ops.manufacturing.recipes
+    desired = replace(DesiredState.unconfigured(), production=(ProductionGoal('manny',999,1),
+        ProductionGoal('storage_container',50,1)), resources=(ResourceGoal('metals',100,2),))
+    effective,_,_ = service._reconcile_infrastructure_campaign(ops,1,desired)
+    goals={g.recipe_id:g for g in effective.production}
+    assert goals['storage_container'] == ProductionGoal('storage_container',2,1)
+    assert goals['manny'].priority == 2
+    assert desired.production[1].quantity == 50
+    tasks=Planner(ops,effective).tasks()
+    mining=next(t for t in tasks if t.resource_type=='metals')
+    assert mining.priority == 1 and mining.quantity == 1  # Next package unit, not 100 ECE.
+    assert effective.resources == desired.resources  # Reserve still resumes later.
+    ops.world.probe['inventory']['resourceStocks'][0]['amount']=1
+    tasks=Planner(ops,effective).tasks()
+    assert next(t for t in tasks if t.action=='Craft Item').target=='storage_container'

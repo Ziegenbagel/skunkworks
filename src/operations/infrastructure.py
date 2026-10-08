@@ -185,6 +185,20 @@ class RelayCampaignService:
 
     def decide(self, settings, alerts=()):
         state = deepcopy(settings.get("infrastructureCampaign") or {})
+        def request_refill(prepare_only):
+            request = state.get("supplyRequest")
+            if request and not (request.get("prepareOnly") and not prepare_only):
+                return
+            available_now = stock(self.operations)
+            quantities = dict(kit) if prepare_only else {
+                k:max(0, n-int(available_now.get(k,0))) for k,n in kit.items()}
+            if not any(quantities.values()):
+                return
+            if not request:
+                state["restockGeneration"] = int(state.get("restockGeneration",0))+1
+            state["supplyRequest"] = {
+                "id":request["id"] if request else f"relay-{self.operations.world.probe['id']}-{state.get('cycle',0)}-{state['restockGeneration']}",
+                "items":{k:n for k,n in quantities.items() if n}, "prepareOnly":prepare_only}
         def decision(phase, summary, **kwargs):
             if phase == "returning" and settings.get("expansionMode") == "signal" and not state.get("resumePosition"):
                 # Preserve the frontier across home resupply. This is a travel
@@ -193,14 +207,8 @@ class RelayCampaignService:
                     (state.get("completedSites") or [None])[-1])
                 if previous is not None and previous != home:
                     state["resumePosition"] = point(previous)
-            if phase == "returning" and not state.get("supplyRequest"):
-                available_now = stock(self.operations)
-                missing = {k:max(0, n-int(available_now.get(k,0))) for k,n in kit.items()}
-                if any(missing.values()):
-                    state["restockGeneration"] = int(state.get("restockGeneration",0))+1
-                    state["supplyRequest"] = {
-                        "id":f"relay-{self.operations.world.probe['id']}-{state.get('cycle',0)}-{state['restockGeneration']}",
-                        "items":{k:n for k,n in missing.items() if n}}
+            if phase == "returning":
+                request_refill(False)
             return InfrastructureDecision(phase, summary, state=dict(state), **kwargs)
         if not settings.get("infrastructureEnabled"):
             return decision("paused", "SCUT Network Expansion is paused.")
@@ -226,6 +234,10 @@ class RelayCampaignService:
         if refill_beacons:
             default_beacons = target_stock if beacon_mode == "every" else 1
             kit["scut_transit_beacon"] = int(settings.get("beaconStock", default_beacons))
+        if current != home and not state.get("returning"):
+            request_refill(True)
+        elif state.get("returning"):
+            request_refill(False)
         resume_position = coordinates(state.get("resumePosition"))
         if resume_position is not None and not state.get("returning"):
             if current != resume_position:
@@ -459,9 +471,16 @@ class HubCampaignService:
                 incoming.append({**request, "targetProbeId":probe_id(row["asset_id"]), "source":"automatic"})
         incoming.extend({**r, "source":"manual"} for r in manual_packages(settings))
         for request in incoming:
+            existing = next((r for r in queue if r["id"] == request["id"]), None)
+            if existing and existing.get("prepareOnly") and not request.get("prepareOnly"):
+                # No speculative shipment can be handed off. Reconcile the
+                # actual shortage once, retaining its already-packed container.
+                existing.update(items=dict(request["items"]), requestedItems=dict(request["items"]), prepareOnly=False)
             if request["id"] not in completed and not any(r["id"] == request["id"] for r in queue):
                 queue.append(deepcopy(request))
-        queue = [r for r in queue if r["id"] not in completed]
+        incoming_ids = {r["id"] for r in incoming}
+        queue = [r for r in queue if r["id"] not in completed
+                 and (not r.get("prepareOnly") or r["id"] in incoming_ids)]
         for request in queue:
             request["targetProbeId"] = probe_id(request["targetProbeId"])
             request.setdefault("requestedItems", dict(request["items"]))
@@ -533,6 +552,12 @@ class HubCampaignService:
                 active_pool[kind] = active_pool.get(kind,0)-crafting[kind]
                 missing[kind] = shortage-crafting[kind]
             ready, blocker, receiver_summary = self.receiver_state(r["targetProbeId"], r.get("dispatchFingerprint"))
+            if r.get("prepareOnly"):
+                blocker, receiver_summary = "awaiting_refill", "Preparing next expedition kit; handoff waits until the probe requests its refill."
+            summary = r.get("summary", "Queued for preparation.") if r["id"] in evaluated else "Waiting for the Hub's next packing turn."
+            if r.get("phase") == "producing" and any(missing.values()):
+                needs = ", ".join(f"{n} × {kind.replace('_', ' ')}" for kind,n in missing.items() if n)
+                summary = f"Priority package production queued: {needs}. See Production for input shortages and active work."
             packages.append({"id":r["id"], "targetProbeId":r["targetProbeId"],
             "targetName":fleet.get(r["targetProbeId"], {}).get("name") or f"Probe {r['targetProbeId']}",
             "items":dict(r["items"]), "shipment":int(r.get("shipment",0)),
@@ -540,7 +565,7 @@ class HubCampaignService:
             "missingItems":missing, "craftingItems":crafting, "containerId":r.get("containerId", ""),
             "receiverSummary":receiver_summary, "receiverBlocker":blocker,
             "source":r.get("source","manual"), "phase":r.get("phase","queued") if r["id"] in evaluated else "queued",
-            "summary":r.get("summary","Queued for preparation.") if r["id"] in evaluated else "Waiting for the Hub's next packing turn."})
+            "summary":summary})
         return replace(chosen, state=state, production=production, packages=tuple(packages))
 
     def _advance_delivery(self, settings, roles=(), *, excluded_container_ids=()):
@@ -620,6 +645,9 @@ class HubCampaignService:
                 state.pop("delivery", None)
             return decision("delivered", "Accepted output handoff confirmed; preparing any remaining items.")
         ready, receiver_blocker, receiver_summary = self.receiver_state(delivery["targetProbeId"], delivery.get("dispatchFingerprint"))
+        if delivery.get("prepareOnly"):
+            receiver_blocker = "awaiting_refill"
+            receiver_summary = "Preparing next expedition kit; handoff waits until the probe requests its refill."
         if not container_id:
             container = next((c for c in attached.values() if float(c.get("usedCapacity", c.get("used", 0)) or 0) == 0
                               and float(c.get("capacity", 1)) >= 1), None)

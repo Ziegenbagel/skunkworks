@@ -1238,6 +1238,14 @@ class MissionControlViewModelBuilder:
         active_mannies = []
         for manny in (world.mannies or {}).get("mannies", ()):
             current_task = manny.get("currentTask")
+            location = manny.get("location") or {}
+            relative = (location.get("sector") or {}).get("relative") or {}
+            if all(axis in relative for axis in "xyz") and any(
+                relative[axis] != coordinates.get(axis) for axis in "xyz"
+            ):
+                # SCUT-visible remote work belongs on the Galaxy Map, never
+                # beside the focused probe in the live local sector.
+                continue
             task = manny.get("task") if isinstance(manny.get("task"), dict) else {}
             if isinstance(current_task, dict):
                 task = current_task
@@ -1792,16 +1800,16 @@ class MissionControlViewModelBuilder:
         storage_free = float(inventory.get("freeCapacity", 0) or 0)
         for manny in (mannies or {}).get("mannies", ()):
             task_type = manny.get("currentTask")
+            location = manny.get("location") or {}
+            relative = (location.get("sector") or {}).get("relative") or {}
+            location_text = (
+                f"FCC {relative['x']} / {relative['y']} / {relative['z']}"
+                if all(axis in relative for axis in ("x", "y", "z"))
+                else "Aboard probe" if location.get("type") == "probe"
+                else "Coordinates unavailable"
+            )
             if not task_type:
                 ready = bool(manny.get("canReceiveOrders", False))
-                location = manny.get("location") or {}
-                relative = (location.get("sector") or {}).get("relative") or {}
-                location_text = (
-                    f"FCC {relative['x']} / {relative['y']} / {relative['z']}"
-                    if all(axis in relative for axis in ("x", "y", "z"))
-                    else "Aboard probe" if location.get("type") == "probe"
-                    else "Coordinates unavailable"
-                )
                 work.append({
                     "id": str(manny.get("id", manny.get("name", len(work)))),
                     "asset": manny.get("name", "Manny"),
@@ -1862,6 +1870,9 @@ class MissionControlViewModelBuilder:
                 "detailText": MissionControlViewModelBuilder._task_details(
                     manny.get("name", "Manny"), task_type, task, progress,
                     eta_view["label"],
+                ) + f"\nLocation: {location_text}" + (
+                    "\nVisibility: Remote via SCUT network"
+                    if manny.get("taskVisibility") == "scut_network" else ""
                 ) + (
                     f"\nStarted: {started_view['label']}"
                     if started_view["epochMs"] else ""

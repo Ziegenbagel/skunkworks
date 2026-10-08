@@ -925,6 +925,7 @@ class MissionControlDataService:
         policy = ExecutionPolicyStore().load(probe_id)
         if operations is None or probe_id is None:
             self._prepared_commands = ()
+            self._automation_planned_tasks = ()
             tasks = ()
         else:
             desired = DesiredStateStore(self.data_engine).load(probe_id)
@@ -1015,6 +1016,7 @@ class MissionControlDataService:
                     policy.max_commands_per_cycle, len(preparation_tasks),
                 ),
             )
+            self._automation_planned_tasks = tuple(preparation_tasks)
             idle_mannies = (operations.mining.idle_mannies()
                             if getattr(operations, "mining", None) is not None else [])
             crew_ids = set(miner_view.get("reservedMannyIds", ()))
@@ -1113,9 +1115,16 @@ class MissionControlDataService:
             desired = replace(desired, travel=TravelGoal(decision.destination, route_mode="segmented"))
         if decision.production:
             goals = {g.recipe_id: g for g in desired.production}
+            if row["role"] == "hub":
+                # Delivery commitments take precedence over replenishing bulk
+                # stock. Keep saved goals untouched and bound this override to
+                # the packages' actual quantities, not a larger stock target.
+                goals = {k: replace(g, priority=max(2, g.priority)) for k,g in goals.items()}
+                desired = replace(desired, fleet=tuple(replace(g, priority=max(2, g.priority)) for g in desired.fleet))
             for recipe, quantity in decision.production.items():
                 old = goals.get(recipe)
-                goals[recipe] = ProductionGoal(recipe, max(quantity, old.quantity if old else 0), min(old.priority if old else 2, 2))
+                goals[recipe] = (ProductionGoal(recipe, quantity, 1) if row["role"] == "hub"
+                    else ProductionGoal(recipe, max(quantity, old.quantity if old else 0), min(old.priority if old else 2, 2)))
             desired = replace(desired, production=tuple(goals.values()))
         return desired, list(decision.tasks), {"role": row["role"], "enabled": bool(settings.get("infrastructureEnabled")),
             "phase": decision.phase, "summary": decision.summary, "packages": list(decision.packages),
@@ -2229,6 +2238,23 @@ class MissionControlDataService:
             item for item in self._prepared_commands
             if item.command.fingerprint == command.fingerprint
         ), None)
+        if current is None and command.type == CommandType.MANNY_MINE:
+            # A fresh deficit can change progress/count metadata while the
+            # same worker, deposit and bounded order remain valid. Compare the
+            # mutation and safety scope, not presentation bookkeeping.
+            advisory = {"requestedNeed", "remainingAmount", "plannedMiningWorkers",
+                        "orderAmount", "apiTargetAmount", "estimatedTrips", "mannyName"}
+            def still_covers(candidate):
+                if (candidate.type != command.type or candidate.probe_id != command.probe_id
+                        or candidate.target_id != command.target_id):
+                    return False
+                old_payload, new_payload = dict(command.payload), dict(candidate.payload)
+                amount = float(old_payload.pop("targetAmount", 0))
+                maximum = float(new_payload.pop("targetAmount", 0))
+                return (0 < amount <= maximum + .000001 and old_payload == new_payload
+                    and {k:v for k,v in command.metadata.items() if k not in advisory}
+                    == {k:v for k,v in candidate.metadata.items() if k not in advisory})
+            current = next((item for item in self._prepared_commands if still_covers(item.command)), None)
         if current is None:
             return ("planner_state_changed",)
         if current.blockers:
@@ -2302,6 +2328,15 @@ class MissionControlDataService:
                 risk_acknowledged=risk_acknowledged,
             )
             results.append((prepared, result))
+            if result.status == "succeeded" and prepared.command.type in {
+                CommandType.MOVE_PROBE, CommandType.CANCEL_PROBE_MOVE,
+            }:
+                # Movement changes the meaning of every local-work proposal.
+                # The retained preflight snapshot still describes the old
+                # stationary sector; never launch Mannys from it after a jump.
+                self._preflight_operations_cached_at = 0.0
+                self._preflight_operations_probe_id = None
+                break
             if result.status != "succeeded":
                 # Suppress only a rejected logical command. Successful
                 # repeatable work must remain eligible after the authoritative
@@ -2493,11 +2528,13 @@ class MissionControlDataService:
         lookahead = self._dependency_mining_idle_grace_elapsed(
             self._selected_probe_id,
         )
-        planned_tasks = tuple(Planner(
-            self._operations,
-            desired,
-            dependency_mining_lookahead=lookahead,
-        ).tasks())
+        planned_tasks = getattr(self, "_automation_planned_tasks", None)
+        if planned_tasks is None:
+            planned_tasks = tuple(Planner(
+                self._operations,
+                desired,
+                dependency_mining_lookahead=lookahead,
+            ).tasks())
         preparation_policy = replace(
             policy,
             max_commands_per_cycle=max(
