@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Bound dashboard command-history reads before formatting, preserve complete
+  industrial totals using SQL aggregation, and use indexed assembly-only reads
+  for cumulative fleet goals. Prevent accumulated journal history from making
+  every refresh and planning pass repeatedly process all prior commands.
+
 - Prioritize pending Hub packages ahead of routine bulk production, retain role
   goals during mining fallback, and avoid cancelling valid bounded mining orders
   for changed deficit estimates. Expansion probes prepare their next kit while

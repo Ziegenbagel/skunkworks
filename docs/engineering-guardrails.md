@@ -1009,6 +1009,17 @@ recent legacy backlog at full resolution is not a complete growth fix.
   long-range estimate must not replace detailed catalogued objects, resources,
   or planet habitability learned by visiting the sector.
 
+Dashboard command details must be selected at the SQL boundary (latest 2,000
+by observation time), not formatted from the entire journal and sliced afterward.
+Industrial totals aggregate all retained rows in SQL independently of that limit.
+Cumulative fleet goals query only successful assembly commands for their builder;
+old successes must remain counted. Index both archive ordering and filtered
+assembly reads. Regression tests:
+`test_dashboard_history_is_bounded_but_totals_and_assemblies_are_not` in
+`tests/test_data_engine.py` and
+`test_report_projection_limits_details_without_truncating_totals` in
+`tests/test_ui_preparation.py`.
+
 ### Compaction preserves operational truth
 
 `DataEngine.compact_history()` retains recent high-resolution telemetry, daily

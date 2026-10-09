@@ -41,9 +41,7 @@ def recorded_probe_assembly_count(operations, model):
     if data_engine is None or probe_id is None:
         return 0
     count = 0
-    for row in data_engine.action_history(int(probe_id)):
-        if row["status"] != "succeeded" or row["command_type"] != "manny_assemble_probe":
-            continue
+    for row in data_engine.successful_assembly_actions(int(probe_id)):
         try:
             command = json.loads(row["command_json"] or "{}")
         except (TypeError, ValueError, json.JSONDecodeError):

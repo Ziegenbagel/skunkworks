@@ -29,3 +29,22 @@ overlay restoration, view-relative pan, and fit-all-visible behavior. Startup,
 live API refresh, probe switching, and interactive frame-time comparisons must
 be captured during private testing because they depend on game-service latency
 and a real graphics surface.
+
+## 1.2 refresh regression — 2026-10-09
+
+Offline measurements on a SQLite backup of the private development database
+(138,706 action rows), using the same machine and Python environment:
+
+| Operation | Before | After |
+| --- | ---: | ---: |
+| Reports/archive projection | 12.417 s | 0.325 s |
+| One cumulative assembly count | 5.824 s | 0.001 s |
+
+These are single local samples, not end-to-end refresh timings or API latency
+measurements. The projection benchmark uses `MissionControlViewModelBuilder._reports()`
+with the copied DataEngine and a minimal world (focused probe 644, empty fleet
+and Manny maps). The assembly benchmark calls `recorded_probe_assembly_count`
+for that probe's generic model. No live game requests are made. The repair
+limits command details in SQL, aggregates complete industrial totals, and indexes
+filtered successful-assembly queries. Full live/UI refresh timing remains to
+be verified in the running application.

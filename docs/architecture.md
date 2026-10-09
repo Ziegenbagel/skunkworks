@@ -161,6 +161,9 @@ Communications separates game-facing text from local operational reporting:
 
 Reports are assembled off the UI thread as part of the dashboard projection.
 QML filters an already bounded presentation model and does not query SQLite.
+Command archive details load the latest 2,000 actions using an indexed SQL limit;
+industrial totals aggregate the complete retained journal separately. Cumulative
+fleet planning reads only successful assembly commands for its builder.
 
 ---
 

@@ -593,6 +593,27 @@ class DataEngine:
             (probe_id,),
         )
 
+    def recent_action_history(self, limit=2000):
+        """Bound dashboard payloads without truncating durable history."""
+        return list(reversed(self._rows(
+            "SELECT * FROM action_journal ORDER BY observed_at DESC, id DESC LIMIT ?",
+            (max(1, int(limit)),),
+        )))
+
+    def action_totals(self):
+        """Full retained-history totals without loading command JSON."""
+        return self._rows(
+            "SELECT probe_id, command_type, status, COUNT(*) AS count "
+            "FROM action_journal GROUP BY probe_id, command_type, status", (),
+        )
+
+    def successful_assembly_actions(self, probe_id):
+        return self._rows(
+            "SELECT command_json FROM action_journal "
+            "WHERE probe_id = ? AND command_type = 'manny_assemble_probe' "
+            "AND status = 'succeeded'", (int(probe_id),),
+        )
+
     def recent_successful_actions(self, probe_id, limit=500):
         """Return only recent successful commands needed for live task labels."""
 
@@ -1383,6 +1404,11 @@ class DataEngine:
                 CREATE INDEX IF NOT EXISTS
                     idx_action_journal_probe_time
                 ON action_journal(probe_id, observed_at);
+
+                CREATE INDEX IF NOT EXISTS idx_action_journal_time
+                ON action_journal(observed_at, id);
+                CREATE INDEX IF NOT EXISTS idx_action_journal_probe_type_status
+                ON action_journal(probe_id, command_type, status);
 
                 CREATE TABLE IF NOT EXISTS execution_leases (
                     probe_id INTEGER PRIMARY KEY,

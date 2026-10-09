@@ -403,6 +403,30 @@ class DataEngineTests(unittest.TestCase):
             2,
         )
 
+    def test_dashboard_history_is_bounded_but_totals_and_assemblies_are_not(self):
+        from src.planner.assembly import recorded_probe_assembly_count
+        assembly = {"type": "manny_assemble_probe", "probeId": 762,
+                    "payload": {"model": "generic"}}
+        self.engine.record_action("assembly", assembly, "succeeded", observed_at="2020-01-01")
+        self.engine.record_action("failed", assembly, "failed", observed_at="2026-01-01")
+        self.engine.record_action("other", {**assembly, "probeId": 999}, "succeeded")
+        for index in range(4):
+            self.engine.record_action(str(index), {
+                "type": "manny_mine", "probeId": 762, "payload": {},
+            }, "succeeded", observed_at=f"2026-02-0{index + 1}")
+        rows = self.engine.recent_action_history(limit=2)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(sum(row["count"] for row in self.engine.action_totals()), 7)
+        self.assertEqual(len(self.engine.action_history()), 7)
+        self.engine.action_history = lambda *_: self.fail("Hot path loaded full history")
+        ops = SimpleNamespace(data_engine=self.engine, world=SimpleNamespace(probe={"id": 762}))
+        self.assertEqual(recorded_probe_assembly_count(ops, "generic"), 1)
+        self.assertEqual(recorded_probe_assembly_count(ops, "deuterium_tanker"), 0)
+        with self.engine._connect() as connection:
+            indexes = {row[1] for row in connection.execute("PRAGMA index_list(action_journal)")}
+        self.assertIn("idx_action_journal_time", indexes)
+        self.assertIn("idx_action_journal_probe_type_status", indexes)
+
     def test_recent_successful_actions_is_bounded_and_newest_first(self):
         command = {
             "type": "manny_craft", "probeId": 762,

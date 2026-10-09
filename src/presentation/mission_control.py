@@ -90,6 +90,7 @@ class MissionControlViewModelBuilder:
         }
         result["reports"] = self._reports(
             result["archive"], result["actions"], result["operations"],
+            action_totals=self.data_engine.action_totals() if self.data_engine else (),
         )
         result["navigation"] = self.navigation_view()
         result["sectorResources"] = self._sector_resource_totals(
@@ -2150,18 +2151,20 @@ class MissionControlViewModelBuilder:
     def _action_records(self):
         if not self.data_engine:
             return ()
-        return tuple(dict(row) for row in self.data_engine.action_history())
+        return tuple(dict(row) for row in self.data_engine.recent_action_history())
 
     def _archive_records(self):
         if not self.data_engine:
             return ()
         return tuple(dict(row) for row in self.data_engine.archive_reports())
 
-    def _reports(self, report_records=None, action_records=None, operation_records=None):
+    def _reports(self, report_records=None, action_records=None, operation_records=None, *, action_totals=None):
         if not self.data_engine:
             return {"daily": (), "archive": (), "industrial": {}}
         reports = [dict(row) for row in (report_records if report_records is not None else self.data_engine.archive_reports())]
-        actions = [dict(row) for row in (action_records if action_records is not None else self.data_engine.action_history())]
+        if action_totals is None and action_records is None:
+            action_totals = self.data_engine.action_totals()
+        actions = [dict(row) for row in (action_records if action_records is not None else self.data_engine.recent_action_history())]
         operations = [dict(row) for row in (operation_records if operation_records is not None else self.data_engine.operation_records())]
         probe_names = {
             str(item.get("id")): item.get("name") or f"Probe {item.get('id')}"
@@ -2181,6 +2184,20 @@ class MissionControlViewModelBuilder:
         categories = Counter()
         by_probe = defaultdict(Counter)
         archive = []
+        for record in (actions if action_totals is None else action_totals):
+            row = dict(record)
+            command_type = str(row.get("command_type") or "unknown")
+            category = (
+                "Mining" if command_type == "manny_mine" else
+                "Production" if command_type in {"manny_craft", "atomic_printer_craft", "manny_assemble_probe"} else
+                "Travel" if command_type == "move_probe" else
+                "Maintenance" if command_type == "manny_repair" else "Operations"
+            )
+            status = str(row.get("status") or "unknown")
+            probe_id = str(row.get("probe_id"))
+            count = int(row["count"]) if action_totals is not None else 1
+            categories[(category, status)] += count
+            by_probe[probe_id][category] += count
         for row in reversed(actions):
             command_type = str(row.get("command_type") or "unknown")
             category = (
@@ -2191,8 +2208,6 @@ class MissionControlViewModelBuilder:
             )
             status = str(row.get("status") or "unknown")
             probe_id = str(row.get("probe_id"))
-            categories[(category, status)] += 1
-            by_probe[probe_id][category] += 1
             archive.append({
                 "kind": "COMMAND", "domain": category, "status": status.upper(),
                 "probeId": probe_id, "probeName": probe_names.get(probe_id, f"Probe {probe_id}"),

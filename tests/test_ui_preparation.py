@@ -404,6 +404,23 @@ class UiPreparationTests(unittest.TestCase):
 
         self.assertEqual(completed, frozenset({"construct-complete"}))
 
+    def test_report_projection_limits_details_without_truncating_totals(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            engine = DataEngine(Path(temporary) / "ui.sqlite3")
+            for index in range(3):
+                engine.record_action(str(index), {
+                    "type": "manny_mine", "probeId": 1, "payload": {},
+                }, "succeeded")
+            recent = engine.recent_action_history
+            engine.recent_action_history = lambda: recent(limit=1)
+            engine.action_history = lambda *_: self.fail("Dashboard loaded unbounded journal")
+            builder = MissionControlViewModelBuilder(build_operations(), engine)
+            self.assertEqual(len(builder._action_records()), 1)
+            reports = builder._reports(report_records=(), operation_records=())
+            self.assertEqual(len(reports["archive"]), 1)
+            self.assertEqual(reports["industrial"]["measuredTotals"][0]["count"], 3)
+            self.assertEqual(reports["industrial"]["probeActivity"][0]["orders"], 3)
+
     def test_archive_is_separate_from_game_logbook(self):
         with tempfile.TemporaryDirectory() as temporary:
             engine = DataEngine(Path(temporary) / "ui.sqlite3")

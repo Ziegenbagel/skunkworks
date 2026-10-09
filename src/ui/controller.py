@@ -647,6 +647,7 @@ class MissionControlDataService:
                 )._reports(
                     self.data_engine.archive_reports(),
                     dashboard.get("actions", ()), dashboard.get("operations", ()),
+                    action_totals=self.data_engine.action_totals(),
                 )
         if include_archival and bool(selected.get("isDefault")):
             cached_logbook = self._logbook_cache.get(selected_id)
