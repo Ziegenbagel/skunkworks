@@ -120,7 +120,6 @@ Item {
                                 ? Math.min(420, width * implicitHeight / implicitWidth) : 0
                             source: alertCard.modelData.illustrationImageUrl || ""
                             fillMode: Image.PreserveAspectFit
-                            asynchronous: true
                         }
                         Button {
                             visible: Boolean(alertCard.modelData.remoteMannyLaserTargeted)

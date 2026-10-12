@@ -549,6 +549,10 @@ current on arrival and visited after departure. Enabling an operational filter
 such as planet habitability must begin across all discovery states so a target
 does not disappear simply because the operator reached it. Operators may still
 deliberately narrow discovery states after enabling the operational filter.
+QML changes must compile the full `App.qml` dependency tree, including lazy
+workspaces, before being declared launch-ready. Component-only and text tests
+cannot detect duplicate assignments elsewhere in the application. Regression:
+`test_application_qml_dependency_tree_compiles` in `tests/test_ui_assets.py`.
 Local QML icons must load asynchronously. Startup and repeater construction
 must not read or decode image files on the GUI thread: slow local I/O can
 otherwise freeze even the initial window before controller startup. Regression:

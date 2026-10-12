@@ -1370,3 +1370,23 @@ assert provider.finished
 """
     subprocess.run([sys.executable, "-c", code], check=True, timeout=20,
                    env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
+
+
+def test_application_qml_dependency_tree_compiles():
+    import os
+    import subprocess
+    import sys
+    code = r"""
+from pathlib import Path
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlEngine, QQmlComponent
+from src.ui.app import configure_qt_plugin_paths
+configure_qt_plugin_paths()
+app = QGuiApplication([])
+engine = QQmlEngine()
+component = QQmlComponent(engine, QUrl.fromLocalFile(str(Path('src/ui/qml/App.qml').resolve())), QQmlComponent.PreferSynchronous)
+assert component.isReady(), '\n'.join(e.toString() for e in component.errors())
+"""
+    subprocess.run([sys.executable, "-c", code], check=True, timeout=30,
+                   env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})
