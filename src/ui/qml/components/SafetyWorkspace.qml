@@ -113,7 +113,7 @@ Item {
                             lineHeight: 1.3
                             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                         }
-                        Image {
+                        Image { asynchronous: true;
                             visible: String(alertCard.modelData.illustrationImageUrl || "").length > 0
                             Layout.fillWidth: true
                             Layout.preferredHeight: visible && implicitWidth > 0

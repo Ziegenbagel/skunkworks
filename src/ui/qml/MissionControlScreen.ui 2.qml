@@ -311,7 +311,7 @@ Rectangle {
                         contentItem: Column {
                             width: parent.width
                             spacing: 14
-                            Image {
+                            Image { asynchronous: true;
                                 width: 60
                                 height: 60
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -362,7 +362,7 @@ Rectangle {
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: 14
-                            Image {
+                            Image { asynchronous: true;
                                 source: "../assets/icons/status-critical.png"
                                 Layout.preferredWidth: 46
                                 Layout.preferredHeight: 46

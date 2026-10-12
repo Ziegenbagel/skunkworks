@@ -12,7 +12,7 @@ Item {
 
     opacity: dimmed ? 0.45 : 1.0
 
-    Image {
+    Image { asynchronous: true;
         anchors.fill: parent
         source: root.iconSource
         fillMode: Image.PreserveAspectFit
@@ -25,7 +25,7 @@ Item {
 
         Repeater {
             model: root.badgeSources
-            delegate: Image {
+            delegate: Image { asynchronous: true;
                 required property string modelData
                 width: root.width * 0.42
                 height: width

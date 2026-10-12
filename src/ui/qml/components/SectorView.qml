@@ -298,7 +298,7 @@ Rectangle {
 
     Item {
         x: root.centerX - 58; y: root.centerY - 58; width: 116; height: 116
-        Image {
+        Image { asynchronous: true;
             anchors.fill: parent; anchors.margins: 5
             source: AssetCatalog.icon("star-v2")
             fillMode: Image.PreserveAspectFit
@@ -539,7 +539,7 @@ Rectangle {
 
     Row {
         anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12; spacing: 8
-        Image { width: 58; height: 58; source: AssetCatalog.icon("solar-system"); fillMode: Image.PreserveAspectFit }
+        Image { asynchronous: true; width: 58; height: 58; source: AssetCatalog.icon("solar-system"); fillMode: Image.PreserveAspectFit }
         Column {
             anchors.verticalCenter: parent.verticalCenter
             Label { text: root.sectorData.system && root.sectorData.system.name ? root.sectorData.system.name : "UNNAMED SYSTEM"; color: Constants.cyanColor; font.family: Constants.technicalFont; font.pixelSize: 15; font.bold: true }

@@ -467,7 +467,7 @@ Rectangle {
                         RowLayout {
                             anchors.fill: parent
                             anchors.margins: 14
-                            Image {
+                            Image { asynchronous: true;
                                 source: "../assets/icons/status-critical.png"
                                 Layout.preferredWidth: 46
                                 Layout.preferredHeight: 46

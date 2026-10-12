@@ -1,5 +1,8 @@
 # Development Release Log
 
+- Load QML icons asynchronously so slow image reads cannot block startup or
+  rebuilding sector/map markers on the GUI thread.
+
 - Bound dashboard command-history reads before formatting, preserve complete
   industrial totals using SQL aggregation, and use indexed assembly-only reads
   for cumulative fleet goals. Prevent accumulated journal history from making

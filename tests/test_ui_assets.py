@@ -1322,3 +1322,51 @@ def test_miner_ordinary_resources_default_to_unchecked():
     assert "!root.focusedSettings.ordinaryResources" not in role_settings
     assert "MINIMUM EMPTY CONTAINER RESERVE" in role_settings
     assert '"minimumEmptyContainers": Number(minimumEmptyContainers.value)' in role_settings
+
+
+def test_qml_images_do_not_load_synchronously():
+    import re
+    for path in Path("src/ui/qml").rglob("*.qml"):
+        text = path.read_text()
+        for match in re.finditer(r"\bImage\s*\{", text):
+            assert "asynchronous: true" in text[match.end():match.end()+80], path
+
+
+def test_map_icon_loading_keeps_event_loop_responsive():
+    import os
+    import subprocess
+    import sys
+    code = r"""
+import time
+from pathlib import Path
+from PySide6.QtCore import QUrl, QTimer, QCoreApplication, QLibraryInfo
+from PySide6.QtGui import QGuiApplication, QImage
+from PySide6.QtQml import QQmlEngine, QQmlComponent
+from PySide6.QtQuick import QQuickImageProvider
+from src.ui.app import configure_qt_plugin_paths
+configure_qt_plugin_paths()
+app = QGuiApplication([])
+engine = QQmlEngine()
+class SlowImage(QQuickImageProvider):
+    def __init__(self):
+        super().__init__(QQuickImageProvider.Image)
+        self.finished = False
+    def requestImage(self, identifier, size, requestedSize):
+        time.sleep(.5)
+        self.finished = True
+        return QImage(16, 16, QImage.Format_ARGB32)
+provider = SlowImage()
+engine.addImageProvider('slow', provider)
+component = QQmlComponent(engine, QUrl.fromLocalFile(str(Path('src/ui/qml/components/MapObjectMarker.qml').resolve())))
+root = component.create()
+assert root is not None, [e.toString() for e in component.errors()]
+root.setProperty('iconSource', QUrl('image://slow/icon'))
+responsive = []
+QTimer.singleShot(25, lambda: responsive.append(not provider.finished))
+QTimer.singleShot(750, app.quit)
+app.exec()
+assert responsive == [True], 'Image decoding blocked GUI timer'
+assert provider.finished
+"""
+    subprocess.run([sys.executable, "-c", code], check=True, timeout=20,
+                   env={**os.environ, "QT_QPA_PLATFORM": "offscreen"})

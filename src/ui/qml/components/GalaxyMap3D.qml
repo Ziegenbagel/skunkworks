@@ -789,7 +789,7 @@ Item {
                             required property var modelData
                             width: Math.min(240, sectorObjectFlow.width)
                             spacing: 4
-                            Image { width: 28; height: 28; source: objectDetail.modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(objectDetail.modelData.type, objectDetail.modelData); fillMode: Image.PreserveAspectFit }
+                            Image { asynchronous: true; width: 28; height: 28; source: objectDetail.modelData.estimated ? AssetCatalog.icon("unknown-object") : AssetCatalog.objectIcon(objectDetail.modelData.type, objectDetail.modelData); fillMode: Image.PreserveAspectFit }
                             Label {
                                 width: Math.max(1, objectDetail.width - 32)
                                 anchors.verticalCenter: parent.verticalCenter

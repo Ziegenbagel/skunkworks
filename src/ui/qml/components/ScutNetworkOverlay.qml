@@ -68,13 +68,13 @@ Item {
             width: Math.max(28, Math.min(root.width, root.height) * 0.095)
             height: width
 
-            Image {
+            Image { asynchronous: true;
                 anchors.fill: parent
                 source: AssetCatalog.icon("scut-relay")
                 fillMode: Image.PreserveAspectFit
             }
 
-            Image {
+            Image { asynchronous: true;
                 visible: modelData.beacon
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom

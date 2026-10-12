@@ -549,6 +549,11 @@ current on arrival and visited after departure. Enabling an operational filter
 such as planet habitability must begin across all discovery states so a target
 does not disappear simply because the operator reached it. Operators may still
 deliberately narrow discovery states after enabling the operational filter.
+Local QML icons must load asynchronously. Startup and repeater construction
+must not read or decode image files on the GUI thread: slow local I/O can
+otherwise freeze even the initial window before controller startup. Regression:
+`test_map_icon_loading_keeps_event_loop_responsive` and
+`test_qml_images_do_not_load_synchronously` in `tests/test_ui_assets.py`.
 Navigation audio is part of the interaction boundary. Keep its common effect
 preloaded and replay the existing source; repeatedly assigning the same media
 URL can synchronously rebuild the macOS AVFoundation player and make every tab

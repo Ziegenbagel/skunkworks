@@ -38,7 +38,7 @@ Item {
         anchors.fill: parent
         spacing: 8
 
-        Image {
+        Image { asynchronous: true;
             Layout.preferredWidth: 38
             Layout.preferredHeight: 38
             source: root.selectedProbe ? AssetCatalog.probeIcon(root.selectedProbe.model) : AssetCatalog.icon("unknown-object")
