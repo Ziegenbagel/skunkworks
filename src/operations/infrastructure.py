@@ -131,14 +131,29 @@ class RelayCampaignService:
                     return {"origin": point(origin), "vector": vector}
         return None
 
-    def candidates(self, settings, state):
-        current = self.operations.travel.current_sector()
+    def active_coverage(self):
         relays = []
         for response in self.operations.world.hazard_context.get("scutNetworks", []):
             for relay in response.get("network", {}).get("relays", []):
                 where = coordinates((relay.get("sector") or {}).get("relative"))
                 if where and relay.get("status") == "on":
                     relays.append((where, int(relay.get("coverageRadiusSectors", 0))))
+        return relays
+
+    def at_coverage_edge(self, site, relays=None):
+        """A covered FCC sector with a neighbor outside the entire live union."""
+        relays = self.active_coverage() if relays is None else relays
+        def covered(point):
+            return any(point.distance_to(center) <= radius for center, radius in relays)
+        if site is None or not covered(site):
+            return False
+        return any(not covered(SectorCoordinates(site.x+x, site.y+y, site.z+z))
+                   for x in (-1, 0, 1) for y in (-1, 0, 1) for z in (-1, 0, 1)
+                   if abs(x)+abs(y)+abs(z) == 2)
+
+    def candidates(self, settings, state):
+        current = self.operations.travel.current_sector()
+        relays = self.active_coverage()
         if not current or not relays:
             return []
         radius = max(r for _, r in relays)
@@ -163,6 +178,8 @@ class RelayCampaignService:
         for record in self.operations.galaxy.known_sectors():
             site = record.coordinates
             if site in reserved_sites or point(site) in state.get("completedSites", []) or not has_star(record.observed) or any(site == r[0] for r in relays):
+                continue
+            if not self.at_coverage_edge(site, relays):
                 continue
             route = self.operations.travel.route_to(site) if site != current else ()
             if site != current and (not route or self.operations.travel_safety.scut_route_covered(current, route) is not True):
@@ -246,6 +263,13 @@ class RelayCampaignService:
             state.pop("resumePosition", None)
         target = coordinates(state.get("target"))
         if target:
+            engine = getattr(self.operations, "data_engine", None)
+            accepted = bool(engine is not None and state.get("deployFingerprint")
+                            and engine.action_was_successful(state["deployFingerprint"]))
+            if not state.get("relayId") and not accepted and not self.at_coverage_edge(target):
+                for key in ("target", "itemId", "existingRelays", "placeBeacon", "deployFingerprint"):
+                    state.pop(key, None)
+                return decision("reselecting", "Selected site is no longer at the SCUT coverage edge; selecting a new frontier star.")
             if current != target:
                 return decision("travelling", "Travelling to the selected relay site inside SCUT.", destination=target)
             relays = local_relays(self.operations)
@@ -341,7 +365,7 @@ class RelayCampaignService:
             return decision("returning", "Relay or beacon stock exhausted; returning home for resupply.", destination=home)
         candidates = self.candidates(settings, state)
         if not candidates:
-            return decision("waiting_for_sites", "No mapped star offers covered expansion in this direction. Scan more sectors inside SCUT.")
+            return decision("waiting_for_sites", "No reachable mapped star lies at the SCUT coverage edge in this direction. Scan frontier sectors; interior relays will not be placed.")
         selected = candidates[0][3]
         state["target"] = point(selected)
         state["placeBeacon"] = beacon_mode == "every" or (beacon_mode == "final" and usable == 1)
@@ -804,6 +828,8 @@ def command_blockers(operations, command):
         state = row["settings"].get("infrastructureCampaign") or {}
         if coordinates(state.get("target")) != current:
             blockers.append("relay_site_changed")
+        if command.type == C.DEPLOY_SCUT_RELAY and not RelayCampaignService(operations).at_coverage_edge(current):
+            blockers.append("relay_site_not_at_coverage_edge")
         if command.type == C.DEPLOY_SCUT_RELAY and str(state.get("itemId")) != str(command.payload.get("itemId")):
             blockers.append("relay_kit_changed")
         if command.type in {C.MANNY_ACTIVATE_RELAY, C.MANNY_INSTALL_BEACON} and str(state.get("relayId")) != str(command.payload.get("relayId")):

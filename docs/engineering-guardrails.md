@@ -1692,7 +1692,18 @@ Regression tests:
 
 Infrastructure role decisions produce typed commands through the existing
 execution boundary. A relay site must be a mapped star inside verified FCC
-SCUT coverage; gain is measured against live network radii. Signal expansion
+SCUT coverage; gain is measured against live network radii. All three expansion
+modes require the sector to border the live coverage union: at least one of its
+12 FCC neighbors must be uncovered by every active relay. An individual relay's
+edge inside another relay's coverage is not a frontier. No interior fallback is
+allowed when mapped frontier stars are unavailable. Check edge eligibility before
+route/gain calculation, reselect unbuilt persisted targets that become interior,
+and repeat the check at deployment preflight. Accepted deployments and identified
+relays retain their installation identity. Regression coverage:
+`test_all_expansion_modes_require_union_edge_and_wait_without_frontier`,
+`test_union_edge_rejects_seam_covered_by_another_relay`, and
+`test_changed_coverage_reselects_unbuilt_site_and_blocks_stale_deployment` in
+`tests/test_infrastructure_campaign.py`. Signal expansion
 uses the saved alert direction and origin, never an invented source distance.
 Deployment, activation, and beacon installation advance on live telemetry;
 accepted commands remain deduplicated across worker changes and restarts.

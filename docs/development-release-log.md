@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Require automatic, signal-source, and coordinate-directed relay expansion to
+  place at the combined active SCUT coverage boundary. Recheck unbuilt targets
+  and deployment preflight; wait for mapped frontier stars instead of falling
+  back to overlapping interior placements.
+
 - Load QML icons asynchronously so slow image reads cannot block startup or
   rebuilding sector/map markers on the GUI thread.
 

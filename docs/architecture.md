@@ -577,7 +577,10 @@ Hub and SCUT Network Expansion campaigns persist in fleet-role metadata. Hubs re
 Desired State production and resource-reserve goals, mine local shortages,
 accept raw-resource container deliveries, and
 load requested finished items into dedicated containers for local handoff.
-Relay placement selects mapped stars by FCC coverage gain, optionally weighted
+Relay placement first restricts mapped stars to covered sectors with an uncovered
+FCC neighbor at the combined active network boundary. It waits for more frontier
+map knowledge when none qualify, rather than placing interior relays. It then
+ranks those stars by FCC coverage gain, optionally weighted
 along the signal-alert vector or a user-selected coordinate direction. Each
 site owns its item/relay identity until activation and its chosen beacon policy
 are confirmed. Away expansion probes request preparation of their next full kit.

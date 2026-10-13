@@ -823,3 +823,45 @@ def test_hub_package_goal_precedes_bulk_stock_and_preserves_saved_goals(tmp_path
     ops.world.probe['inventory']['resourceStocks'][0]['amount']=1
     tasks=Planner(ops,effective).tasks()
     assert next(t for t in tasks if t.action=='Craft Item').target=='storage_container'
+
+
+@pytest.mark.parametrize('mode', ['auto', 'signal', 'direction'])
+def test_all_expansion_modes_require_union_edge_and_wait_without_frontier(mode):
+    ops = operations(kit(), stars=(P(2,0,0), P(6,0,0)))
+    network = ops.world.hazard_context['scutNetworks'][0]['network']
+    network['relays'][0]['coverageRadiusSectors'] = 6
+    state = {'signalDirection': {'origin':vars(P(0,0,0)), 'vector':{'x':1,'y':0,'z':0}}}
+    config = settings(expansionMode=mode, direction=vars(P(20,0,0)), infrastructureCampaign=state)
+    result = RelayCampaignService(ops).decide(config)
+    assert result.destination == P(6,0,0)
+    ops.galaxy.known_sectors = lambda: [SimpleNamespace(coordinates=P(2,0,0), observed={'objects':[{'type':'star'}]})]
+    result = RelayCampaignService(ops).decide(config)
+    assert result.phase == 'waiting_for_sites'
+    assert not result.tasks and result.destination is None
+
+
+def test_union_edge_rejects_seam_covered_by_another_relay():
+    ops = operations(kit())
+    relays = [(P(0,0,0),6), (P(6,0,0),6)]
+    service = RelayCampaignService(ops)
+    assert service.at_coverage_edge(P(6,0,0), relays[:1])
+    assert not service.at_coverage_edge(P(6,0,0), relays)
+    assert service.at_coverage_edge(P(12,0,0), relays)
+    assert not service.at_coverage_edge(P(14,0,0), relays)
+
+
+def test_changed_coverage_reselects_unbuilt_site_and_blocks_stale_deployment():
+    target = P(2,0,0)
+    ops = operations(kit(), here=target)
+    config = settings(infrastructureCampaign={'target':vars(target)})
+    planned = RelayCampaignService(ops).decide(config)
+    config['infrastructureCampaign'] = planned.state
+    command = TaskCommandTranslator(ops,1).translate(planned.tasks[0])
+    ops.data_engine.fleet_roles = lambda _: [{'asset_id':'1','role':'relay_placement','metadata_json':json.dumps(config)}]
+    ops.world.hazard_context['scutNetworks'][0]['network']['relays'][0]['coverageRadiusSectors'] = 6
+    assert 'relay_site_not_at_coverage_edge' in command_blockers(ops, command)
+    result = RelayCampaignService(ops).decide(config)
+    assert result.phase == 'reselecting' and 'target' not in result.state
+    ops.data_engine.action_was_successful = lambda _: True
+    result = RelayCampaignService(ops).decide(config)
+    assert result.phase != 'reselecting'  # Accepted deployment retains its identity.
