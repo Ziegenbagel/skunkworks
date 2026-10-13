@@ -865,3 +865,47 @@ def test_changed_coverage_reselects_unbuilt_site_and_blocks_stale_deployment():
     ops.data_engine.action_was_successful = lambda _: True
     result = RelayCampaignService(ops).decide(config)
     assert result.phase != 'reselecting'  # Accepted deployment retains its identity.
+
+
+@pytest.mark.parametrize('cargo_kind', ['manny', 'metals'])
+def test_receiver_clears_remaining_cargo_before_returning_packaging(tmp_path, cargo_kind):
+    from src.data import DataEngine
+    from src.operations.hub_receiving import HubReceivingService, stage_receipt, receipt_blockers
+    cargo = {'id':'cargo','type':'manny','containerSpace':.1,'container':{'id':'supply'}}
+    supply = {'id':'supply','usedCapacity':.1,'freeCapacity':.9}
+    ops = operations([cargo] if cargo_kind == 'manny' else [], attached=[supply])
+    ops.data_engine = DataEngine(tmp_path/'receiving.sqlite')
+    ops.world.probe['inventory']['containers'] = [{'id':'core','freeCapacity':1},supply]
+    if cargo_kind == 'metals':
+        ops.world.probe['inventory']['resourceStocks'] = [{'type':'metals','containers':[{'amount':.1,'container':{'id':'supply'}}]}]
+    ops.world.mannies['mannies'] = [cargo] if cargo_kind == 'manny' else []
+    ops.mining.idle_mannies = lambda: [{'id':'cargo'}, {'id':'worker'}]
+    ops.travel_safety.additional_container_count = lambda: 1
+    ops.travel_safety.container_break_threshold = lambda: 5
+    stage_receipt(ops.data_engine,2,1,'supply','batch',vars(P(0,0,0)),'accepted')
+    service = HubReceivingService(ops)
+    result = service.reconcile()
+    assert result.phase == 'unloading_supply'
+    command = TaskCommandTranslator(ops,1).translate(result.tasks[0])
+    assert command.payload['kind'] == ('manny' if cargo_kind == 'manny' else 'resource')
+    if cargo_kind == 'manny':
+        assert command.target_id == 'worker'
+    assert not receipt_blockers(ops,command)
+    assert not command_blockers(ops,command)
+    repeated = TaskCommandTranslator(ops,1).translate(service.reconcile().tasks[0])
+    assert repeated.fingerprint == command.fingerprint
+    ops.world.probe['inventory']['containers'][0]['freeCapacity'] = 0
+    assert receipt_blockers(ops,command) == ('hub_receipt_cleanup_changed',)
+    assert not service.reconcile().tasks
+    ops.world.probe['inventory']['containers'][0]['freeCapacity'] = 1
+    if cargo_kind == 'manny':
+        cargo['currentTask'] = 'mining'
+        assert receipt_blockers(ops,command) == ('hub_receipt_cleanup_changed',)
+        assert not service.reconcile().tasks
+        cargo.pop('currentTask')
+        cargo['container'] = {'id':'core'}
+    else:
+        ops.world.probe['inventory']['resourceStocks'] = []
+    assert service.reconcile().phase == 'receipt_empty_wait'
+    supply['usedCapacity'] = 0
+    assert service.reconcile().tasks[0].action == 'Return Hub Container'

@@ -1762,6 +1762,14 @@ Every delivered item must fit into fresh individual permanent storage slots,
 excluding all pending delivery containers. Total free capacity alone is not
 sufficient. Handoff uses the same largest-item-first, best-fit placement order
 as unloading. Missing or insufficient storage telemetry prevents handoff.
+Receiver cleanup must also relocate incidental idle Mannys and raw resources
+from temporary delivery containers, using the same typed relocation planner as
+Hub packing cleanup. Never use the cargo Manny as the actor or move busy Mannys;
+exclude other delivery containers, require destination capacity, retain command
+identity through telemetry lag, and revalidate cargo before dispatch. Receiving
+must not stall forever by skipping cargo while waiting for that cargo to vanish.
+Regression: `test_receiver_clears_remaining_cargo_before_returning_packaging`
+in `tests/test_infrastructure_campaign.py`.
 An identified receipt survives role changes and restarts. Unload items into
 non-delivery storage, verify the delivery container has no items, resources,
 Mannys, or reported used capacity, and only then detach it to drift for Hub

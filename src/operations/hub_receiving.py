@@ -141,8 +141,16 @@ class HubReceivingService:
                         idempotency_scope=op.id+":unload:"+str(item["id"]),
                         metadata={**metadata,"toContainerId":str(target["id"])})
                     return InfrastructureDecision("unloading_supply", task.reason, tasks=(task,))
+            cleanup = receipt_cleanup_task(self.operations, op, data)
+            if cleanup:
+                OperationStore(self.engine).save(replace(op, metadata=data))
+                return InfrastructureDecision("unloading_supply", cleanup.reason, tasks=(cleanup,))
             return InfrastructureDecision("receipt_capacity_hold", "Not enough permanent storage to unload this supply container; free space before continuing.")
         if not empty_container(self.operations, container_id):
+            cleanup = receipt_cleanup_task(self.operations, op, data)
+            if cleanup:
+                OperationStore(self.engine).save(replace(op, metadata=data))
+                return InfrastructureDecision("unloading_supply", cleanup.reason, tasks=(cleanup,))
             return InfrastructureDecision("receipt_empty_wait", "Waiting for authoritative empty-container telemetry before returning it.")
         task = Task(action="Return Hub Container", category="infrastructure", priority=1, target=container_id,
                     reason="Jettison the emptied temporary container for the Hub to recover.", workflow_authorized=True,
@@ -153,6 +161,20 @@ class HubReceivingService:
             metadata={**task.metadata,"idempotencyScope":task.idempotency_scope}).fingerprint
         OperationStore(self.engine).save(replace(op, metadata=data))
         return InfrastructureDecision("returning_container",task.reason,tasks=(task,))
+
+
+def receipt_cleanup_task(operations, op, data):
+    """Reuse typed cargo relocation without treating the receiver as a Hub."""
+    from src.operations.infrastructure import HubCampaignService
+    delivery = {**data, "id":op.id, "items":{}}
+    task = HubCampaignService(operations).cleanup_task(delivery)
+    if task is None:
+        return None
+    for key in ("cleanupSignature", "cleanupGeneration"):
+        data[key] = delivery[key]
+    return replace(task, reason="Move remaining cargo into permanent storage before returning the Hub container.",
+        metadata={"hubReceipt":op.id, "receiptCleanup":True,
+                  "expectedSector":data["sector"], "storageMove":task.metadata["storageMove"]})
 
 
 def cargo_fits_storage(items, ready):
@@ -189,13 +211,19 @@ def receipt_blockers(operations, command):
         return ("hub_container_return_pending",)
     identifier = command.metadata.get("hubReceipt")
     if not identifier:
-        return ()
+        return ("hub_receipt_unavailable",) if command.metadata.get("receiptCleanup") else ()
     op = next((op for op in pending if op.id == identifier), None)
     if op is None or operations.travel.current_sector() != coordinates(op.metadata["sector"]):
         return ("hub_receipt_unavailable",)
     if command.type == C.MANNY_DETACH_STORAGE_CONTAINER:
         if command.payload.get("containerId") != op.metadata["containerId"] or command.payload.get("mode") != "drifting" or not empty_container(operations,op.metadata["containerId"]):
             return ("hub_return_container_not_empty",)
+    elif command.type == C.MANNY_LOAD_HUB_OUTPUT and command.metadata.get("receiptCleanup"):
+        task = receipt_cleanup_task(operations, op, dict(op.metadata))
+        if (task is None or task.metadata["storageMove"] != command.payload
+                or task.idempotency_scope != command.metadata.get("idempotencyScope")
+                or str(command.target_id) == str(command.payload.get("targetMannyId"))):
+            return ("hub_receipt_cleanup_changed",)
     elif command.type == C.MANNY_LOAD_HUB_OUTPUT:
         item = next((i for i in inventory_items(operations) if str(i.get("id")) == str(command.payload.get("itemId"))), {})
         if str((item.get("container") or {}).get("id")) != op.metadata["containerId"] or command.payload.get("toContainerId") in {p.metadata["containerId"] for p in pending}:

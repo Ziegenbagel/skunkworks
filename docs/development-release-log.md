@@ -1,5 +1,9 @@
 # Development Release Log
 
+- Unblock Hub receivers whose temporary delivery containers hold incidental
+  Mannys or raw resources. Safely relocate that cargo to permanent storage
+  before returning packaging and releasing the departure hold.
+
 - Require automatic, signal-source, and coordinate-directed relay expansion to
   place at the combined active SCUT coverage boundary. Recheck unbuilt targets
   and deployment preflight; wait for mapped frontier stars instead of falling

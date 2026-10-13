@@ -879,7 +879,7 @@ def command_blockers(operations, command):
             blockers.append("hub_cleanup_changed")
         if str(command.target_id) == str(command.payload.get("targetMannyId")):
             blockers.append("hub_cleanup_actor_is_cargo")
-    elif command.type == C.MANNY_LOAD_HUB_OUTPUT:
+    elif command.type == C.MANNY_LOAD_HUB_OUTPUT and not command.metadata.get("receiptCleanup"):
         item = next((i for i in items if str(i.get("id")) == str(command.payload.get("itemId"))), None)
         container = next((c for c in operations.world.probe.get("inventory", {}).get("containers", [])
                           if str(c["id"]) == str(command.payload.get("toContainerId"))), None)

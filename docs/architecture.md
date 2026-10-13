@@ -616,7 +616,8 @@ role. The receiver publishes fresh storage capacity and its upgrade-aware safe
 travel container limit. A stationary recipient may temporarily exceed that
 count for a delivery if the cargo fits its individual permanent storage slots.
 Packing checks and unloading use largest-item-first best-fit placement. It
-unloads supplied items into permanent storage and returns only
+unloads supplied items into permanent storage, uses shared typed cargo relocation
+for incidental idle Mannys and raw resources, and returns only
 confirmed-empty delivery containers to drift. A receipt holds ordinary travel
 until its accepted return is confirmed. The Hub recovers these identified
 returns for reuse, even when general drifting-cargo recovery is disabled.
