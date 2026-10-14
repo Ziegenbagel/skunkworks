@@ -10,6 +10,7 @@ class CommandType(StrEnum):
     MANNY_CRAFT = "manny_craft"
     ATOMIC_PRINTER_CRAFT = "atomic_printer_craft"
     MANNY_MINE = "manny_mine"
+    MANNY_TRANSFER_PROBE = "manny_transfer_probe"
     MANNY_TRANSFER_DEUTERIUM = "manny_transfer_deuterium"
     MANNY_REFILL_DEUTERIUM_TANK = "manny_refill_deuterium_tank"
     MANNY_ASSEMBLE_PROBE = "manny_assemble_probe"

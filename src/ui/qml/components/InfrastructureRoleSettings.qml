@@ -149,7 +149,7 @@ ColumnLayout {
             }
             Button { text: "ADD COMPONENT"; enabled: root.components.length > 0
                 onClicked: root.addComponent() }
-            Label { Layout.fillWidth: true; text: "Packages split into as many containers as needed. Each receiver unloads and returns its temporary container before receiving the next shipment. Other probes' packages can progress while a receiver is waiting."; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
+            Label { Layout.fillWidth: true; text: "Components split into temporary containers that receivers unload and return. Requested containers stay with the receiver and must fit its travel-safe limit. Mannys transfer directly when idle and receiver storage is available. The Hub crafts extra assets to preserve its existing stock."; wrapMode: Text.Wrap; color: Constants.mutedTextColor }
             Button { text: "QUEUE PACKAGE"; enabled: receiver.currentIndex >= 0 && packageRows.count > 0 && enabledRole.checked
                 onClicked: root.saveRequested(root.hubSettings({id: "manual-" + Date.now() + "-" + Math.random().toString(36).slice(2), targetProbeId: Number(receiver.currentValue), items: root.packageItems()}))
             }

@@ -1646,6 +1646,19 @@ and execution-policy checks still apply. Regression coverage:
 `tests/test_infrastructure_campaign.py` exercises the automation service through
 command preparation for all three demand sources and for absent local deposits.
 
+Requested Mannys and additional containers are permanent Hub asset deliveries,
+not items inside temporary packaging. Snapshot the Hub's existing asset counts
+when a request enters the queue and craft additional quantities; do not deplete
+that baseline to satisfy the request. Transfer only idle, unreserved Mannys
+without resource cargo, with fresh permanent receiver capacity. Transfer only
+empty unreserved containers, below the receiver's travel-safe container limit.
+Do not stage a temporary receipt for these permanent assets. Advance each asset
+count only after an accepted command and authoritative disappearance from the
+Hub; preserve transfer identity across restarts. Invalidate receiver readiness
+after each permanent handoff so the next transfer uses its updated container
+count and capacity. Repeat eligibility at preflight.
+Regression coverage: asset-package tests in `tests/test_infrastructure_campaign.py`.
+
 Hub package preparation must not depend on receiver readiness. Collect all
 enabled expansion refill requests for this Hub's home sector and all manually
 queued packages, sum their remaining production reservations, and let a ready

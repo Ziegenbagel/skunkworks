@@ -1130,7 +1130,7 @@ class MissionControlDataService:
         return desired, list(decision.tasks), {"role": row["role"], "enabled": bool(settings.get("infrastructureEnabled")),
             "phase": decision.phase, "summary": decision.summary, "packages": list(decision.packages),
             "componentOptions": [{"id":r["id"], "name":r.get("name", r["id"])}
-                for r in self.recipes.all() if r["id"] not in {"manny", "additional_container"}]}
+                for r in self.recipes.all()]}
 
     def _reconcile_miner_campaign(self, operations, probe_id, desired):
         """Project Miner settings into stationary, bounded mining work."""

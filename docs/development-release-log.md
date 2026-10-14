@@ -1,5 +1,9 @@
 # Development Release Log
 
+- Add Mannys and additional containers to Hub package selection. Craft extra
+  assets while preserving existing Hub counts, then transfer them permanently
+  with storage, idle-worker, safe-container, and accepted-command checks.
+
 - Unblock Hub receivers whose temporary delivery containers hold incidental
   Mannys or raw resources. Safely relocate that cargo to permanent storage
   before returning packaging and releasing the departure hold.

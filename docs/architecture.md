@@ -600,7 +600,13 @@ ready recipient past a waiting recipient; containers remain owned by their
 package. Manual settings saves append a request against persisted settings,
 rather than replacing the queue from a UI snapshot. Shipments split according to
 container and recipient storage capacity, retaining request and shipment IDs
-until accepted handoffs are observed. The editor uses the loaded recipe catalog.
+until accepted handoffs are observed. The editor uses the loaded recipe catalog, including Mannys and additional
+containers. Those assets use direct permanent transfers before ordinary component
+shipments; they never create temporary-container receipts. Queue entry preserves
+the Hub's existing asset counts as a production baseline, so requested assets
+are additional stock. Permanent containers obey receiver travel-safe limits;
+Mannys require idle status and receiver storage. Accepted transfer identity and
+observed asset departure gate package progress.
 Packing can proceed before the receiver arrives; only handoff requires current
 receiver readiness. Targeted readiness fetches the receiver's probe, improvements
 and damage warnings, retaining its location/status alongside storage and limits.

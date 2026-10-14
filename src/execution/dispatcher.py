@@ -12,6 +12,7 @@ class CapabilityDispatcher:
             CommandType.MANNY_CRAFT: self._manny_craft,
             CommandType.ATOMIC_PRINTER_CRAFT: self._printer_craft,
             CommandType.MANNY_MINE: self._manny_mine,
+            CommandType.MANNY_TRANSFER_PROBE: lambda command: self.capabilities.mannies.start_task(command.probe_id, command.target_id, "transfer-to-probe", command.payload),
             CommandType.MANNY_TRANSFER_DEUTERIUM: self._manny_transfer_deuterium,
             CommandType.MANNY_REFILL_DEUTERIUM_TANK: self._manny_refill_deuterium_tank,
             CommandType.MANNY_ASSEMBLE_PROBE: self._manny_assemble_probe,

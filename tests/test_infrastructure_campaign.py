@@ -566,11 +566,11 @@ def test_infrastructure_mutations_have_stable_identity_across_workers():
     assert calls == [(1,"other","turn-on-relay",{"relayId":9})]
 
 
-def test_settings_reject_invalid_direction_and_forbidden_output():
+def test_settings_reject_invalid_direction_and_invalid_output_quantity():
     with pytest.raises(ValueError):
         validate_settings("relay_placement",settings(expansionMode="direction",direction={"x":0,"y":0,"z":0}))
     with pytest.raises(ValueError):
-        validate_settings("hub",{"infrastructureEnabled":True,"outputRequest":{"id":"a","targetProbeId":2,"items":{"manny":1}}})
+        validate_settings("hub",{"infrastructureEnabled":True,"outputRequest":{"id":"a","targetProbeId":2,"items":{"manny":0}}})
 
 
 @pytest.mark.parametrize("count", [4, 6])
@@ -909,3 +909,67 @@ def test_receiver_clears_remaining_cargo_before_returning_packaging(tmp_path, ca
     assert service.reconcile().phase == 'receipt_empty_wait'
     supply['usedCapacity'] = 0
     assert service.reconcile().tasks[0].action == 'Return Hub Container'
+
+
+@pytest.mark.parametrize('kind', ['manny','additional_container'])
+def test_hub_packages_craft_extra_assets_before_permanent_transfer(kind):
+    items = [{'id':'asset','type':kind,'containerSpace':.05,'container':{'id':'core'}}]
+    boxes = [{'id':'asset','kind':'container','usedCapacity':0,'freeCapacity':1}]
+    ops = operations(items, role='hub', attached=boxes)
+    ops.world.probe['inventory']['containers'] = boxes
+    config = {'infrastructureEnabled':True,'outputRequests':[{'id':'p','targetProbeId':2,'items':{kind:1}}]}
+    planned = HubCampaignService(ops).decide(config)
+    assert planned.phase == 'producing' and not planned.tasks
+    assert planned.production[kind] == 2
+    assert planned.packages[0]['availableItems'][kind] == 0
+    config['infrastructureCampaign'] = planned.state
+    ops.manufacturing.available_inputs = lambda: ({},{kind:2})
+    ops.mining.idle_mannies = lambda: [{'id':'asset'},{'id':'worker'}]
+    transferred = HubCampaignService(ops).decide(config)
+    task = transferred.tasks[0]
+    assert task.metadata['hubAsset']
+    assert 'containerId' not in transferred.state['delivery']  # No temporary receipt.
+    command = TaskCommandTranslator(ops,1).translate(task)
+    assert command.fingerprint == transferred.state['delivery']['assetShipment']['fingerprint']
+    if kind == 'manny':
+        calls = []
+        CapabilityDispatcher(SimpleNamespace(mannies=SimpleNamespace(start_task=lambda *args:calls.append(args)))).dispatch(command)
+        assert calls == [(1,'asset','transfer-to-probe',{'targetProbeId':2})]
+    config['infrastructureCampaign'] = transferred.state
+    ops.data_engine.fleet_roles = lambda _: [{'asset_id':'1','role':'hub','metadata_json':json.dumps(config)}]
+    assert not command_blockers(ops,command)
+    assert TaskCommandTranslator(ops,1).translate(HubCampaignService(ops).decide(config).tasks[0]).fingerprint == command.fingerprint
+    invalidated = []
+    ops.data_engine.set_preference = lambda key,value: invalidated.append((key,value))
+    ops.data_engine.action_was_successful = lambda _: True
+    assert not HubCampaignService(ops).decide(config).tasks  # Accepted, awaiting disappearance.
+    ops.containers.attached = lambda: []
+    ops.world.probe['inventory']['items'] = []
+    done = HubCampaignService(ops).decide(config)
+    assert done.phase == 'asset_delivered'
+    assert invalidated == [('hub_receiving:2','{}')]
+    config['infrastructureCampaign'] = done.state
+    assert HubCampaignService(ops).decide(config).phase == 'delivered'
+
+
+def test_permanent_container_package_honors_safe_limit_and_busy_manny_is_not_transferred():
+    config = {'infrastructureEnabled':True,'infrastructureCampaign':{'packageQueue':[{
+        'id':'p','targetProbeId':2,'items':{'additional_container':1},'assetBaseline':{'additional_container':0}}]}}
+    ops = operations([{'id':'box','type':'additional_container'}],role='hub', attached=[{'id':'box','usedCapacity':0}])
+    ops.data_engine.get_preference = lambda *_: json.dumps({'at':time.time(),'sector':vars(P(0,0,0)),
+        'containerCount':4,'safeLimit':4,'freeCapacity':5,'storageFreeCapacities':[5]})
+    assert HubCampaignService(ops).decide(config).phase == 'receiver_storage_limit'
+    config['infrastructureCampaign']['packageQueue'][0].update(items={'manny':1},assetBaseline={'manny':0})
+    ops.world.probe['inventory']['items'] = [{'id':'busy','type':'manny','containerSpace':.05}]
+    ops.manufacturing.available_inputs = lambda: ({},{'manny':1})
+    ops.mining.idle_mannies = lambda: []
+    assert HubCampaignService(ops).decide(config).phase == 'asset_wait'
+
+
+def test_asset_package_editor_validation_accepts_catalog_mannies_and_containers():
+    from src.operations.infrastructure import merge_hub_settings
+    recipes = SimpleNamespace(get=lambda kind: {'id':kind} if kind in {'manny','additional_container'} else None)
+    merged = merge_hub_settings({}, {'enqueuePackage':{'id':'p','targetProbeId':2,
+        'items':{'manny':3,'additional_container':2}}}, recipes)
+    validate_settings('hub',{'infrastructureEnabled':True,**merged})
+    assert merged['outputRequests'][0]['items'] == {'manny':3,'additional_container':2}

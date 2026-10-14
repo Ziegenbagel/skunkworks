@@ -107,7 +107,7 @@ class UpgradeService:
         if view["blockers"] and command.type in {
             CommandType.MANNY_CRAFT, CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.MANNY_ASSEMBLE_PROBE, CommandType.MANNY_REPAIR,
-            CommandType.MANNY_TRANSFER_DEUTERIUM, CommandType.MANNY_DETACH_STORAGE_CONTAINER,
+            CommandType.MANNY_TRANSFER_PROBE, CommandType.MANNY_TRANSFER_DEUTERIUM, CommandType.MANNY_DETACH_STORAGE_CONTAINER,
             CommandType.DEPLOY_SCUT_RELAY, CommandType.MANNY_ACTIVATE_RELAY,
             CommandType.MANNY_INSTALL_BEACON, CommandType.MANNY_LOAD_HUB_OUTPUT,
             CommandType.MOVE_PROBE,

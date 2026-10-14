@@ -22,6 +22,7 @@ class TaskCommandTranslator:
             "Activate SCUT Relay": self._infrastructure,
             "Install SCUT Beacon": self._infrastructure,
             "Load Hub Output": self._infrastructure,
+            "Transfer Hub Manny": self._infrastructure,
             "Unload Hub Supply": self._infrastructure,
             "Clear Hub Container": self._infrastructure,
             "Return Hub Container": self._detach_transport_container,
@@ -53,6 +54,14 @@ class TaskCommandTranslator:
         return command
 
     def _infrastructure(self, task):
+        if task.action == "Transfer Hub Manny":
+            member = self._claim_idle_manny(required_id=task.target)
+            if member is None:
+                return None
+            return Command(CommandType.MANNY_TRANSFER_PROBE, self.probe_id,
+                {"targetProbeId":int(task.metadata["targetProbeId"])}, task.reason, task.priority,
+                target_id=member["id"], source_action=task.action,
+                metadata={**task.metadata, "workflowAuthorized":bool(task.workflow_authorized)})
         if task.action == "Clear Hub Container":
             payload = dict(task.metadata["storageMove"])
             member = self._claim_idle_manny(excluded_ids=(payload.get("targetMannyId"),))

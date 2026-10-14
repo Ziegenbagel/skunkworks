@@ -90,7 +90,7 @@ def merge_hub_settings(existing, submitted, recipes):
         if not request.get("id") or not request.get("items"):
             raise ValueError("Choose a receiver and at least one component.")
         for kind, quantity in request["items"].items():
-            if kind in {"manny", "additional_container"} or recipes is None or recipes.get(kind) is None:
+            if recipes is None or recipes.get(kind) is None:
                 raise ValueError("Choose a component from the recipe list.")
             request["items"][kind] = probe_id(quantity)
         if not any(r["id"] == request["id"] for r in saved["outputRequests"]):
@@ -508,6 +508,9 @@ class HubCampaignService:
         for request in queue:
             request["targetProbeId"] = probe_id(request["targetProbeId"])
             request.setdefault("requestedItems", dict(request["items"]))
+            if any(k in request["items"] for k in ("manny", "additional_container")):
+                request.setdefault("assetBaseline", {k:int(stock(self.operations).get(k,0))
+                    for k in ("manny", "additional_container")})
         # Keep accepted shipments and their identities through receiver waits.
         # A blocked recipient must not prevent another package from progressing.
         chosen = None
@@ -517,6 +520,8 @@ class HubCampaignService:
         for request in list(queue):
             other_boxes = {str(r["containerId"]) for r in queue
                            if r["id"] != request["id"] and r.get("containerId")}
+            other_boxes.update(str(r["assetShipment"]["id"]) for r in queue if r["id"] != request["id"]
+                               and r.get("assetShipment", {}).get("kind") == "additional_container")
             projected = {**settings, "infrastructureCampaign":{**state, "delivery":request}}
             result = self._advance_delivery(projected, roles, excluded_container_ids=other_boxes)
             evaluated.add(request["id"])
@@ -547,10 +552,17 @@ class HubCampaignService:
             for component, quantity in request["items"].items():
                 requested[component] = requested.get(component, 0) + int(quantity)
         production = self.production_targets(requested)
+        for kind in ("manny", "additional_container"):
+            if requested.get(kind):
+                production[kind] = max(production.get(kind, 0), requested[kind] + max(
+                    (r.get("assetBaseline", {}).get(kind, 0) for r in queue), default=0))
         if packaging_target:
-            production["additional_container"] = packaging_target
+            production["additional_container"] = max(production.get("additional_container", 0), packaging_target)
         fleet = {probe_id(p["id"]):p for p in (self.operations.world.fleet or {}).get("probes", [])}
         pool = dict(stock(self.operations))
+        for kind in ("manny", "additional_container"):
+            pool[kind] = max(0, pool.get(kind, 0) - max(
+                (r.get("assetBaseline", {}).get(kind, 0) for r in queue), default=0))
         active_count = getattr(self.operations.manufacturing, "active_production_count", lambda _: 0)
         active_pool = {kind:active_count(kind) for r in queue for kind in r["items"]}
         loaded_by_id = {}
@@ -648,7 +660,12 @@ class HubCampaignService:
             return decision("producing", "Maintaining configured production targets; waiting for a delivery request.")
         requested = {k:int(n) for k,n in delivery.get("items", {}).items() if int(n) > 0}
         if not requested:
-            return decision("blocked", "The output batch must contain at least one item.")
+            state["completedRequests"] = completed + [delivery["id"]]
+            state.pop("delivery", None)
+            return decision("delivered", "Package complete.")
+        if delivery.get("assetBaseline") and (delivery.get("assetShipment") or any(requested.get(k) for k in ("manny", "additional_container"))):
+            from src.operations.hub_assets import advance_assets
+            return advance_assets(self, delivery, excluded_container_ids, decision)
         attached = {str(c["id"]): c for c in self.operations.containers.attached()
                     if str(c["id"]) not in excluded_container_ids}
         container_id = delivery.get("containerId")
@@ -797,7 +814,7 @@ def infrastructure_blockers(operations, command):
 def command_blockers(operations, command):
     """Recheck infrastructure mutations against authoritative current telemetry."""
     from src.execution.commands import CommandType as C
-    kinds = {C.DEPLOY_SCUT_RELAY, C.MANNY_ACTIVATE_RELAY, C.MANNY_INSTALL_BEACON, C.MANNY_LOAD_HUB_OUTPUT}
+    kinds = {C.MANNY_TRANSFER_PROBE, C.DEPLOY_SCUT_RELAY, C.MANNY_ACTIVATE_RELAY, C.MANNY_INSTALL_BEACON, C.MANNY_LOAD_HUB_OUTPUT}
     hub_delivery = command.type == C.MANNY_DETACH_STORAGE_CONTAINER and command.metadata.get("hubCampaign")
     resupply_slot = command.type == C.MANNY_DETACH_STORAGE_CONTAINER and command.metadata.get("resupplySlot")
     if command.type not in kinds and not hub_delivery and not resupply_slot:
@@ -889,6 +906,14 @@ def command_blockers(operations, command):
             blockers.append("hub_container_capacity")
         if item and str((item.get("container") or {}).get("id")) == str(command.payload.get("toContainerId")):
             blockers.append("hub_item_already_loaded")
+    if command.metadata.get("hubAsset") or command.type == C.MANNY_TRANSFER_PROBE:
+        expected = HubCampaignService(operations).decide(row["settings"], rows) if row and row["role"] == "hub" else InfrastructureDecision("", "")
+        if not any(t.metadata.get("hubAsset") and t.idempotency_scope == command.metadata.get("idempotencyScope")
+                   and ((t.action == "Transfer Hub Manny" and str(t.target) == str(command.target_id)
+                         and t.metadata.get("targetProbeId") == command.payload.get("targetProbeId"))
+                        or (t.action == "Deliver Hub Container" and t.target == command.payload.get("containerId")
+                            and t.metadata.get("objectId") == command.payload.get("objectId"))) for t in expected.tasks):
+            blockers.append("hub_asset_changed")
     if hub_delivery:
         if row:
             expected = HubCampaignService(operations).decide(row["settings"], rows)
@@ -922,7 +947,7 @@ def validate_settings(role, settings):
         if not request.get("id"):
             raise ValueError("Choose an output receiver.")
         probe_id(request.get("targetProbeId"))
-        if not request.get("items") or any(k in {"manny", "additional_container"} for k in request["items"]):
+        if not request.get("items"):
             raise ValueError("Choose a positive crafted-item quantity for the output batch.")
         for amount in request["items"].values():
             probe_id(amount)
