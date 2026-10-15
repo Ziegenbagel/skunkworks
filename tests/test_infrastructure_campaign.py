@@ -65,6 +65,25 @@ def test_hub_cleanup_never_uses_another_packages_container_or_moves_busy_cargo()
     assert not any(t.action == "Clear Hub Container" for t in HubCampaignService(ops).decide(config).tasks)
 
 
+def test_hub_delivers_available_activation_circuits_without_waiting_for_relays():
+    circuit = {"id":"ic", "type":"integrated_circuit", "containerSpace":.02,
+               "container":{"id":"box"}}
+    config = {"infrastructureEnabled":True, "infrastructureCampaign":{"delivery":{
+        "id":"refill", "targetProbeId":2, "containerId":"box",
+        "items":{"integrated_circuit":1, "scut_relay":12}}}}
+    ops = operations([circuit], role="hub", attached=[{"id":"box", "usedCapacity":.02}])
+    result = HubCampaignService(ops).decide(config)
+    assert result.tasks[0].action == "Deliver Hub Container"
+    delivery = result.state["delivery"]
+    assert delivery["shippedItems"] == {"integrated_circuit":1, "scut_relay":0}
+    config["infrastructureCampaign"] = result.state
+    ops.data_engine.action_was_successful = lambda fp: fp == delivery["dispatchFingerprint"]
+    ops.containers.attached = lambda: []
+    result = HubCampaignService(ops).decide(config)
+    assert result.state["delivery"]["items"] == {"scut_relay":12}
+    assert result.state["delivery"]["shipment"] == 1
+
+
 def test_hub_packs_before_receiver_arrives_and_shows_loaded_stock():
     ops = operations([{"id":"relay", "type":"scut_relay", "containerSpace":.1}], role="hub",
                      attached=[{"id":"box", "usedCapacity":0}])

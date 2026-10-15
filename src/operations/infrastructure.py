@@ -736,7 +736,21 @@ class HubCampaignService:
         full = bool(cargo) and (free <= 0.00001 or (sizes and all(size > free + .00001 for size in sizes)))
         if not receiver_blocker and loaded_size > float(ready.get("freeCapacity", 0)) + .00001:
             return decision("receiver_storage_full", "Receiver needs more permanent storage space to unload this batch.")
-        if all(counts[k] >= requested[k] for k in requested) or full:
+        if not full:
+            for item_type, count in requested.items():
+                if counts[item_type] >= count:
+                    continue
+                item = next((i for i in items if i.get("type") == item_type and i.get("id") and i not in cargo
+                             and 0 < int(i.get("quantity", 1)) <= count-counts[item_type] and not i.get("currentTask")
+                             and float(i.get("containerSpace", 0) or 0) <= free + 0.00001), None)
+                if item:
+                    task = Task(action="Load Hub Output", target=str(item["id"]), category="infrastructure", priority=1,
+                                reason=f"Load {item_type.replace('_', ' ')} into the reserved delivery container.", workflow_authorized=True,
+                                idempotency_scope=scope+":load:"+str(item["id"]), metadata={**metadata, "toContainerId":container_id})
+                    return decision("loading", task.reason, tasks=(task,), production=self.production_targets(requested))
+        # Deliver available cargo once no further stock can be packed. Missing
+        # crafts remain in this request for subsequent shipments.
+        if cargo:
             if receiver_blocker:
                 return decision(receiver_blocker, "Shipment packed. " + receiver_summary)
             from src.operations.hub_receiving import cargo_fits_storage
@@ -745,24 +759,13 @@ class HubCampaignService:
             delivery["shippedItems"] = counts
             delivery["dispatching"] = True
             task = Task(action="Deliver Hub Container", target=container_id, category="infrastructure", priority=1,
-                        reason="Hand the completed output batch to the selected probe.", workflow_authorized=True,
+                        reason="Hand the available output batch to the selected probe.", workflow_authorized=True,
                         idempotency_scope=scope+":deliver", metadata={**metadata, "mode":"attach_to_probe", "objectId": str(delivery["targetProbeId"])})
             from src.execution.commands import Command, CommandType
             delivery["dispatchFingerprint"] = Command(type=CommandType.MANNY_DETACH_STORAGE_CONTAINER,
                 probe_id=self.operations.world.probe["id"], payload={"containerId":container_id, "mode":"attach_to_probe", "objectId":str(delivery["targetProbeId"])},
                 reason=task.reason, priority=1, metadata={**task.metadata, "idempotencyScope":task.idempotency_scope}).fingerprint
             return decision("delivering", task.reason, tasks=(task,), production=self.production_targets(requested))
-        for item_type, count in requested.items():
-            if counts[item_type] >= count:
-                continue
-            item = next((i for i in items if i.get("type") == item_type and i.get("id") and i not in cargo
-                         and 0 < int(i.get("quantity", 1)) <= count-counts[item_type] and not i.get("currentTask")
-                         and float(i.get("containerSpace", 0) or 0) <= free + 0.00001), None)
-            if item:
-                task = Task(action="Load Hub Output", target=str(item["id"]), category="infrastructure", priority=1,
-                            reason=f"Load {item_type.replace('_', ' ')} into the reserved delivery container.", workflow_authorized=True,
-                            idempotency_scope=scope+":load:"+str(item["id"]), metadata={**metadata, "toContainerId":container_id})
-                return decision("loading", task.reason, tasks=(task,), production=self.production_targets(requested))
         return decision("producing", "Building the requested output batch from delivered resources.", production=self.production_targets(requested))
 
 

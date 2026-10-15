@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Send available Hub package supplies without waiting for missing crafts to
+  fill a container. Preserve remaining quantities for subsequent shipments.
+  Bound accepted crafts by the cycle's initial shortage so delayed telemetry
+  cannot produce seven containers when only two are needed.
+
 - Add Mannys and additional containers to Hub package selection. Craft extra
   assets while preserving existing Hub counts, then transfer them permanently
   with storage, idle-worker, safe-container, and accepted-command checks.

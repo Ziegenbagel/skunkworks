@@ -718,6 +718,13 @@ Refresh focused probe, sector/inventory, and Manny state once at the start of an
 immediate dispatch burst. Reuse that state briefly while applying local accepted-
 Manny claims. Do not perform a complete dashboard reload before every order.
 
+Accepted crafts also consume the cycle's initial per-recipe shortage across
+Mannys and printers. Worker claims alone cannot prevent overproduction while
+inventory and active-output telemetry lag. Only successful orders consume this
+budget; a subsequent cycle replans from fresh state. Regression:
+`test_accepted_crafts_stop_at_initial_shortage_while_telemetry_lags` in
+`tests/test_replanning_automation_cycle.py`.
+
 ### Performance expectation
 
 Without an intentional cold galaxy-map rebuild or slow upstream API response, a
@@ -1756,7 +1763,12 @@ and `test_hub_cleanup_never_uses_another_packages_container_or_moves_busy_cargo`
 in `tests/test_infrastructure_campaign.py`.
 A missing container alone is not delivery evidence: the exact handoff must have an
 accepted journal entry. Partial container batches retain their remaining item
-counts. Role settings saves preserve campaign state. Normal execution modes,
+counts. When no further available stock fits, deliver an underfilled batch to
+a ready receiver rather than holding useful supplies for unfinished crafts.
+All receiver capacity, temporary-receipt, and prepare-only checks still apply.
+Regression: `test_hub_delivers_available_activation_circuits_without_waiting_for_relays`
+in `tests/test_infrastructure_campaign.py`.
+Role settings saves preserve campaign state. Normal execution modes,
 STOP, upgrade reservations, travel checks, and fresh preflight remain active.
 
 Relevant tests:

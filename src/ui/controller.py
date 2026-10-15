@@ -2288,6 +2288,8 @@ class MissionControlDataService:
         claimed_manny_ids = set()
         completed_exclusive_types = set()
         completed_upgrade_crafts = set()
+        craft_limits = {}
+        craft_committed = {}
         results = []
         for _ in range(policy.max_commands_per_cycle):
             # The previous execution's preflight already refreshed the world.
@@ -2301,11 +2303,20 @@ class MissionControlDataService:
                 probe_id=self._selected_probe_id,
                 excluded_fabrication=failed_fabrication,
             )
+            for item in self._prepared_commands:
+                command = item.command
+                if (command.type in {CommandType.MANNY_CRAFT, CommandType.ATOMIC_PRINTER_CRAFT}
+                        and command.metadata.get("remainingOrders") is not None):
+                    recipe = command.payload.get("recipe")
+                    craft_limits.setdefault(recipe, max(0, int(command.metadata["remainingOrders"])))
             prepared = next((
                 item for item in self._prepared_commands
                 if item.command.probe_id == self._selected_probe_id
                 and item.disposition == "ready"
                 and item.command.type not in completed_exclusive_types
+                and not (item.command.type in {CommandType.MANNY_CRAFT, CommandType.ATOMIC_PRINTER_CRAFT}
+                         and craft_committed.get(item.command.payload.get("recipe"), 0)
+                         >= craft_limits.get(item.command.payload.get("recipe"), float("inf")))
                 and not (item.command.type in {CommandType.MANNY_CRAFT, CommandType.ATOMIC_PRINTER_CRAFT}
                          and item.command.metadata.get("upgradeScope") in completed_upgrade_crafts)
                 and self._cycle_attempt_key(item.command) not in failed_attempts
@@ -2384,6 +2395,8 @@ class MissionControlDataService:
             ):
                 claimed_manny_ids.add(str(prepared.command.target_id))
             if prepared.command.type in {CommandType.MANNY_CRAFT, CommandType.ATOMIC_PRINTER_CRAFT}:
+                recipe = prepared.command.payload.get("recipe")
+                craft_committed[recipe] = craft_committed.get(recipe, 0) + 1
                 scope = prepared.command.metadata.get("upgradeScope")
                 if scope:
                     # Fund one next component, then wait for its accepted work

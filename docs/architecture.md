@@ -600,7 +600,9 @@ ready recipient past a waiting recipient; containers remain owned by their
 package. Manual settings saves append a request against persisted settings,
 rather than replacing the queue from a UI snapshot. Shipments split according to
 container and recipient storage capacity, retaining request and shipment IDs
-until accepted handoffs are observed. The editor uses the loaded recipe catalog, including Mannys and additional
+until accepted handoffs are observed. Available packed supplies can ship before
+the remaining crafts finish; a partial batch need not fill its container.
+The editor uses the loaded recipe catalog, including Mannys and additional
 containers. Those assets use direct permanent transfers before ordinary component
 shipments; they never create temporary-container receipts. Queue entry preserves
 the Hub's existing asset counts as a production baseline, so requested assets
