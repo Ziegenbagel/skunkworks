@@ -1761,13 +1761,13 @@ class UiPreparationTests(unittest.TestCase):
         notices = []
         controller._set_operation_notice = notices.append
 
-        controller._notify_unreviewed_api_version(143)
+        controller._notify_unreviewed_api_version(149)
         self.assertEqual(notices, [])
-        controller._notify_unreviewed_api_version(144)
-        controller._notify_unreviewed_api_version(144)
+        controller._notify_unreviewed_api_version(150)
+        controller._notify_unreviewed_api_version(150)
 
         self.assertEqual(notices, [
-            "NEW GAME API v144 DETECTED · CONTINUING IN COMPATIBILITY MODE",
+            "NEW GAME API v150 DETECTED · CONTINUING IN COMPATIBILITY MODE",
         ])
 
     def test_production_includes_active_manny_crafting_and_mining(self):

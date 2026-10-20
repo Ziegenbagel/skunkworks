@@ -1085,3 +1085,13 @@ control, not probe commands. Extend reviewed compatibility through v143 without
 changing probe payloads or treating an accepted cancellation as completion.
 Versions above v143 remain usable but unreviewed; versions below v103 remain
 blocked. Regression coverage: `tests/test_api_contract.py`.
+
+### API v149 review retains server-owned state and quota accounting
+
+Reviewed compatibility now extends through v149. Error responses admitted by
+the game limiter consume quota: capture their headers before raising, share the
+budget across clients, and do not retry mutations. Degraded scans can disclose
+known SCUT networks; load only those disclosed references, never infer private
+networks from unknown coverage. Upstream SQL stock migrations require no client
+migration and do not make elapsed task timers authoritative completion evidence.
+Regression coverage: `tests/test_api_contract.py`, `tests/test_hazard_context.py`.

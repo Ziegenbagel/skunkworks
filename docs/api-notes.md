@@ -10,6 +10,27 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 # Verified Observations
 
+## API v144–v149 review (2026-10-20)
+
+The live `/api/version` and [public OpenAPI contract](https://neumann-probe.net/openapi.yaml)
+report v149. The [game changelog](https://neumann-probe.net/changelog) records:
+
+- v144: improved observer selection and known SCUT coverage on degraded sector
+  scans. Existing snapshot-based network discovery accepts these network references;
+  absent private network data must not be inferred.
+- v145–v147: Others movement range, ship construction duration, and optional
+  fleet exclusions. These do not change probe movement or crafting contracts.
+- v148: quota headers also accompany errors after admission by the rate limiter.
+  GameClient already captures headers before raising HTTP errors or handling 429.
+- v149: collective Others depot deposits, outside Skunkworks probe control.
+
+The intervening SQL stock and forgotten-Manny migrations are server operations,
+not client migrations. Public stock representations remain unchanged. Timed work
+still completes through server telemetry; elapsed client ETAs never prove completion.
+No new probe mutation or payload is required for this compatibility release.
+Regression checks cover error-response quota accounting and degraded/unknown
+SCUT network discovery without adding refresh requests.
+
 ## API v142–v143 review (2026-10-03)
 
 The live `/api/version` reports v143. The public probe OpenAPI contract differs
@@ -22,8 +43,8 @@ command, payload, or automation semantics change in this compatibility patch.
 
 ## Contract Baseline
 
-Skunkworks supports deployed API v103 through upstream API v143, verified
-against the live contract on 2026-10-03.
+Skunkworks supports deployed API v103 through upstream API v149, verified
+against the live contract on 2026-10-20.
 
 Newer API versions are accepted provisionally because the game contract is
 normally backward compatible. Skunkworks displays an unreviewed-version warning
