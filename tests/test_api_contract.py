@@ -55,25 +55,25 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_accepts_current_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 143})]
+            [FakeResponse({"apiVersion": 149})]
         )
 
         self.assertEqual(
             client.ensure_compatible_api(),
-            143,
+            149,
         )
-        self.assertEqual(MAXIMUM_API_VERSION, 143)
+        self.assertEqual(MAXIMUM_API_VERSION, 149)
 
-    def test_reviewed_versions_end_at_v143_but_newer_api_remains_usable(self):
-        for version in (103, 139, 140, 141, 142, 143):
+    def test_reviewed_versions_end_at_v149_but_newer_api_remains_usable(self):
+        for version in range(103, 150):
             with self.subTest(version=version):
                 self.assertTrue(api_is_reviewed(version))
         self.assertFalse(api_is_reviewed(102))
-        self.assertFalse(api_is_reviewed(144))
+        self.assertFalse(api_is_reviewed(150))
         client = self.client([
-            FakeResponse({"apiVersion": 144}), FakeResponse({"id": 7}),
+            FakeResponse({"apiVersion": 150}), FakeResponse({"id": 7}),
         ])
-        self.assertEqual(client.ensure_compatible_api(), 144)
+        self.assertEqual(client.ensure_compatible_api(), 150)
         self.assertEqual(client.get_player(), {"id": 7})
 
     def test_preserves_caller_headers_with_authentication(self):
@@ -99,10 +99,10 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_forward_tolerates_unreviewed_newer_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 144}), FakeResponse({"id": 7})]
+            [FakeResponse({"apiVersion": 150}), FakeResponse({"id": 7})]
         )
 
-        self.assertEqual(client.ensure_compatible_api(), 144)
+        self.assertEqual(client.ensure_compatible_api(), 150)
         self.assertEqual(client.get_player(), {"id": 7})
         self.assertEqual(len(client.session.calls), 2)
 
@@ -150,6 +150,23 @@ class GameClientContractTests(unittest.TestCase):
         client = self.client([])
 
         self.assertTrue(client.background_budget_available())
+
+    def test_error_responses_update_shared_quota_before_raising(self):
+        for status in (400, 500, 429):
+            with self.subTest(status=status):
+                GameClient._shared_rate_limits.clear()
+                self.addCleanup(GameClient._shared_rate_limits.clear)
+                client = self.client([FakeResponse({}, status_code=status, headers={
+                    "X-RateLimit-Limit": "120",
+                    "X-RateLimit-Remaining": "12",
+                    "X-RateLimit-Reset": "4102444800",
+                    "Retry-After": "7",
+                })])
+                with self.assertRaises(ApiRateLimitError if status == 429 else RuntimeError):
+                    client.get_player()
+                self.assertEqual(client.rate_limit["remaining"], "12")
+                self.assertFalse(self.client([]).background_budget_available())
+                self.assertEqual(len(client.session.calls), 1)
 
     def test_retries_transient_disconnects_for_read_requests(self):
         delays = []
