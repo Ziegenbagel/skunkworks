@@ -1848,7 +1848,13 @@ Regression coverage: `tests/test_api_contract.py`, `tests/test_hazard_context.py
 
 Missile Destroyer automation requires an enabled role, explicit combat consent,
 an operator-assigned sector mission and a selected home Hub. It fires only at
-observed Others ships, with one accepted missile outstanding. Persist the
+observed Others ships, with one offensive missile outstanding. Incoming local
+missiles explicitly targeting this probe take priority, even during an offensive
+flight. Each threat has a durable interceptor identity independent of mission
+replacement; accepted responses prevent replay across the journal crash gap.
+Reserved offensive and defensive ammunition cannot be reused from stale
+inventory. Missing threats are not reported as successful interceptions.
+Regression: interception tests in `tests/test_specialist_campaign.py`. Persist the
 accepted missile identity before journal success; an elapsed ETA never proves
 impact or permits another launch. Only server destruction evidence marks a
 ship destroyed. A detailed normal scan with no eligible ships ends the mission

@@ -115,9 +115,45 @@ class SpecialistCampaignService:
                        metadata={**task.metadata, "idempotencyScope":task.idempotency_scope,
                                  "workflowAuthorized":True}).fingerprint
 
+    def _defend(self, state, result):
+        # Threat identifiers are server-owned. Never infer hostility from a
+        # missile-shaped object or attack projectiles targeting another asset.
+        threats = [o for o in local_objects(self.ops)
+                   if o.get("id") and o.get("type") == "missile"
+                   and o.get("targetsCurrentProbe") is True
+                   and o.get("status") not in {"resolved", "failed", "cancelled", "intercepted"}]
+        if not threats:
+            return None
+        defenses = state.setdefault("interceptions", {})
+        reserved = {d["itemId"] for d in defenses.values() if d.get("itemId")}
+        if (state.get("launch") or {}).get("itemId"):
+            reserved.add(state["launch"]["itemId"])
+        ammo = [i for i in inventory_items(self.ops) if i.get("type") == "missile"
+                and not i.get("currentTask") and str(i["id"]) not in reserved]
+        for threat in sorted(threats, key=lambda o:(str(o.get("impactAt") or "9999"), str(o["id"]))):
+            target = str(threat["id"])
+            pending = defenses.get(target)
+            if pending and (self.engine.action_was_successful(pending["fingerprint"])
+                            or record(self.engine, "specialist_launch:"+pending["fingerprint"]).get("missile")):
+                continue
+            item = next((i for i in inventory_items(self.ops)
+                         if pending and str(i["id"]) == pending["itemId"] and not i.get("currentTask")), None)
+            if item is None:
+                item = sorted(ammo, key=lambda i:str(i["id"]))[0] if ammo else None
+            if item is None:
+                return result("defense_hold", "Incoming missile; no available interceptor. Emergency escape remains a separate safety setting.")
+            task = self._task("Launch Mission Missile", item["id"],
+                              {"missionId":"defense-"+target, "sequence":0}, targetId=target)
+            defenses[target] = {"itemId":str(item["id"]), "fingerprint":self._fingerprint(task)}
+            return result("intercepting", "Intercepting an incoming missile targeting this probe; interception is not guaranteed.", tasks=(task,))
+        return result("defending", "Interceptors accepted; waiting for incoming missiles to clear. This is not confirmation of interception.")
+
     def _combat(self, settings, state, current, home, result):
         if not settings.get("combatAuthorized"):
             return result("combat_hold", "Combat authorization is disabled.")
+        defense = self._defend(state, result)
+        if defense is not None:
+            return defense
         # Accepted launches are reconciled before return or mission replacement.
         pending = state.get("launch")
         if pending and (self.engine.action_was_successful(pending["fingerprint"])
@@ -139,7 +175,9 @@ class SpecialistCampaignService:
         mission = str(settings.get("missionId") or "")
         if mission and mission != state.get("missionId"):
             state.update(missionId=mission, returning=False, destroyed=[], launch=None)
-        ammo = [i for i in inventory_items(self.ops) if i.get("type") == "missile" and not i.get("currentTask")]
+        defensive_items = {d.get("itemId") for d in state.get("interceptions", {}).values()}
+        ammo = [i for i in inventory_items(self.ops) if i.get("type") == "missile"
+                and not i.get("currentTask") and str(i["id"]) not in defensive_items]
         amount = sum(int(i.get("quantity", 1)) for i in ammo)
         target_stock = int(settings.get("missileStock", 1))
         if (settings.get("returnHome") or not mission or state.get("completedMission") == mission or not ammo
@@ -181,7 +219,7 @@ class SpecialistCampaignService:
             return result("ready", "No eligible Others ships remain visible; awaiting the next mission.")
         item = sorted(ammo, key=lambda i:str(i["id"]))[0]
         task = self._task("Launch Mission Missile", item["id"], state, targetId=sorted(targets)[0])
-        state["launch"] = {"fingerprint":self._fingerprint(task), "targetId":task.metadata["targetId"], "lastMissile":amount == 1}
+        state["launch"] = {"fingerprint":self._fingerprint(task), "targetId":task.metadata["targetId"], "lastMissile":amount == 1, "itemId":str(item["id"])}
         return result("engaging", "Preparing one missile against an identified Others ship.", tasks=(task,))
 
     def _salvage(self, settings, state, current, home, result):

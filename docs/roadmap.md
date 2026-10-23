@@ -646,6 +646,8 @@ focused regression tests pass. No 1.2 development commit receives a public
   refill requests, and accepted commands must survive restarts. Role activation
   provides explicit combat opt-in; STOP, execution policy, safe travel, Manny
   recovery, and Hub unloading/packaging-return checks remain authoritative.
+  Incoming missiles targeting the destroyer take defensive priority using a
+  durable interceptor ledger, even while an offensive missile is in flight.
   Manual Combat Control retains its existing confirmation workflow.
 - Rebuild the 1.2 Operator Manual after the interface and role workflows settle.
   Replace the Warranty Redemption schematic with artwork based on the current

@@ -1,5 +1,10 @@
 # Development Release Log
 
+- Missile Destroyers now prioritize intercepting observed missiles targeting
+  themselves, including during an offensive flight. Durable per-threat launch
+  identities prevent duplicate shots. Interception uses carried ammunition and
+  does not guarantee survival; existing emergency escape remains separate.
+
 - Replace the unfinished Builder Support role with Missile Destroyer and add
   testable Salvage campaigns. Destroyers require explicit combat consent and
   a sector mission, reconcile one missile at a time, return to their selected

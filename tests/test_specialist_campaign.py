@@ -229,3 +229,46 @@ def test_specialist_roles_do_not_inherit_bulk_production_or_mining(tmp_path, rol
     assert not any(p.command.type in {C.MANNY_MINE,C.MANNY_CRAFT,C.ATOMIC_PRINTER_CRAFT} for p in service._prepared_commands)
     assert DesiredStateStore(engine).load(1).resources == desired.resources
     assert DesiredStateStore(engine).load(1).production == desired.production
+
+
+def test_destroyer_intercepts_before_offense_and_does_not_duplicate_after_restart():
+    threat={"id":"incoming","type":"missile","targetsCurrentProbe":True,"status":"moving"}
+    ops,cfg,values,accepted=setup(items=[{"id":"a","type":"missile"},{"id":"b","type":"missile"}],
+                                 local=[threat,{"id":"ship","type":"others_ship"}])
+    result=step(ops,cfg)
+    assert result.phase == "intercepting"
+    command=TaskCommandTranslator(ops,1).translate(result.tasks[0])
+    assert command.payload == {"missileItemId":"a","targetId":"incoming"}
+    assert not command_blockers(ops,command)
+    values["specialist_launch:"+command.fingerprint]=json.dumps({"missile":{"id":"interceptor","status":"preparing"}})
+    assert step(ops,cfg).phase == "defending"
+    cfg["missionId"]="new-mission"
+    assert not step(ops,cfg).tasks
+    threat["targetsCurrentProbe"]=False
+    assert command_blockers(ops,command)
+
+
+def test_destroyer_defends_during_offensive_flight_and_prioritizes_earliest_threat():
+    ops,cfg,values,accepted=setup(items=[{"id":"a","type":"missile"},{"id":"b","type":"missile"}],local=[{"id":"ship","type":"others_ship"}])
+    shot=step(ops,cfg)
+    accepted.add(shot.state["launch"]["fingerprint"])
+    ops.world.sector["objects"] += [
+        {"id":"later","type":"missile","targetsCurrentProbe":True,"impactAt":"2030-01-01T01:00:00Z"},
+        {"id":"earlier","type":"missile","targetsCurrentProbe":True,"impactAt":"2030-01-01T00:00:00Z"}]
+    defense=step(ops,cfg)
+    assert defense.tasks[0].target == "b"
+    assert defense.tasks[0].metadata["targetId"] == "earlier"
+    assert defense.state["launch"] == shot.state["launch"]
+    assert not command_blockers(ops,TaskCommandTranslator(ops,1).translate(defense.tasks[0]))
+
+
+def test_destroyer_does_not_intercept_other_targets_or_without_consent():
+    threat={"id":"incoming","type":"missile","targetsCurrentProbe":False}
+    ops,cfg,_,_=setup(items=[{"id":"a","type":"missile"}],local=[threat])
+    assert step(ops,cfg).phase != "intercepting"
+    threat["targetsCurrentProbe"]=True
+    cfg["combatAuthorized"]=False
+    assert not step(ops,cfg).tasks
+    cfg["combatAuthorized"]=True
+    ops.world.probe["inventory"]["items"]=[]
+    assert step(ops,cfg).phase == "defense_hold"

@@ -39,7 +39,7 @@ ColumnLayout {
     Label {
         Layout.fillWidth: true; wrapMode: Text.Wrap; color: Constants.textColor
         text: root.combat
-            ? "Travel to your assigned sector and attack identified Others ships. Wait for each missile result before firing again. Return when empty or no eligible targets remain, refill at the Hub, then wait for your next mission."
+            ? "Travel to your assigned sector and attack identified Others ships. Incoming missiles targeting this probe take priority, even during an offensive missile flight. Interception takes time and is not guaranteed. Return when empty or no eligible targets remain, refill at the Hub, then wait for your next mission."
             : "Recover unclaimed drifting containers and loose items within known SCUT coverage. Return recovered cargo to the selected Hub. Active workflow reservations and travel-safe storage limits remain protected."
     }
     Label { text: "HOME HUB"; color: Constants.textColor }
@@ -69,7 +69,7 @@ ColumnLayout {
     }
     CheckBox {
         id: combatConsent; visible: root.combat
-        text: "Authorize automatic missile attacks on Others ships in my assigned sector"
+        text: "Authorize attacks on Others ships in my assigned sector and interception of missiles targeting this probe"
         checked: Boolean(root.settings.combatAuthorized)
     }
     Label { visible: !root.combat; text: "PRIORITY LOST OBJECT IDS · OPTIONAL, COMMA-SEPARATED"; color: Constants.textColor }

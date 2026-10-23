@@ -648,3 +648,10 @@ baseline and a separate cargo ledger, returns after each pickup, and delivers
 containers or recovered Mannys directly to its configured Hub. Loose recovered
 items use empty onboard packaging. Fresh Hub readiness gates delivery. No
 campaign treats a timer or planned command as authoritative completion.
+
+Destroyer defense uses existing sector telemetry and a durable per-threat
+interceptor ledger, adding no per-refresh network fan-out. It prioritizes local
+missiles explicitly targeting the probe before offensive launch reconciliation,
+refill or travel. Accepted interceptor identities remain distinct from the
+offensive flight and survive mission replacement. Threat disappearance releases
+the defensive hold but does not establish a successful intercept.

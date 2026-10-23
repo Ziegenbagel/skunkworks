@@ -121,3 +121,13 @@ Hub receipts and all-Mannys-aboard departure checks before using Automatic mode.
 
 These workflows have offline regression coverage; live missions are operator
 acceptance testing, not something the test suite starts.
+
+For destroyer defense, observe a local missile with `targetsCurrentProbe=true`.
+It should take priority even with an offensive missile outstanding or a return
+requested. Verify one accepted interceptor per threat, earliest impact first,
+and no replay after restart or mission replacement. Other probes' incoming
+missiles are excluded. No ammunition produces a defensive hold. STOP, policy,
+idle-worker and existing receipt/repair/upgrade holds still apply. The game
+uses fifteen minutes of interceptor flight plus preparation; late detection
+can therefore still result in impact. Keep emergency escape configured as
+appropriate. Disappearance alone must not display interception success.
