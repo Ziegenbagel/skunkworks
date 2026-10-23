@@ -597,7 +597,7 @@ def build():
     add_bullets(doc, [
         "Review every probe, including idle and unreachable probes.",
         "Rename a probe when the game API permits it.",
-        "Assign an operational role such as hub, miner, transport, tanker reserve, explorer, or builder support.",
+        "Assign an operational role such as hub, miner, transport, tanker reserve, explorer, salvage, or missile destroyer.",
         "Treat roles as Skunkworks planning instructions; they do not change the physical probe model.",
     ])
     add_screen_figure(doc, "fleet", "Figure 3-1. Fleet identity, Manny auto-naming, and selectable probe cards.")

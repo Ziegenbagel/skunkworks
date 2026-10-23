@@ -24,6 +24,8 @@ class PreflightValidator:
             blockers.append("telemetry_unavailable")
 
         if command.type in {
+            CommandType.MANNY_LAUNCH_MISSILE,
+            CommandType.MANNY_SALVAGE,
             CommandType.MANNY_CRAFT,
             CommandType.ATOMIC_PRINTER_CRAFT,
             CommandType.DEPLOY_SCUT_RELAY,
@@ -52,6 +54,8 @@ class PreflightValidator:
             blockers.extend(self._cancel_move_blockers())
 
         if command.type in {
+            CommandType.MANNY_LAUNCH_MISSILE,
+            CommandType.MANNY_SALVAGE,
             CommandType.MANNY_CRAFT,
             CommandType.MANNY_MINE,
             CommandType.MANNY_TRANSFER_PROBE,
@@ -145,6 +149,8 @@ class PreflightValidator:
             if expected is not None and current != expected:
                 blockers.append("transport_wrong_sector")
 
+        from src.operations.specialist_campaign import command_blockers as specialist_blockers
+        blockers.extend(specialist_blockers(self.operations, command))
         from src.operations.hub_receiving import receipt_blockers
         blockers.extend(receipt_blockers(self.operations, command))
         from src.operations.infrastructure import infrastructure_blockers, command_blockers

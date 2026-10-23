@@ -112,7 +112,7 @@ Goal: plan objectives as resumable operations rather than disconnected tasks.
   - deuterium tanker;
   - explorer;
   - salvage;
-  - builder/support;
+  - missile destroyer (planned for 1.2);
   - unassigned.
 - Add transport capacity, pickup, storage transfer, and delivery-cycle plans.
 - Add tanker capacity, same-sector rendezvous, fuel-transfer, and return-reserve
@@ -622,15 +622,31 @@ focused regression tests pass. No 1.2 development commit receives a public
   production, interruption, and resumption architecture. Hubs primarily build
   components and finished items and transfer those outputs to other probes;
   raw-resource delivery remains a Miner/Transport responsibility.
-- Salvage-role campaigns recover detached or drifting containers and other
+- Implemented for 1.2 testing: Salvage-role campaigns recover detached or drifting containers and other
   recoverable items lost or deliberately staged by fleet probes. Salvagers
   prioritize explicitly lost assets over ordinary cargo, remain inside verified
   SCUT coverage, respect capacity and fuel/repair floors, and never collect
   containers currently claimed by active mining, storage-station, transfer, or
   Manny workflows. Each pickup is reconciled against live object state so a
-  vanished, recovered, or externally claimed target is skipped safely; full
-  salvagers return recovered cargo to a configured hub or storage destination.
+  vanished, recovered, or externally claimed target is skipped safely; salvagers return after each successful pickup to their configured Hub. Loose
+  items require an empty onboard packaging container; depleted packaging pauses
+  delivery. Previously attempted object IDs are skipped conservatively.
 - Civilization-contact and quest reward analysis.
+- Implemented for 1.2 testing: Missile Destroyer replaces the unimplemented Builder Support role in the
+  1.2 plan. This is a dedicated combat role: the operator assigns a target
+  sector containing Others ships and a home Hub. The probe travels to the
+  assigned sector and launches carried missiles at live, eligible Others ship
+  targets until its ammunition is exhausted or all mission targets are
+  confirmed destroyed. It then returns to its home Hub for missile resupply
+  and waits for the next operator-assigned mission. It does not choose new
+  combat sectors on its own or perform routine mining and production work.
+  The implementation distinguishes destroyed targets from targets that left
+  sensor visibility, accounts for accepted launches and missiles already in
+  flight, and revalidates target identity before each launch. Mission state,
+  refill requests, and accepted commands must survive restarts. Role activation
+  provides explicit combat opt-in; STOP, execution policy, safe travel, Manny
+  recovery, and Hub unloading/packaging-return checks remain authoritative.
+  Manual Combat Control retains its existing confirmation workflow.
 - Rebuild the 1.2 Operator Manual after the interface and role workflows settle.
   Replace the Warranty Redemption schematic with artwork based on the current
   in-game Manny design, and add a prominent manual-style warning that

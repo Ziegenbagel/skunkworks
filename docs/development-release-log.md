@@ -1,5 +1,12 @@
 # Development Release Log
 
+- Replace the unfinished Builder Support role with Missile Destroyer and add
+  testable Salvage campaigns. Destroyers require explicit combat consent and
+  a sector mission, reconcile one missile at a time, return to their selected
+  Hub for resupply, and await the next mission. Salvagers protect claimed cargo,
+  recover eligible observed objects and deliver their recovered cargo to a Hub.
+  Both roles preserve saved goals while suppressing unrelated industrial work.
+
 - Send available Hub package supplies without waiting for missing crafts to
   fill a container. Preserve remaining quantities for subsequent shipments.
   Bound accepted crafts by the cycle's initial shortage so delayed telemetry

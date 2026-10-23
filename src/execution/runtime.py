@@ -169,6 +169,16 @@ class AutomationRuntime:
                 return ExecutionResult(
                     "failed", command, response=self._error_response(error)
                 )
+            if command.type == CommandType.MANNY_LAUNCH_MISSILE:
+                import json
+                self.data_engine.set_preference("specialist_launch:"+command.fingerprint,
+                                                json.dumps(response))
+            if command.metadata.get("specialistCampaign") and command.type in {
+                CommandType.MANNY_TRANSFER_PROBE, CommandType.MANNY_DETACH_STORAGE_CONTAINER,
+            }:
+                receiver = command.payload.get("targetProbeId", command.payload.get("objectId"))
+                if receiver:
+                    self.data_engine.set_preference(f"hub_receiving:{receiver}", "{}")
             self._record(command, "succeeded")
             return ExecutionResult("succeeded", command, response=response)
 

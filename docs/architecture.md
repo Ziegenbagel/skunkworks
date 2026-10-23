@@ -629,3 +629,22 @@ for incidental idle Mannys and raw resources, and returns only
 confirmed-empty delivery containers to drift. A receipt holds ordinary travel
 until its accepted return is confirmed. The Hub recovers these identified
 returns for reuse, even when general drifting-cargo recovery is disabled.
+
+
+### Salvage and Missile Destroyer campaigns
+
+`SpecialistCampaignService` produces pure decisions with persisted role state
+under `infrastructureCampaign`. The controller supplies effective travel goals
+and specialist tasks, preserving stored user goals while suppressing unrelated
+production/mining. Typed commands use the shared translator, preflight, policy,
+worker claims and execution journal. Preflight recomputes the campaign decision
+and matches command identity against current observations.
+
+Destroyer launch responses are stored before journal success. Missile-result
+reads are throttled to one attempt per fifteen seconds per pending launch;
+failed reads retain pending state. The selected Hub collects durable ammunition
+requests through the existing package pipeline. Salvage keeps a pickup inventory
+baseline and a separate cargo ledger, returns after each pickup, and delivers
+containers or recovered Mannys directly to its configured Hub. Loose recovered
+items use empty onboard packaging. Fresh Hub readiness gates delivery. No
+campaign treats a timer or planned command as authoritative completion.

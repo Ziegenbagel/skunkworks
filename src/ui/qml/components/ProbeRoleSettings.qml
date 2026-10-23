@@ -13,7 +13,7 @@ Item {
     property int focusedProbeId: -1
     property int defaultProbeId: -1
     readonly property bool canManageRoles: defaultProbeId >= 0 && focusedProbeId === defaultProbeId
-    readonly property var roleOptions: ["unassigned", "hub", "relay_placement", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
+    readonly property var roleOptions: ["unassigned", "hub", "relay_placement", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "salvage", "missile_destroyer"]
     readonly property string focusedRole: roleFor(focusedProbeId)
     readonly property var focusedSettings: (settingsData.probeRoleSettings || {})[String(focusedProbeId)] || ({})
     readonly property var minerReceiverProbes: availableProbes.filter(
@@ -219,6 +219,14 @@ Item {
                         }
                     }
                 }
+                SpecialistRoleSettings {
+                    visible: root.focusedRole === "salvage" || root.focusedRole === "missile_destroyer"
+                    role: root.focusedRole
+                    settings: root.focusedSettings
+                    runtime: root.runtimeData.infrastructure || ({})
+                    hubs: root.availableProbes.filter(p => Number(p.id) !== root.focusedProbeId && root.roleFor(p.id) === "hub")
+                    onSaveRequested: settings => root.roleSettingsSaveRequested(root.focusedProbeId, settings)
+                }
                 InfrastructureRoleSettings {
                     Layout.fillWidth: true
                     visible: root.focusedRole === "hub" || root.focusedRole === "relay_placement"
@@ -280,7 +288,7 @@ Item {
                     }
                 }
                 Item {
-                    visible: ["transport", "deuterium_tanker", "deuterium_reserve", "explorer", "miner"].indexOf(root.focusedRole) < 0
+                    visible: ["transport", "deuterium_tanker", "deuterium_reserve", "explorer", "miner", "hub", "relay_placement", "salvage", "missile_destroyer"].indexOf(root.focusedRole) < 0
                     Layout.fillWidth: true
                     Layout.minimumWidth: roleScroll.availableWidth
                     Layout.preferredHeight: Math.max(300, roleScroll.availableHeight - 90)

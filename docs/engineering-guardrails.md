@@ -1127,8 +1127,8 @@ Relevant test:
 `weapon_targeted` and sector missiles with `targetsCurrentProbe=true` are live
 critical safety state for the focused probe. They replace the Live Sector view
 with an impact countdown and a direct route to Combat Control, but do not emit
-an operating-system desktop notification in 1.0.6. Missile launches remain
-manual, require the operator to type `Confirm`, and revalidate the selected
+an operating-system desktop notification in 1.0.6. Manual Combat Control launches
+require the operator to type `Confirm`, and revalidate the selected
 Manny, inventory missile, and public target identifier at dispatch.
 
 Missile dispatch uses the canonical API v125 Manny-scoped
@@ -1842,3 +1842,30 @@ known SCUT networks; load only those disclosed references, never infer private
 networks from unknown coverage. Upstream SQL stock migrations require no client
 migration and do not make elapsed task timers authoritative completion evidence.
 Regression coverage: `tests/test_api_contract.py`, `tests/test_hazard_context.py`.
+
+
+### Specialist roles retain explicit mission and cargo ownership
+
+Missile Destroyer automation requires an enabled role, explicit combat consent,
+an operator-assigned sector mission and a selected home Hub. It fires only at
+observed Others ships, with one accepted missile outstanding. Persist the
+accepted missile identity before journal success; an elapsed ETA never proves
+impact or permits another launch. Only server destruction evidence marks a
+ship destroyed. A detailed normal scan with no eligible ships ends the mission
+without claiming destruction. Refill never starts a completed mission again.
+
+Both specialist roles suppress routine production and resource goals in the
+effective plan, including mining fallback, without deleting saved goals. STOP,
+policy, travel safety, repair holds, upgrades and Hub receipts still apply.
+Salvage must exclude identifiers claimed by other workflows and revalidate
+eligibility before dispatch. Only inventory gained after an accepted pickup
+belongs to the salvage cargo ledger. Original storage is not recovered cargo;
+an empty original container may be explicitly used to package loose salvage.
+Missing telemetry or storage pauses work rather than discarding cargo. Legacy
+Builder Support rows project as unassigned without rewriting saved records.
+
+Regression coverage: `tests/test_specialist_campaign.py` (consent, exact target,
+accepted-response crash gap, refill completion, cargo ownership, claims,
+capacity, role retirement and effective-plan isolation), alongside
+`tests/test_infrastructure_campaign.py` and
+`tests/test_replanning_automation_cycle.py` for shared execution invariants.

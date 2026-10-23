@@ -18,6 +18,10 @@ class TaskCommandTranslator:
             return None
 
         handler = {
+            "Launch Mission Missile": self._specialist,
+            "Recover Salvage": self._specialist,
+            "Transfer Salvage Manny": self._specialist,
+            "Deliver Salvage Container": self._detach_transport_container,
             "Deploy SCUT Relay": self._infrastructure,
             "Activate SCUT Relay": self._infrastructure,
             "Install SCUT Beacon": self._infrastructure,
@@ -52,6 +56,23 @@ class TaskCommandTranslator:
                 "idempotencyScope": task.idempotency_scope,
             })
         return command
+
+    def _specialist(self, task):
+        member = self._claim_idle_manny(required_id=task.target if task.action == "Transfer Salvage Manny" else None)
+        if member is None:
+            return None
+        if task.action == "Launch Mission Missile":
+            kind = CommandType.MANNY_LAUNCH_MISSILE
+            payload = {"missileItemId":task.target, "targetId":task.metadata["targetId"]}
+        elif task.action == "Transfer Salvage Manny":
+            kind = CommandType.MANNY_TRANSFER_PROBE
+            payload = {"targetProbeId":task.metadata["targetProbeId"]}
+        else:
+            kind = CommandType.MANNY_SALVAGE
+            payload = {"objectId":task.target}
+        return Command(kind, self.probe_id, payload, task.reason, task.priority,
+            target_id=member["id"], source_action=task.action,
+            metadata={**task.metadata, "workflowAuthorized":bool(task.workflow_authorized)})
 
     def _infrastructure(self, task):
         if task.action == "Transfer Hub Manny":

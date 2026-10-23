@@ -7,6 +7,8 @@ from enum import StrEnum
 
 
 class CommandType(StrEnum):
+    MANNY_LAUNCH_MISSILE = "manny_launch_missile"
+    MANNY_SALVAGE = "manny_salvage"
     MANNY_CRAFT = "manny_craft"
     ATOMIC_PRINTER_CRAFT = "atomic_printer_craft"
     MANNY_MINE = "manny_mine"
@@ -51,6 +53,9 @@ class Command:
         identity_metadata = dict(self.metadata)
         target_id = self.target_id
         if self.type in {
+            CommandType.MANNY_LAUNCH_MISSILE,
+            CommandType.MANNY_SALVAGE,
+            CommandType.MANNY_TRANSFER_PROBE,
             CommandType.MANNY_ACTIVATE_RELAY,
             CommandType.MANNY_INSTALL_BEACON,
             CommandType.MANNY_LOAD_HUB_OUTPUT,

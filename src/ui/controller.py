@@ -957,6 +957,9 @@ class MissionControlDataService:
             desired, infrastructure_tasks, infrastructure_view = self._reconcile_infrastructure_campaign(
                 operations, probe_id, desired,
             )
+            desired, specialist_tasks, specialist_view = self._reconcile_specialist_campaign(operations, probe_id, desired)
+            if specialist_view:
+                infrastructure_view = specialist_view
             tasks = Planner(
                 operations,
                 desired,
@@ -998,6 +1001,9 @@ class MissionControlDataService:
                     projected_tasks.append(task)
                 tasks = projected_tasks
             tasks.extend(miner_tasks)
+            if specialist_view.get("enabled"):
+                tasks = [t for t in tasks if t.category in {"travel", "safety"}]
+                tasks.extend(specialist_tasks)
             if receiving.phase:
                 tasks = [task for task in tasks if task.category == "safety"] + list(receiving.tasks)
                 miner_view = {}
@@ -1056,6 +1062,59 @@ class MissionControlDataService:
             "miner": miner_view if operations is not None and probe_id is not None else {},
             "infrastructure": infrastructure_view if operations is not None and probe_id is not None else {},
         }
+
+    def _reconcile_specialist_campaign(self, operations, probe_id, desired):
+        from src.operations.specialist_campaign import SpecialistCampaignService, ROLES, record
+        from src.operations.infrastructure import role_rows
+        from src.operations.hub_receiving import receipts, readiness, publish_live_readiness
+        row = next((r for r in role_rows(self.data_engine) if _integral_ids_equal(r["asset_id"], probe_id)), None)
+        if row is None or row["role"] not in ROLES:
+            return desired, [], {}
+        settings = row["settings"]
+        enabled = bool(settings.get("infrastructureEnabled"))
+        if not enabled:
+            return desired, [], {"role":row["role"], "enabled":False, "phase":"paused", "summary":"Role paused."}
+        # These roles own travel and do not inherit routine manufacturing/mining goals.
+        from src.planner.desired_state import InventoryGoal
+        desired = replace(desired, travel=None, production=(), resources=(), fleet=(),
+                          inventory=InventoryGoal(minimum_free_capacity=0))
+        if receipts(self.data_engine, probe_id):
+            return desired, [], {"role":row["role"], "enabled":True, "phase":"receiving", "summary":"Unloading and returning Hub packaging before mission work."}
+        if desired.upgrade is not None and UpgradeService(operations).assess(desired.upgrade)["status"] != "complete":
+            return desired, [], {"role":row["role"], "enabled":True, "phase":"upgrade_hold", "summary":"Complete or cancel the pending upgrade before this role operates."}
+        state = settings.get("infrastructureCampaign") or {}
+        pending = state.get("launch") or {}
+        fingerprint = pending.get("fingerprint")
+        if fingerprint and (self.data_engine.action_was_successful(fingerprint) or record(self.data_engine, "specialist_launch:"+fingerprint).get("missile")):
+            key = "specialist_missile:"+fingerprint
+            cached = record(self.data_engine, key)
+            accepted = record(self.data_engine, "specialist_launch:"+fingerprint)
+            missile_id = (accepted.get("missile") or {}).get("id")
+            if missile_id and time.time()-cached.get("at", 0) >= 15:
+                self.data_engine.set_preference(key, json.dumps({**cached, "at":time.time()}))
+                try:
+                    response = self.capabilities.probes.missile(probe_id, missile_id)
+                    self.data_engine.set_preference(key, json.dumps({**response, "at":time.time()}))
+                except Exception:
+                    pass
+        hub_id = settings.get("hubProbeId")
+        if row["role"] == "salvage" and hub_id and operations.travel.current_sector() == SectorCoordinates.from_api(settings["home"]) and not readiness(self.data_engine, hub_id):
+            try:
+                response = self.client.get_probe(hub_id)
+                publish_live_readiness(self.data_engine, response.get("probe", response))
+            except Exception:
+                pass
+        integrity = float(operations.world.probe.get("systems", {}).get("integrityPercent", 100))
+        if desired.repair.trigger_percent > 0 and integrity <= desired.repair.trigger_percent:
+            return desired, [], {"role":row["role"], "enabled":True, "phase":"repair_hold", "summary":"Repairing to the configured safety target before mission work."}
+        decision = SpecialistCampaignService(operations).decide(row["role"], settings)
+        if decision.state != state:
+            settings = {**settings, "infrastructureCampaign":decision.state}
+            FleetRoleService(self.data_engine).assign("probe", probe_id, row["role"], metadata=settings)
+        if decision.destination is not None:
+            desired = replace(desired, travel=TravelGoal(decision.destination, route_mode="segmented"))
+        return desired, list(decision.tasks), {"role":row["role"], "enabled":True,
+            "phase":decision.phase, "summary":decision.summary}
 
     def _reconcile_infrastructure_campaign(self, operations, probe_id, desired):
         from src.operations.infrastructure import RelayCampaignService, HubCampaignService, role_rows, point
@@ -2384,6 +2443,11 @@ class MissionControlDataService:
             if (
                 prepared.command.target_id
                 and prepared.command.type in {
+                    CommandType.MANNY_LAUNCH_MISSILE,
+                    CommandType.MANNY_SALVAGE,
+                    CommandType.MANNY_TRANSFER_PROBE,
+                    CommandType.MANNY_LOAD_HUB_OUTPUT,
+                    CommandType.MANNY_DETACH_STORAGE_CONTAINER,
                     CommandType.MANNY_CRAFT,
                     CommandType.MANNY_MINE,
                     CommandType.MANNY_TRANSFER_DEUTERIUM,
@@ -5806,6 +5870,16 @@ class MissionControlController(QObject):
             if row["role"] == "hub":
                 from src.operations.infrastructure import merge_hub_settings
                 saved = merge_hub_settings(existing, saved, getattr(self.service, "recipes", None))
+            if row["role"] in {"salvage", "missile_destroyer"}:
+                from src.operations.specialist_campaign import validate_settings as validate_specialist
+                validate_specialist(row["role"], saved)
+                if int(saved.get("hubProbeId", -1)) == int(probe_id):
+                    raise ValueError("Choose another probe as the home Hub.")
+                if saved.get("infrastructureEnabled") and not any(
+                    str(r["asset_id"]) == str(saved["hubProbeId"]) and r["role"] == "hub"
+                    for r in roles.all("probe")
+                ):
+                    raise ValueError("Choose a probe assigned to the Hub role.")
             if row["role"] in {"hub", "relay_placement"}:
                 from src.operations.infrastructure import validate_settings
                 validate_settings(row["role"], saved)

@@ -53,7 +53,7 @@ Rectangle {
                 }
                 ColumnLayout {
                     Label { text: "PROBES, ROLES, AND FOCUS"; color: Constants.textColor; font.pixelSize: 22; font.bold: true }
-                    Label { Layout.fillWidth: true; text: "The focused-probe selector changes every live dashboard domain, including sector, resources, Mannys, travel, and production. In Settings, assign each probe a role such as hub, miner, transport, tanker, reserve, explorer, or builder support."; color: Constants.textColor; wrapMode: Text.Wrap }
+                    Label { Layout.fillWidth: true; text: "The focused-probe selector changes every live dashboard domain, including sector, resources, Mannys, travel, and production. In Settings, assign each probe a role such as hub, miner, transport, tanker, reserve, explorer, salvage, or missile destroyer."; color: Constants.textColor; wrapMode: Text.Wrap }
                     Item { Layout.fillHeight: true }
                 }
                 ColumnLayout {

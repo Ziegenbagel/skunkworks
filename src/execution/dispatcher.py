@@ -9,6 +9,9 @@ class CapabilityDispatcher:
 
     def dispatch(self, command):
         handlers = {
+            CommandType.MANNY_LAUNCH_MISSILE: lambda c: self.capabilities.probes.launch_missile(
+                c.probe_id, c.target_id, c.payload["missileItemId"], c.payload["targetId"]),
+            CommandType.MANNY_SALVAGE: lambda c: self.capabilities.mannies.start_task(c.probe_id, c.target_id, "salvage", c.payload),
             CommandType.MANNY_CRAFT: self._manny_craft,
             CommandType.ATOMIC_PRINTER_CRAFT: self._printer_craft,
             CommandType.MANNY_MINE: self._manny_mine,

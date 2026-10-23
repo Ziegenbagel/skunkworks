@@ -489,9 +489,10 @@ class HubCampaignService:
         for row in roles:
             config = row.get("settings", {})
             request = (config.get("infrastructureCampaign") or {}).get("supplyRequest")
-            if (row["role"] == "relay_placement" and config.get("infrastructureEnabled")
+            if (row["role"] in {"relay_placement", "missile_destroyer"} and config.get("infrastructureEnabled")
                     and request and row.get("asset_id") is not None
-                    and current is not None and coordinates(config.get("home")) == current):
+                    and current is not None and coordinates(config.get("home")) == current
+                    and (not config.get("hubProbeId") or probe_id(config["hubProbeId"]) == self.operations.world.probe["id"])):
                 incoming.append({**request, "targetProbeId":probe_id(row["asset_id"]), "source":"automatic"})
         incoming.extend({**r, "source":"manual"} for r in manual_packages(settings))
         for request in incoming:
@@ -779,6 +780,16 @@ def protected_role_items(operations):
     if not row or not row["settings"].get("infrastructureEnabled"):
         return {}
     settings = row["settings"]
+    if row["role"] == "missile_destroyer":
+        return {"missile":stock(operations).get("missile", 0)}
+    if row["role"] == "salvage":
+        cargo_ids = set((settings.get("infrastructureCampaign") or {}).get("cargoItems", []))
+        protected = {}
+        for item in inventory_items(operations):
+            if str(item.get("id")) in cargo_ids:
+                kind = item.get("type")
+                protected[kind] = protected.get(kind, 0)+int(item.get("quantity", 1))
+        return protected
     if row["role"] == "relay_placement":
         # Protect all carried relays/beacons; activation is the only owner of ICs.
         available = stock(operations)
@@ -806,7 +817,7 @@ def infrastructure_blockers(operations, command):
     elif command.type == C.MANNY_ASSEMBLE_PROBE:
         from src.planner.assembly import PROBE_ASSEMBLY_REQUIREMENTS
         needed = dict(PROBE_ASSEMBLY_REQUIREMENTS.get(command.payload.get("model"), ()))
-    elif command.type == C.MANNY_DETACH_STORAGE_CONTAINER and not (command.metadata.get("hubCampaign") or command.metadata.get("hubReceipt") or command.metadata.get("resupplySlot")):
+    elif command.type == C.MANNY_DETACH_STORAGE_CONTAINER and not (command.metadata.get("hubCampaign") or command.metadata.get("hubReceipt") or command.metadata.get("resupplySlot") or command.metadata.get("specialistCampaign")):
         return ("cargo_reserved_by_infrastructure",)
     available = stock(operations)
     if any(available.get(key, 0)-min(n, available.get(key, 0)) < needed.get(key, 0) for key,n in protected.items()):
@@ -909,7 +920,7 @@ def command_blockers(operations, command):
             blockers.append("hub_container_capacity")
         if item and str((item.get("container") or {}).get("id")) == str(command.payload.get("toContainerId")):
             blockers.append("hub_item_already_loaded")
-    if command.metadata.get("hubAsset") or command.type == C.MANNY_TRANSFER_PROBE:
+    if command.metadata.get("hubAsset") or (command.type == C.MANNY_TRANSFER_PROBE and not command.metadata.get("specialistCampaign")):
         expected = HubCampaignService(operations).decide(row["settings"], rows) if row and row["role"] == "hub" else InfrastructureDecision("", "")
         if not any(t.metadata.get("hubAsset") and t.idempotency_scope == command.metadata.get("idempotencyScope")
                    and ((t.action == "Transfer Hub Manny" and str(t.target) == str(command.target_id)

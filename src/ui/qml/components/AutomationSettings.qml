@@ -55,7 +55,7 @@ Item {
     signal operatingProfileSaveRequested(string name, int idleMinutes, var schedule)
     signal notificationPolicySaveRequested(var policy)
     signal testNotificationRequested()
-    readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "builder_support"]
+    readonly property var roleOptions: ["unassigned", "hub", "miner", "transport", "deuterium_tanker", "deuterium_reserve", "explorer", "salvage", "missile_destroyer"]
 
     function productionQuantity(recipeId) {
         const rows = settingsData.production || [];

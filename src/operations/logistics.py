@@ -59,7 +59,7 @@ class FleetRoleService:
             "deuterium_tanker",
             "deuterium_reserve",
             "explorer",
-            "builder_support",
+            "salvage", "missile_destroyer",
             "unassigned",
         }
     )
@@ -86,7 +86,8 @@ class FleetRoleService:
         )
 
     def all(self, asset_type=None):
-        return self.data_engine.fleet_roles(asset_type)
+        return [dict(row, role="unassigned") if row["role"] == "builder_support" else row
+                for row in self.data_engine.fleet_roles(asset_type)]
 
     def deuterium_sources(self, probes):
         """Expose reserve-role tankers as protected fleet fuel sources."""

@@ -189,7 +189,7 @@ class DailyProbeReportService:
             lines.extend(self._transfer_breakdown(transfers, probe_names))
             lines.extend(self._mining_breakdown(mining))
             lines.extend(self._travel_breakdown(actions))
-        elif role in {"miner", "builder_support"}:
+        elif role == "miner":
             lines.extend(self._mining_breakdown(mining))
             lines.extend(self._craft_breakdown(craft_actions))
         elif role == "explorer":

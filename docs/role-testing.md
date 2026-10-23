@@ -92,3 +92,32 @@ inside SCUT are needed. The workflow also holds for missing signal evidence,
 unsafe travel, unavailable stock, ambiguous deployment telemetry, and storage
 conflicts. Use the role status and prepared-command blockers to identify the
 hold. Pausing settings preserves the current campaign for resumption.
+
+
+## Missile Destroyer
+
+Assign the role, choose a Hub and home coordinates, set the missile refill
+quantity, explicitly authorize combat, and enter a valid target sector. Use
+**Start New Sector Mission** to assign the mission. Verify Observe mode proposes
+only an eligible Others ship target and does not issue the launch. In live mode,
+the role waits for the accepted missile result before firing again. Restart
+while a missile is pending and verify no duplicate launch. Empty ammunition or
+no remaining eligible ships triggers return; disappearance is not reported as
+confirmed destruction. The Hub should receive a missile shortage request.
+After refill, a completed mission stays at home until a new mission is assigned.
+
+## Salvage
+
+Choose a Hub and home sector, optionally enter known lost object identifiers,
+and enable the role. Verify claimed Miner/Transport/Hub containers are excluded,
+and that travel-safe capacity blocks an additional container when necessary.
+After an accepted pickup, the role returns to the Hub and delivers recovered
+cargo without sending unrelated original stock. Loose items need empty onboard
+packaging; this packaging transfers permanently to the Hub and must be replaced
+when exhausted. Recovered Mannys need free Hub storage. Missing observations
+pause recovery; previously attempted IDs are skipped, so partially recovered
+stacks may require manual follow-up. Check STOP, Observe/Approve policy, pending
+Hub receipts and all-Mannys-aboard departure checks before using Automatic mode.
+
+These workflows have offline regression coverage; live missions are operator
+acceptance testing, not something the test suite starts.
