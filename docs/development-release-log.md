@@ -1,5 +1,8 @@
 # Development Release Log
 
+- Add an Others Ships Galaxy Map filter using existing observed sector data.
+  It excludes wrecks and known destroyed ships and combines with other filters.
+
 - Missile Destroyers now prioritize intercepting observed missiles targeting
   themselves, including during an offensive flight. Durable per-threat launch
   identities prevent duplicate shots. Interception uses carried ammunition and

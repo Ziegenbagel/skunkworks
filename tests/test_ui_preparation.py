@@ -2918,6 +2918,29 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual(view["recentTrailNodes"], ("1:1:0", "0:0:0"))
         self.assertEqual(history.probe_id, base.world.probe["id"])
 
+    def test_galaxy_others_ship_filter_uses_observed_ships_not_wrecks_or_missiles(self):
+        from src.models.galaxy import GalaxyMap
+        base = build_operations()
+        galaxy = GalaxyMap()
+        samples = [
+            ({"type":"others_ship"}, True),
+            ({"type":"unknown", "observedClass":"large_ship"}, True),
+            ({"type":"others_mothership_wreck"}, False),
+            ({"type":"others_ship", "status":"destroyed"}, False),
+            ({"type":"missile"}, False),
+            ({"type":"probe"}, False),
+        ]
+        for index, (obj, _) in enumerate(samples):
+            galaxy.record_observation({"sector": {
+                "relativeCoordinates":{"x":index*2,"y":0,"z":0},
+                "knowledgeLevel":"detailed", "objects":[{"id":str(index), **obj}],
+            }}, probe_id=base.world.probe["id"])
+        base.world.galaxy = galaxy
+        builder = MissionControlViewModelBuilder(base)
+        view = builder._galaxy_view(base.world, builder._coordinates(base.world.probe))
+        self.assertEqual([n["hasOthersShips"] for n in view["nodes"]],
+                         [expected for _, expected in samples])
+
     def test_galaxy_view_exposes_planets_at_exact_habitability_threshold(self):
         from src.models.galaxy import GalaxyMap
 

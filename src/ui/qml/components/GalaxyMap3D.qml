@@ -38,6 +38,7 @@ Item {
     property bool showCurrent: true
     property bool showScanned: true
     property bool showVisited: true
+    property bool othersShipsOnly: false
     property bool hazardsOnly: false
     property bool salvageOnly: false
     property bool habitablePlanetOnly: false
@@ -54,7 +55,7 @@ Item {
     property bool showCarbonCompounds: false
     readonly property var visibleNodes: {
         const dependency = [showCurrent, showScanned, showVisited,
-                            hazardsOnly, salvageOnly, habitablePlanetOnly,
+                            hazardsOnly, salvageOnly, habitablePlanetOnly, othersShipsOnly,
                             showDeuterium, showMetals,
                             showIce, showCarbonCompounds];
         return nodes.filter(function(node) { return root.matchesFilters(node); });
@@ -99,6 +100,7 @@ Item {
     function matchesFilters(node) {
         if (selectedNode && String(node.id) === String(selectedNode.id)) return true;
         if (!stateEnabled(String(node.mapState || "unknown"))) return false;
+        if (othersShipsOnly && !node.hasOthersShips) return false;
         if (hazardsOnly && !node.hasHazard) return false;
         if (salvageOnly && !node.hasDetachedContainers) return false;
         if (habitablePlanetOnly && !node.hasHabitablePlanet) return false;
@@ -671,6 +673,12 @@ Item {
             GridLayout {
                 visible: root.filtersExpanded; Layout.fillWidth: true
                 columns: 2; columnSpacing: 5; rowSpacing: 2
+                CheckBox {
+                    text: "OTHERS SHIPS"; checked: root.othersShipsOnly
+                    onToggled: root.othersShipsOnly = checked
+                    ToolTip.visible: hovered
+                    ToolTip.text: "Sectors with Others ships in their latest available observation. Ships may have moved since the scan."
+                }
                 CheckBox { text: "HAZARDS ONLY"; checked: root.hazardsOnly; onToggled: root.hazardsOnly = checked }
                 CheckBox { text: "DROPPED CONTAINERS"; checked: root.salvageOnly; onToggled: root.salvageOnly = checked }
                 CheckBox {

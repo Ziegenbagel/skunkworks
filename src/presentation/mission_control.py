@@ -593,6 +593,7 @@ class MissionControlViewModelBuilder:
             observation = record.observed or {}
             sector = observation.get("sector", observation)
             objects = sector.get("objects", ()) or ()
+            object_views = tuple(self._sector_object(item) for item in objects)
             object_types = [str(item.get("type", "unknown")) for item in objects]
             resource_types = self._galaxy_resource_types(sector, objects)
             hazard_types = self._galaxy_hazard_types(sector, objects)
@@ -628,7 +629,12 @@ class MissionControlViewModelBuilder:
                 "probeIds": sorted(record.observed_by_probe_ids),
                 "objectCount": len(objects),
                 "objectTypes": object_types,
-                "objects": tuple(self._sector_object(item) for item in objects),
+                "objects": object_views,
+                "hasOthersShips": any(
+                    view["type"] == "others_ship"
+                    and item.get("status") not in {"destroyed", "dead"}
+                    for item, view in zip(objects, object_views)
+                ),
                 "resourceTypes": resource_types,
                 "hasKnownResources": bool(resource_types),
                 "hasHazard": bool(hazard_types),
