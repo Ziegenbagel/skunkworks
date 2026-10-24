@@ -131,3 +131,14 @@ idle-worker and existing receipt/repair/upgrade holds still apply. The game
 uses fifteen minutes of interceptor flight plus preparation; late detection
 can therefore still result in impact. Keep emergency escape configured as
 appropriate. Disappearance alone must not display interception success.
+
+### Cancelling Hub packages
+
+Use **Cancel Package** on a manual or automatic queue card. Remaining work should
+disappear after settings are saved and the view refreshes. Existing cargo stays
+aboard; already started crafting continues. Other packages must continue normally.
+Refresh or restart and verify that the same automatic request does not reappear.
+Cancel before a handoff and verify an unsent receipt releases the receiver; cancel
+after an accepted handoff and verify unloading and empty-container return finish.
+Cancellation suppresses that request ID; queue a new package when supplies are
+wanted again.

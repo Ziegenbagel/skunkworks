@@ -1875,3 +1875,17 @@ accepted-response crash gap, refill completion, cargo ownership, claims,
 capacity, role retirement and effective-plan isolation), alongside
 `tests/test_infrastructure_campaign.py` and
 `tests/test_replanning_automation_cycle.py` for shared execution invariants.
+
+### Hub queue cancellation preserves accepted deliveries
+
+Cancel a request by durable ID against persisted settings, never by replacing
+the queue with a stale editor snapshot. Remove its pending queue and production
+reservations; retain a separate cancelled-ID record so automatic requests cannot
+reappear on refresh. Cancellation is not successful delivery and must not enter
+completedRequests. Keep onboard cargo and already accepted crafts. Independently
+stored receiver receipts survive cancellation after accepted handoff, including
+unloading and empty-container return. Only unsent, unreceived receipts may be
+cancelled to release the receiver. Existing preflight revalidation must reject
+commands for removed packages. Tests: cancellation cases in
+`tests/test_infrastructure_campaign.py`, shared scheduler coverage in
+`tests/test_replanning_automation_cycle.py`.

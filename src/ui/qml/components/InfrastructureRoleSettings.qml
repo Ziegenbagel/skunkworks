@@ -182,6 +182,12 @@ ColumnLayout {
                             color: Constants.textColor; font.pixelSize: 14
                             Layout.fillWidth: true; wrapMode: Text.Wrap
                         }
+                        Button {
+                            text: "CANCEL PACKAGE"
+                            onClicked: root.saveRequested({cancelPackageId: String(packageCard.modelData.id)})
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Cancel remaining work. Existing cargo is kept; accepted deliveries still unload and return their containers."
+                        }
                         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Constants.lineColor }
                         RowLayout {
                             Layout.fillWidth: true; spacing: 8

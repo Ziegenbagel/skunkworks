@@ -80,10 +80,21 @@ def manual_packages(settings):
 
 def merge_hub_settings(existing, submitted, recipes):
     """Append against persisted requests, never a stale UI copy of the queue."""
-    saved = dict(submitted)
+    cancel_id = submitted.get("cancelPackageId")
+    saved = deepcopy(existing) if cancel_id else dict(submitted)
+    saved.pop("cancelPackageId", None)
+    if "infrastructureCampaign" in existing:
+        saved["infrastructureCampaign"] = deepcopy(existing["infrastructureCampaign"])
     request = saved.pop("enqueuePackage", None)
     saved.pop("outputRequest", None)
     saved["outputRequests"] = deepcopy(manual_packages(existing))
+    if cancel_id:
+        state = saved.setdefault("infrastructureCampaign", {})
+        state["cancelledRequests"] = list(dict.fromkeys([*state.get("cancelledRequests", []), str(cancel_id)]))
+        state["packageQueue"] = [r for r in state.get("packageQueue", []) if r["id"] != cancel_id]
+        if (state.get("delivery") or {}).get("id") == cancel_id:
+            state.pop("delivery", None)
+        saved["outputRequests"] = [r for r in saved["outputRequests"] if r["id"] != cancel_id]
     if request:
         request = deepcopy(request)
         request["targetProbeId"] = probe_id(request.get("targetProbeId"))
@@ -485,6 +496,7 @@ class HubCampaignService:
         if legacy and not any(r["id"] == legacy["id"] for r in queue):
             queue.insert(0, deepcopy(legacy))
         completed = list(state.get("completedRequests") or [])
+        cancelled = set(state.get("cancelledRequests") or [])
         incoming = []
         for row in roles:
             config = row.get("settings", {})
@@ -501,10 +513,10 @@ class HubCampaignService:
                 # No speculative shipment can be handed off. Reconcile the
                 # actual shortage once, retaining its already-packed container.
                 existing.update(items=dict(request["items"]), requestedItems=dict(request["items"]), prepareOnly=False)
-            if request["id"] not in completed and not any(r["id"] == request["id"] for r in queue):
+            if request["id"] not in cancelled and request["id"] not in completed and not any(r["id"] == request["id"] for r in queue):
                 queue.append(deepcopy(request))
         incoming_ids = {r["id"] for r in incoming}
-        queue = [r for r in queue if r["id"] not in completed
+        queue = [r for r in queue if r["id"] not in completed and r["id"] not in cancelled
                  and (not r.get("prepareOnly") or r["id"] in incoming_ids)]
         for request in queue:
             request["targetProbeId"] = probe_id(request["targetProbeId"])

@@ -1,5 +1,9 @@
 # Development Release Log
 
+- Add Cancel Package to Hub supply queue cards. Cancel remaining demand and
+  reservations without discarding cargo or interrupting accepted deliveries.
+  Cancelled automatic requests do not reappear on refresh.
+
 - Add an Others Ships Galaxy Map filter using existing observed sector data.
   It excludes wrecks and known destroyed ships and combines with other filters.
 

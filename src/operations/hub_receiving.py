@@ -66,7 +66,7 @@ def stage_receipt(engine, source_id, target_id, container_id, request_id, sector
         objective="hub_container_receipt", probe_id=int(target_id), state=OperationState.ACTIVE,
         steps=(OperationStep("Unload Hub Supply"), OperationStep("Return Hub Container")),
         metadata={"sourceProbeId":source_id, "containerId":container_id, "sector":sector,
-                  "handoffFingerprint":fingerprint, "received":False}))
+                  "handoffFingerprint":fingerprint, "requestId":request_id, "received":False}))
 
 
 class HubReceivingService:
@@ -110,7 +110,9 @@ class HubReceivingService:
         from src.operations.infrastructure import role_rows
         source = next((r for r in role_rows(self.engine) if str(r["asset_id"]) == str(data["sourceProbeId"])), None)
         if (not data.get("received") and source is not None
-                and (source["role"] != "hub" or not source["settings"].get("infrastructureEnabled"))
+                and (source["role"] != "hub" or not source["settings"].get("infrastructureEnabled")
+                     or any(op.id == f"hub-receipt:{data['sourceProbeId']}:{request_id}:{container_id}"
+                            for request_id in (source["settings"].get("infrastructureCampaign") or {}).get("cancelledRequests", [])))
                 and not self.engine.action_was_successful(data["handoffFingerprint"])):
             OperationStore(self.engine).save(replace(op, state=OperationState.CANCELLED))
             return InfrastructureDecision("receipt_cancelled", "Unsent Hub delivery cancelled; receiver is released.")

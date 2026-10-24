@@ -992,3 +992,46 @@ def test_asset_package_editor_validation_accepts_catalog_mannies_and_containers(
         'items':{'manny':3,'additional_container':2}}}, recipes)
     validate_settings('hub',{'infrastructureEnabled':True,**merged})
     assert merged['outputRequests'][0]['items'] == {'manny':3,'additional_container':2}
+
+
+def test_hub_cancel_releases_package_and_suppresses_automatic_requeue():
+    from src.operations.infrastructure import merge_hub_settings
+    request = {"id":"cancel-me", "targetProbeId":2, "items":{"scut_relay":3}, "containerId":"packed"}
+    existing = {"infrastructureEnabled":True, "receiveContainers":False,
+                "outputRequests":[request], "infrastructureCampaign":{
+                    "packageQueue":[request], "delivery":request}}
+    saved = merge_hub_settings(existing, {"cancelPackageId":"cancel-me"}, None)
+    assert saved["infrastructureEnabled"]
+    assert not saved["outputRequests"]
+    assert not saved["infrastructureCampaign"]["packageQueue"]
+    assert "delivery" not in saved["infrastructureCampaign"]
+    assert existing["infrastructureCampaign"]["delivery"] == request
+    item = {"id":"cargo", "type":"scut_relay", "container":{"id":"packed"}}
+    ops = operations([item], role="hub", attached=[{"id":"packed", "usedCapacity":.5}])
+    rows = [{"asset_id":"2", "role":"relay_placement", "settings":{
+        "infrastructureEnabled":True, "home":vars(P(0,0,0)),
+        "infrastructureCampaign":{"supplyRequest":request}}}]
+    decision = HubCampaignService(ops).decide(saved, rows)
+    assert not decision.packages
+    assert not decision.production
+    assert not decision.tasks
+    assert ops.world.probe["inventory"]["items"] == [item]
+    again = merge_hub_settings(saved, {"infrastructureEnabled":True}, None)
+    assert again["infrastructureCampaign"]["cancelledRequests"] == ["cancel-me"]
+
+
+@pytest.mark.parametrize("accepted", [False, True])
+def test_package_cancel_releases_only_unsent_receipts(tmp_path, accepted):
+    from src.data import DataEngine
+    from src.operations.hub_receiving import HubReceivingService, stage_receipt, receipts
+    engine = DataEngine(tmp_path / "cancel-package.sqlite")
+    engine.assign_fleet_role("probe",2,"hub",metadata={"infrastructureEnabled":True,
+        "infrastructureCampaign":{"cancelledRequests":["batch"]}})
+    ops = operations(); ops.data_engine = engine
+    ops.travel_safety.additional_container_count = lambda: 0
+    ops.travel_safety.container_break_threshold = lambda: 5
+    engine.action_was_successful = lambda _: accepted
+    stage_receipt(engine,2,1,"box","batch",vars(P(0,0,0)),"handoff")
+    result = HubReceivingService(ops).reconcile()
+    assert (result.phase == "receipt_cancelled") is (not accepted)
+    assert bool(receipts(engine,1)) is accepted

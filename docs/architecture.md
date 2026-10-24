@@ -655,3 +655,11 @@ missiles explicitly targeting the probe before offensive launch reconciliation,
 refill or travel. Accepted interceptor identities remain distinct from the
 offensive flight and survive mission replacement. Threat disappearance releases
 the defensive hold but does not establish a successful intercept.
+
+Hub queue cancellation uses `cancelPackageId` through the existing role-settings
+save boundary. The merge applies to persisted settings, removes manual and
+campaign queue entries, and keeps `cancelledRequests` separate from completion.
+The Hub ignores matching automatic demand on later refreshes. Cargo remains in
+inventory and accepted server work continues. Receiver Operations are independent:
+accepted shipments retain unloading/return duties; unsent receipts release their
+hold when the source records cancellation. A new request ID can be queued later.
