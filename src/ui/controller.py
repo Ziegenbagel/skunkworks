@@ -1002,7 +1002,9 @@ class MissionControlDataService:
                 tasks = projected_tasks
             tasks.extend(miner_tasks)
             if specialist_view.get("enabled"):
-                tasks = [t for t in tasks if t.category in {"travel", "safety"}]
+                tasks = [t for t in tasks if t.category in {"travel", "safety"}
+                         or (desired.upgrade is not None
+                             and t.metadata.get("upgradeScope") == desired.upgrade.scope)]
                 tasks.extend(specialist_tasks)
             if receiving.phase:
                 tasks = [task for task in tasks if task.category == "safety"] + list(receiving.tasks)
@@ -1041,6 +1043,10 @@ class MissionControlDataService:
             self._prepared_commands = self._dispatch_prepared_commands(
                 prepared_commands,
             )
+            if specialist_view.get("enabled") and infrastructure_view is specialist_view:
+                infrastructure_view = self._specialist_execution_status(
+                    specialist_view, tasks, prepared_commands, operations,
+                )
         return {
             "probeId": probe_id,
             "mode": policy.mode.value,
@@ -1063,6 +1069,34 @@ class MissionControlDataService:
             "infrastructure": infrastructure_view if operations is not None and probe_id is not None else {},
         }
 
+    @staticmethod
+    def _specialist_execution_status(view, tasks, prepared, operations):
+        """Report the execution gate, not an intention to travel, as status."""
+        if view.get("phase") not in {"traveling", "engaging", "intercepting", "recovering", "unloading"}:
+            return view
+        if operations.world.probe.get("status") not in {"idle", "arrived"}:
+            return view
+        relevant = [t for t in tasks if t.category in {"travel", "specialist"}]
+        reasons = list(dict.fromkeys(c.replace("_", " ") for t in relevant for c in t.constraints))
+        commands = [p for p in prepared if p.command.type == CommandType.MOVE_PROBE
+                    or p.command.metadata.get("specialistCampaign")]
+        for entry in commands:
+            reasons.extend(b.replace("_", " ") for b in entry.blockers)
+            if entry.disposition == "awaiting_risk_acknowledgement":
+                reasons.extend(w.message for w in entry.warnings if w.acknowledgement_recommended)
+                reasons.append("Travel risk acknowledgement is required; review Navigation before departure.")
+            elif entry.disposition == "dry_run":
+                reasons.append("Observe mode or live execution disabled; no commands will be sent.")
+            elif entry.disposition == "awaiting_approval":
+                reasons.append("Command approval is required.")
+        if reasons:
+            return {**view, "phase":"execution_hold", "summary":"Waiting: " + " ".join(dict.fromkeys(reasons))}
+        if commands:
+            return {**view, "phase":"ready_to_execute", "summary":view["summary"] + " Command prepared; awaiting accepted execution."}
+        if relevant:
+            return {**view, "phase":"execution_hold", "summary":"No executable command is available yet. Waiting for an available Manny, route, or fresh inventory; see the automation queue."}
+        return view
+
     def _reconcile_specialist_campaign(self, operations, probe_id, desired):
         from src.operations.specialist_campaign import SpecialistCampaignService, ROLES, record
         from src.operations.infrastructure import role_rows
@@ -1081,7 +1115,7 @@ class MissionControlDataService:
         if receipts(self.data_engine, probe_id):
             return desired, [], {"role":row["role"], "enabled":True, "phase":"receiving", "summary":"Unloading and returning Hub packaging before mission work."}
         if desired.upgrade is not None and UpgradeService(operations).assess(desired.upgrade)["status"] != "complete":
-            return desired, [], {"role":row["role"], "enabled":True, "phase":"upgrade_hold", "summary":"Complete or cancel the pending upgrade before this role operates."}
+            return desired, [], {"role":row["role"], "enabled":True, "phase":"upgrade_hold", "summary":"Preparing the selected upgrade before departure. Upgrade mining, crafting and installation remain enabled; see Production for progress or input blockers."}
         state = settings.get("infrastructureCampaign") or {}
         pending = state.get("launch") or {}
         fingerprint = pending.get("fingerprint")

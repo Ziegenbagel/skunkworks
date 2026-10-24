@@ -272,3 +272,72 @@ def test_destroyer_does_not_intercept_other_targets_or_without_consent():
     cfg["combatAuthorized"]=True
     ops.world.probe["inventory"]["items"]=[]
     assert step(ops,cfg).phase == "defense_hold"
+
+
+def test_specialist_status_reports_planner_and_execution_holds():
+    from src.ui.controller import MissionControlDataService
+    from src.planner.task import Task
+    from src.execution.commands import Command, CommandType
+    from src.execution.preparer import PreparedCommand
+    ops,_,_,_=setup()
+    view={"phase":"traveling","summary":"Traveling to combat sector.","enabled":True}
+    task=Task(action="Prepare Probe Travel",reason="",category="travel",constraints=("owned_mannies_not_aboard",))
+    status=MissionControlDataService._specialist_execution_status(view,[task],[],ops)
+    assert status["phase"] == "execution_hold"
+    assert "owned mannies not aboard" in status["summary"]
+    command=Command(CommandType.MOVE_PROBE,1,{},"",1)
+    warning=SimpleNamespace(message="9 containers; safe maximum 4.",acknowledgement_recommended=True)
+    for disposition, text in [("awaiting_risk_acknowledgement","9 containers"),("dry_run","live execution disabled"),("awaiting_approval","approval is required")]:
+        result=MissionControlDataService._specialist_execution_status(view,[],[PreparedCommand(command,disposition,warnings=(warning,))],ops)
+        assert result["phase"] == "execution_hold"
+        assert text in result["summary"]
+    result=MissionControlDataService._specialist_execution_status(view,[],[PreparedCommand(command,"ready")],ops)
+    assert result["phase"] == "ready_to_execute"
+    assert "awaiting accepted execution" in result["summary"]
+    assert view["phase"] == "traveling"
+
+
+@pytest.mark.parametrize("role", ["salvage","missile_destroyer"])
+def test_specialist_roles_preserve_selected_upgrade_work(tmp_path, role):
+    from unittest.mock import patch
+    from dataclasses import replace
+    from src.data import DataEngine
+    from src.planner.desired_state import DesiredState, ResourceGoal, ProductionGoal, UpgradeGoal
+    from src.planner.desired_state_store import DesiredStateStore
+    from src.ui.controller import MissionControlDataService
+    from src.operations.infrastructure import InfrastructureDecision
+    from tests.test_planner_missions import build_operations
+    from src.execution.commands import CommandType as C
+    ops=build_operations(metals=0); ops.world.fleet={"probes":[]}
+    engine=ops.data_engine=DataEngine(tmp_path / "specialist.sqlite")
+    cfg={"infrastructureEnabled":True,"combatAuthorized":True,"home":vars(P(0,0,0)),"hubProbeId":2,"missileStock":2}
+    engine.assign_fleet_role("probe",1,role,metadata=cfg)
+    ops.world.hazard_context = {"improvements":{"improvements":[{
+        "id":"compression", "name":"Compression", "available":True, "done":False,
+        "installableOnProbe":True, "ingredients":[{"kind":"item","type":"storage_container","quantity":2}]}]}}
+    desired=replace(DesiredState.unconfigured(),upgrade=UpgradeGoal("compression","selected-upgrade"),resources=(ResourceGoal("metals",100),),production=(ProductionGoal("storage_container",10),))
+    DesiredStateStore(engine).save(desired,1)
+    service=MissionControlDataService.__new__(MissionControlDataService)
+    service.data_engine=engine;service.recipes=ops.manufacturing.recipes
+    service._apply_probe_role_goals=lambda desired,*_:desired
+    service._reconcile_completed_autonomous_travel=lambda _ops,_id,desired:desired
+    service._reconcile_transport_operation=lambda _ops,_id,desired:(desired,[],None)
+    service._reserve_tanker_delivery_tasks=lambda *_:[]
+    service._reconcile_explorer_campaign=lambda _ops,_id,desired:(desired,[],{})
+    service._reconcile_miner_campaign=lambda _ops,_id,desired:(desired,[],{})
+    service._dependency_mining_idle_grace_elapsed=lambda _:True
+    with patch("src.operations.hub_receiving.HubReceivingService.reconcile",return_value=InfrastructureDecision("","")):
+        service.automation_view(ops,1)
+    assert any(p.command.type == C.MANNY_MINE for p in service._prepared_commands)
+    assert all(p.command.metadata.get("upgradeScope") == "selected-upgrade"
+               for p in service._prepared_commands if p.command.type in {C.MANNY_MINE,C.MANNY_CRAFT,C.ATOMIC_PRINTER_CRAFT})
+    ops.world.probe["inventory"]["resourceStocks"][0]["amount"] = 10
+    with patch("src.operations.hub_receiving.HubReceivingService.reconcile",return_value=InfrastructureDecision("","")):
+        service.automation_view(ops,1)
+    assert any(p.command.type == C.MANNY_CRAFT for p in service._prepared_commands)
+    ops.world.probe["inventory"]["items"] = [{"id":"parts","type":"storage_container","quantity":2}]
+    with patch("src.operations.hub_receiving.HubReceivingService.reconcile",return_value=InfrastructureDecision("","")):
+        service.automation_view(ops,1)
+    assert any(p.command.type == C.MANNY_UPGRADE for p in service._prepared_commands)
+    assert DesiredStateStore(engine).load(1).resources == desired.resources
+    assert DesiredStateStore(engine).load(1).production == desired.production

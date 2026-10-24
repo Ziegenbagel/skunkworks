@@ -1889,3 +1889,24 @@ cancelled to release the receiver. Existing preflight revalidation must reject
 commands for removed packages. Tests: cancellation cases in
 `tests/test_infrastructure_campaign.py`, shared scheduler coverage in
 `tests/test_replanning_automation_cycle.py`.
+
+### Specialist status includes the actual execution gate
+
+A campaign's travel intent is not proof of movement. For stationary specialists,
+project planner constraints and prepared-command blockers, policy approval and
+risk warnings into the role status. Ready proposals must say they await accepted
+execution. Preserve receipt, repair and other campaign holds and never waive
+safety checks to make the displayed state match the requested mission.
+Regression: `test_specialist_status_reports_planner_and_execution_holds` in
+`tests/test_specialist_campaign.py`, plus shared replanning-cycle coverage.
+
+### Specialist mission holds must allow selected upgrade work
+
+A specialist's upgrade hold stops mission departure, not the upgrade itself.
+The role's industrial-task filter must retain mining, crafting and installation
+whose upgradeScope matches the selected durable upgrade. Routine industrial
+goals remain suppressed and stored goals stay unchanged. Otherwise the role
+waits forever for work it has removed from its own execution queue. Regression:
+`test_specialist_roles_preserve_selected_upgrade_work` exercises mining, crafting
+and installation through the controller for both specialist roles; adjacent
+reservation/installation invariants remain covered by `tests/test_upgrade_goals.py`.

@@ -1,5 +1,13 @@
 # Development Release Log
 
+- Fix Missile Destroyer and Salvage upgrade deadlocks: selected upgrade mining,
+  crafting and installation survive the role task filter while mission departure
+  waits for completion. Routine industrial goals remain suppressed.
+
+- Show planner and execution holds directly in specialist role status, including
+  Manny departure constraints, Observe mode, approval requirements and travel
+  risk warnings. Prepared travel no longer implies that departure has occurred.
+
 - Add Cancel Package to Hub supply queue cards. Cancel remaining demand and
   reservations without discarding cargo or interrupting accepted deliveries.
   Cancelled automatic requests do not reappear on refresh.
