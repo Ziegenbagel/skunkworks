@@ -55,25 +55,25 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_accepts_current_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 149})]
+            [FakeResponse({"apiVersion": 154})]
         )
 
         self.assertEqual(
             client.ensure_compatible_api(),
-            149,
+            154,
         )
-        self.assertEqual(MAXIMUM_API_VERSION, 149)
+        self.assertEqual(MAXIMUM_API_VERSION, 154)
 
-    def test_reviewed_versions_end_at_v149_but_newer_api_remains_usable(self):
-        for version in range(103, 150):
+    def test_reviewed_versions_end_at_v154_but_newer_api_remains_usable(self):
+        for version in range(103, 155):
             with self.subTest(version=version):
                 self.assertTrue(api_is_reviewed(version))
         self.assertFalse(api_is_reviewed(102))
-        self.assertFalse(api_is_reviewed(150))
+        self.assertFalse(api_is_reviewed(155))
         client = self.client([
-            FakeResponse({"apiVersion": 150}), FakeResponse({"id": 7}),
+            FakeResponse({"apiVersion": 155}), FakeResponse({"id": 7}),
         ])
-        self.assertEqual(client.ensure_compatible_api(), 150)
+        self.assertEqual(client.ensure_compatible_api(), 155)
         self.assertEqual(client.get_player(), {"id": 7})
 
     def test_preserves_caller_headers_with_authentication(self):
@@ -99,10 +99,10 @@ class GameClientContractTests(unittest.TestCase):
 
     def test_forward_tolerates_unreviewed_newer_api(self):
         client = self.client(
-            [FakeResponse({"apiVersion": 150}), FakeResponse({"id": 7})]
+            [FakeResponse({"apiVersion": 155}), FakeResponse({"id": 7})]
         )
 
-        self.assertEqual(client.ensure_compatible_api(), 150)
+        self.assertEqual(client.ensure_compatible_api(), 155)
         self.assertEqual(client.get_player(), {"id": 7})
         self.assertEqual(len(client.session.calls), 2)
 
@@ -185,6 +185,14 @@ class GameClientContractTests(unittest.TestCase):
         self.assertEqual(client.get_player(), {"id": 42})
         self.assertEqual(len(client.session.calls), 3)
         self.assertEqual(delays, [0.25, 0.5])
+
+    def test_v150_mining_capacity_rejection_is_not_retried(self):
+        response = FakeResponse({"error":{"code":"mining_target_capacity_reached", "taskIndex":1}}, status_code=409)
+        client = self.client([response])
+        with self.assertRaises(RuntimeError):
+            client.request("POST", "/api/probe/7/mannies/tasks", json={"tasks":[]})
+        self.assertEqual(len(client.session.calls), 1)
+        self.assertEqual(response.json()["error"]["code"], "mining_target_capacity_reached")
 
     def test_does_not_retry_mutating_requests(self):
         with patch.dict(os.environ, {"VON_NEUMANN_API_KEY": "test-key"}):

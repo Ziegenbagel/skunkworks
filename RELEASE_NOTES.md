@@ -39,6 +39,11 @@
   on the querying probe's send-time sector, replacing that player's previous
   estimate when queried again.
 
+## Skunkworks 1.1.10
+
+- Recognizes Von Neumann Game API v154 as supported.
+- Keeps inspected foreign-probe storage out of waypoint bookmark targets.
+
 ## Skunkworks 1.1.9
 
 - Recognizes Von Neumann Game API v149 as supported, removing the unreviewed-version warning.

@@ -1900,13 +1900,13 @@ class UiPreparationTests(unittest.TestCase):
         notices = []
         controller._set_operation_notice = notices.append
 
-        controller._notify_unreviewed_api_version(149)
+        controller._notify_unreviewed_api_version(154)
         self.assertEqual(notices, [])
-        controller._notify_unreviewed_api_version(150)
-        controller._notify_unreviewed_api_version(150)
+        controller._notify_unreviewed_api_version(155)
+        controller._notify_unreviewed_api_version(155)
 
         self.assertEqual(notices, [
-            "NEW GAME API v150 DETECTED · CONTINUING IN COMPATIBILITY MODE",
+            "NEW GAME API v155 DETECTED · CONTINUING IN COMPATIBILITY MODE",
         ])
 
     def test_production_includes_active_manny_crafting_and_mining(self):
@@ -2619,6 +2619,18 @@ class UiPreparationTests(unittest.TestCase):
         self.assertEqual([item["id"] for item in inventory["refuelStations"]], ["station-1"])
         self.assertEqual([item["id"] for item in inventory["accessibleStorageObjects"]], ["cache-1"])
         self.assertEqual([item["id"] for item in inventory["waitingCargoMannies"]], ["manny-waiting"])
+
+    def test_v154_foreign_probe_storage_is_inventory_only(self):
+        world = build_operations().world
+        identifier = "probe-77-container-probe-core-with-hyphens"
+        storage = {"id":identifier, "type":"probe_storage", "inventoryAccessible":True,
+                   "targetable":False, "inspectable":False}
+        world.sector["snapshot"] = {"sector":{"objects":[storage,
+            {"id":"system", "type":"solar_system", "bookmarkTargets":[storage]}]}}
+        inventory = MissionControlViewModelBuilder._inventory_management(world)
+        self.assertIn(identifier, [o["id"] for o in inventory["accessibleStorageObjects"]])
+        for key in ("bookmarkTargets", "inspectableObjects", "recoverableObjects", "missileTargets", "miningTargets"):
+            self.assertNotIn(identifier, [o["id"] for o in inventory[key]])
 
     def test_v141_inspected_container_occupants_stay_nested_recovery_choices(self):
         world = build_operations().world

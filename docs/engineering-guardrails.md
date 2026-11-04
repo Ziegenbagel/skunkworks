@@ -1920,3 +1920,15 @@ goals, resource floors and package cargo reservations remain unchanged. Compute
 available stock once per reconciliation rather than once per goal. Regression:
 `test_hub_package_goal_precedes_bulk_stock_and_preserves_saved_goals` verifies
 priority acquisition followed by reserve resumption before delivery.
+
+### API v154 compatibility preserves source and execution boundaries
+
+Foreign `probe_storage` projections are inventory sources only; never infer
+mining, combat, salvage, inspection or bookmark eligibility from accessible
+inventory. Preserve composite IDs intact. Mining capacity is shared across all
+players; local worker counts cannot prove admission. A capacity conflict must
+not retry a mutating batch or fabricate partial successes. Deferred transfer
+failures and expired timers never imply cargo delivery. Upstream schema/activity
+migrations are server maintenance, not local database changes. Tests:
+`test_v154_foreign_probe_storage_is_inventory_only` in tests/test_ui_preparation.py
+and `test_v150_mining_capacity_rejection_is_not_retried` in tests/test_api_contract.py.
