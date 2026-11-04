@@ -317,7 +317,7 @@ class MissionControlViewModelBuilder:
                         } for occupant in (value.get("abandonedMannies") or ())
                             if isinstance(occupant, dict) and occupant.get("id")) if is_container else (),
                     })
-                if bookmark_candidates and target_type != "scut_relay" and target_id and target_id not in seen_bookmarks:
+                if bookmark_candidates and target_type not in {"scut_relay", "probe_storage"} and target_id and target_id not in seen_bookmarks:
                     seen_bookmarks.add(target_id)
                     bookmark_targets.append({
                         "id": target_id,

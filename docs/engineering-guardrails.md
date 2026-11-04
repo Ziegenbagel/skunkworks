@@ -1095,3 +1095,15 @@ known SCUT networks; load only those disclosed references, never infer private
 networks from unknown coverage. Upstream SQL stock migrations require no client
 migration and do not make elapsed task timers authoritative completion evidence.
 Regression coverage: `tests/test_api_contract.py`, `tests/test_hazard_context.py`.
+
+### API v154 compatibility preserves source and execution boundaries
+
+Foreign `probe_storage` projections are inventory sources only; never infer
+mining, combat, salvage, inspection or bookmark eligibility from accessible
+inventory. Preserve composite IDs intact. Mining capacity is shared across all
+players; local worker counts cannot prove admission. A capacity conflict must
+not retry a mutating batch or fabricate partial successes. Deferred transfer
+failures and expired timers never imply cargo delivery. Upstream schema/activity
+migrations are server maintenance, not local database changes. Tests:
+`test_v154_foreign_probe_storage_is_inventory_only` in tests/test_ui_preparation.py
+and `test_v150_mining_capacity_rejection_is_not_retried` in tests/test_api_contract.py.

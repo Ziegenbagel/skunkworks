@@ -10,6 +10,34 @@ Ideas that require additional testing should be recorded as hypotheses.
 
 # Verified Observations
 
+## API v150–v154 review (2026-11-04)
+
+Direct public downloads of `/api/version` and `openapi.yaml` report v154.
+Sources: https://neumann-probe.net/openapi.yaml and
+https://neumann-probe.net/changelog (downloaded directly; indexed copies can lag).
+
+- v150 adds a shared mining admission cap (default 2,000 Mannys per object).
+  HTTP 409 `mining_target_capacity_reached` rejects an entire batch and identifies
+  the failing member. Client mutations are not retried; never infer free capacity
+  from this player's local Manny count.
+- v151 permits local foreign-probe inspection using the existing inspection route.
+  Activity is a binary report; inspection does not grant remote SCUT access.
+- v152 exposes inspected inactive foreign containers as `probe_storage` through
+  local sector scans and existing paged storage inventory. Composite IDs retain
+  the entire container UID. These objects are inventory sources, not combat,
+  mining, salvage, inspection or bookmark targets. Access is revalidated per page.
+- v153 extends existing `from_storage` transfers to those sources. Reactivation,
+  lost access and protected cargo remain authoritative server rejections; accepted
+  transfer does not prove eventual delivery.
+- v154 adds server SQL recovery and deferred `technical_failure` reporting.
+  Timers remain advisory; cleanup and automatic return belong to the server.
+
+This patch recognizes the reviewed contract and excludes foreign storage from
+bookmark choices. Existing inventory access keeps opaque IDs. It does not add
+an autonomous foreign-probe inspection/looting campaign. Database migrations,
+activity initialization and scheduler recovery described upstream are game-server
+operations, not Skunkworks migrations. No additional refresh requests are added.
+
 ## API v144–v149 review (2026-10-20)
 
 The live `/api/version` and [public OpenAPI contract](https://neumann-probe.net/openapi.yaml)

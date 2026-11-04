@@ -1,5 +1,10 @@
 # Skunkworks Release Notes
 
+## Skunkworks 1.1.10
+
+- Recognizes Von Neumann Game API v154 as supported.
+- Keeps inspected foreign-probe storage out of waypoint bookmark targets.
+
 ## Skunkworks 1.1.9
 
 - Recognizes Von Neumann Game API v149 as supported, removing the unreviewed-version warning.
