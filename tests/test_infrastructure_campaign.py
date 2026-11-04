@@ -842,6 +842,15 @@ def test_hub_package_goal_precedes_bulk_stock_and_preserves_saved_goals(tmp_path
     ops.world.probe['inventory']['resourceStocks'][0]['amount']=1
     tasks=Planner(ops,effective).tasks()
     assert next(t for t in tasks if t.action=='Craft Item').target=='storage_container'
+    # A blocked receiver cannot suppress the larger stock target after the
+    # package inputs are stored. Do not count in-progress crafts as stored.
+    ops.world.probe['inventory']['items'] = [
+        {'id':'packed-stock', 'type':'storage_container', 'quantity':2}]
+    resumed,_,_=service._reconcile_infrastructure_campaign(ops,1,desired)
+    resumed_goals={g.recipe_id:g for g in resumed.production}
+    assert resumed_goals['storage_container'] == ProductionGoal('storage_container',50,2)
+    assert resumed.resources == desired.resources
+    assert desired.production[1] == ProductionGoal('storage_container',50,1)
 
 
 @pytest.mark.parametrize('mode', ['auto', 'signal', 'direction'])

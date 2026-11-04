@@ -1,5 +1,9 @@
 # Development Release Log
 
+- Resume larger Hub stock targets when package supplies are stored, even while
+  the packed shipment waits for its receiver. Keep missing package supplies at
+  first priority and preserve cargo reservations and resource floors.
+
 - Fix Missile Destroyer and Salvage upgrade deadlocks: selected upgrade mining,
   crafting and installation survive the role task filter while mission departure
   waits for completion. Routine industrial goals remain suppressed.

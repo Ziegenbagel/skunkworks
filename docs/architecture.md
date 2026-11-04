@@ -663,3 +663,8 @@ The Hub ignores matching automatic demand on later refreshes. Cargo remains in
 inventory and accepted server work continues. Receiver Operations are independent:
 accepted shipments retain unloading/return duties; unsent receipts release their
 hold when the source records cancellation. A new request ID can be queued later.
+
+Hub package production overrides apply only while stored stock is below the
+package requirement. Once that requirement is met, the effective plan resumes
+the larger saved stock target at ordinary Hub priority without waiting for the
+receiver. Package cargo remains reserved and persistent user goals are unchanged.

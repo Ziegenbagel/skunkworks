@@ -1215,10 +1215,18 @@ class MissionControlDataService:
                 # the packages' actual quantities, not a larger stock target.
                 goals = {k: replace(g, priority=max(2, g.priority)) for k,g in goals.items()}
                 desired = replace(desired, fleet=tuple(replace(g, priority=max(2, g.priority)) for g in desired.fleet))
+            from src.operations.infrastructure import stock
+            available_package_stock = stock(operations) if row["role"] == "hub" else {}
             for recipe, quantity in decision.production.items():
                 old = goals.get(recipe)
-                goals[recipe] = (ProductionGoal(recipe, quantity, 1) if row["role"] == "hub"
-                    else ProductionGoal(recipe, max(quantity, old.quantity if old else 0), min(old.priority if old else 2, 2)))
+                if row["role"] == "hub":
+                    # Once the package's stock is stored, a receiver wait must
+                    # not keep replacing the operator's larger reserve goal.
+                    package_ready = available_package_stock.get(recipe, 0) >= quantity
+                    goals[recipe] = (ProductionGoal(recipe, max(quantity, old.quantity), old.priority)
+                        if package_ready and old else ProductionGoal(recipe, quantity, 1))
+                else:
+                    goals[recipe] = ProductionGoal(recipe, max(quantity, old.quantity if old else 0), min(old.priority if old else 2, 2))
             desired = replace(desired, production=tuple(goals.values()))
         return desired, list(decision.tasks), {"role": row["role"], "enabled": bool(settings.get("infrastructureEnabled")),
             "phase": decision.phase, "summary": decision.summary, "packages": list(decision.packages),

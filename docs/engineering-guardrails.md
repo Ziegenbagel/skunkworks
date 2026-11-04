@@ -1910,3 +1910,13 @@ waits forever for work it has removed from its own execution queue. Regression:
 `test_specialist_roles_preserve_selected_upgrade_work` exercises mining, crafting
 and installation through the controller for both specialist roles; adjacent
 reservation/installation invariants remain covered by `tests/test_upgrade_goals.py`.
+
+### Packed Hub packages must not suppress saved stock targets
+
+Package priority overrides are bounded to missing stored supply. Once a recipe's
+package quantity is present, retain the larger saved stock goal at ordinary Hub
+priority while handoff waits. In-progress crafts are not stored supply. Saved
+goals, resource floors and package cargo reservations remain unchanged. Compute
+available stock once per reconciliation rather than once per goal. Regression:
+`test_hub_package_goal_precedes_bulk_stock_and_preserves_saved_goals` verifies
+priority acquisition followed by reserve resumption before delivery.
